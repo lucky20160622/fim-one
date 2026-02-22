@@ -172,6 +172,46 @@ fim-agent/
   pyproject.toml
 ```
 
+## Roadmap
+
+### v0.2 -- Core Enhancements
+
+- [ ] **Native Function Calling**: Support OpenAI-style `tool_choice` / `parallel_tool_calls` alongside the ReAct JSON mode
+- [ ] **Streaming Agent Output**: Yield intermediate reasoning and tool results as they happen via `AsyncIterator`
+- [ ] **Conversation Memory**: Short-term message window + long-term summary for multi-turn agent sessions
+- [ ] **Retry & Fallback**: Configurable retry policies for LLM calls and tool executions with exponential backoff
+
+### v0.3 -- RAG & Knowledge
+
+- [ ] **Vector Store Retrievers**: Built-in implementations for FAISS, Chroma, and Milvus
+- [ ] **Hybrid Retrieval**: Combine dense vector search with BM25 sparse retrieval
+- [ ] **Document Loaders**: File parsers for PDF, Markdown, HTML, and DOCX
+- [ ] **Chunking Strategies**: Fixed-size, recursive, and semantic chunking out of the box
+
+### v0.4 -- Multi-Agent Collaboration
+
+- [ ] **Agent Roles**: Define specialized agents (researcher, coder, reviewer) within a single DAG plan
+- [ ] **Inter-Agent Messaging**: Shared context bus for agents to exchange intermediate results
+- [ ] **Human-in-the-Loop**: Approval gates in DAG steps for high-stakes decisions
+- [ ] **Agent Delegation**: Allow agents to spawn sub-agents for nested task decomposition
+
+### v0.5 -- Production Readiness
+
+- [ ] **Observability**: OpenTelemetry traces and structured logging for every LLM call, tool execution, and DAG step
+- [ ] **Cost Tracking**: Token usage aggregation across planning, execution, and analysis rounds
+- [ ] **Persistent Plans**: Save/resume execution plans to/from JSON for long-running workflows
+- [ ] **Rate Limiting**: Token-aware rate limiter respecting provider quotas
+- [ ] **FastAPI Server**: Optional HTTP server exposing the agent runtime as a REST/SSE API
+
+### v1.0 -- Ecosystem
+
+- [ ] **MCP Integration**: Model Context Protocol support for tool discovery and invocation
+- [ ] **Plugin System**: Pip-installable tool/retriever packages with auto-registration
+- [ ] **Web UI**: Lightweight dashboard for plan visualization, step inspection, and manual intervention
+- [ ] **Benchmarks**: Standardized evaluation suite against SWE-bench, HotpotQA, and custom enterprise tasks
+
+Contributions and ideas are welcome -- open an issue or submit a PR on [GitHub](https://github.com/fim-ai/fim-agent).
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE) for details.
