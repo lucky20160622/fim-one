@@ -238,7 +238,7 @@ class TestDAGPlannerPlan:
             ]
         )
         planner = DAGPlanner(llm=llm)
-        with pytest.raises(ValueError, match="invalid JSON"):
+        with pytest.raises(ValueError, match="unparseable content"):
             await planner.plan("goal")
 
     async def test_plan_rejects_missing_steps_key(self) -> None:

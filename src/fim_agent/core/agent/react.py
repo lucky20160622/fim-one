@@ -15,6 +15,7 @@ from typing import Any
 
 from fim_agent.core.model import BaseLLM, ChatMessage, LLMResult
 from fim_agent.core.tool import ToolRegistry
+from fim_agent.core.utils import extract_json
 
 from .types import Action, AgentResult, StepResult
 
@@ -222,9 +223,8 @@ class ReActAgent:
         Returns:
             A parsed ``Action`` instance.
         """
-        try:
-            data = json.loads(content)
-        except (json.JSONDecodeError, TypeError):
+        data = extract_json(content)
+        if data is None:
             logger.warning("LLM returned non-JSON content, treating as final answer")
             return Action(
                 type="final_answer",

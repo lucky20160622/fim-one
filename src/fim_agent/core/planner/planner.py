@@ -7,12 +7,12 @@ is a valid DAG (no cycles, no dangling references).
 
 from __future__ import annotations
 
-import json
 import logging
 from collections import deque
 from typing import Any
 
 from fim_agent.core.model import BaseLLM, ChatMessage
+from fim_agent.core.utils import extract_json
 
 from .types import ExecutionPlan, PlanStep
 
@@ -137,12 +137,11 @@ class DAGPlanner:
             ValueError: If the content is not valid JSON or does not
                 contain a ``steps`` array.
         """
-        try:
-            data = json.loads(content)
-        except (json.JSONDecodeError, TypeError) as exc:
+        data = extract_json(content)
+        if data is None:
             raise ValueError(
-                f"LLM returned invalid JSON for plan: {exc}"
-            ) from exc
+                f"LLM returned unparseable content for plan: {content[:200]}"
+            )
 
         raw_steps = data.get("steps")
         if not isinstance(raw_steps, list):

@@ -9,10 +9,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
+from typing import Any
 
 from fim_agent.core.agent import ReActAgent
 
 from .types import ExecutionPlan, PlanStep
+
+# Type alias for the optional progress callback.
+# Called with (step_id, event, data) where event is "started" or "completed".
+ProgressCallback = Callable[[str, str, dict[str, Any]], Any]
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +43,11 @@ class DAGExecutor:
         self._agent = agent
         self._max_concurrency = max_concurrency
 
-    async def execute(self, plan: ExecutionPlan) -> ExecutionPlan:
+    async def execute(
+        self,
+        plan: ExecutionPlan,
+        on_progress: ProgressCallback | None = None,
+    ) -> ExecutionPlan:
         """Execute all steps in *plan*, respecting dependency order.
 
         The method modifies the plan's steps in-place, updating their
@@ -45,11 +55,15 @@ class DAGExecutor:
 
         Args:
             plan: The execution plan to run.
+            on_progress: Optional callback invoked when a step starts or
+                completes.  Signature: ``(step_id, event, data)`` where
+                *event* is ``"started"`` or ``"completed"``.
 
         Returns:
             The same ``ExecutionPlan`` instance, with step results and
             statuses updated.
         """
+        self._on_progress = on_progress
         semaphore = asyncio.Semaphore(self._max_concurrency)
         step_index = {step.id: step for step in plan.steps}
         pending_ids = {step.id for step in plan.steps}
@@ -69,6 +83,7 @@ class DAGExecutor:
                 pending_ids.discard(sid)
                 step = step_index[sid]
                 step.status = "running"
+                self._notify(sid, "started", {"task": step.task})
 
                 context = self._build_step_context(step, step_index)
                 task = asyncio.create_task(
@@ -112,16 +127,25 @@ class DAGExecutor:
                     )
                     step_index[sid].status = "failed"
                     step_index[sid].result = f"Unexpected error: {exc}"
-                    # Still mark as completed so dependents can detect the
-                    # failure via the status field.
 
                 completed_ids.add(sid)
+                step = step_index[sid]
+                self._notify(sid, "completed", {
+                    "task": step.task,
+                    "status": step.status,
+                    "result": step.result,
+                })
 
         return plan
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _notify(self, step_id: str, event: str, data: dict[str, Any]) -> None:
+        """Fire the progress callback if one was provided."""
+        if self._on_progress is not None:
+            self._on_progress(step_id, event, data)
 
     async def _run_with_semaphore(
         self,

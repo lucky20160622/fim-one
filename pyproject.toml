@@ -37,6 +37,11 @@ dev = [
     "ruff>=0.8",
     "mypy>=1.13",
 ]
+web = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "python-dotenv>=1.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/fim-ai/fim-agent"

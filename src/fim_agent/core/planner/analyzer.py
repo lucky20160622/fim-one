@@ -7,11 +7,11 @@ final answer.
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
 from fim_agent.core.model import BaseLLM, ChatMessage
+from fim_agent.core.utils import extract_json
 
 from .types import AnalysisResult, ExecutionPlan
 
@@ -157,9 +157,8 @@ class PlanAnalyzer:
         Returns:
             A parsed ``AnalysisResult`` instance.
         """
-        try:
-            data = json.loads(content)
-        except (json.JSONDecodeError, TypeError):
+        data = extract_json(content)
+        if data is None:
             logger.warning(
                 "Analyzer LLM returned non-JSON content, "
                 "treating as inconclusive",
