@@ -1,0 +1,222 @@
+"""DAG executor that runs plan steps concurrently where possible.
+
+The ``DAGExecutor`` respects the dependency edges in an ``ExecutionPlan`` and
+launches independent steps in parallel (up to a configurable concurrency
+limit) using ``asyncio``.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+
+from fim_agent.core.agent import ReActAgent
+
+from .types import ExecutionPlan, PlanStep
+
+logger = logging.getLogger(__name__)
+
+
+class DAGExecutor:
+    """Execute an ``ExecutionPlan`` respecting DAG dependencies.
+
+    Steps whose dependencies have all completed are launched concurrently.
+    An ``asyncio.Semaphore`` caps the number of steps that may run at the
+    same time.
+
+    Args:
+        agent: The ``ReActAgent`` used to execute individual steps.
+        max_concurrency: Maximum number of steps running in parallel.
+    """
+
+    def __init__(
+        self,
+        agent: ReActAgent,
+        max_concurrency: int = 5,
+    ) -> None:
+        self._agent = agent
+        self._max_concurrency = max_concurrency
+
+    async def execute(self, plan: ExecutionPlan) -> ExecutionPlan:
+        """Execute all steps in *plan*, respecting dependency order.
+
+        The method modifies the plan's steps in-place, updating their
+        ``status`` and ``result`` fields.
+
+        Args:
+            plan: The execution plan to run.
+
+        Returns:
+            The same ``ExecutionPlan`` instance, with step results and
+            statuses updated.
+        """
+        semaphore = asyncio.Semaphore(self._max_concurrency)
+        step_index = {step.id: step for step in plan.steps}
+        pending_ids = {step.id for step in plan.steps}
+        completed_ids: set[str] = set()
+        running_tasks: dict[asyncio.Task[None], str] = {}
+
+        while pending_ids or running_tasks:
+            # Identify steps that are ready to launch.
+            ready_ids: list[str] = []
+            for sid in list(pending_ids):
+                step = step_index[sid]
+                if all(dep in completed_ids for dep in step.dependencies):
+                    ready_ids.append(sid)
+
+            # Launch ready steps.
+            for sid in ready_ids:
+                pending_ids.discard(sid)
+                step = step_index[sid]
+                step.status = "running"
+
+                context = self._build_step_context(step, step_index)
+                task = asyncio.create_task(
+                    self._run_with_semaphore(semaphore, step, context),
+                )
+                running_tasks[task] = sid
+                logger.debug("Launched step '%s': %s", sid, step.task)
+
+            if not running_tasks:
+                # No tasks running and nothing can be launched -- this
+                # would indicate a bug (e.g. failed dependency blocking).
+                if pending_ids:
+                    logger.error(
+                        "Deadlock: pending steps %s cannot proceed "
+                        "(dependencies never completed)",
+                        sorted(pending_ids),
+                    )
+                    for sid in pending_ids:
+                        step_index[sid].status = "failed"
+                        step_index[sid].result = (
+                            "Step could not run: one or more dependencies failed."
+                        )
+                    pending_ids.clear()
+                break
+
+            # Wait for at least one task to finish.
+            done, _ = await asyncio.wait(
+                running_tasks.keys(),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+
+            for finished_task in done:
+                sid = running_tasks.pop(finished_task)
+
+                # Re-raise unexpected exceptions (step-level errors are
+                # already caught inside ``_execute_step``).
+                exc = finished_task.exception()
+                if exc is not None:
+                    logger.exception(
+                        "Unexpected error in step '%s'", sid, exc_info=exc,
+                    )
+                    step_index[sid].status = "failed"
+                    step_index[sid].result = f"Unexpected error: {exc}"
+                    # Still mark as completed so dependents can detect the
+                    # failure via the status field.
+
+                completed_ids.add(sid)
+
+        return plan
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    async def _run_with_semaphore(
+        self,
+        semaphore: asyncio.Semaphore,
+        step: PlanStep,
+        context: str,
+    ) -> None:
+        """Acquire the semaphore and execute a single step.
+
+        Args:
+            semaphore: Concurrency-limiting semaphore.
+            step: The plan step to execute.
+            context: Contextual information from dependency results.
+        """
+        async with semaphore:
+            await self._execute_step(step, context)
+
+    async def _execute_step(self, step: PlanStep, context: str) -> None:
+        """Execute a single plan step via the ReAct agent.
+
+        On success the step's status is set to ``"completed"`` and its
+        ``result`` is populated.  On failure the status becomes ``"failed"``
+        and the error message is stored in ``result``.
+
+        Args:
+            step: The plan step to execute.
+            context: Contextual information from completed dependency steps.
+        """
+        query = self._build_step_query(step, context)
+
+        try:
+            agent_result = await self._agent.run(query)
+            step.status = "completed"
+            step.result = agent_result.answer
+            logger.info(
+                "Step '%s' completed in %d iterations",
+                step.id,
+                agent_result.iterations,
+            )
+        except Exception as exc:
+            step.status = "failed"
+            step.result = f"{type(exc).__name__}: {exc}"
+            logger.exception("Step '%s' failed", step.id)
+
+    @staticmethod
+    def _build_step_query(step: PlanStep, context: str) -> str:
+        """Build the query string to send to the ReAct agent.
+
+        Args:
+            step: The plan step to execute.
+            context: Pre-formatted context from dependency results.
+
+        Returns:
+            A query string incorporating the task description, any tool hint,
+            and dependency context.
+        """
+        parts: list[str] = [f"Task: {step.task}"]
+
+        if step.tool_hint:
+            parts.append(f"Suggested tool: {step.tool_hint}")
+
+        if context:
+            parts.append(f"Context from previous steps:\n{context}")
+
+        return "\n\n".join(parts)
+
+    @staticmethod
+    def _build_step_context(
+        step: PlanStep,
+        step_index: dict[str, PlanStep],
+    ) -> str:
+        """Gather results from a step's completed dependencies.
+
+        Args:
+            step: The step whose dependency context is needed.
+            step_index: Mapping of step ID to ``PlanStep`` for lookup.
+
+        Returns:
+            A formatted string with each dependency's result, or an empty
+            string if there are no dependencies.
+        """
+        if not step.dependencies:
+            return ""
+
+        context_parts: list[str] = []
+        for dep_id in step.dependencies:
+            dep_step = step_index.get(dep_id)
+            if dep_step is None:
+                continue
+
+            status_label = dep_step.status
+            result_text = dep_step.result or "(no result)"
+            context_parts.append(
+                f"[{dep_id}] ({status_label}) {dep_step.task}\n"
+                f"Result: {result_text}"
+            )
+
+        return "\n\n".join(context_parts)
