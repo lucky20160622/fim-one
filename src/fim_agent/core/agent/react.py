@@ -13,11 +13,18 @@ import json
 import logging
 from typing import Any
 
+from collections.abc import Callable
+from typing import Any
+
 from fim_agent.core.model import BaseLLM, ChatMessage, LLMResult
 from fim_agent.core.tool import ToolRegistry
 from fim_agent.core.utils import extract_json
 
 from .types import Action, AgentResult, StepResult
+
+# Callback invoked after each ReAct iteration.
+# Signature: (iteration, action, observation_or_error)
+IterationCallback = Callable[[int, Action, str | None, str | None], Any]
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +59,14 @@ Guidelines:
 - When you have enough information, produce a final_answer immediately.
 - If a tool call fails, analyse the error and decide whether to retry with \
 different arguments or produce a final answer with the information you have.
+- Be EFFICIENT: try to accomplish as much as possible in each tool call. \
+Write a single comprehensive script rather than making many small calls. \
+For example, generate data AND analyse it in one script when feasible.
+- Keep your final_answer concise and focused -- present key results, not \
+lengthy commentary or step-by-step narration of what you did.
+- LANGUAGE: Always respond in the same language as the user's query. If the \
+user writes in Chinese, your reasoning and final_answer must be in Chinese. \
+If the user writes in English, respond in English. Match the user's language.
 """
 
 
@@ -88,11 +103,17 @@ class ReActAgent:
     # Public API
     # ------------------------------------------------------------------
 
-    async def run(self, query: str) -> AgentResult:
+    async def run(
+        self,
+        query: str,
+        on_iteration: IterationCallback | None = None,
+    ) -> AgentResult:
         """Execute the ReAct loop for a given user query.
 
         Args:
             query: The user question or task description.
+            on_iteration: Optional callback invoked after each iteration with
+                ``(iteration, action, observation, error)``.
 
         Returns:
             An ``AgentResult`` containing the final answer and full step trace.
@@ -124,6 +145,8 @@ class ReActAgent:
             # -- Final answer path --
             if action.type == "final_answer":
                 steps.append(StepResult(action=action))
+                if on_iteration is not None:
+                    on_iteration(iteration, action, None, None)
                 return AgentResult(
                     answer=action.answer or "",
                     steps=steps,
@@ -133,6 +156,9 @@ class ReActAgent:
             # -- Tool call path --
             step = await self._execute_tool_call(action)
             steps.append(step)
+
+            if on_iteration is not None:
+                on_iteration(iteration, action, step.observation, step.error)
 
             # Feed the observation (or error) back as a user message so the
             # LLM can reason about the result in the next iteration.

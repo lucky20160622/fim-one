@@ -39,6 +39,16 @@ parallelism.
 3. Each step should be self-contained and produce a clear output.
 4. Order the steps list so that dependencies appear before dependents \
 when possible.
+5. Keep the plan CONCISE -- prefer fewer, meatier steps over many trivial \
+ones.  If several checks or computations can be done in a single script, \
+combine them into ONE step rather than splitting each into its own step.  \
+Aim for 2-4 steps for simple goals, up to 5-6 for complex ones.
+6. Each step will be executed by a tool-using agent that can write and run \
+code.  A single step can perform multiple operations (e.g. check four \
+character types in one script), so do NOT create separate steps for \
+trivially related sub-tasks.
+7. LANGUAGE: Write the "task" descriptions in the same language as the goal. \
+If the goal is in Chinese, write tasks in Chinese.
 
 Respond with a single JSON object:
 {{

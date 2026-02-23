@@ -10,7 +10,7 @@ from typing import Any
 
 from ..base import BaseTool
 
-_DEFAULT_TIMEOUT_SECONDS: int = 30
+_DEFAULT_TIMEOUT_SECONDS: int = 120
 
 
 class PythonExecTool(BaseTool):
@@ -20,7 +20,7 @@ class PythonExecTool(BaseTool):
     Standard output is redirected to a ``StringIO`` buffer so that
     anything written via ``print()`` is returned as the tool result.
 
-    A configurable timeout (default 30 s) guards against runaway
+    A configurable timeout (default 120 s) guards against runaway
     execution.
     """
 
@@ -39,7 +39,11 @@ class PythonExecTool(BaseTool):
     def description(self) -> str:
         return (
             "Execute Python code and return the output. "
-            "Use print() to produce output."
+            "Use print() to produce output. "
+            "Only standard-library modules are guaranteed to be available. "
+            "Do NOT attempt to install packages (pip install / uv add) — "
+            "it will likely fail or timeout. If a library is unavailable, "
+            "fall back to a standard-library-only solution."
         )
 
     @property

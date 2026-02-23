@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tail:*)",
+      "Bash(/Users/TaoTao/Desktop/CC/smallCode/fim-agent/.venv/bin/python:*)",
+      "Bash(head:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(uv run:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "github"
+  ]
+}

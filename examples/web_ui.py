@@ -65,6 +65,9 @@ async def index() -> str:
     return HTML_PAGE
 
 
+_REACT_DONE = object()  # sentinel to signal the generator to stop
+
+
 @app.get("/api/react")
 async def react_endpoint(q: str) -> StreamingResponse:
     """Run a ReAct agent query with SSE progress updates."""
@@ -73,25 +76,52 @@ async def react_endpoint(q: str) -> StreamingResponse:
         t0 = time.time()
         yield _sse("step", {"type": "thinking", "iteration": 0})
 
-        try:
-            agent = ReActAgent(llm=llm, tools=registry, max_iterations=20)
-            result = await agent.run(q)
+        progress_queue: asyncio.Queue = asyncio.Queue()
 
-            # Replay each step for the UI
-            for i, step in enumerate(result.steps, 1):
-                if step.action.type == "tool_call":
-                    yield _sse(
+        def on_iteration(
+            iteration: int, action: Any, observation: str | None, error: str | None,
+        ) -> None:
+            if action.type == "tool_call":
+                progress_queue.put_nowait(
+                    _sse(
                         "step",
                         {
                             "type": "tool_call",
-                            "iteration": i,
-                            "tool_name": step.action.tool_name,
-                            "tool_args": step.action.tool_args,
-                            "reasoning": step.action.reasoning,
-                            "observation": step.observation,
-                            "error": step.error,
+                            "iteration": iteration,
+                            "tool_name": action.tool_name,
+                            "tool_args": action.tool_args,
+                            "reasoning": action.reasoning,
+                            "observation": observation,
+                            "error": error,
                         },
                     )
+                )
+
+        try:
+            agent = ReActAgent(llm=llm, tools=registry, max_iterations=20)
+
+            async def _run() -> Any:
+                try:
+                    return await agent.run(q, on_iteration=on_iteration)
+                finally:
+                    # Always signal the generator to stop, even on error.
+                    await progress_queue.put(_REACT_DONE)
+
+            run_task = asyncio.create_task(_run())
+
+            # Block on queue.get() — yields each event the instant it arrives.
+            while True:
+                try:
+                    item = await asyncio.wait_for(progress_queue.get(), timeout=30.0)
+                except asyncio.TimeoutError:
+                    # Send keepalive to prevent connection drop during long LLM calls.
+                    yield ": keepalive\n\n"
+                    continue
+                if item is _REACT_DONE:
+                    break
+                yield item
+
+            result = run_task.result()
 
             elapsed = round(time.time() - t0, 2)
             yield _sse(
@@ -125,7 +155,7 @@ async def dag_endpoint(q: str) -> StreamingResponse:
         t0 = time.time()
 
         # Queue bridges the executor's synchronous callback into the async SSE stream.
-        progress_queue: asyncio.Queue[str] = asyncio.Queue()
+        progress_queue: asyncio.Queue = asyncio.Queue()
 
         def on_step_progress(step_id: str, event: str, data: dict) -> None:
             progress_queue.put_nowait(
@@ -154,25 +184,27 @@ async def dag_endpoint(q: str) -> StreamingResponse:
             agent = ReActAgent(llm=llm, tools=registry, max_iterations=15)
             executor = DAGExecutor(agent=agent, max_concurrency=3)
 
-            # Run executor in a background task so we can drain progress events.
-            exec_task = asyncio.create_task(
-                executor.execute(plan, on_progress=on_step_progress)
-            )
+            _DAG_DONE = object()
 
-            while not exec_task.done():
-                # Drain all queued progress events.
-                while not progress_queue.empty():
-                    yield progress_queue.get_nowait()
-                # Yield a keepalive comment to prevent connection timeout.
-                yield ": keepalive\n\n"
-                await asyncio.sleep(0.5)
+            async def _exec() -> Any:
+                try:
+                    return await executor.execute(plan, on_progress=on_step_progress)
+                finally:
+                    await progress_queue.put(_DAG_DONE)
 
-            # Collect the result (re-raises if executor failed).
+            exec_task = asyncio.create_task(_exec())
+
+            while True:
+                try:
+                    item = await asyncio.wait_for(progress_queue.get(), timeout=30.0)
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+                    continue
+                if item is _DAG_DONE:
+                    break
+                yield item
+
             plan = exec_task.result()
-
-            # Drain any remaining progress events.
-            while not progress_queue.empty():
-                yield progress_queue.get_nowait()
 
             yield _sse(
                 "phase",
@@ -753,23 +785,30 @@ HTML_PAGE = """\
   }
 
   /* ---- Example chips ---- */
+  .examples-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 1rem; padding-top: 0.85rem;
+    border-top: 1px solid var(--border);
+  }
+  .examples-label {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-muted); font-weight: 600;
+  }
+  .lang-toggle { display: flex; gap: 0.25rem; }
+  .lang-btn {
+    padding: 0.15rem 0.55rem; font-size: 0.7rem; font-weight: 500;
+    border: 1px solid var(--border); border-radius: 9999px;
+    background: transparent; color: var(--text-dim); cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  .lang-btn:hover { border-color: var(--border-light); color: var(--text-secondary); }
+  .lang-btn.active {
+    background: rgba(59,130,246,0.12); color: var(--accent-light);
+    border-color: rgba(59,130,246,0.25);
+  }
   .examples {
     display: flex; flex-wrap: wrap; gap: 0.5rem;
-    margin-top: 1rem;
-    padding-top: 0.85rem;
-    border-top: 1px solid var(--border);
-    position: relative;
-  }
-  .examples::before {
-    content: 'Try an example';
-    display: block;
-    width: 100%;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-    font-weight: 600;
-    margin-bottom: 0.15rem;
+    margin-top: 0.5rem;
   }
   .example-chip {
     padding: 0.4rem 0.85rem;
@@ -820,6 +859,15 @@ HTML_PAGE = """\
     vertical-align: middle;
   }
 
+  .step-task-md { display: inline; }
+  .step-task-md p { margin: 0; display: inline; }
+  .step-item .step-task-md { display: block; margin-top: 0.25rem; }
+  .step-item .step-task-md p { display: block; }
+  .step-task-md ol, .step-task-md ul { padding-left: 1.5em; margin: 0.25rem 0; }
+  .card-body ol, .card-body ul { padding-left: 1.5em; }
+  .answer ol, .answer ul { padding-left: 1.5em; }
+  .badge { white-space: nowrap; }
+
   @media (max-width: 640px) {
     .container { padding: 1.5rem 1rem 1rem; }
     .step-grid { grid-template-columns: 1fr; }
@@ -830,6 +878,8 @@ HTML_PAGE = """\
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark-dimmed.min.css">
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
 </head>
 <body>
 <div class="container">
@@ -868,6 +918,13 @@ HTML_PAGE = """\
     <div class="input-hint">
       Press <kbd>Enter</kbd> to run, <kbd>Shift + Enter</kbd> for a new line
     </div>
+    <div class="examples-header">
+      <span class="examples-label">Examples</span>
+      <div class="lang-toggle">
+        <button id="btn-lang-en" class="lang-btn active" onclick="setLang('en')">EN</button>
+        <button id="btn-lang-zh" class="lang-btn" onclick="setLang('zh')">中文</button>
+      </div>
+    </div>
     <div class="examples" id="examples"></div>
   </div>
 
@@ -883,41 +940,59 @@ HTML_PAGE = """\
 <script>
 let mode = 'react';
 let running = false;
+let lang = 'en';
 
 const EXAMPLES = {
-  react: [
-    // Probability & statistics — counterintuitive results that need real simulation
-    "Simulate the Monty Hall problem 10,000 times — should you switch doors? Show the win rates",
-    "Simulate the Birthday Paradox: how often do 2 of 23 people share a birthday? Run 10,000 trials",
-    "Estimate pi by throwing 1,000,000 random darts at a unit square — how close can you get?",
-    // Algorithms & puzzles — need real computation, LLM alone would fake it
-    "Solve the 8-queens puzzle: place 8 queens on a chessboard so none attack each other. How many solutions exist?",
-    "Generate a random 15x15 maze and solve it with BFS, show the maze and solution path as ASCII art",
-    "Find all Pythagorean triples (a² + b² = c²) where c < 100. How many are there?",
-    // Games & simulations — real randomness required
-    "Simulate 5,000 hands of Blackjack with basic strategy (hit below 17) — what's the player win rate?",
-    "Crack this Caesar cipher: 'Wkh txlfn eurzq ira mxpsv ryhu wkh odcb grj' — try all 26 shifts, score by English letter frequency",
-  ],
-  dag: [
-    // Algorithm races — two implementations built in parallel, then compared
-    "Implement bubble sort AND quicksort separately, benchmark both on a 10,000-element random list, then compare their speeds",
-    "Implement linear search AND binary search, race both finding 1,000 random targets in a sorted 100,000-element list, then compare total operations",
-    // Strategy showdowns — two independent simulations, then compared
-    "Simulate 10,000 Monty Hall rounds with always-switch AND 10,000 with always-stay, then compare win rates and explain the paradox",
-    "Simulate Martingale betting AND flat-bet strategy over 500 coin flips starting with $1,000 each, then compare who survived longer",
-    // Parallel computation — two independent calculations, then combined
-    "Estimate pi via Monte Carlo (1M darts) AND via the Leibniz series (1M terms), then compare which method is more accurate",
-    "Compute the first 50 Fibonacci numbers AND the first 50 primes, then find which numbers appear in both sequences",
-    // Build & test — two components built in parallel, then integrated
-    "Write a Caesar cipher encoder AND a brute-force decoder, encode 'ATTACK AT DAWN' with a random shift, then crack it with the decoder",
-    "Generate a random 20x20 maze, then solve it using BFS AND DFS in parallel, compare which algorithm explored fewer cells",
-  ]
+  react: {
+    en: [
+      "Simulate the Monty Hall problem 10,000 times — should you switch doors? Show the win rates",
+      "Simulate the Birthday Paradox: how often do 2 of 23 people share a birthday? Run 10,000 trials",
+      "Estimate pi by throwing 1,000,000 random darts at a unit square — how close can you get?",
+      "Solve the 8-queens puzzle: place 8 queens on a chessboard so none attack each other. How many solutions exist?",
+      "Generate a random 15x15 maze and solve it with BFS, show the maze and solution path as ASCII art",
+      "Find all Pythagorean triples (a² + b² = c²) where c < 100. How many are there?",
+      "Simulate 5,000 hands of Blackjack with basic strategy (hit below 17) — what's the player win rate?",
+      "Crack this Caesar cipher: 'Wkh txlfn eurzq ira mxpsv ryhu wkh odcb grj' — try all 26 shifts, score by English letter frequency",
+    ],
+    zh: [
+      "模拟蒙提霍尔问题 10,000 次——应该换门吗？展示胜率统计",
+      "模拟生日悖论：23 个人中有 2 人同一天生日的概率是多少？模拟 10,000 次",
+      "用蒙特卡洛方法估算圆周率：往单位正方形上投 1,000,000 个随机飞镖，能多接近真实值？",
+      "解八皇后问题：在棋盘上放 8 个皇后使其互不攻击，一共有多少种解法？",
+      "随机生成一个 15x15 迷宫并用 BFS 求解，用 ASCII 字符画展示迷宫和路径",
+      "找出所有 c < 100 的勾股数 (a² + b² = c²)，一共有多少组？",
+      "模拟 5,000 局 21 点，使用基本策略（低于 17 就要牌）——玩家胜率是多少？",
+      "破解凯撒密码：'Wkh txlfn eurzq ira mxpsv ryhu wkh odcb grj'——尝试所有 26 种位移，用英语字母频率评分",
+    ],
+  },
+  dag: {
+    en: [
+      "Implement bubble sort AND quicksort separately, benchmark both on a 10,000-element random list, then compare their speeds",
+      "Implement linear search AND binary search, race both finding 1,000 random targets in a sorted 100,000-element list, then compare total operations",
+      "Simulate 10,000 Monty Hall rounds with always-switch AND 10,000 with always-stay, then compare win rates and explain the paradox",
+      "Simulate Martingale betting AND flat-bet strategy over 500 coin flips starting with $1,000 each, then compare who survived longer",
+      "Estimate pi via Monte Carlo (1M darts) AND via the Leibniz series (1M terms), then compare which method is more accurate",
+      "Compute the first 50 Fibonacci numbers AND the first 50 primes, then find which numbers appear in both sequences",
+      "Write a Caesar cipher encoder AND a brute-force decoder, encode 'ATTACK AT DAWN' with a random shift, then crack it with the decoder",
+      "Generate a random 20x20 maze, then solve it using BFS AND DFS in parallel, compare which algorithm explored fewer cells",
+    ],
+    zh: [
+      "分别实现冒泡排序和快速排序，在 10,000 个随机元素上跑基准测试，然后对比两者速度",
+      "分别实现线性搜索和二分搜索，在 100,000 个有序元素中搜索 1,000 个随机目标，然后对比总操作次数",
+      "模拟蒙提霍尔问题：始终换门 10,000 次 vs 始终不换 10,000 次，对比胜率并解释悖论",
+      "模拟马丁格尔策略和平注策略各进行 500 次抛硬币（起始 $1,000），对比谁活得更久",
+      "用蒙特卡洛法（100 万飞镖）和莱布尼茨级数（100 万项）分别估算圆周率，对比哪种方法更精确",
+      "计算前 50 个斐波那契数和前 50 个素数，然后找出同时出现在两个序列中的数",
+      "编写凯撒密码加密器和暴力破解器，用随机位移加密 'ATTACK AT DAWN'，再用破解器破解",
+      "随机生成 20x20 迷宫，然后用 BFS 和 DFS 并行求解，对比哪种算法探索的格子更少",
+    ],
+  },
 };
 
 function renderExamples() {
   const container = document.getElementById('examples');
   container.innerHTML = '';
-  for (const text of EXAMPLES[mode]) {
+  for (const text of EXAMPLES[mode][lang]) {
     const btn = document.createElement('button');
     btn.className = 'example-chip';
     btn.textContent = text;
@@ -933,6 +1008,13 @@ function setMode(m) {
   mode = m;
   document.getElementById('btn-react').classList.toggle('active', m === 'react');
   document.getElementById('btn-dag').classList.toggle('active', m === 'dag');
+  renderExamples();
+}
+
+function setLang(l) {
+  lang = l;
+  document.getElementById('btn-lang-en').classList.toggle('active', l === 'en');
+  document.getElementById('btn-lang-zh').classList.toggle('active', l === 'zh');
   renderExamples();
 }
 
@@ -961,6 +1043,11 @@ function formatToolArgs(args) {
   return '<pre>' + esc(JSON.stringify(args, null, 2)) + '</pre>';
 }
 
+function fmtStepId(id) {
+  // "step_1" → "Step 1", "STEP_2" → "Step 2"
+  return (id || '').replace(/^step[_ ]?/i, 'Step ').replace(/_/g, ' ');
+}
+
 // Configure marked to use highlight.js
 marked.setOptions({
   highlight: function(code, lang) {
@@ -973,7 +1060,27 @@ marked.setOptions({
 
 function renderMd(s) {
   if (!s) return '';
-  return marked.parse(s);
+  // Protect LaTeX blocks from marked: replace $$...$$ and $...$ with placeholders
+  const mathBlocks = [];
+  s = s.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => {
+    mathBlocks.push({ tex: tex.trim(), display: true });
+    return `%%MATH_BLOCK_${mathBlocks.length - 1}%%`;
+  });
+  s = s.replace(/\$([^\$\\n]+?)\$/g, (_, tex) => {
+    mathBlocks.push({ tex: tex.trim(), display: false });
+    return `%%MATH_BLOCK_${mathBlocks.length - 1}%%`;
+  });
+  let html = marked.parse(s);
+  // Restore LaTeX blocks with KaTeX rendering
+  html = html.replace(/%%MATH_BLOCK_(\d+)%%/g, (_, i) => {
+    const { tex, display } = mathBlocks[parseInt(i)];
+    try {
+      return katex.renderToString(tex, { displayMode: display, throwOnError: false });
+    } catch (e) {
+      return `<code>${tex}</code>`;
+    }
+  });
+  return html;
 }
 
 function addCard(html) {
@@ -1035,7 +1142,7 @@ function run() {
         ? `<span class="badge badge-error">ERROR</span><pre>${esc(d.error)}</pre>`
         : `<pre>${esc(d.observation)}</pre>`;
       addCard(`<div class="card">
-        <div class="card-header"><span class="badge badge-tool">TOOL</span> Step ${d.iteration} &mdash; ${esc(d.tool_name)}</div>
+        <div class="card-header"><span class="badge badge-tool">TOOL</span> <span class="badge badge-step">Action ${d.iteration}</span> ${esc(d.tool_name)}</div>
         <div class="card-body">
           <div class="reasoning">${esc(d.reasoning)}</div>
           ${formatToolArgs(d.tool_args)}
@@ -1072,9 +1179,9 @@ function run() {
       const startTime = d.started_at ? new Date(d.started_at * 1000).toLocaleTimeString('en-GB', {hour12: false}) : '';
       const timeBadge = startTime ? `<span class="time-badge">${startTime}</span>` : '';
       removeSpinner();
-      addToSlot(`<div class="card step-running-card" id="step-running-${esc(d.step_id)}">
-        <div class="card-header"><span class="spinner"></span> <span class="badge badge-step">${esc(d.step_id)}</span> ${esc(d.task)}${timeBadge}</div>
-        <div class="step-iterations" id="step-iters-${esc(d.step_id)}"></div>
+      addToSlot(`<div class="card step-running-card" id="step-running-${d.step_id}">
+        <div class="card-header"><span class="spinner"></span> <span class="badge badge-step">${fmtStepId(d.step_id)}</span> <span class="step-task-md">${renderMd(d.task)}</span>${timeBadge}</div>
+        <div class="step-iterations" id="step-iters-${d.step_id}"></div>
       </div>`);
     } else if (d.event === 'iteration') {
       const container = document.getElementById('step-iters-' + d.step_id);
@@ -1084,7 +1191,7 @@ function run() {
             ? `<span class="badge badge-error">ERROR</span><pre>${esc(d.error)}</pre>`
             : `<pre>${esc(d.observation || '')}</pre>`;
           container.insertAdjacentHTML('beforeend', `<div class="step-iter-item">
-            <div class="iter-header"><span class="badge badge-tool">ITER ${d.iteration}</span> ${esc(d.tool_name || '')}</div>
+            <div class="iter-header"><span class="badge badge-tool">Action ${d.iteration}</span> ${esc(d.tool_name || '')}</div>
             <div class="reasoning">${esc(d.reasoning || '')}</div>
             ${formatToolArgs(d.tool_args)}
             ${obs}
@@ -1103,7 +1210,7 @@ function run() {
       const label = d.status === 'completed' ? 'DONE' : 'FAILED';
       const durBadge = d.duration != null ? `<span class="time-badge">${d.duration}s</span>` : '';
       addToSlot(`<div class="card">
-        <div class="card-header"><span class="badge ${cls}">${label}</span> <span class="badge badge-step">${esc(d.step_id)}</span> ${esc(d.task)}${durBadge}</div>
+        <div class="card-header"><span class="badge ${cls}">${label}</span> <span class="badge badge-step">${fmtStepId(d.step_id)}</span> <span class="step-task-md">${renderMd(d.task)}</span>${durBadge}</div>
         <div class="card-body"><div class="answer">${renderMd(d.result || '(no result)')}</div></div>
       </div>`);
     }
@@ -1122,7 +1229,7 @@ function run() {
       let stepsHtml = '<div class="step-grid">';
       for (const s of d.steps) {
         const depsText = s.deps.length ? s.deps.join(', ') : 'independent';
-        stepsHtml += `<div class="step-item"><span class="badge badge-step">${esc(s.id)}</span> ${esc(s.task)}<div class="step-deps">${esc(depsText)}</div></div>`;
+        stepsHtml += `<div class="step-item"><span class="badge badge-step">${fmtStepId(s.id)}</span> <div class="step-task-md">${renderMd(s.task)}</div><div class="step-deps">${esc(depsText)}</div></div>`;
       }
       stepsHtml += '</div>';
       addCard(`<div class="card">

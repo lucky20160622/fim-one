@@ -38,6 +38,10 @@ Guidelines:
 results into a coherent response to the original goal.
 - If not achieved, set "final_answer" to null and explain in "reasoning" \
 what is missing or went wrong.
+- The "final_answer" should be a concise synthesis -- present the key \
+results and conclusions, not a verbose repetition of each step's raw output.
+- LANGUAGE: The "final_answer" and "reasoning" must be in the same language \
+as the original goal. If the goal is in Chinese, respond in Chinese.
 """
 
 

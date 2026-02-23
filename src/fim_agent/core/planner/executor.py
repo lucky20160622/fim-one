@@ -14,11 +14,13 @@ from collections.abc import Callable
 from typing import Any
 
 from fim_agent.core.agent import ReActAgent
+from fim_agent.core.agent.types import Action
 
 from .types import ExecutionPlan, PlanStep
 
 # Type alias for the optional progress callback.
-# Called with (step_id, event, data) where event is "started" or "completed".
+# Called with (step_id, event, data) where event is "started", "completed",
+# or "iteration".
 ProgressCallback = Callable[[str, str, dict[str, Any]], Any]
 
 logger = logging.getLogger(__name__)
@@ -72,12 +74,12 @@ class DAGExecutor:
         running_tasks: dict[asyncio.Task[None], str] = {}
 
         while pending_ids or running_tasks:
-            # Identify steps that are ready to launch.
-            ready_ids: list[str] = []
-            for sid in list(pending_ids):
-                step = step_index[sid]
-                if all(dep in completed_ids for dep in step.dependencies):
-                    ready_ids.append(sid)
+            # Identify steps that are ready to launch (sorted for deterministic order).
+            ready_ids: list[str] = sorted(
+                (sid for sid in pending_ids
+                 if all(dep in completed_ids for dep in step_index[sid].dependencies)),
+                key=lambda sid: step_index[sid].id,
+            )
 
             # Launch ready steps.
             for sid in ready_ids:
@@ -181,8 +183,26 @@ class DAGExecutor:
         """
         query = self._build_step_query(step, context)
 
+        def _on_iteration(
+            iteration: int,
+            action: Action,
+            observation: str | None,
+            error: str | None,
+        ) -> None:
+            self._notify(step.id, "iteration", {
+                "iteration": iteration,
+                "type": action.type,
+                "reasoning": action.reasoning,
+                "tool_name": action.tool_name,
+                "tool_args": action.tool_args,
+                "observation": observation,
+                "error": error,
+            })
+
         try:
-            agent_result = await self._agent.run(query)
+            agent_result = await self._agent.run(
+                query, on_iteration=_on_iteration,
+            )
             step.status = "completed"
             step.result = agent_result.answer
             logger.info(
