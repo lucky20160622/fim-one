@@ -242,10 +242,25 @@ async def dag_endpoint(q: str) -> StreamingResponse:
                 },
             )
 
+            # Build the answer: prefer analyzer's final_answer, fall back to
+            # concatenated step results so users always see something useful.
+            answer = analysis.final_answer
+            if not answer:
+                completed = [
+                    s for s in plan.steps
+                    if s.status == "completed" and s.result
+                ]
+                if completed:
+                    answer = "\n\n---\n\n".join(
+                        f"**{s.id}**: {s.result}" for s in completed
+                    )
+                else:
+                    answer = "(goal not achieved)"
+
             yield _sse(
                 "done",
                 {
-                    "answer": analysis.final_answer or "(goal not achieved)",
+                    "answer": answer,
                     "achieved": analysis.achieved,
                     "confidence": analysis.confidence,
                     "elapsed": elapsed,
@@ -744,6 +759,11 @@ HTML_PAGE = """\
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ---- Step slots container (execution cards) ---- */
+  #step-slots {
+    display: flex; flex-direction: column; gap: 0.85rem;
+  }
+
   /* ---- Step grid ---- */
   .step-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;
@@ -1048,6 +1068,60 @@ function fmtStepId(id) {
   return (id || '').replace(/^step[_ ]?/i, 'Step ').replace(/_/g, ' ');
 }
 
+// Repair JSON string by escaping unescaped control characters inside string values.
+// This mirrors Python's _repair_json_strings for the frontend.
+function repairJsonStr(s) {
+  var NL = String.fromCharCode(10), CR = String.fromCharCode(13), TAB = String.fromCharCode(9);
+  var out = [], inStr = false;
+  for (var i = 0; i < s.length; i++) {
+    var ch = s.charAt(i);
+    if (inStr) {
+      if (ch === '\\\\' && i + 1 < s.length) {
+        out.push(ch, s.charAt(i + 1));
+        i++;
+        continue;
+      }
+      if (ch === '"') { inStr = false; }
+      else if (ch === NL) { out.push('\\\\n'); continue; }
+      else if (ch === CR) { out.push('\\\\r'); continue; }
+      else if (ch === TAB) { out.push('\\\\t'); continue; }
+    } else {
+      if (ch === '"') { inStr = true; }
+    }
+    out.push(ch);
+  }
+  return out.join('');
+}
+
+// Try to parse a JSON-like string, with repair fallback.
+function safeJsonParse(s) {
+  try { return JSON.parse(s); } catch (e) {}
+  try { return JSON.parse(repairJsonStr(s)); } catch (e) {}
+  return null;
+}
+
+// Clean up step results that may contain raw JSON from LLM (e.g. tool_call leaking)
+function cleanStepResult(result) {
+  if (!result) return result;
+  var trimmed = result.trim();
+  if (trimmed.charAt(0) !== '{' || trimmed.indexOf('"type"') < 0) return result;
+  var parsed = safeJsonParse(trimmed);
+  if (!parsed) return result;
+  if (parsed.type === 'tool_call') {
+    var parts = [];
+    if (parsed.reasoning) parts.push(parsed.reasoning);
+    if (parsed.tool_name) parts.push('**Tool:** ' + parsed.tool_name);
+    if (parsed.tool_args && parsed.tool_args.code) {
+      parts.push('<pre><code class="language-python">' + esc(parsed.tool_args.code) + '</code></pre>');
+    }
+    return parts.length ? parts.join('\\n\\n') : result;
+  }
+  if (parsed.type === 'final_answer' && parsed.answer) {
+    return parsed.answer;
+  }
+  return result;
+}
+
 // Configure marked to use highlight.js
 marked.setOptions({
   highlight: function(code, lang) {
@@ -1209,9 +1283,10 @@ function run() {
       const cls = d.status === 'completed' ? 'badge-done' : 'badge-error';
       const label = d.status === 'completed' ? 'DONE' : 'FAILED';
       const durBadge = d.duration != null ? `<span class="time-badge">${d.duration}s</span>` : '';
+      const cleaned = cleanStepResult(d.result) || '(no result)';
       addToSlot(`<div class="card">
         <div class="card-header"><span class="badge ${cls}">${label}</span> <span class="badge badge-step">${fmtStepId(d.step_id)}</span> <span class="step-task-md">${renderMd(d.task)}</span>${durBadge}</div>
-        <div class="card-body"><div class="answer">${renderMd(d.result || '(no result)')}</div></div>
+        <div class="card-body"><div class="answer">${renderMd(cleaned)}</div></div>
       </div>`);
     }
   });
@@ -1228,7 +1303,7 @@ function run() {
     } else if (d.name === 'planning' && d.status === 'done') {
       let stepsHtml = '<div class="step-grid">';
       for (const s of d.steps) {
-        const depsText = s.deps.length ? s.deps.join(', ') : 'independent';
+        const depsText = s.deps.length ? '依赖: ' + s.deps.map(d => fmtStepId(d)).join(', ') : '无依赖';
         stepsHtml += `<div class="step-item"><span class="badge badge-step">${fmtStepId(s.id)}</span> <div class="step-task-md">${renderMd(s.task)}</div><div class="step-deps">${esc(depsText)}</div></div>`;
       }
       stepsHtml += '</div>';
@@ -1246,17 +1321,14 @@ function run() {
       }
       document.getElementById('output').appendChild(slotsDiv);
     } else if (d.name === 'executing' && d.status === 'done') {
-      // execution summary is already shown per step_progress, just note completion
-      addCard(`<div class="card">
-        <div class="card-header"><span class="badge badge-done">EXEC</span> All ${d.results.length} steps completed</div>
-      </div>`);
+      // skip — completion is implied by GOAL ACHIEVED below
     } else if (d.name === 'analyzing' && d.status === 'done') {
       const badge = d.achieved ? 'badge-done' : 'badge-error';
       const label = d.achieved ? 'Goal Achieved' : 'Goal Not Achieved';
       const confPct = (d.confidence * 100).toFixed(0);
       addCard(`<div class="card">
         <div class="card-header"><span class="badge ${badge}">${label}</span> Verification confidence: ${confPct}%</div>
-        <div class="card-body"><div class="reasoning">${esc(d.reasoning)}</div></div>
+        <div class="card-body"><div class="reasoning">${renderMd(d.reasoning)}</div></div>
       </div>`);
     }
   });

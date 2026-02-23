@@ -92,8 +92,16 @@ def extract_json(text: str) -> dict[str, Any] | None:
         pass
 
     # 2. Strip markdown code fences.
-    fence_match = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
-    if fence_match:
+    #    Use greedy match to handle nested ``` inside the JSON value
+    #    (e.g. the answer field may contain markdown code blocks).
+    #    Try both greedy (last ```) and non-greedy (first ```) patterns.
+    for fence_re in (
+        r"```(?:json)?\s*\n?(.*)\n?\s*```",   # greedy — last closing fence
+        r"```(?:json)?\s*\n?(.*?)```",          # non-greedy — first closing fence
+    ):
+        fence_match = re.search(fence_re, text, re.DOTALL)
+        if not fence_match:
+            continue
         inner = fence_match.group(1).strip()
         try:
             data = json.loads(inner)

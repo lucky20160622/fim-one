@@ -8,6 +8,7 @@ final answer.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 from fim_agent.core.model import BaseLLM, ChatMessage
@@ -163,14 +164,21 @@ class PlanAnalyzer:
         """
         data = extract_json(content)
         if data is None:
+            # Fallback: try regex extraction of individual fields.
+            # This handles cases where the JSON has issues that even
+            # _repair_json_strings cannot fix (e.g. deeply nested quotes).
+            data = _regex_extract_analysis(content)
+
+        if data is None:
             logger.warning(
                 "Analyzer LLM returned non-JSON content, "
                 "treating as inconclusive",
             )
+            preview = content[:300] + "..." if len(content) > 300 else content
             return AnalysisResult(
                 achieved=False,
                 confidence=0.0,
-                reasoning=f"Could not parse analysis response: {content}",
+                reasoning=f"Could not parse analysis response: {preview}",
             )
 
         achieved = bool(data.get("achieved", False))
@@ -193,3 +201,49 @@ class PlanAnalyzer:
             final_answer=final_answer,
             reasoning=reasoning,
         )
+
+
+def _regex_extract_analysis(content: str) -> dict[str, Any] | None:
+    """Last-resort regex extraction of analysis fields from malformed JSON.
+
+    Attempts to pull ``achieved``, ``confidence``, and ``final_answer`` from
+    *content* even when ``extract_json`` cannot parse it.
+    """
+    achieved_m = re.search(r'"achieved"\s*:\s*(true|false)', content, re.IGNORECASE)
+    conf_m = re.search(r'"confidence"\s*:\s*([\d.]+)', content)
+    if not achieved_m:
+        return None
+    data: dict[str, Any] = {
+        "achieved": achieved_m.group(1).lower() == "true",
+    }
+    if conf_m:
+        try:
+            data["confidence"] = float(conf_m.group(1))
+        except ValueError:
+            pass
+    # Extract final_answer — everything between "final_answer": " and the
+    # matching close.  Since the value can span many lines we grab up to the
+    # last `"` followed by optional whitespace and either `}` or `"reasoning"`.
+    fa_m = re.search(
+        r'"final_answer"\s*:\s*"([\s\S]*)',
+        content,
+    )
+    if fa_m:
+        raw = fa_m.group(1)
+        # Walk backwards to find the true end of the string value.
+        # Look for `", ` or `"}` or `"\n}` patterns.
+        for end_pat in ('"\\s*,\\s*"reasoning"', '"\\s*,\\s*"', '"\\s*\\}'):
+            end_m = re.search(end_pat, raw)
+            if end_m:
+                raw = raw[: end_m.start()]
+                break
+        # Unescape JSON string escapes.
+        raw = raw.replace("\\n", "\n").replace("\\t", "\t").replace('\\"', '"')
+        data["final_answer"] = raw
+
+    reasoning_m = re.search(r'"reasoning"\s*:\s*"((?:[^"\\]|\\.)*)"', content)
+    if reasoning_m:
+        r = reasoning_m.group(1)
+        data["reasoning"] = r.replace("\\n", "\n").replace('\\"', '"')
+
+    return data
