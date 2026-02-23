@@ -6,9 +6,9 @@ The sweet spot is narrow but real. Simple tasks do not need a planner. Tasks com
 
 ### The bet on improving models
 
-Every few months the foundation shifts -- GPT-4, function calling, Claude 3, the MCP protocol. Building a rigid abstraction on shifting ground is risky; LangChain's over-abstraction is the cautionary tale everyone in this space has internalized. fim-agent takes the opposite approach: **minimal abstraction, maximum extensibility**. The framework owns orchestration, concurrency, and observability. The intelligence comes from the model, and the model keeps getting better.
+Every few months the foundation shifts -- GPT-4, function calling, Claude 3, the MCP protocol. Building a rigid abstraction on shifting ground is risky; LangChain's over-abstraction is the cautionary tale everyone in this space has internalized. FIM Agent takes the opposite approach: **minimal abstraction, maximum extensibility**. The framework owns orchestration, concurrency, and observability. The intelligence comes from the model, and the model keeps getting better.
 
-Today, LLM task decomposition accuracy sits around 70-80% for non-trivial goals. When that reaches 90%+, the "sweet spot" for dynamic planning expands dramatically -- problems that were too complex yesterday become tractable tomorrow. fim-agent's DAG framework is designed to capture that expanding value without rewriting the plumbing.
+Today, LLM task decomposition accuracy sits around 70-80% for non-trivial goals. When that reaches 90%+, the "sweet spot" for dynamic planning expands dramatically -- problems that were too complex yesterday become tractable tomorrow. FIM Agent's DAG framework is designed to capture that expanding value without rewriting the plumbing.
 
 ### Will ReAct and DAG planning become obsolete?
 
@@ -18,9 +18,9 @@ DAG planning's lasting value is not "helping dumb models decompose tasks" -- it 
 
 The endgame: **models own the "what" (planning intelligence internalizes into the model), frameworks own the "how" (concurrency, retry, monitoring, cost governance)**. A framework's lasting value is not intelligence -- it is governance.
 
-### Where fim-agent stands
+### Where FIM Agent stands
 
-fim-agent is not an "AGI task scheduler" and not a static workflow engine. It occupies the middle ground: planning capability with constraints, concurrency with observability.
+FIM Agent is not an "AGI task scheduler" and not a static workflow engine. It occupies the middle ground: planning capability with constraints, concurrency with observability.
 
 - Compared to **Dify**: more flexible -- runtime DAG generation vs. design-time flowcharts. You do not need to anticipate every execution path in advance.
 - Compared to **AutoGPT**: more controlled -- bounded iterations, re-planning limits, with human-in-the-loop on the roadmap. Autonomy within guardrails.

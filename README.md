@@ -1,4 +1,4 @@
-# fim-agent
+# FIM Agent
 
 **LLM-powered Agent Runtime with Dynamic DAG Planning & Concurrent Execution**
 
@@ -9,15 +9,15 @@
 
 ## Overview
 
-fim-agent is a lightweight Python framework that lets an LLM dynamically decompose complex goals into directed acyclic graphs (DAGs) and execute them with maximum parallelism.
+FIM Agent is a lightweight Python framework that lets an LLM dynamically decompose complex goals into directed acyclic graphs (DAGs) and execute them with maximum parallelism.
 
-Traditional workflow engines (Dify, LangGraph, etc.) require developers to hard-code execution graphs at design time. fim-agent takes a different approach: **the LLM decides the execution graph at runtime**. Given a high-level goal, the planner produces a dependency-aware DAG of steps, the executor runs independent steps concurrently, and an analyzer verifies whether the goal was achieved -- re-planning if necessary.
+Traditional workflow engines (Dify, LangGraph, etc.) require developers to hard-code execution graphs at design time. FIM Agent takes a different approach: **the LLM decides the execution graph at runtime**. Given a high-level goal, the planner produces a dependency-aware DAG of steps, the executor runs independent steps concurrently, and an analyzer verifies whether the goal was achieved -- re-planning if necessary.
 
 The framework also ships a ReAct agent for single-query tool-use loops and an extensible RAG retriever interface, making it a complete building block for agentic applications.
 
 ## Philosophy
 
-fim-agent occupies the middle ground between static workflow engines (Dify, n8n) and fully autonomous agents (AutoGPT). It offers three execution modes -- **Static Workflow** (deterministic, roadmap v0.9), **ReAct Agent** (single-query tool loops), and **DAG Planning** (concurrent multi-step execution) -- so users can choose the right trade-off between determinism and flexibility.
+FIM Agent occupies the middle ground between static workflow engines (Dify, n8n) and fully autonomous agents (AutoGPT). It offers three execution modes -- **Static Workflow** (deterministic, roadmap v0.9), **ReAct Agent** (single-query tool loops), and **DAG Planning** (concurrent multi-step execution) -- so users can choose the right trade-off between determinism and flexibility.
 
 > Deep dive: [Philosophy](https://github.com/fim-ai/fim-agent/wiki/Philosophy) | [Execution Modes](https://github.com/fim-ai/fim-agent/wiki/Execution-Modes) | [Planning Landscape](https://github.com/fim-ai/fim-agent/wiki/Planning-Landscape)
 

@@ -2,7 +2,7 @@
 
 ### Three execution modes
 
-fim-agent provides a spectrum of execution modes so users can choose the right trade-off between determinism and flexibility for each scenario:
+FIM Agent provides a spectrum of execution modes so users can choose the right trade-off between determinism and flexibility for each scenario:
 
 | Mode | Best for | Determinism | Flexibility | Status |
 |---|---|---|---|---|
