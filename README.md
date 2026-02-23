@@ -17,73 +17,9 @@ The framework also ships a ReAct agent for single-query tool-use loops and an ex
 
 ## Philosophy
 
-### Why dynamic planning is the hard middle ground
+fim-agent occupies the middle ground between static workflow engines (Dify, n8n) and fully autonomous agents (AutoGPT). It offers three execution modes -- **Static Workflow** (deterministic, roadmap v0.9), **ReAct Agent** (single-query tool loops), and **DAG Planning** (concurrent multi-step execution) -- so users can choose the right trade-off between determinism and flexibility.
 
-The AI agent landscape split into two camps, and both picked the easy path. Traditional workflow engines -- Dify, n8n, Coze -- chose static orchestration: visual drag-and-drop flowcharts with fixed execution paths. This was not ignorance; enterprise customers demand determinism (same input, stable output), and static graphs deliver that. On the other extreme, fully autonomous agents (AutoGPT and its descendants) promised end-to-end autonomy but proved impractical: unreliable task decomposition, runaway token costs, and behavior nobody could predict or debug.
-
-The sweet spot is narrow but real. Simple tasks do not need a planner. Tasks complex enough to require dozens of interdependent steps overwhelm current LLMs. But in between lies a rich class of problems -- tasks with clear parallel subtasks that are tedious to hard-code yet tractable for an LLM to decompose. Dynamic DAG planning targets exactly this zone: the model proposes the execution graph at runtime, the framework validates the structure and runs it with maximum concurrency. No drag-and-drop, no YOLO autonomy.
-
-### The bet on improving models
-
-Every few months the foundation shifts -- GPT-4, function calling, Claude 3, the MCP protocol. Building a rigid abstraction on shifting ground is risky; LangChain's over-abstraction is the cautionary tale everyone in this space has internalized. fim-agent takes the opposite approach: **minimal abstraction, maximum extensibility**. The framework owns orchestration, concurrency, and observability. The intelligence comes from the model, and the model keeps getting better.
-
-Today, LLM task decomposition accuracy sits around 70-80% for non-trivial goals. When that reaches 90%+, the "sweet spot" for dynamic planning expands dramatically -- problems that were too complex yesterday become tractable tomorrow. fim-agent's DAG framework is designed to capture that expanding value without rewriting the plumbing.
-
-### Will ReAct and DAG planning become obsolete?
-
-ReAct will not disappear -- it will sink into the model. Consider the analogy: you do not hand-write TCP handshakes, but TCP did not go away; it got absorbed into the operating system. When models are strong enough, the think-act-observe loop becomes implicit behavior inside the model, not explicit framework code. This is already happening: Claude Code is essentially a ReAct agent where the loop is driven by the model itself, not by an external harness.
-
-DAG planning's lasting value is not "helping dumb models decompose tasks" -- it is **concurrent scheduling**. Even with infinitely capable models, physics imposes latency: a serial chain of 10 LLM calls takes 10x longer than 3 parallel waves. DAG is an engineering problem (how to run things fast and reliably), not an intelligence problem (how to decide what to run). Retry logic, cost control, timeout management, observability -- these do not go away when models get smarter.
-
-The endgame: **models own the "what" (planning intelligence internalizes into the model), frameworks own the "how" (concurrency, retry, monitoring, cost governance)**. A framework's lasting value is not intelligence -- it is governance.
-
-### Four kinds of "planning" in the AI tooling landscape
-
-The word "planning" is overloaded. At least four distinct approaches exist today, and they solve different problems:
-
-| Approach | Plan format | Execution | Approval | Core value |
-|---|---|---|---|---|
-| **Implicit model planning** | Internal chain-of-thought | Single inference pass | None | The model thinks through steps on its own |
-| **Claude Code plan mode** | Markdown document | Serial | Human reviews before execution | Align on approach before touching code |
-| **Kiro spec-driven dev** | Structured spec (requirements + design + tasks) | Serial | Human reviews spec | Traceable requirements, acceptance criteria |
-| **fim-agent DAG** | JSON dependency graph | **Concurrent** | Automatic (PlanAnalyzer) | Parallel execution + runtime scheduling |
-
-The first three are **design-time** planning -- they produce a plan *before* work begins, and a human (or the model itself) follows it step by step. fim-agent's DAG is **runtime** planning -- the execution graph is generated, validated, and scheduled programmatically, with independent branches running in parallel.
-
-These approaches are not competitors; they are complementary layers. A Kiro-style spec can define *what* to build, while a fim-agent DAG can schedule *how* to execute the subtasks concurrently. Claude Code's plan mode ensures a human agrees with the approach; fim-agent's PlanAnalyzer verifies the outcome automatically.
-
-### Where fim-agent stands
-
-fim-agent is not an "AGI task scheduler" and not a static workflow engine. It occupies the middle ground: planning capability with constraints, concurrency with observability.
-
-- Compared to **Dify**: more flexible -- runtime DAG generation vs. design-time flowcharts. You do not need to anticipate every execution path in advance.
-- Compared to **AutoGPT**: more controlled -- bounded iterations, re-planning limits, with human-in-the-loop on the roadmap. Autonomy within guardrails.
-
-The strategy is straightforward: build the orchestration framework now, and let improving models fill it with capability over time.
-
-### Three execution modes
-
-fim-agent provides a spectrum of execution modes so users can choose the right trade-off between determinism and flexibility for each scenario:
-
-| Mode | Best for | Determinism | Flexibility | Status |
-|---|---|---|---|---|
-| **Static Workflow** | Fixed processes, compliance-sensitive flows | High | Low | Roadmap v0.9 |
-| **ReAct Agent** | Single complex queries, tool-use loops | Medium | Medium | Implemented |
-| **DAG Planning** | Multi-step tasks with parallelizable subtasks | Medium | High | Implemented |
-
-ReAct is the atomic execution unit -- a single agent that reasons, acts, and observes in a loop. DAG Planning is the orchestration layer on top -- it decomposes a goal into a dependency graph and runs independent steps concurrently, with each step powered by its own ReAct Agent. Static Workflow (coming in v0.9) will add a drag-and-drop visual editor for users who need fully deterministic execution paths.
-
-```
-DAG Planning (orchestration layer)
-  |
-  +-- step_1 --> ReAct Agent --> Tools     \
-  |                                         |  step_1 & step_2 run in parallel
-  +-- step_2 --> ReAct Agent --> Tools     /
-  |
-  +-- step_3 --> ReAct Agent --> Tools        (waits for step_1 & step_2)
-```
-
-These modes are not mutually exclusive. An organization can use Static Workflow for regulated processes, ReAct for ad-hoc queries, and DAG Planning for complex analytical tasks -- all within the same framework.
+> Deep dive: [Philosophy](https://github.com/fim-ai/fim-agent/wiki/Philosophy) | [Execution Modes](https://github.com/fim-ai/fim-agent/wiki/Execution-Modes) | [Planning Landscape](https://github.com/fim-ai/fim-agent/wiki/Planning-Landscape)
 
 ## Key Features
 
@@ -262,78 +198,11 @@ fim-agent/
 
 > Goal: Build a complete **Dify alternative** -- from agent runtime to visual workflow builder.
 
-### v0.2 -- Core Enhancements
+**Current (v0.1)**: ReAct Agent, DAG Planning, concurrent execution, Web UI playground.
 
-- [ ] **Native Function Calling**: Support OpenAI-style `tool_choice` / `parallel_tool_calls` alongside the ReAct JSON mode
-- [ ] **Streaming Agent Output**: Yield intermediate reasoning and tool results as they happen via `AsyncIterator`
-- [ ] **Conversation Memory**: Short-term message window + long-term summary (LanceDB) for multi-turn agent sessions
-- [ ] **Retry & Fallback**: Configurable retry policies for LLM calls and tool executions with exponential backoff
-- [ ] **Multi-Model Support**: Configure multiple LLMs per project (general / fast / vision / compact), switch per step
+**Next**: Native function calling, streaming output, conversation memory (v0.2) → MCP integration, tool ecosystem (v0.3) → RAG & knowledge base (v0.4) → Agent builder UI (v0.5) → Multi-agent collaboration (v0.6) → Production platform (v0.7) → Observability (v0.8) → Visual workflow editor / Dify parity (v0.9) → Enterprise & ecosystem (v1.0).
 
-### v0.3 -- Rich Tool Ecosystem
-
-- [ ] **Built-in Tools**: Calculator, file ops, web search, browser automation, image understanding/generation
-- [ ] **MCP Integration**: Model Context Protocol server management for dynamic tool discovery and invocation
-- [ ] **Tool Categories & Permissions**: Group tools by category, enable/disable per agent
-- [ ] **Skill System**: Reusable prompt-based skills that agents can compose
-
-### v0.4 -- RAG & Knowledge
-
-- [ ] **Vector Store Retrievers**: Built-in implementations for LanceDB, FAISS, Chroma, and Milvus
-- [ ] **Hybrid Retrieval**: Combine dense vector search with BM25 sparse retrieval
-- [ ] **Knowledge Base Management**: Create, upload, search, and manage multiple knowledge bases
-- [ ] **Document Loaders**: File parsers for PDF, Markdown, HTML, DOCX, and CSV
-- [ ] **Chunking Strategies**: Fixed-size, recursive, and semantic chunking out of the box
-
-### v0.5 -- Agent Builder & Marketplace
-
-- [ ] **Agent Builder**: Visual UI to create custom agents -- set instructions, pick model, attach knowledge bases, configure tools
-- [ ] **Agent Publishing**: Draft / published lifecycle, share agents with teammates
-- [ ] **Agent Templates**: Pre-built agent templates for common use cases (code assistant, research, data analysis)
-- [ ] **Text2SQL Agent**: Specialized agent that connects to databases and generates SQL from natural language
-- [ ] **Vibe Mode**: Alternative creative execution mode for open-ended exploration tasks
-
-### v0.6 -- Multi-Agent Collaboration
-
-- [ ] **Agent Roles**: Define specialized agents (researcher, coder, reviewer) within a single DAG plan
-- [ ] **Inter-Agent Messaging**: Shared context bus for agents to exchange intermediate results
-- [ ] **Human-in-the-Loop**: Approval gates and intervention points in DAG steps for high-stakes decisions
-- [ ] **Agent Delegation**: Allow agents to spawn sub-agents for nested task decomposition
-- [ ] **Task Pause / Resume**: Persist and resume long-running agent tasks
-
-### v0.7 -- Production Platform
-
-- [ ] **User Management**: Multi-user with JWT auth, role-based permissions, workspace isolation
-- [ ] **Persistent Storage**: SQLAlchemy ORM with PostgreSQL / SQLite for tasks, agents, and execution history
-- [ ] **File Workspace**: Per-task file management -- upload, download, preview, input/output directories
-- [ ] **WebSocket Communication**: Real-time bi-directional streaming replacing SSE for richer interaction
-- [ ] **DAG Visualization**: Interactive Dagre/XYFlow graph rendering of execution plans
-
-### v0.8 -- Observability & Operations
-
-- [ ] **OpenTelemetry Traces**: Structured tracing for every LLM call, tool execution, and DAG step
-- [ ] **Token & Cost Tracking**: Token usage aggregation across planning, execution, and analysis rounds
-- [ ] **Monitoring Dashboard**: Task history, execution metrics, performance analytics
-- [ ] **Rate Limiting**: Token-aware rate limiter respecting provider quotas
-- [ ] **Execution Replay**: Historical trace replay for debugging and auditing
-
-### v0.9 -- Workflow Engine (Dify Parity)
-
-- [ ] **Visual Workflow Editor**: Drag-and-drop node-based workflow builder (like Dify / n8n)
-- [ ] **Workflow Templates**: Pre-built workflow templates for common patterns (chatbot, RAG pipeline, data processing)
-- [ ] **Conditional Branching**: If/else nodes, switch nodes, loop nodes in visual workflows
-- [ ] **Variable System**: Global and step-scoped variables with type validation
-- [ ] **Trigger System**: HTTP webhook, scheduled cron, and event-based workflow triggers
-- [ ] **Workflow Versioning**: Version control for published workflows with rollback support
-
-### v1.0 -- Ecosystem & Enterprise
-
-- [ ] **Plugin System**: Pip-installable tool / retriever / agent packages with auto-registration
-- [ ] **Full Web UI**: Next.js dashboard with agent marketplace, task management, and workflow editor
-- [ ] **Docker Deployment**: Production-ready Docker Compose with PostgreSQL, Redis, and worker processes
-- [ ] **REST & SSE API**: Complete HTTP API for programmatic access to all platform features
-- [ ] **Benchmarks**: Standardized evaluation suite against SWE-bench, HotpotQA, and custom enterprise tasks
-- [ ] **i18n**: Multi-language support for UI and agent prompts (Chinese, English, Japanese)
+See the full [Roadmap](https://github.com/fim-ai/fim-agent/wiki/Roadmap) for details.
 
 Contributions and ideas are welcome -- open an issue or submit a PR on [GitHub](https://github.com/fim-ai/fim-agent).
 
