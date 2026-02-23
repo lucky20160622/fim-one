@@ -29,6 +29,9 @@ class PlanStep:
     tool_hint: str | None = None
     result: str | None = None
     status: Literal["pending", "running", "completed", "failed"] = "pending"
+    started_at: float | None = None
+    completed_at: float | None = None
+    duration: float | None = None
 
 
 @dataclass

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -83,7 +84,8 @@ class DAGExecutor:
                 pending_ids.discard(sid)
                 step = step_index[sid]
                 step.status = "running"
-                self._notify(sid, "started", {"task": step.task})
+                step.started_at = time.time()
+                self._notify(sid, "started", {"task": step.task, "started_at": step.started_at})
 
                 context = self._build_step_context(step, step_index)
                 task = asyncio.create_task(
@@ -134,6 +136,9 @@ class DAGExecutor:
                     "task": step.task,
                     "status": step.status,
                     "result": step.result,
+                    "started_at": step.started_at,
+                    "completed_at": step.completed_at,
+                    "duration": step.duration,
                 })
 
         return plan
@@ -189,6 +194,10 @@ class DAGExecutor:
             step.status = "failed"
             step.result = f"{type(exc).__name__}: {exc}"
             logger.exception("Step '%s' failed", step.id)
+        finally:
+            step.completed_at = time.time()
+            if step.started_at is not None:
+                step.duration = round(step.completed_at - step.started_at, 2)
 
     @staticmethod
     def _build_step_query(step: PlanStep, context: str) -> str:

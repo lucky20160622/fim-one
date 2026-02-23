@@ -180,7 +180,15 @@ async def dag_endpoint(q: str) -> StreamingResponse:
                     "name": "executing",
                     "status": "done",
                     "results": [
-                        {"id": s.id, "task": s.task, "status": s.status, "result": s.result}
+                        {
+                            "id": s.id,
+                            "task": s.task,
+                            "status": s.status,
+                            "result": s.result,
+                            "started_at": s.started_at,
+                            "completed_at": s.completed_at,
+                            "duration": s.duration,
+                        }
                         for s in plan.steps
                     ],
                 },
@@ -453,18 +461,24 @@ let running = false;
 
 const EXAMPLES = {
   react: [
-    "Write Python code to find the 3 largest files in /tmp (or show an empty list)",
-    "Run a script that generates a 12-character random password with letters, digits, and symbols",
-    "What is the capital of Australia and why was it chosen over Sydney?",
-    "Write Python to fetch the current UTC time and format it as ISO-8601",
-    "Explain the difference between concurrency and parallelism in 3 sentences",
-    "Calculate the sum of all even Fibonacci numbers below 1000 using Python",
+    "Write Python to generate a random 4x4 matrix and compute its determinant",
+    "Run a script that counts how many days until Christmas 2026",
+    "Write a haiku about programming, then translate it to Chinese",
+    "What are the SOLID principles in software engineering? Explain each in one sentence",
+    "Write Python to simulate rolling 2 dice 1000 times and report the most common sum",
+    "Generate a random strong password of 16 characters and check if it meets common security rules",
+    "Compare TCP and UDP protocols in a simple table format",
+    "Write Python code to check if 'racecar', 'hello', and 'madam' are palindromes",
   ],
   dag: [
-    "Compute 2^10 and 10!, then tell me which result is larger",
-    "Count vowels in 'supercalifragilistic' and consonants in 'extraordinary', then add the two counts",
-    "Generate a list of 5 random integers and sort them ascending, then tell me the median",
-    "Explain what a REST API is, and separately write a Python hello-world Flask snippet, then combine into a mini tutorial",
+    "Calculate 15! and 20!, then tell me which one has more digits",
+    "Find the area of a circle with radius 7 and volume of a sphere with radius 7, then compare which is larger",
+    "Count the words in 'To be or not to be that is the question' and count characters (no spaces), then report both",
+    "List 3 advantages of Python and 3 advantages of Rust, then write a summary comparing them",
+    "Generate a random 6-digit number and check divisibility by 3, 7, and 11, then summarize",
+    "Write a function to reverse a string AND a function to check palindromes, then test both with 'racecar'",
+    "Explain Docker in 2 sentences AND Kubernetes in 2 sentences, then explain how they work together",
+    "Calculate sum of 1-100 using n*(n+1)/2 and also by adding with Python, then verify they match",
   ]
 };
 
@@ -581,14 +595,17 @@ function run() {
     removeSpinner();
 
     if (d.event === 'started') {
+      const startTime = d.started_at ? new Date(d.started_at * 1000).toLocaleTimeString('en-GB', {hour12: false}) : '';
+      const timeInfo = startTime ? ` (started at ${startTime})` : '';
       addCard(`<div class="card" id="spinner-card">
-        <div class="card-header"><span class="spinner"></span> Running <strong>${esc(d.step_id)}</strong>: ${esc(d.task)}</div>
+        <div class="card-header"><span class="spinner"></span> Running <strong>${esc(d.step_id)}</strong>: ${esc(d.task)}${timeInfo}</div>
       </div>`);
     } else if (d.event === 'completed') {
       const cls = d.status === 'completed' ? 'badge-done' : 'badge-error';
       const label = d.status === 'completed' ? 'DONE' : 'FAILED';
+      const durInfo = d.duration != null ? ` (${d.duration}s)` : '';
       addCard(`<div class="card">
-        <div class="card-header"><span class="badge ${cls}">${label}</span> ${esc(d.step_id)}: ${esc(d.task)}</div>
+        <div class="card-header"><span class="badge ${cls}">${label}</span> ${esc(d.step_id)}: ${esc(d.task)}${durInfo}</div>
         <div class="card-body"><pre>${esc(d.result || '(no result)')}</pre></div>
       </div>`);
     }
@@ -617,10 +634,11 @@ function run() {
     } else if (d.name === 'executing' && d.status === 'done') {
       let resHtml = '<div class="step-grid">';
       for (const s of d.results) {
+        const durLabel = s.duration != null ? ` (${s.duration}s)` : '';
         resHtml += `<div class="step-item">
           <span class="step-id">${esc(s.id)}</span>
           <span class="step-status-${s.status}">[${s.status}]</span>
-          ${esc(s.task)}<br>
+          ${esc(s.task)}${durLabel}<br>
           <pre>${esc(s.result || '(no result)')}</pre>
         </div>`;
       }
