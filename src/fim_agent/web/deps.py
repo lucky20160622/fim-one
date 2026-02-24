@@ -24,6 +24,8 @@ import logging
 from fim_agent.core.model import OpenAICompatibleLLM
 from fim_agent.core.model.registry import ModelRegistry
 from fim_agent.core.tool import ToolRegistry
+from fim_agent.core.tool.builtin.calculator import CalculatorTool
+from fim_agent.core.tool.builtin.file_ops import FileOpsTool
 from fim_agent.core.tool.builtin.python_exec import PythonExecTool
 from fim_agent.core.tool.builtin.web_fetch import WebFetchTool
 from fim_agent.core.tool.builtin.web_search import WebSearchTool
@@ -104,6 +106,8 @@ def get_model_registry() -> ModelRegistry:
 def get_tools() -> ToolRegistry:
     """Create a :class:`ToolRegistry` pre-loaded with the default tool set."""
     registry = ToolRegistry()
+    registry.register(CalculatorTool())
+    registry.register(FileOpsTool())
     registry.register(PythonExecTool())
     registry.register(WebFetchTool())
     registry.register(WebSearchTool())
