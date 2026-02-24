@@ -132,6 +132,10 @@ class CalculatorTool(BaseTool):
         return "calculator"
 
     @property
+    def category(self) -> str:
+        return "computation"
+
+    @property
     def description(self) -> str:
         return (
             "Evaluate a mathematical expression and return the numeric result. "

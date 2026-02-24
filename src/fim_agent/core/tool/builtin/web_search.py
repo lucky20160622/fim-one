@@ -33,6 +33,10 @@ class WebSearchTool(BaseTool):
         return "web_search"
 
     @property
+    def category(self) -> str:
+        return "web"
+
+    @property
     def description(self) -> str:
         return (
             "Search the web for a query and return relevant results. "

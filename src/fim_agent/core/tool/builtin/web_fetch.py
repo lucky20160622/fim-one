@@ -33,6 +33,10 @@ class WebFetchTool(BaseTool):
         return "web_fetch"
 
     @property
+    def category(self) -> str:
+        return "web"
+
+    @property
     def description(self) -> str:
         return (
             "Fetch the content of a web page and return it as Markdown text. "

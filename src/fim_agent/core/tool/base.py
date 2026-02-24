@@ -21,6 +21,11 @@ class Tool(Protocol):
         ...
 
     @property
+    def category(self) -> str:
+        """Tool category for grouping and filtering."""
+        ...
+
+    @property
     def parameters_schema(self) -> dict[str, Any]:
         """JSON Schema for tool parameters."""
         ...
@@ -40,6 +45,10 @@ class BaseTool:
     @property
     def description(self) -> str:
         raise NotImplementedError
+
+    @property
+    def category(self) -> str:
+        return "general"
 
     @property
     def parameters_schema(self) -> dict[str, Any]:

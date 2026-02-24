@@ -33,6 +33,10 @@ class FileOpsTool(BaseTool):
         return "file_ops"
 
     @property
+    def category(self) -> str:
+        return "filesystem"
+
+    @property
     def description(self) -> str:
         return (
             "Perform file operations inside a sandboxed workspace directory. "

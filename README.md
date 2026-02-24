@@ -215,9 +215,9 @@ fim-agent/
 
 > Goal: Build a **provider-agnostic Agent Platform** -- from standalone AI assistant to embeddable runtime that modernizes legacy systems.
 
-**Shipped**: v0.1 (ReAct Agent, DAG Planning, streaming, KaTeX) → v0.2 (memory, multi-model, token tracking, native function calling) → v0.3-wip (web tools via Jina, DAG visualization with @xyflow/react, expand/collapse sidebar with click-to-scroll, parallel tool timing fix).
+**Shipped**: v0.1 (ReAct Agent, DAG Planning, streaming, KaTeX) → v0.2 (memory, multi-model, token tracking, native function calling) → v0.3 (web/calculator/file tools, MCP client, tool auto-discovery & categories, DAG visualization, sidebar UX, sandbox hardening).
 
-**Next**: Remaining tools + MCP client (v0.3) → Platform foundation, multi-tenant (v0.4) → RAG & knowledge (v0.5) → System Adapter protocol (v0.6) → Human confirmation + embeddable UI (v0.7) → Declarative adapters (v0.8) → Observability (v0.9) → Enterprise & scale (v1.0).
+**Next**: Platform foundation, multi-tenant (v0.4) → RAG & knowledge (v0.5) → System Adapter protocol (v0.6) → Human confirmation + embeddable UI (v0.7) → Declarative adapters (v0.8) → Observability (v0.9) → Enterprise & scale (v1.0).
 
 See the full [Roadmap](https://github.com/fim-ai/fim-agent/wiki/Roadmap) for details.
 

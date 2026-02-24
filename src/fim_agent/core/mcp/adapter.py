@@ -50,6 +50,10 @@ class MCPToolAdapter(BaseTool):
         return self._name
 
     @property
+    def category(self) -> str:
+        return "mcp"
+
+    @property
     def description(self) -> str:
         return self._description
 

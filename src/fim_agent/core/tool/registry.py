@@ -62,17 +62,46 @@ class ToolRegistry:
         """Return all registered tools as a list."""
         return list(self._tools.values())
 
+    def list_categories(self) -> list[str]:
+        """Return all unique categories of registered tools."""
+        return sorted({tool.category for tool in self._tools.values()})
+
+    def filter_by_category(self, *categories: str) -> ToolRegistry:
+        """Return a new ToolRegistry containing only tools in the given categories."""
+        filtered = ToolRegistry()
+        for tool in self._tools.values():
+            if tool.category in categories:
+                filtered.register(tool)
+        return filtered
+
+    def exclude_by_name(self, *names: str) -> ToolRegistry:
+        """Return a new ToolRegistry excluding tools with the given names."""
+        filtered = ToolRegistry()
+        for tool in self._tools.values():
+            if tool.name not in names:
+                filtered.register(tool)
+        return filtered
+
     # ------------------------------------------------------------------
     # Serialisation helpers
     # ------------------------------------------------------------------
 
-    def to_openai_tools(self) -> list[dict[str, Any]]:
-        """Convert all registered tools to OpenAI function-calling format.
+    def to_openai_tools(
+        self, categories: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Convert registered tools to OpenAI function-calling format.
+
+        Args:
+            categories: If provided, only include tools whose category is
+                in this list.  When ``None`` (default), all tools are included.
 
         Returns:
             A list of dicts conforming to the OpenAI ``tools`` parameter
             schema used in chat completion requests.
         """
+        tools = self._tools.values()
+        if categories:
+            tools = [t for t in tools if t.category in categories]
         return [
             {
                 "type": "function",
@@ -82,7 +111,7 @@ class ToolRegistry:
                     "parameters": tool.parameters_schema,
                 },
             }
-            for tool in self._tools.values()
+            for tool in tools
         ]
 
     # ------------------------------------------------------------------
