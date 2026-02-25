@@ -53,7 +53,12 @@ def _sse(event: str, data: Any) -> str:
 
 
 @router.get("/react")
-async def react_endpoint(request: Request, q: str, user_id: str = "default") -> StreamingResponse:
+async def react_endpoint(
+    request: Request,
+    q: str,
+    user_id: str = "default",
+    conversation_id: str | None = None,
+) -> StreamingResponse:
     """Run a ReAct agent query with SSE progress updates.
 
     Parameters
@@ -64,12 +69,42 @@ async def react_endpoint(request: Request, q: str, user_id: str = "default") -> 
         The user query / task description.
     user_id : str
         Identifier for the requesting user (reserved for future auth).
+    conversation_id : str | None
+        Optional conversation ID. When provided, user and assistant messages
+        are persisted to the database.
     """
     _ = user_id  # reserved for future auth
 
     async def generate() -> AsyncGenerator[str, None]:  # noqa: C901
         t0 = time.time()
         yield _sse("step", {"type": "thinking", "iteration": 0})
+
+        # -- Optional persistence setup ------------------------------------
+        db_session = None
+        if conversation_id:
+            try:
+                from fim_agent.db import get_session
+                from fim_agent.web.models import Message as MessageModel
+
+                async for session in get_session():
+                    db_session = session
+                    break
+                if db_session:
+                    user_msg = MessageModel(
+                        conversation_id=conversation_id,
+                        role="user",
+                        content=q,
+                        message_type="text",
+                    )
+                    db_session.add(user_msg)
+                    await db_session.commit()
+            except Exception:
+                logger.warning(
+                    "Failed to persist user message for conversation %s",
+                    conversation_id,
+                    exc_info=True,
+                )
+                db_session = None
 
         progress_queue: asyncio.Queue[str] = asyncio.Queue()
         done_event = asyncio.Event()
@@ -168,6 +203,43 @@ async def react_endpoint(request: Request, q: str, user_id: str = "default") -> 
                     "total_tokens": result.usage.total_tokens,
                 }
             yield _sse("done", done_payload)
+
+            # -- Persist assistant message ---------------------------------
+            if db_session and conversation_id:
+                try:
+                    from fim_agent.web.models import (
+                        Conversation,
+                        Message as MessageModel,
+                    )
+                    from sqlalchemy import select as sa_select
+
+                    assistant_msg = MessageModel(
+                        conversation_id=conversation_id,
+                        role="assistant",
+                        content=result.answer,
+                        message_type="done",
+                        metadata_=done_payload,
+                    )
+                    db_session.add(assistant_msg)
+                    if "usage" in done_payload:
+                        stmt = sa_select(Conversation).where(
+                            Conversation.id == conversation_id
+                        )
+                        conv = (
+                            await db_session.execute(stmt)
+                        ).scalar_one_or_none()
+                        if conv:
+                            conv.total_tokens = (
+                                conv.total_tokens or 0
+                            ) + done_payload["usage"].get("total_tokens", 0)
+                    await db_session.commit()
+                except Exception:
+                    logger.warning(
+                        "Failed to persist assistant message for "
+                        "conversation %s",
+                        conversation_id,
+                        exc_info=True,
+                    )
         except Exception as exc:
             logger.exception("ReAct agent failed")
             elapsed = round(time.time() - t0, 2)
@@ -189,7 +261,12 @@ async def react_endpoint(request: Request, q: str, user_id: str = "default") -> 
 
 
 @router.get("/dag")
-async def dag_endpoint(request: Request, q: str, user_id: str = "default") -> StreamingResponse:
+async def dag_endpoint(
+    request: Request,
+    q: str,
+    user_id: str = "default",
+    conversation_id: str | None = None,
+) -> StreamingResponse:
     """Run a DAG planner pipeline with SSE progress updates.
 
     Parameters
@@ -200,11 +277,41 @@ async def dag_endpoint(request: Request, q: str, user_id: str = "default") -> St
         The user query / task description.
     user_id : str
         Identifier for the requesting user (reserved for future auth).
+    conversation_id : str | None
+        Optional conversation ID. When provided, user and assistant messages
+        are persisted to the database.
     """
     _ = user_id  # reserved for future auth
 
     async def generate() -> AsyncGenerator[str, None]:  # noqa: C901
         t0 = time.time()
+
+        # -- Optional persistence setup ------------------------------------
+        db_session = None
+        if conversation_id:
+            try:
+                from fim_agent.db import get_session
+                from fim_agent.web.models import Message as MessageModel
+
+                async for session in get_session():
+                    db_session = session
+                    break
+                if db_session:
+                    user_msg = MessageModel(
+                        conversation_id=conversation_id,
+                        role="user",
+                        content=q,
+                        message_type="text",
+                    )
+                    db_session.add(user_msg)
+                    await db_session.commit()
+            except Exception:
+                logger.warning(
+                    "Failed to persist user message for conversation %s",
+                    conversation_id,
+                    exc_info=True,
+                )
+                db_session = None
 
         # Queue bridges the executor's synchronous callback into the async SSE stream.
         progress_queue: asyncio.Queue[str] = asyncio.Queue()
@@ -370,6 +477,45 @@ async def dag_endpoint(request: Request, q: str, user_id: str = "default") -> St
                     "total_tokens": total_usage.total_tokens,
                 }
             yield _sse("done", dag_done_payload)
+
+            # -- Persist assistant message ---------------------------------
+            if db_session and conversation_id:
+                try:
+                    from fim_agent.web.models import (
+                        Conversation as ConvModel,
+                        Message as MessageModel,
+                    )
+                    from sqlalchemy import select as sa_select
+
+                    assistant_msg = MessageModel(
+                        conversation_id=conversation_id,
+                        role="assistant",
+                        content=answer,
+                        message_type="done",
+                        metadata_=dag_done_payload,
+                    )
+                    db_session.add(assistant_msg)
+                    if "usage" in dag_done_payload:
+                        stmt = sa_select(ConvModel).where(
+                            ConvModel.id == conversation_id
+                        )
+                        conv = (
+                            await db_session.execute(stmt)
+                        ).scalar_one_or_none()
+                        if conv:
+                            conv.total_tokens = (
+                                conv.total_tokens or 0
+                            ) + dag_done_payload["usage"].get(
+                                "total_tokens", 0
+                            )
+                    await db_session.commit()
+                except Exception:
+                    logger.warning(
+                        "Failed to persist assistant message for "
+                        "conversation %s",
+                        conversation_id,
+                        exc_info=True,
+                    )
         except Exception as exc:
             logger.exception("DAG pipeline failed")
             elapsed = round(time.time() - t0, 2)

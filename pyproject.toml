@@ -27,6 +27,7 @@ dependencies = [
     "openai>=1.0",
     "httpx>=0.27",
     "pydantic>=2.0",
+    "python-multipart>=0.0.22",
 ]
 
 [project.optional-dependencies]
@@ -41,6 +42,11 @@ web = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.34",
     "python-dotenv>=1.0",
+    "sqlalchemy[asyncio]>=2.0",
+    "aiosqlite>=0.20",
+    "alembic>=1.14",
+    "bcrypt>=4.0",
+    "pyjwt>=2.0",
 ]
 mcp = [
     "mcp>=1.0",

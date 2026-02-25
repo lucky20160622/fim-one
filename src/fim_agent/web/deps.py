@@ -29,6 +29,7 @@ from fim_agent.core.model import OpenAICompatibleLLM
 from fim_agent.core.model.registry import ModelRegistry
 from fim_agent.core.tool import ToolRegistry
 from fim_agent.core.tool.builtin import discover_builtin_tools
+from fim_agent.db import get_session
 
 if TYPE_CHECKING:
     from fim_agent.core.mcp import MCPClient
@@ -128,6 +129,10 @@ def get_user_id() -> str:
     touching endpoint signatures.
     """
     return "default"
+
+
+# Alias for convenience — endpoints can use either name.
+get_db = get_session
 
 
 async def get_mcp_tools(registry: ToolRegistry) -> MCPClient | None:

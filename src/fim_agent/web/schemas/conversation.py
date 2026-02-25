@@ -1,0 +1,44 @@
+"""Conversation and message request/response schemas."""
+
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import BaseModel
+
+
+class ConversationCreate(BaseModel):
+    title: str = ""
+    mode: Literal["react", "dag"] = "react"
+    agent_id: str | None = None
+    model_name: str | None = None
+
+
+class ConversationUpdate(BaseModel):
+    title: str | None = None
+    status: Literal["active", "archived"] | None = None
+
+
+class ConversationResponse(BaseModel):
+    id: str
+    title: str
+    mode: str
+    agent_id: str | None
+    status: str
+    model_name: str | None
+    total_tokens: int
+    created_at: str
+    updated_at: str | None
+
+
+class MessageResponse(BaseModel):
+    id: str
+    role: str
+    content: str | None
+    message_type: str
+    metadata: dict | None
+    created_at: str
+
+
+class ConversationDetail(ConversationResponse):
+    messages: list[MessageResponse] = []
