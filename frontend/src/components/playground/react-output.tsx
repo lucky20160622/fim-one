@@ -239,7 +239,7 @@ function DoneCard({ done }: { done: ReactDoneEvent }) {
             {done.usage && (
               <span className="flex items-center gap-1">
                 <BarChart3 className="h-2.5 w-2.5" />
-                {done.usage.prompt_tokens} in · {done.usage.completion_tokens} out
+                {(done.usage.prompt_tokens / 1000).toFixed(1)}k in · {(done.usage.completion_tokens / 1000).toFixed(1)}k out
               </span>
             )}
           </div>
