@@ -23,14 +23,18 @@ logger = logging.getLogger(__name__)
 # Explicit re-exports (for convenience — callers can still import directly)
 from .calculator import CalculatorTool
 from .file_ops import FileOpsTool
+from .http_request import HttpRequestTool
 from .python_exec import PythonExecTool
+from .shell_exec import ShellExecTool
 from .web_fetch import WebFetchTool
 from .web_search import WebSearchTool
 
 __all__ = [
     "CalculatorTool",
     "FileOpsTool",
+    "HttpRequestTool",
     "PythonExecTool",
+    "ShellExecTool",
     "WebFetchTool",
     "WebSearchTool",
     "discover_builtin_tools",

@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MarkdownContent } from "@/lib/markdown"
-import { Loader2, Wrench, Brain, CheckCircle2, AlertCircle, Clock, RefreshCw } from "lucide-react"
+import { Loader2, Wrench, Brain, CheckCircle2, AlertCircle, Clock, RefreshCw, Zap } from "lucide-react"
 import { fmtDuration } from "@/lib/utils"
 import type { ReactStepEvent, ReactDoneEvent } from "@/types/api"
 import type { StepItem } from "@/hooks/use-react-steps"
@@ -236,6 +236,12 @@ function DoneCard({ done }: { done: ReactDoneEvent }) {
               <Clock className="h-2.5 w-2.5" />
               {fmtDuration(done.elapsed)}
             </span>
+            {done.usage && (
+              <span className="flex items-center gap-1">
+                <Zap className="h-2.5 w-2.5" />
+                {done.usage.prompt_tokens} in · {done.usage.completion_tokens} out
+              </span>
+            )}
           </div>
         </div>
       </CardHeader>

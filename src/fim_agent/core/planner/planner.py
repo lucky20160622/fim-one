@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections import deque
+from datetime import datetime, timezone
 from typing import Any
 
 from fim_agent.core.model import BaseLLM, ChatMessage
@@ -23,6 +24,10 @@ _PLANNING_PROMPT = """\
 You are a task-planning assistant.  Given a high-level goal (and optional \
 context), decompose it into a set of concrete steps that can be executed \
 by a tool-using agent.
+
+Current date and time: {current_datetime} (the current year is {current_year}). \
+When planning steps that involve searching for up-to-date information, \
+use the current year ({current_year}) in the task description, NOT a previous year.
 
 Each step must have:
 - "id": a unique string identifier (e.g. "step_1", "step_2", ...).
@@ -125,8 +130,16 @@ class DAGPlanner:
         Returns:
             A list of ``ChatMessage`` objects.
         """
+        now_dt = datetime.now(timezone.utc)
+        now = now_dt.strftime("%Y-%m-%d %H:%M UTC")
         messages: list[ChatMessage] = [
-            ChatMessage(role="system", content=_PLANNING_PROMPT),
+            ChatMessage(
+                role="system",
+                content=_PLANNING_PROMPT.format(
+                    current_datetime=now,
+                    current_year=now_dt.year,
+                ),
+            ),
         ]
 
         user_content = f"Goal: {goal}"

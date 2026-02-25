@@ -53,6 +53,15 @@ export function useSSE() {
     }
   }, [])
 
+  const abort = useCallback(() => {
+    if (sourceRef.current) {
+      sourceRef.current.close()
+      sourceRef.current = null
+    }
+    setIsRunning(false)
+    // Messages are intentionally kept so the user can see partial results
+  }, [])
+
   const reset = useCallback(() => {
     if (sourceRef.current) {
       sourceRef.current.close()
@@ -62,5 +71,5 @@ export function useSSE() {
     setIsRunning(false)
   }, [])
 
-  return { messages, isRunning, start, reset }
+  return { messages, isRunning, start, reset, abort }
 }

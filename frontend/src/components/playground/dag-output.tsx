@@ -20,6 +20,7 @@ import {
   Clock,
   Target,
   Gauge,
+  Zap,
 } from "lucide-react"
 import type {
   DagPhaseEvent,
@@ -322,10 +323,18 @@ function DagDoneCard({ done }: { done: DagDoneEvent }) {
             <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
           </div>
           <CardTitle className="text-sm">Result</CardTitle>
-          <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Clock className="h-2.5 w-2.5" />
-            {fmtDuration(done.elapsed)}
-          </span>
+          <div className="ml-auto flex items-center gap-3 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Clock className="h-2.5 w-2.5" />
+              {fmtDuration(done.elapsed)}
+            </span>
+            {done.usage && (
+              <span className="flex items-center gap-1">
+                <Zap className="h-2.5 w-2.5" />
+                {done.usage.prompt_tokens} in · {done.usage.completion_tokens} out
+              </span>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>

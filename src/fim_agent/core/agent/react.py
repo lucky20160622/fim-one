@@ -12,6 +12,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Callable
+from datetime import datetime, timezone
 from typing import Any
 
 from fim_agent.core.memory.base import BaseMemory
@@ -32,6 +33,10 @@ logger = logging.getLogger(__name__)
 _SYSTEM_PROMPT_TEMPLATE = """\
 You are an intelligent assistant that solves tasks by reasoning step-by-step \
 and using tools when necessary.
+
+Current date and time: {current_datetime} (the current year is {current_year}). \
+When searching for up-to-date information, always use the current year \
+({current_year}) in your queries, NOT a previous year.
 
 You MUST respond with a single JSON object (no markdown, no extra text) in \
 one of the following two formats:
@@ -78,6 +83,10 @@ If the user writes in English, respond in English. Match the user's language.
 _NATIVE_TOOLS_SYSTEM_PROMPT_TEMPLATE = """\
 You are an intelligent assistant that solves tasks by reasoning step-by-step \
 and using tools when necessary.
+
+Current date and time: {current_datetime} (the current year is {current_year}). \
+When searching for up-to-date information, always use the current year \
+({current_year}) in your queries, NOT a previous year.
 
 Guidelines:
 - Always think carefully before acting.
@@ -499,8 +508,14 @@ class ReActAgent:
         if self._system_prompt_override is not None:
             return self._system_prompt_override
 
+        now_dt = datetime.now(timezone.utc)
+        now = now_dt.strftime("%Y-%m-%d %H:%M UTC")
         tool_descriptions = self._format_tool_descriptions()
-        return _SYSTEM_PROMPT_TEMPLATE.format(tool_descriptions=tool_descriptions)
+        return _SYSTEM_PROMPT_TEMPLATE.format(
+            tool_descriptions=tool_descriptions,
+            current_datetime=now,
+            current_year=now_dt.year,
+        )
 
     def _build_system_prompt_native(self) -> str:
         """Build the system prompt for native function-calling mode.
@@ -512,7 +527,12 @@ class ReActAgent:
         if self._system_prompt_override is not None:
             return self._system_prompt_override
 
-        return _NATIVE_TOOLS_SYSTEM_PROMPT_TEMPLATE
+        now_dt = datetime.now(timezone.utc)
+        now = now_dt.strftime("%Y-%m-%d %H:%M UTC")
+        return _NATIVE_TOOLS_SYSTEM_PROMPT_TEMPLATE.format(
+            current_datetime=now,
+            current_year=now_dt.year,
+        )
 
     def _format_tool_descriptions(self) -> str:
         """Format tool descriptions for inclusion in the system prompt.

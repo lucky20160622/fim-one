@@ -5,11 +5,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Send, Loader2, Trash2, PanelRightOpen, PanelRightClose, ArrowDown } from "lucide-react"
+import { Send, Loader2, Trash2, PanelRightOpen, PanelRightClose, ArrowDown, Square } from "lucide-react"
 import { useSSE } from "@/hooks/use-sse"
 import { useDagSteps } from "@/hooks/use-dag-steps"
 import { useReactSteps } from "@/hooks/use-react-steps"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { useLocalStorage } from "@/hooks/use-local-storage"
 import { API_BASE_URL } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 import { ReactOutput } from "@/components/playground/react-output"
@@ -25,7 +26,7 @@ export default function PlaygroundPage() {
   const [query, setQuery] = useState("")
   const [language, setLanguage] = useState<Language>("en")
   const [sourceMode, setSourceMode] = useState<AgentMode | null>(null)
-  const { messages, isRunning, start, reset } = useSSE()
+  const { messages, isRunning, start, reset, abort } = useSSE()
 
   const runWithQuery = useCallback((q: string) => {
     const trimmed = q.trim()
@@ -100,6 +101,7 @@ export default function PlaygroundPage() {
             onQueryChange={setQuery}
             onLanguageChange={setLanguage}
             onRun={handleRun}
+            onAbort={abort}
             onReset={handleReset}
             onKeyDown={handleKeyDown}
             onExampleSelect={handleExampleSelect}
@@ -116,6 +118,7 @@ export default function PlaygroundPage() {
             onQueryChange={setQuery}
             onLanguageChange={setLanguage}
             onRun={handleRun}
+            onAbort={abort}
             onReset={handleReset}
             onKeyDown={handleKeyDown}
             onExampleSelect={handleExampleSelect}
@@ -136,6 +139,7 @@ interface PlaygroundContentProps {
   onQueryChange: (q: string) => void
   onLanguageChange: (lang: Language) => void
   onRun: () => void
+  onAbort: () => void
   onReset: () => void
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
   onExampleSelect: (example: string) => void
@@ -151,26 +155,71 @@ function PlaygroundContent({
   onQueryChange,
   onLanguageChange,
   onRun,
+  onAbort,
   onReset,
   onKeyDown,
   onExampleSelect,
 }: PlaygroundContentProps) {
   const modeMatches = sourceMode === mode
   const hasMessages = modeMatches && messages.length > 0
-  const bottomRef = useRef<HTMLDivElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const isNearBottomRef = useRef(true)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
 
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  // Sidebar state — persisted to localStorage
+  const [sidebarOpen, setSidebarOpen] = useLocalStorage("fim-sidebar-open", true)
+  const [sidebarExpanded, setSidebarExpanded] = useLocalStorage("fim-sidebar-expanded", false)
+  const [customRatio, setCustomRatio] = useLocalStorage<number | null>("fim-sidebar-custom-ratio", null)
   const isWideScreen = useMediaQuery("(min-width: 1024px)")
+
+  // Drag resize state (transient, not persisted)
+  const [dragRatio, setDragRatio] = useState<number | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [resizeKey, setResizeKey] = useState(0)
+  const panelContainerRef = useRef<HTMLDivElement>(null)
+  const dragRatioRef = useRef<number | null>(null)
+
+  // Priority: active drag > custom drag (persisted) > expand preset > normal preset
+  const NORMAL_RATIO = 0.3
+  const EXPANDED_RATIO = 0.7
+  const currentRatio = dragRatio ?? customRatio ?? (sidebarExpanded ? EXPANDED_RATIO : NORMAL_RATIO)
 
   // Parse data at this level via hooks
   const dagData = useDagSteps(messages)
   const reactItems = useReactSteps(messages)
 
   const showSidebar = hasMessages && sidebarOpen && isWideScreen
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+
+    const container = panelContainerRef.current
+    if (!container) return
+
+    const onMouseMove = (ev: MouseEvent) => {
+      const rect = container.getBoundingClientRect()
+      const ratio = 1 - (ev.clientX - rect.left) / rect.width
+      const clamped = Math.max(0.15, Math.min(0.85, ratio))
+      dragRatioRef.current = clamped
+      setDragRatio(clamped)
+    }
+
+    const onMouseUp = () => {
+      if (dragRatioRef.current !== null) {
+        setCustomRatio(dragRatioRef.current)
+      }
+      dragRatioRef.current = null
+      setDragRatio(null)
+      setIsDragging(false)
+      setResizeKey((k) => k + 1)
+      document.removeEventListener("mousemove", onMouseMove)
+      document.removeEventListener("mouseup", onMouseUp)
+    }
+
+    document.addEventListener("mousemove", onMouseMove)
+    document.addEventListener("mouseup", onMouseUp)
+  }, [setCustomRatio])
 
   // Track scroll position — only auto-scroll when user is near bottom
   useEffect(() => {
@@ -190,6 +239,15 @@ function PlaygroundContent({
     return () => viewport.removeEventListener("scroll", handleScroll)
   }, [hasMessages])
 
+  // Scroll the ScrollArea viewport to bottom (avoids scrollIntoView cascading to parent containers)
+  const scrollViewportToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const root = scrollAreaRef.current
+    if (!root) return
+    const viewport = root.querySelector<HTMLElement>("[data-radix-scroll-area-viewport]")
+    if (!viewport) return
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior })
+  }, [])
+
   // Auto-scroll only when user is already near bottom.
   // Skip the initial mount to avoid scrolling on tab switch.
   const msgCountRef = useRef(messages.length)
@@ -200,11 +258,11 @@ function PlaygroundContent({
     }
     msgCountRef.current = messages.length
     if (isNearBottomRef.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+      scrollViewportToBottom()
     } else {
       setShowScrollBtn(true)
     }
-  }, [messages])
+  }, [messages, scrollViewportToBottom])
 
   // Reset scroll state on clear
   useEffect(() => {
@@ -215,9 +273,9 @@ function PlaygroundContent({
   }, [hasMessages])
 
   const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    scrollViewportToBottom()
     setShowScrollBtn(false)
-  }, [])
+  }, [scrollViewportToBottom])
 
   // Scroll within the Radix ScrollArea viewport only (prevents parent container jumping)
   const scrollInViewport = useCallback((selector: string) => {
@@ -273,12 +331,13 @@ function PlaygroundContent({
             className="min-h-[72px] max-h-[160px] resize-none"
           />
           <Button
-            onClick={onRun}
-            disabled={isRunning || !query.trim()}
+            onClick={isRunning ? onAbort : onRun}
+            disabled={!isRunning && !query.trim()}
             className="h-[72px] w-16 shrink-0"
+            variant={isRunning ? "destructive" : "default"}
           >
             {isRunning ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Square className="h-4 w-4" />
             ) : (
               <Send className="h-4 w-4" />
             )}
@@ -298,12 +357,16 @@ function PlaygroundContent({
 
       {/* Output area */}
       {(hasMessages || (isRunning && modeMatches)) && (
-        <div className="flex flex-1 min-h-0 gap-3">
+        <div ref={panelContainerRef} className="flex flex-1 min-h-0">
           {/* Main content */}
-          <div className={cn(
-            "flex flex-col min-h-0 rounded-lg border border-border/50 bg-muted/10 overflow-hidden transition-all duration-300",
-            sidebarExpanded && showSidebar ? "flex-[3] min-w-0" : "flex-1 min-w-0"
-          )}>
+          <div
+            className={cn(
+              "flex flex-col min-h-0 rounded-lg border border-border/50 bg-muted/10 overflow-hidden",
+              !isDragging && "transition-all duration-300",
+              !showSidebar && "flex-1 min-w-0"
+            )}
+            style={showSidebar ? { flex: `${1 - currentRatio} 1 0%`, minWidth: 0 } : undefined}
+          >
             {/* Output header bar */}
             {(hasMessages || (isRunning && modeMatches)) && (
               <div className="flex items-center shrink-0 px-4 py-3 border-b border-border/30 gap-1">
@@ -353,7 +416,6 @@ function PlaygroundContent({
                       hideDagGraph={showSidebar}
                     />
                   )}
-                  <div ref={bottomRef} />
                 </div>
               </ScrollArea>
               {showScrollBtn && (
@@ -368,17 +430,25 @@ function PlaygroundContent({
             </div>
           </div>
 
+          {/* Resize handle */}
+          {showSidebar && (
+            <div
+              className="shrink-0 w-3 cursor-col-resize flex items-center justify-center group"
+              onMouseDown={handleDragStart}
+            >
+              <div className="w-0.5 h-8 rounded-full bg-border group-hover:bg-primary/40 group-active:bg-primary/60 transition-colors" />
+            </div>
+          )}
+
           {/* Right sidebar */}
           {showSidebar && (
             <RightSidebar
               title={mode === "dag" ? "Execution Plan" : "Steps Timeline"}
               badge={mode === "dag" ? dagData.planSteps?.length : reactItems.filter(i => i.event === "step" || i.event === "done").length}
               expanded={sidebarExpanded}
-              onToggleExpand={() => setSidebarExpanded(!sidebarExpanded)}
-              className={cn(
-                "transition-all duration-300",
-                sidebarExpanded ? "flex-[7] min-w-0" : "w-[400px] shrink-0"
-              )}
+              onToggleExpand={() => { setSidebarExpanded(!sidebarExpanded); setCustomRatio(null) }}
+              className={cn(!isDragging && "transition-all duration-300")}
+              style={{ flex: `${currentRatio} 1 0%`, minWidth: 0 }}
             >
               {mode === "dag" ? (
                 dagData.planSteps && dagData.planSteps.length > 0 ? (
@@ -387,6 +457,7 @@ function PlaygroundContent({
                     stepStates={dagData.stepStates}
                     mode="sidebar"
                     expanded={sidebarExpanded}
+                    resizeKey={resizeKey}
                     onStepClick={scrollToStep}
                   />
                 ) : (

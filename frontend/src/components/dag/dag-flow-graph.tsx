@@ -29,10 +29,11 @@ interface DagFlowGraphProps {
   stepStates: StepState[]
   mode?: "inline" | "sidebar"
   expanded?: boolean
+  resizeKey?: number
   onStepClick?: (stepId: string) => void
 }
 
-export function DagFlowGraph({ planSteps, stepStates, mode = "inline", expanded, onStepClick }: DagFlowGraphProps) {
+export function DagFlowGraph({ planSteps, stepStates, mode = "inline", expanded, resizeKey, onStepClick }: DagFlowGraphProps) {
   const { nodes: layoutNodes, edges: layoutEdges } = useDagLayout({
     planSteps,
     stepStates,
@@ -51,6 +52,15 @@ export function DagFlowGraph({ planSteps, stepStates, mode = "inline", expanded,
     }, 350)
     return () => clearTimeout(timer)
   }, [expanded])
+
+  // Re-fit after drag resize ends
+  useEffect(() => {
+    if (resizeKey === undefined || resizeKey === 0) return
+    const timer = setTimeout(() => {
+      fitViewFn.current?.({ duration: 200 })
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [resizeKey])
 
   // Build a state map for quick lookups
   const stateMap = useMemo(() => {

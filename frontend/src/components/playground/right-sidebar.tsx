@@ -13,14 +13,15 @@ interface RightSidebarProps {
   onToggleExpand?: () => void
   children: React.ReactNode
   className?: string
+  style?: React.CSSProperties
 }
 
-export function RightSidebar({ title, subtitle, badge, expanded, onToggleExpand, children, className }: RightSidebarProps) {
+export function RightSidebar({ title, subtitle, badge, expanded, onToggleExpand, children, className, style }: RightSidebarProps) {
   return (
     <div className={cn(
       "flex flex-col rounded-lg border border-border/50 bg-muted/10 overflow-hidden animate-in slide-in-from-right-2 duration-300",
       className
-    )}>
+    )} style={style}>
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30 shrink-0">
         <div className="flex-1 min-w-0">

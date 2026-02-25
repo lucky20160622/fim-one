@@ -6,6 +6,8 @@ export interface StepNodeData {
   status: "pending" | "running" | "completed" | "failed"
   tool_hint?: string
   duration?: number
+  started_at?: number
+  tools_used?: string[]
   state: StepState
   [key: string]: unknown // ReactFlow requires index signature
 }

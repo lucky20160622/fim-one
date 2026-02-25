@@ -1,3 +1,10 @@
+// Token usage
+export interface TokenUsage {
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+}
+
 // ReAct events
 export interface ReactStepEvent {
   type: "thinking" | "tool_call" | "tool_start" | "final_answer"
@@ -17,6 +24,8 @@ export interface ReactDoneEvent {
   elapsed: number
   /** Server-side elapsed for the final iteration (LLM thinking → answer). */
   iter_elapsed?: number
+  /** Token usage for the entire agent run. */
+  usage?: TokenUsage
 }
 
 // DAG events
@@ -59,6 +68,8 @@ export interface DagStepProgressEvent {
   reasoning?: string
   observation?: string
   error?: string
+  /** Per-step token usage (available on "completed" events). */
+  usage?: TokenUsage
 }
 
 export interface DagDoneEvent {
@@ -66,4 +77,6 @@ export interface DagDoneEvent {
   achieved: boolean
   confidence: number
   elapsed: number
+  /** Aggregated token usage across all DAG phases. */
+  usage?: TokenUsage
 }

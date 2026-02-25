@@ -70,10 +70,13 @@ export function useDagLayout({
         status: (state?.status as StepNodeData["status"]) ?? "pending",
         tool_hint: step.tool_hint,
         duration: state?.duration,
+        started_at: state?.started_at,
+        tools_used: state?.tools_used,
         state: state ?? {
           step_id: step.id,
           task: step.task,
           status: "pending",
+          tools_used: [],
           iterations: [],
         },
       }

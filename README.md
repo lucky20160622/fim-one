@@ -34,7 +34,7 @@ FIM Agent offers two execution modes -- **ReAct Agent** (single-query tool loops
 - **Real-time Streaming** -- Portal streams reasoning steps and tool calls as they happen via SSE, with KaTeX math rendering support.
 - **ReAct Agent** -- Structured reasoning-and-acting loop with JSON-based tool calls, automatic error recovery, and iteration limits.
 - **OpenAI-Compatible** -- Works with any provider exposing the `/v1/chat/completions` interface (OpenAI, DeepSeek, Qwen, Ollama, vLLM, and others).
-- **Pluggable Tool System** -- Protocol-based tool interface with a central registry. Ships with Python executor, web search, and web fetch (Jina).
+- **Pluggable Tool System** -- Protocol-based tool interface with auto-discovery. Ships with Python executor, calculator, file ops, web search/fetch (Jina), HTTP request (any REST API), and sandboxed shell exec (curl, jq, etc.).
 - **RAG Ready** -- Abstract `BaseRetriever` / `Document` interface for plugging in vector stores and search backends.
 - **Minimal Dependencies** -- Only three runtime dependencies: `openai`, `httpx`, `pydantic`.
 
@@ -215,9 +215,9 @@ fim-agent/
 
 > Goal: Build a **provider-agnostic Agent Platform** -- from standalone AI assistant to embeddable runtime that modernizes legacy systems.
 
-**Shipped**: v0.1 (ReAct Agent, DAG Planning, streaming, KaTeX) → v0.2 (memory, multi-model, token tracking, native function calling) → v0.3 (web/calculator/file tools, MCP client, tool auto-discovery & categories, DAG visualization, sidebar UX, sandbox hardening).
+**Shipped**: v0.1 (ReAct Agent, DAG Planning, streaming, KaTeX) → v0.2 (memory, multi-model, token tracking, native function calling) → v0.3 (web/calculator/file tools, MCP client, tool auto-discovery & categories, DAG visualization, sidebar UX, sandbox hardening). **v0.3 polish**: DAG node tool list & timing, frontend token usage display.
 
-**Next**: Platform foundation, multi-tenant (v0.4) → RAG & knowledge (v0.5) → System Adapter protocol (v0.6) → Human confirmation + embeddable UI (v0.7) → Declarative adapters (v0.8) → Observability (v0.9) → Enterprise & scale (v1.0).
+**Next**: Platform foundation, multi-tenant, file upload, HTTP request & shell exec tools (v0.4) → RAG & knowledge (v0.5) → System Adapter protocol (v0.6) → Human confirmation + embeddable UI (v0.7) → Declarative adapters (v0.8) → Observability (v0.9) → Enterprise & scale (v1.0).
 
 See the full [Roadmap](https://github.com/fim-ai/fim-agent/wiki/Roadmap) for details.
 

@@ -7,8 +7,12 @@ Both endpoints stream Server-Sent Events with the following event names:
 - ``phase``          – DAG pipeline phase transitions (planning / executing / analyzing).
 - ``done``           – Final result payload (always the last event).
 
-A keepalive comment (``": keepalive\\n\\n"``) is emitted every 30 seconds of
+A keepalive comment (``": keepalive\\n\\n"``) is emitted every 15 seconds of
 inactivity to prevent proxy/browser timeouts during long LLM calls.
+
+When the SSE client disconnects, running agent tasks are cancelled promptly
+(checked every 0.5 s) so that LLM and tool work does not continue in the
+background.
 """
 
 from __future__ import annotations
@@ -18,9 +22,10 @@ import json
 import logging
 import time
 from collections.abc import AsyncGenerator
+from contextlib import suppress
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from fim_agent.core.agent import ReActAgent
@@ -48,11 +53,13 @@ def _sse(event: str, data: Any) -> str:
 
 
 @router.get("/react")
-async def react_endpoint(q: str, user_id: str = "default") -> StreamingResponse:
+async def react_endpoint(request: Request, q: str, user_id: str = "default") -> StreamingResponse:
     """Run a ReAct agent query with SSE progress updates.
 
     Parameters
     ----------
+    request : Request
+        The incoming HTTP request; used to detect client disconnects.
     q : str
         The user query / task description.
     user_id : str
@@ -112,31 +119,55 @@ async def react_endpoint(q: str, user_id: str = "default") -> StreamingResponse:
             run_task = asyncio.create_task(_run())
 
             # Drain the queue until the agent task signals completion.
+            # Poll every 0.5 s so we can detect client disconnect quickly;
+            # keepalive comments are sent every 15 s of inactivity.
+            last_keepalive = time.time()
             while not done_event.is_set():
                 try:
-                    item = await asyncio.wait_for(progress_queue.get(), timeout=30.0)
+                    item = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
                 except asyncio.TimeoutError:
-                    yield ": keepalive\n\n"
+                    # Check for client disconnect.
+                    if await request.is_disconnected():
+                        logger.info("Client disconnected — cancelling ReAct task")
+                        run_task.cancel()
+                        with suppress(asyncio.CancelledError, TimeoutError, Exception):
+                            await asyncio.wait_for(run_task, timeout=5.0)
+                        return
+                    # Send keepalive only every 15 seconds.
+                    now = time.time()
+                    if now - last_keepalive >= 15.0:
+                        yield ": keepalive\n\n"
+                        last_keepalive = now
                     continue
+                last_keepalive = time.time()
                 yield item
 
             # Flush any remaining items queued between the last get() and done_event.
             while not progress_queue.empty():
                 yield progress_queue.get_nowait()
 
+            # If the task was cancelled (e.g. disconnect during flush), don't
+            # try to read its result.
+            if run_task.cancelled():
+                return
+
             result = run_task.result()
 
             elapsed = round(time.time() - t0, 2)
             last_iter_elapsed = round(time.time() - iter_start, 2)
-            yield _sse(
-                "done",
-                {
-                    "answer": result.answer,
-                    "iterations": result.iterations,
-                    "elapsed": elapsed,
-                    "iter_elapsed": last_iter_elapsed,
-                },
-            )
+            done_payload: dict[str, Any] = {
+                "answer": result.answer,
+                "iterations": result.iterations,
+                "elapsed": elapsed,
+                "iter_elapsed": last_iter_elapsed,
+            }
+            if result.usage is not None:
+                done_payload["usage"] = {
+                    "prompt_tokens": result.usage.prompt_tokens,
+                    "completion_tokens": result.usage.completion_tokens,
+                    "total_tokens": result.usage.total_tokens,
+                }
+            yield _sse("done", done_payload)
         except Exception as exc:
             logger.exception("ReAct agent failed")
             elapsed = round(time.time() - t0, 2)
@@ -158,11 +189,13 @@ async def react_endpoint(q: str, user_id: str = "default") -> StreamingResponse:
 
 
 @router.get("/dag")
-async def dag_endpoint(q: str, user_id: str = "default") -> StreamingResponse:
+async def dag_endpoint(request: Request, q: str, user_id: str = "default") -> StreamingResponse:
     """Run a DAG planner pipeline with SSE progress updates.
 
     Parameters
     ----------
+    request : Request
+        The incoming HTTP request; used to detect client disconnects.
     q : str
         The user query / task description.
     user_id : str
@@ -226,17 +259,37 @@ async def dag_endpoint(q: str, user_id: str = "default") -> StreamingResponse:
 
             exec_task = asyncio.create_task(_exec())
 
+            # Poll every 0.5 s so we can detect client disconnect quickly;
+            # keepalive comments are sent every 15 s of inactivity.
+            last_keepalive = time.time()
             while not done_event.is_set():
                 try:
-                    item = await asyncio.wait_for(progress_queue.get(), timeout=30.0)
+                    item = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
                 except asyncio.TimeoutError:
-                    yield ": keepalive\n\n"
+                    # Check for client disconnect.
+                    if await request.is_disconnected():
+                        logger.info("Client disconnected — cancelling DAG exec task")
+                        exec_task.cancel()
+                        with suppress(asyncio.CancelledError, TimeoutError, Exception):
+                            await asyncio.wait_for(exec_task, timeout=5.0)
+                        return
+                    # Send keepalive only every 15 seconds.
+                    now = time.time()
+                    if now - last_keepalive >= 15.0:
+                        yield ": keepalive\n\n"
+                        last_keepalive = now
                     continue
+                last_keepalive = time.time()
                 yield item
 
             # Flush remaining items.
             while not progress_queue.empty():
                 yield progress_queue.get_nowait()
+
+            # If the task was cancelled (e.g. disconnect during flush), skip
+            # the remaining phases.
+            if exec_task.cancelled():
+                return
 
             plan = exec_task.result()
 
@@ -259,6 +312,12 @@ async def dag_endpoint(q: str, user_id: str = "default") -> StreamingResponse:
                     ],
                 },
             )
+
+            # Check disconnect before starting Phase 3 — no point analysing
+            # if nobody is listening.
+            if await request.is_disconnected():
+                logger.info("Client disconnected — skipping DAG analysis phase")
+                return
 
             # Phase 3: Analyze (Sonnet)
             yield _sse("phase", {"name": "analyzing", "status": "start"})
@@ -290,15 +349,27 @@ async def dag_endpoint(q: str, user_id: str = "default") -> StreamingResponse:
                 else:
                     answer = "(goal not achieved)"
 
-            yield _sse(
-                "done",
-                {
-                    "answer": answer,
-                    "achieved": analysis.achieved,
-                    "confidence": analysis.confidence,
-                    "elapsed": elapsed,
-                },
-            )
+            # Aggregate total usage across all DAG phases.
+            total_usage = plan.total_usage
+            if analysis.usage is not None:
+                if total_usage is not None:
+                    total_usage += analysis.usage
+                else:
+                    total_usage = analysis.usage
+
+            dag_done_payload: dict[str, Any] = {
+                "answer": answer,
+                "achieved": analysis.achieved,
+                "confidence": analysis.confidence,
+                "elapsed": elapsed,
+            }
+            if total_usage is not None:
+                dag_done_payload["usage"] = {
+                    "prompt_tokens": total_usage.prompt_tokens,
+                    "completion_tokens": total_usage.completion_tokens,
+                    "total_tokens": total_usage.total_tokens,
+                }
+            yield _sse("done", dag_done_payload)
         except Exception as exc:
             logger.exception("DAG pipeline failed")
             elapsed = round(time.time() - t0, 2)

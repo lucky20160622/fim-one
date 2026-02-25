@@ -49,6 +49,8 @@
 - [x] **Tool Auto-Discovery**: Convention-based loading via `discover_builtin_tools()` — drop a `BaseTool` subclass in `builtin/` and it auto-registers
 - [x] **MCP Client**: Model Context Protocol integration — connect to MCP servers via stdio transport, auto-discover tools, register as native Tool adapters; configured via `MCP_SERVERS` env var
 - [x] **Tool Categories & Permissions**: Tools tagged with `category` property; `ToolRegistry` supports `filter_by_category()`, `exclude_by_name()`, and category-filtered `to_openai_tools()`
+- [x] **DAG Node Detail Enhancement**: Display assigned tool list, start time, and elapsed duration on each DAG step node
+- [x] **Frontend Token Usage**: Show per-task input/output token counts in the chat UI (backend tracking shipped in v0.2)
 
 ### v0.4 -- Platform Foundation
 
@@ -56,11 +58,13 @@
 >
 > Multi-tenancy, persistence, agent management -- supports both standalone usage and the adapter model that comes later.
 
+- [x] **HTTP Request Tool**: General-purpose HTTP client (`http_request`) — supports GET/POST/PUT/PATCH/DELETE with custom headers, query params, and body; SSRF protection (private IP blocking), JSON auto-pretty-print, 200KB response limit
+- [x] **Shell Exec Tool**: Sandboxed shell execution (`shell_exec`) — run curl, jq, awk, grep etc. with command blocklist (30+ patterns), env var scrubbing, system path write protection, per-user sandbox directory
 - [ ] **Persistent Storage**: SQLAlchemy ORM + SQLite (tasks, agents, conversations, model configs)
 - [ ] **Multi-Tenant**: User registration/login (JWT), workspace isolation
 - [ ] **Project & Agent Management**: Create/configure/publish agents; bind tools, model, and prompt per project
 - [ ] **Conversation Persistence**: Session history stored durably, session resume across restarts
-- [ ] **File Management**: Upload/download/associate files with tasks and agents
+- [ ] **File Upload & Management**: Chat-level file upload with type/size metadata display; upload/download/associate files with tasks and agents
 
 ### v0.5 -- RAG & Knowledge
 

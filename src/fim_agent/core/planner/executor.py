@@ -140,14 +140,21 @@ class DAGExecutor:
 
                 completed_ids.add(sid)
                 step = step_index[sid]
-                self._notify(sid, "completed", {
+                completed_data: dict[str, Any] = {
                     "task": step.task,
                     "status": step.status,
                     "result": step.result,
                     "started_at": step.started_at,
                     "completed_at": step.completed_at,
                     "duration": step.duration,
-                })
+                }
+                if step.usage is not None:
+                    completed_data["usage"] = {
+                        "prompt_tokens": step.usage.prompt_tokens,
+                        "completion_tokens": step.usage.completion_tokens,
+                        "total_tokens": step.usage.total_tokens,
+                    }
+                self._notify(sid, "completed", completed_data)
 
         # Aggregate step-level usage into the plan's total_usage.
         step_usage = UsageSummary()

@@ -12,6 +12,8 @@ export interface StepState {
   status: "pending" | "running" | "completed"
   result?: string
   duration?: number
+  started_at?: number
+  tools_used: string[]
   iterations: Array<{
     type?: string
     iteration?: number
@@ -50,6 +52,7 @@ export function useDagSteps(messages: SSEMessage[]): DagStepsResult {
               step_id: s.id,
               task: s.task,
               status: "pending",
+              tools_used: [],
               iterations: [],
             })
           }
@@ -76,6 +79,7 @@ export function useDagSteps(messages: SSEMessage[]): DagStepsResult {
             step_id: sp.step_id,
             task: sp.task,
             status: "pending",
+            tools_used: [],
             iterations: [],
           })
         }
@@ -85,11 +89,16 @@ export function useDagSteps(messages: SSEMessage[]): DagStepsResult {
 
         if (sp.event === "started") {
           state.status = "running"
+          if (sp.started_at != null) state.started_at = sp.started_at
         } else if (sp.event === "completed") {
           state.status = "completed"
           if (sp.result) state.result = sp.result
           if (sp.duration) state.duration = sp.duration
+          if (sp.started_at != null) state.started_at = sp.started_at
         } else if (sp.event === "iteration") {
+          if (sp.tool_name && !state.tools_used.includes(sp.tool_name)) {
+            state.tools_used.push(sp.tool_name)
+          }
           const isStart = sp.type === "tool_call" && sp.observation == null && sp.error == null
           if (isStart) {
             state.iterations.push({
