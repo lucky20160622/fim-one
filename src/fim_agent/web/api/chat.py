@@ -25,17 +25,41 @@ from collections.abc import AsyncGenerator
 from contextlib import suppress
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select as sa_select
 
 from fim_agent.core.agent import ReActAgent
-from fim_agent.core.planner import DAGExecutor, DAGPlanner, PlanAnalyzer
+from fim_agent.core.model import BaseLLM
+from fim_agent.core.model.usage import UsageSummary
+from fim_agent.core.planner import (
+    AnalysisResult,
+    DAGExecutor,
+    DAGPlanner,
+    ExecutionPlan,
+    PlanAnalyzer,
+)
+from fim_agent.core.tool import ToolRegistry
 
-from ..deps import get_fast_llm, get_llm, get_max_concurrency, get_model_registry, get_tools
+from ..deps import (
+    get_fast_llm,
+    get_llm,
+    get_llm_from_config,
+    get_max_concurrency,
+    get_model_registry,
+    get_tools,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
+
+# ---------------------------------------------------------------------------
+# DAG re-planning constants
+# ---------------------------------------------------------------------------
+
+MAX_REPLAN_ROUNDS = 3
+REPLAN_STOP_CONFIDENCE = 0.8
 
 # ---------------------------------------------------------------------------
 # SSE helper
@@ -54,6 +78,129 @@ def _emit(sse_events: list[dict[str, Any]], event: str, data: Any) -> str:
 
 
 # ---------------------------------------------------------------------------
+# DAG re-planning helper
+# ---------------------------------------------------------------------------
+
+
+def _format_replan_context(plan: ExecutionPlan, analysis: AnalysisResult) -> str:
+    """Format previous round's results as context for re-planning."""
+    lines = [f"Previous attempt (round {plan.current_round}) did not fully achieve the goal."]
+    lines.append(f"Analyzer reasoning: {analysis.reasoning}")
+    lines.append("")
+    lines.append("Step results from previous round:")
+    for step in plan.steps:
+        status_info = f"[{step.id}] status={step.status}"
+        if step.result:
+            result_preview = step.result[:500] + "..." if len(step.result) > 500 else step.result
+            lines.append(f"  {status_info}: {result_preview}")
+        else:
+            lines.append(f"  {status_info}: (no result)")
+    lines.append("")
+    lines.append("Please create a revised plan that addresses the gaps identified above.")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Auth & agent resolution helpers
+# ---------------------------------------------------------------------------
+
+
+async def _resolve_user(token: str | None) -> str | None:
+    """Validate a JWT query-param token and return the user_id, or None.
+
+    Raises HTTPException(401) on invalid/expired tokens.
+    """
+    if not token:
+        return None
+
+    from fim_agent.web.auth import decode_token
+
+    payload = decode_token(token)  # raises 401 on bad token
+    user_id: str | None = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+    return user_id
+
+
+async def _validate_conversation_ownership(
+    conversation_id: str, user_id: str,
+) -> None:
+    """Ensure the conversation belongs to *user_id*.  Raises 404 otherwise."""
+    from fim_agent.db import create_session
+    from fim_agent.web.models import Conversation
+
+    async with create_session() as session:
+        result = await session.execute(
+            sa_select(Conversation).where(
+                Conversation.id == conversation_id,
+                Conversation.user_id == user_id,
+            )
+        )
+        if result.scalar_one_or_none() is None:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+
+async def _resolve_agent_config(
+    agent_id: str | None, conversation_id: str | None,
+) -> dict[str, Any] | None:
+    """Load agent configuration from DB.
+
+    Resolution priority: explicit ``agent_id`` > conversation's bound agent.
+    Returns a dict with ``instructions``, ``tool_categories``,
+    ``model_config_json``, and ``execution_mode``, or ``None``.
+    """
+    from fim_agent.db import create_session
+    from fim_agent.web.models import Agent, Conversation
+
+    resolved_id = agent_id
+
+    if not resolved_id and conversation_id:
+        async with create_session() as session:
+            result = await session.execute(
+                sa_select(Conversation.agent_id).where(
+                    Conversation.id == conversation_id,
+                )
+            )
+            row = result.scalar_one_or_none()
+            if row:
+                resolved_id = row
+
+    if not resolved_id:
+        return None
+
+    async with create_session() as session:
+        result = await session.execute(
+            sa_select(Agent).where(Agent.id == resolved_id)
+        )
+        agent = result.scalar_one_or_none()
+        if agent is None:
+            return None
+        return {
+            "instructions": agent.instructions,
+            "tool_categories": agent.tool_categories,
+            "model_config_json": agent.model_config_json,
+            "execution_mode": agent.execution_mode,
+        }
+
+
+def _resolve_llm(agent_cfg: dict[str, Any] | None) -> BaseLLM:
+    """Build an LLM from agent config or fall back to global default."""
+    if agent_cfg and agent_cfg.get("model_config_json"):
+        llm = get_llm_from_config(agent_cfg["model_config_json"])
+        if llm is not None:
+            return llm
+    return get_llm()
+
+
+def _resolve_tools(agent_cfg: dict[str, Any] | None) -> ToolRegistry:
+    """Build tool registry, filtered by agent's tool_categories if set."""
+    tools = get_tools()
+    if agent_cfg and agent_cfg.get("tool_categories"):
+        return tools.filter_by_category(*agent_cfg["tool_categories"])
+    return tools
+
+
+# ---------------------------------------------------------------------------
 # ReAct endpoint
 # ---------------------------------------------------------------------------
 
@@ -62,8 +209,9 @@ def _emit(sse_events: list[dict[str, Any]], event: str, data: Any) -> str:
 async def react_endpoint(
     request: Request,
     q: str,
-    user_id: str = "default",
     conversation_id: str | None = None,
+    agent_id: str | None = None,
+    token: str | None = None,
 ) -> StreamingResponse:
     """Run a ReAct agent query with SSE progress updates.
 
@@ -73,13 +221,23 @@ async def react_endpoint(
         The incoming HTTP request; used to detect client disconnects.
     q : str
         The user query / task description.
-    user_id : str
-        Identifier for the requesting user (reserved for future auth).
     conversation_id : str | None
-        Optional conversation ID. When provided, user and assistant messages
-        are persisted to the database.
+        Optional conversation ID for persistence and multi-turn memory.
+    agent_id : str | None
+        Optional agent ID to load per-agent model, tools, and instructions.
+    token : str | None
+        JWT access token (query param) for SSE auth.  When provided,
+        conversation ownership is validated.
     """
-    _ = user_id  # reserved for future auth
+    # -- Pre-stream resolution (before StreamingResponse) -------------------
+    current_user_id = await _resolve_user(token)
+    if conversation_id and current_user_id:
+        await _validate_conversation_ownership(conversation_id, current_user_id)
+
+    agent_cfg = await _resolve_agent_config(agent_id, conversation_id)
+    llm = _resolve_llm(agent_cfg)
+    tools = _resolve_tools(agent_cfg)
+    extra_instructions = agent_cfg["instructions"] if agent_cfg else None
 
     async def generate() -> AsyncGenerator[str, None]:  # noqa: C901
         t0 = time.time()
@@ -126,8 +284,6 @@ async def react_endpoint(
                 now = time.time()
                 iter_elapsed: float | None = None
                 if is_starting:
-                    # Reset timer when tools start executing, so parallel
-                    # tools all measure from the same baseline.
                     iter_start = now
                 else:
                     iter_elapsed = round(now - iter_start, 2)
@@ -146,13 +302,20 @@ async def react_endpoint(
                 progress_queue.put_nowait(_sse("step", payload))
 
         try:
-            llm = get_llm()
-            tools = get_tools()
             memory = None
             if conversation_id:
                 from fim_agent.core.memory import DbMemory
-                memory = DbMemory(conversation_id=conversation_id)
-            agent = ReActAgent(llm=llm, tools=tools, max_iterations=20, memory=memory)
+                memory = DbMemory(
+                    conversation_id=conversation_id,
+                    compact_llm=get_fast_llm(),
+                )
+            agent = ReActAgent(
+                llm=llm,
+                tools=tools,
+                extra_instructions=extra_instructions,
+                max_iterations=20,
+                memory=memory,
+            )
 
             async def _run() -> Any:
                 try:
@@ -162,22 +325,17 @@ async def react_endpoint(
 
             run_task = asyncio.create_task(_run())
 
-            # Drain the queue until the agent task signals completion.
-            # Poll every 0.5 s so we can detect client disconnect quickly;
-            # keepalive comments are sent every 15 s of inactivity.
             last_keepalive = time.time()
             while not done_event.is_set():
                 try:
                     item = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
                 except asyncio.TimeoutError:
-                    # Check for client disconnect.
                     if await request.is_disconnected():
                         logger.info("Client disconnected — cancelling ReAct task")
                         run_task.cancel()
                         with suppress(asyncio.CancelledError, TimeoutError, Exception):
                             await asyncio.wait_for(run_task, timeout=5.0)
                         return
-                    # Send keepalive only every 15 seconds.
                     now = time.time()
                     if now - last_keepalive >= 15.0:
                         yield ": keepalive\n\n"
@@ -186,12 +344,9 @@ async def react_endpoint(
                 last_keepalive = time.time()
                 yield item
 
-            # Flush any remaining items queued between the last get() and done_event.
             while not progress_queue.empty():
                 yield progress_queue.get_nowait()
 
-            # If the task was cancelled (e.g. disconnect during flush), don't
-            # try to read its result.
             if run_task.cancelled():
                 return
 
@@ -211,20 +366,15 @@ async def react_endpoint(
                     "completion_tokens": result.usage.completion_tokens,
                     "total_tokens": result.usage.total_tokens,
                 }
-            # Append the done event to sse_events before persisting.
             sse_events.append({"event": "done", "data": done_payload})
 
             # -- Persist assistant message BEFORE yielding done -----------
-            # The client closes the SSE connection as soon as it receives the
-            # "done" event, which terminates this async generator.  Any code
-            # after the final yield would never execute.
             if db_session and conversation_id:
                 try:
                     from fim_agent.web.models import (
                         Conversation,
                         Message as MessageModel,
                     )
-                    from sqlalchemy import select as sa_select
 
                     assistant_msg = MessageModel(
                         conversation_id=conversation_id,
@@ -282,8 +432,9 @@ async def react_endpoint(
 async def dag_endpoint(
     request: Request,
     q: str,
-    user_id: str = "default",
     conversation_id: str | None = None,
+    agent_id: str | None = None,
+    token: str | None = None,
 ) -> StreamingResponse:
     """Run a DAG planner pipeline with SSE progress updates.
 
@@ -293,13 +444,25 @@ async def dag_endpoint(
         The incoming HTTP request; used to detect client disconnects.
     q : str
         The user query / task description.
-    user_id : str
-        Identifier for the requesting user (reserved for future auth).
     conversation_id : str | None
-        Optional conversation ID. When provided, user and assistant messages
-        are persisted to the database.
+        Optional conversation ID for persistence and multi-turn memory.
+    agent_id : str | None
+        Optional agent ID to load per-agent model, tools, and instructions.
+    token : str | None
+        JWT access token (query param) for SSE auth.
     """
-    _ = user_id  # reserved for future auth
+    # -- Pre-stream resolution ----------------------------------------------
+    current_user_id = await _resolve_user(token)
+    if conversation_id and current_user_id:
+        await _validate_conversation_ownership(conversation_id, current_user_id)
+
+    agent_cfg = await _resolve_agent_config(agent_id, conversation_id)
+    llm = _resolve_llm(agent_cfg)
+    tools = _resolve_tools(agent_cfg)
+    extra_instructions = agent_cfg["instructions"] if agent_cfg else None
+
+    # DAG uses a fast LLM for step execution; try agent config first.
+    fast_llm = get_fast_llm()
 
     async def generate() -> AsyncGenerator[str, None]:  # noqa: C901
         t0 = time.time()
@@ -336,7 +499,10 @@ async def dag_endpoint(
             try:
                 from fim_agent.core.memory import DbMemory
 
-                dag_memory = DbMemory(conversation_id=conversation_id)
+                dag_memory = DbMemory(
+                    conversation_id=conversation_id,
+                    compact_llm=fast_llm,
+                )
                 history = await dag_memory.get_messages()
                 if history:
                     context_lines = []
@@ -356,7 +522,6 @@ async def dag_endpoint(
                     exc_info=True,
                 )
 
-        # Queue bridges the executor's synchronous callback into the async SSE stream.
         progress_queue: asyncio.Queue[str] = asyncio.Queue()
         done_event = asyncio.Event()
 
@@ -366,130 +531,204 @@ async def dag_endpoint(
             progress_queue.put_nowait(_sse("step_progress", step_payload))
 
         try:
-            llm = get_llm()           # Sonnet — planning & analysis
-            fast_llm = get_fast_llm()  # Haiku — step execution
-            tools = get_tools()
+            plan: ExecutionPlan | None = None
+            analysis: AnalysisResult | None = None
+            cumulative_usage: UsageSummary | None = None
 
-            # Phase 1: Plan (Sonnet)
-            yield _emit(sse_events, "phase", {"name": "planning", "status": "start"})
-            planner = DAGPlanner(llm=llm)
-            plan = await planner.plan(enriched_query)
-            yield _emit(
-                sse_events,
-                "phase",
-                {
-                    "name": "planning",
-                    "status": "done",
-                    "steps": [
-                        {
-                            "id": s.id,
-                            "task": s.task,
-                            "deps": s.dependencies,
-                            "tool_hint": s.tool_hint,
-                        }
-                        for s in plan.steps
-                    ],
-                },
-            )
+            for round_num in range(1, MAX_REPLAN_ROUNDS + 1):
+                # -- Build replan context from previous round's results ----
+                replan_context = ""
+                if plan is not None and analysis is not None:
+                    replan_context = _format_replan_context(plan, analysis)
 
-            # Phase 2: Execute — Haiku (with real-time step progress)
-            yield _emit(sse_events, "phase", {"name": "executing", "status": "start"})
-            agent = ReActAgent(llm=fast_llm, tools=tools, max_iterations=15, memory=dag_memory)
-            registry = get_model_registry()
-            executor = DAGExecutor(
-                agent=agent,
-                max_concurrency=get_max_concurrency(),
-                model_registry=registry,
-            )
+                # Phase 1: Plan (smart LLM)
+                yield _emit(
+                    sse_events,
+                    "phase",
+                    {"name": "planning", "status": "start", "round": round_num},
+                )
+                if await request.is_disconnected():
+                    logger.info("Client disconnected before planning round %d", round_num)
+                    return
 
-            async def _exec() -> Any:
-                try:
-                    return await executor.execute(plan, on_progress=on_step_progress)
-                finally:
-                    done_event.set()
+                planner = DAGPlanner(llm=llm)
+                plan = await planner.plan(enriched_query, context=replan_context)
+                plan.current_round = round_num
+                yield _emit(
+                    sse_events,
+                    "phase",
+                    {
+                        "name": "planning",
+                        "status": "done",
+                        "round": round_num,
+                        "steps": [
+                            {
+                                "id": s.id,
+                                "task": s.task,
+                                "deps": s.dependencies,
+                                "tool_hint": s.tool_hint,
+                            }
+                            for s in plan.steps
+                        ],
+                    },
+                )
 
-            exec_task = asyncio.create_task(_exec())
+                # Phase 2: Execute — fast LLM (with real-time step progress)
+                done_event.clear()
+                yield _emit(
+                    sse_events,
+                    "phase",
+                    {"name": "executing", "status": "start", "round": round_num},
+                )
+                agent = ReActAgent(
+                    llm=fast_llm,
+                    tools=tools,
+                    extra_instructions=extra_instructions,
+                    max_iterations=15,
+                    memory=dag_memory,
+                )
+                registry = get_model_registry()
+                executor = DAGExecutor(
+                    agent=agent,
+                    max_concurrency=get_max_concurrency(),
+                    model_registry=registry,
+                )
 
-            # Poll every 0.5 s so we can detect client disconnect quickly;
-            # keepalive comments are sent every 15 s of inactivity.
-            last_keepalive = time.time()
-            while not done_event.is_set():
-                try:
-                    item = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
-                except asyncio.TimeoutError:
-                    # Check for client disconnect.
-                    if await request.is_disconnected():
-                        logger.info("Client disconnected — cancelling DAG exec task")
-                        exec_task.cancel()
-                        with suppress(asyncio.CancelledError, TimeoutError, Exception):
-                            await asyncio.wait_for(exec_task, timeout=5.0)
-                        return
-                    # Send keepalive only every 15 seconds.
-                    now = time.time()
-                    if now - last_keepalive >= 15.0:
-                        yield ": keepalive\n\n"
-                        last_keepalive = now
-                    continue
+                # Capture plan in closure to avoid late-binding issues
+                _current_plan = plan
+
+                async def _exec(_p: ExecutionPlan = _current_plan) -> Any:
+                    try:
+                        return await executor.execute(_p, on_progress=on_step_progress)
+                    finally:
+                        done_event.set()
+
+                exec_task = asyncio.create_task(_exec())
+
                 last_keepalive = time.time()
-                yield item
+                while not done_event.is_set():
+                    try:
+                        item = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
+                    except asyncio.TimeoutError:
+                        if await request.is_disconnected():
+                            logger.info("Client disconnected — cancelling DAG exec task")
+                            exec_task.cancel()
+                            with suppress(asyncio.CancelledError, TimeoutError, Exception):
+                                await asyncio.wait_for(exec_task, timeout=5.0)
+                            return
+                        now = time.time()
+                        if now - last_keepalive >= 15.0:
+                            yield ": keepalive\n\n"
+                            last_keepalive = now
+                        continue
+                    last_keepalive = time.time()
+                    yield item
 
-            # Flush remaining items.
-            while not progress_queue.empty():
-                yield progress_queue.get_nowait()
+                while not progress_queue.empty():
+                    yield progress_queue.get_nowait()
 
-            # If the task was cancelled (e.g. disconnect during flush), skip
-            # the remaining phases.
-            if exec_task.cancelled():
-                return
+                if exec_task.cancelled():
+                    return
 
-            plan = exec_task.result()
+                plan = exec_task.result()
 
-            yield _emit(
-                sse_events,
-                "phase",
-                {
-                    "name": "executing",
-                    "status": "done",
-                    "results": [
+                yield _emit(
+                    sse_events,
+                    "phase",
+                    {
+                        "name": "executing",
+                        "status": "done",
+                        "round": round_num,
+                        "results": [
+                            {
+                                "id": s.id,
+                                "task": s.task,
+                                "status": s.status,
+                                "result": s.result,
+                                "started_at": s.started_at,
+                                "completed_at": s.completed_at,
+                                "duration": s.duration,
+                            }
+                            for s in plan.steps
+                        ],
+                    },
+                )
+
+                if await request.is_disconnected():
+                    logger.info("Client disconnected — skipping DAG analysis phase")
+                    return
+
+                # Phase 3: Analyze (smart LLM)
+                yield _emit(
+                    sse_events,
+                    "phase",
+                    {"name": "analyzing", "status": "start", "round": round_num},
+                )
+                if await request.is_disconnected():
+                    logger.info("Client disconnected before analysis round %d", round_num)
+                    return
+
+                analyzer = PlanAnalyzer(llm=llm)
+                analysis = await analyzer.analyze(enriched_query, plan)
+                yield _emit(
+                    sse_events,
+                    "phase",
+                    {
+                        "name": "analyzing",
+                        "status": "done",
+                        "round": round_num,
+                        "achieved": analysis.achieved,
+                        "confidence": analysis.confidence,
+                        "reasoning": analysis.reasoning,
+                    },
+                )
+
+                # -- Accumulate usage from this round ----------------------
+                round_usage = plan.total_usage
+                if analysis.usage is not None:
+                    if round_usage is not None:
+                        round_usage = round_usage + analysis.usage
+                    else:
+                        round_usage = analysis.usage
+                if round_usage is not None:
+                    if cumulative_usage is not None:
+                        cumulative_usage = cumulative_usage + round_usage
+                    else:
+                        cumulative_usage = round_usage
+
+                # -- Check if goal achieved or confident enough ------------
+                if analysis.achieved:
+                    break
+                # High confidence that goal cannot be achieved — stop wasting tokens
+                if not analysis.achieved and analysis.confidence >= REPLAN_STOP_CONFIDENCE:
+                    logger.info(
+                        "DAG round %d: goal not achieved with high confidence (%.1f), "
+                        "stopping re-planning",
+                        round_num,
+                        analysis.confidence,
+                    )
+                    break
+
+                if round_num < MAX_REPLAN_ROUNDS:
+                    yield _emit(
+                        sse_events,
+                        "phase",
                         {
-                            "id": s.id,
-                            "task": s.task,
-                            "status": s.status,
-                            "result": s.result,
-                            "started_at": s.started_at,
-                            "completed_at": s.completed_at,
-                            "duration": s.duration,
-                        }
-                        for s in plan.steps
-                    ],
-                },
-            )
+                            "name": "replanning",
+                            "status": "start",
+                            "round": round_num,
+                            "reason": analysis.reasoning,
+                        },
+                    )
+                # Otherwise loop continues to next round
 
-            # Check disconnect before starting Phase 3 — no point analysing
-            # if nobody is listening.
-            if await request.is_disconnected():
-                logger.info("Client disconnected — skipping DAG analysis phase")
-                return
+            # -- After loop: build answer and persist ----------------------
+            # plan and analysis are guaranteed set (at least 1 iteration ran)
+            if plan is None or analysis is None:
+                raise RuntimeError("DAG loop completed without producing a plan and analysis")
 
-            # Phase 3: Analyze (Sonnet)
-            yield _emit(sse_events, "phase", {"name": "analyzing", "status": "start"})
-            analyzer = PlanAnalyzer(llm=llm)
-            analysis = await analyzer.analyze(enriched_query, plan)
             elapsed = round(time.time() - t0, 2)
-            yield _emit(
-                sse_events,
-                "phase",
-                {
-                    "name": "analyzing",
-                    "status": "done",
-                    "achieved": analysis.achieved,
-                    "confidence": analysis.confidence,
-                    "reasoning": analysis.reasoning,
-                },
-            )
 
-            # Build the answer: prefer analyzer's final_answer, fall back to
-            # concatenated step results so users always see something useful.
             answer = analysis.final_answer
             if not answer:
                 completed = [
@@ -502,27 +741,19 @@ async def dag_endpoint(
                 else:
                     answer = "(goal not achieved)"
 
-            # Aggregate total usage across all DAG phases.
-            total_usage = plan.total_usage
-            if analysis.usage is not None:
-                if total_usage is not None:
-                    total_usage += analysis.usage
-                else:
-                    total_usage = analysis.usage
-
             dag_done_payload: dict[str, Any] = {
                 "answer": answer,
                 "achieved": analysis.achieved,
                 "confidence": analysis.confidence,
                 "elapsed": elapsed,
+                "rounds": plan.current_round,
             }
-            if total_usage is not None:
+            if cumulative_usage is not None:
                 dag_done_payload["usage"] = {
-                    "prompt_tokens": total_usage.prompt_tokens,
-                    "completion_tokens": total_usage.completion_tokens,
-                    "total_tokens": total_usage.total_tokens,
+                    "prompt_tokens": cumulative_usage.prompt_tokens,
+                    "completion_tokens": cumulative_usage.completion_tokens,
+                    "total_tokens": cumulative_usage.total_tokens,
                 }
-            # Append the done event to sse_events before persisting.
             sse_events.append({"event": "done", "data": dag_done_payload})
 
             # -- Persist assistant message BEFORE yielding done -----------
@@ -532,7 +763,6 @@ async def dag_endpoint(
                         Conversation as ConvModel,
                         Message as MessageModel,
                     )
-                    from sqlalchemy import select as sa_select
 
                     assistant_msg = MessageModel(
                         conversation_id=conversation_id,

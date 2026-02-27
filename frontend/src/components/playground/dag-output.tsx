@@ -20,6 +20,7 @@ import {
   Clock,
   Target,
   Gauge,
+  RefreshCw,
 } from "lucide-react"
 import type {
   DagPhaseEvent,
@@ -34,6 +35,7 @@ interface DagOutputProps {
   analysisPhase: DagPhaseEvent | null
   doneEvent: DagDoneEvent | null
   currentPhase: string | null
+  currentRound?: number
   hideDagGraph?: boolean
 }
 
@@ -43,6 +45,7 @@ export function DagOutput({
   analysisPhase,
   doneEvent,
   currentPhase,
+  currentRound = 1,
   hideDagGraph,
 }: DagOutputProps) {
   return (
@@ -53,7 +56,21 @@ export function DagOutput({
           <CardContent className="flex items-center gap-3">
             <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
             <span className="text-sm shiny-text">
-              Planning execution steps...
+              {currentRound > 1
+                ? `Re-planning execution steps (Round ${currentRound})...`
+                : "Planning execution steps..."}
+            </span>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Re-planning spinner (between analyze and next planning:start) */}
+      {currentPhase === "replanning" && (
+        <Card className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300 border-amber-500/20 py-4">
+          <CardContent className="flex items-center gap-3">
+            <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
+            <span className="text-sm shiny-text">
+              Re-planning...
             </span>
           </CardContent>
         </Card>
@@ -327,6 +344,12 @@ function DagDoneCard({ done }: { done: DagDoneEvent }) {
               <Clock className="h-2.5 w-2.5" />
               {fmtDuration(done.elapsed)}
             </span>
+            {done.rounds != null && done.rounds > 1 && (
+              <span className="flex items-center gap-1">
+                <RefreshCw className="h-2.5 w-2.5" />
+                {done.rounds} rounds
+              </span>
+            )}
             {done.usage && (
               <span className="flex items-center gap-1">
                 <BarChart3 className="h-2.5 w-2.5" />

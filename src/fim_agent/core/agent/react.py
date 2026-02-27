@@ -121,6 +121,11 @@ class ReActAgent:
         system_prompt: An optional override for the default system prompt.
             When provided the default ReAct instructions are *replaced*
             entirely -- make sure to include tool descriptions yourself.
+        extra_instructions: Optional additional instructions appended to the
+            default system prompt.  Unlike ``system_prompt``, these are
+            *merged* with the default template rather than replacing it.
+            Ideal for per-agent customisation (e.g. "You are a financial
+            analyst...").
         max_iterations: Safety limit on reasoning iterations.
         use_native_tools: Whether to prefer the LLM's native function-calling
             interface.  The feature is only activated when the LLM also
@@ -133,6 +138,7 @@ class ReActAgent:
         llm: BaseLLM,
         tools: ToolRegistry,
         system_prompt: str | None = None,
+        extra_instructions: str | None = None,
         max_iterations: int = 50,
         use_native_tools: bool = True,
         memory: BaseMemory | None = None,
@@ -140,6 +146,7 @@ class ReActAgent:
         self._llm = llm
         self._tools = tools
         self._system_prompt_override = system_prompt
+        self._extra_instructions = extra_instructions
         self._max_iterations = max_iterations
         self._use_native_tools = use_native_tools
         self._memory = memory
@@ -511,11 +518,14 @@ class ReActAgent:
         now_dt = datetime.now(timezone.utc)
         now = now_dt.strftime("%Y-%m-%d %H:%M UTC")
         tool_descriptions = self._format_tool_descriptions()
-        return _SYSTEM_PROMPT_TEMPLATE.format(
+        prompt = _SYSTEM_PROMPT_TEMPLATE.format(
             tool_descriptions=tool_descriptions,
             current_datetime=now,
             current_year=now_dt.year,
         )
+        if self._extra_instructions:
+            prompt += f"\n\nAdditional instructions:\n{self._extra_instructions}"
+        return prompt
 
     def _build_system_prompt_native(self) -> str:
         """Build the system prompt for native function-calling mode.
@@ -529,10 +539,13 @@ class ReActAgent:
 
         now_dt = datetime.now(timezone.utc)
         now = now_dt.strftime("%Y-%m-%d %H:%M UTC")
-        return _NATIVE_TOOLS_SYSTEM_PROMPT_TEMPLATE.format(
+        prompt = _NATIVE_TOOLS_SYSTEM_PROMPT_TEMPLATE.format(
             current_datetime=now,
             current_year=now_dt.year,
         )
+        if self._extra_instructions:
+            prompt += f"\n\nAdditional instructions:\n{self._extra_instructions}"
+        return prompt
 
     def _format_tool_descriptions(self) -> str:
         """Format tool descriptions for inclusion in the system prompt.

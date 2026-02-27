@@ -4,12 +4,30 @@
 
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-Source%20Available-orange)
+[![GitHub stars](https://img.shields.io/github/stars/fim-ai/fim-agent?style=social)](https://github.com/fim-ai/fim-agent/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/fim-ai/fim-agent?style=social)](https://github.com/fim-ai/fim-agent/network)
+[![GitHub issues](https://img.shields.io/github/issues/fim-ai/fim-agent)](https://github.com/fim-ai/fim-agent/issues)
 
 **Provider-agnostic Agent Platform: from standalone AI assistant to embeddable runtime that modernizes legacy systems.**
 
 </div>
 
 ---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Why FIM Agent](#why-fim-agent)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Development](#development)
+- [Project Structure](#project-structure)
+- [Roadmap](#roadmap)
+- [Star History](#star-history)
+- [Contributors](#contributors)
+- [License](#license)
 
 ## Overview
 
@@ -57,11 +75,14 @@ FIM Agent solves this with two integration directions:
 
 - **Dynamic DAG Planning**: The LLM decomposes goals into dependency graphs at runtime. No hard-coded workflows.
 - **DAG Visualization**: Interactive flow graph (@xyflow/react) in an expand/collapse right sidebar with real-time step status, dependency edges, click-to-scroll navigation, and auto fitView. ReAct mode shows a compact step timeline.
+- **DAG Re-Planning**: When the goal is not achieved, the planner automatically revises the plan using step results as context and retries, up to 3 rounds.
 - **Concurrent Execution**: Independent DAG steps run in parallel via `asyncio`, bounded by a configurable concurrency limit.
 - **Real-time Streaming**: Portal streams reasoning steps and tool calls as they happen via SSE, with KaTeX math rendering support.
 - **ReAct Agent**: Structured reasoning-and-acting loop with JSON-based tool calls, automatic error recovery, and iteration limits.
 - **OpenAI-Compatible**: Works with any provider exposing the `/v1/chat/completions` interface (OpenAI, DeepSeek, Qwen, Ollama, vLLM, and others).
 - **Pluggable Tool System**: Protocol-based tool interface with auto-discovery. Ships with Python executor, calculator, file ops, web search/fetch (Jina), HTTP request (any REST API), and sandboxed shell exec (curl, jq, etc.).
+- **Multi-Tenant Platform**: JWT auth with token-based SSE authentication, conversation ownership validation, per-user resource isolation.
+- **Agent Management**: Create, configure, and publish agents with bound LLM model, tool categories, and custom instructions. Chat endpoints automatically resolve agent config.
 - **RAG Ready**: Abstract `BaseRetriever` / `Document` interface for plugging in vector stores and search backends.
 - **Minimal Dependencies**: Only three runtime dependencies: `openai`, `httpx`, `pydantic`.
 
@@ -234,7 +255,7 @@ fim-agent/
     db/               # SQLAlchemy ORM, SQLite persistence (conversations, messages)
     migrations/       # Alembic migrations
     web/              # FastAPI backend
-      api/            # Route handlers (chat SSE, conversations CRUD, models)
+      api/            # Route handlers (chat SSE, auth, conversations, agents, models, files)
       models/         # ORM models
       schemas/        # Pydantic request/response schemas
     rag/              # RAG retriever interface (planned)
@@ -250,13 +271,21 @@ fim-agent/
 
 > Goal: Build a provider-agnostic Agent Platform, from standalone AI assistant to embeddable sidecar engine that modernizes legacy systems without modifying them.
 
-**Shipped**: v0.1 (ReAct Agent, DAG Planning, streaming, KaTeX) → v0.2 (memory, multi-model, token tracking, native function calling) → v0.3 (web/calculator/file tools, MCP client, tool auto-discovery & categories, DAG visualization, sidebar UX, sandbox hardening) → v0.4 (persistence, multi-turn conversation with smart truncation & CJK-aware token estimation, HTTP request & shell exec tools).
+**Shipped**: v0.1 (ReAct Agent, DAG Planning, streaming, KaTeX) → v0.2 (memory, multi-model, token tracking, native function calling) → v0.3 (web/calculator/file tools, MCP client, tool auto-discovery & categories, DAG visualization, sidebar UX, sandbox hardening) → v0.4 (persistence, multi-turn conversation, JWT auth with SSE token support, agent-aware chat with per-agent model/tools/instructions binding, file upload management, HTTP request & shell exec tools) → v0.5 in progress (LLM Compact for conversation history compression, DAG Re-Planning with automatic retry up to 3 rounds).
 
-**Next**: RAG, knowledge & LLM compact (v0.5) → System Adapter protocol for bridging into legacy DBs/APIs/message buses (v0.6) → Human confirmation + embeddable UI (v0.7) → Declarative adapters (v0.8) → Observability (v0.9) → Enterprise & scale (v1.0).
+**Next**: RAG, knowledge base & remaining v0.5 items (semantic memory, conversation summary) → System Adapter protocol for bridging into legacy DBs/APIs/message buses (v0.6) → Human confirmation + embeddable UI (v0.7) → Declarative adapters (v0.8) → Observability (v0.9) → Enterprise & scale (v1.0).
 
 See the full [Roadmap](https://github.com/fim-ai/fim-agent/wiki/Roadmap) for details.
 
 Contributions and ideas are welcome. Open an issue or submit a PR on [GitHub](https://github.com/fim-ai/fim-agent).
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=fim-ai/fim-agent&type=Date)](https://star-history.com/#fim-ai/fim-agent&Date)
+
+## Contributors
+
+[![Contributors](https://contrib.rocks/image?repo=fim-ai/fim-agent)](https://github.com/fim-ai/fim-agent/graphs/contributors)
 
 ## License
 
@@ -269,3 +298,11 @@ FIM Agent Source Available License. This is **not** an OSI-approved open source 
 For commercial licensing inquiries, please open an issue on [GitHub](https://github.com/fim-ai/fim-agent).
 
 See [LICENSE](LICENSE) for full terms.
+
+---
+
+<div align="center">
+
+[Report Bug](https://github.com/fim-ai/fim-agent/issues) · [Request Feature](https://github.com/fim-ai/fim-agent/issues) · [Wiki](https://github.com/fim-ai/fim-agent/wiki)
+
+</div>

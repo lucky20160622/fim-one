@@ -1,9 +1,14 @@
-"""Tests for CompactUtils — token estimation and smart truncation."""
+"""Tests for CompactUtils — token estimation, smart truncation, and LLM compact."""
+
+from __future__ import annotations
+
+from typing import Any, AsyncIterator
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from fim_agent.core.memory.compact import CompactUtils
-from fim_agent.core.model.types import ChatMessage
+from fim_agent.core.model import BaseLLM, ChatMessage, LLMResult, StreamChunk
 
 
 class TestEstimateTokens:
@@ -125,3 +130,190 @@ class TestSmartTruncate:
         result = CompactUtils.smart_truncate(msgs, max_tokens=10000)
         assert len(result) == 1
         assert result[0].content == "just me"
+
+
+# ======================================================================
+# MockLLM for llm_compact tests
+# ======================================================================
+
+
+class _MockLLM(BaseLLM):
+    """A minimal LLM mock that returns a pre-configured chat response.
+
+    If ``raise_exc`` is set, ``chat()`` raises that exception instead.
+    """
+
+    def __init__(
+        self,
+        response_content: str = "",
+        raise_exc: Exception | None = None,
+    ) -> None:
+        self._response_content = response_content
+        self._raise_exc = raise_exc
+        self.call_count = 0
+
+    async def chat(
+        self,
+        messages: list[ChatMessage],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        response_format: dict[str, Any] | None = None,
+    ) -> LLMResult:
+        self.call_count += 1
+        if self._raise_exc is not None:
+            raise self._raise_exc
+        return LLMResult(
+            message=ChatMessage(role="assistant", content=self._response_content),
+        )
+
+    async def stream_chat(
+        self,
+        messages: list[ChatMessage],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> AsyncIterator[StreamChunk]:
+        yield StreamChunk(delta_content="mock", finish_reason="stop")
+
+    @property
+    def abilities(self) -> dict[str, bool]:
+        return {"tool_call": False, "json_mode": False, "vision": False, "streaming": False}
+
+
+# ======================================================================
+# Helper — build a long conversation history
+# ======================================================================
+
+
+def _make_long_history(n: int = 20, content_len: int = 200) -> list[ChatMessage]:
+    """Create *n* alternating user/assistant messages with long content."""
+    msgs: list[ChatMessage] = []
+    for i in range(n):
+        role = "user" if i % 2 == 0 else "assistant"
+        msgs.append(ChatMessage(role=role, content=f"msg-{i} " + "x" * content_len))
+    return msgs
+
+
+# ======================================================================
+# TestLlmCompact
+# ======================================================================
+
+
+class TestLlmCompact:
+    """Tests for ``CompactUtils.llm_compact``."""
+
+    async def test_llm_compact_short_history_returns_unchanged(self):
+        """When the history fits within max_tokens, return it as-is (no LLM call)."""
+        msgs = [
+            ChatMessage(role="user", content="hi"),
+            ChatMessage(role="assistant", content="hello"),
+        ]
+        llm = _MockLLM(response_content="should not be called")
+        result = await CompactUtils.llm_compact(msgs, llm=llm, max_tokens=10000)
+
+        assert len(result) == 2
+        assert result[0].content == "hi"
+        assert result[1].content == "hello"
+        # LLM should never have been invoked.
+        assert llm.call_count == 0
+
+    async def test_llm_compact_summarizes_old_messages(self):
+        """Long history is split: old messages summarised, recent kept verbatim."""
+        msgs = _make_long_history(10)  # 10 messages, ~55 tokens each = ~550 total
+        summary_text = "The user and assistant discussed topics 0-5."
+        llm = _MockLLM(response_content=summary_text)
+
+        # Budget must be:
+        #  - smaller than total (~550) so compaction triggers
+        #  - large enough to hold summary + 4 recent messages (~5 * 55 = 275)
+        result = await CompactUtils.llm_compact(
+            msgs, llm=llm, max_tokens=400, keep_recent=4,
+        )
+
+        # LLM should have been called once for summarisation.
+        assert llm.call_count == 1
+
+        # First message should be the summary injected as a system message.
+        assert result[0].role == "system"
+        assert summary_text in result[0].content
+
+        # The last 4 messages from the original history should be preserved.
+        original_recent = msgs[-4:]
+        for orig, compacted in zip(original_recent, result[1:]):
+            assert orig.content == compacted.content
+
+    async def test_llm_compact_fallback_on_llm_failure(self):
+        """When the LLM raises an exception, fall back to smart_truncate."""
+        msgs = _make_long_history(10)
+        llm = _MockLLM(raise_exc=RuntimeError("API down"))
+
+        result = await CompactUtils.llm_compact(
+            msgs, llm=llm, max_tokens=50, keep_recent=4,
+        )
+
+        # Should have attempted the LLM call.
+        assert llm.call_count == 1
+
+        # Fallback: result should be a truncated subset that fits the budget.
+        assert len(result) < len(msgs)
+        total_tokens = CompactUtils.estimate_messages_tokens(result)
+        assert total_tokens <= 50
+
+    async def test_llm_compact_fallback_on_empty_summary(self):
+        """When the LLM returns empty content, fall back to smart_truncate."""
+        msgs = _make_long_history(10)
+        llm = _MockLLM(response_content="")
+
+        result = await CompactUtils.llm_compact(
+            msgs, llm=llm, max_tokens=50, keep_recent=4,
+        )
+
+        assert llm.call_count == 1
+        # Fell back to smart_truncate — no system summary message.
+        assert all(m.role != "system" or "[Conversation summary]" not in (m.content or "") for m in result)
+        assert len(result) < len(msgs)
+
+    async def test_llm_compact_keeps_recent_messages(self):
+        """The ``keep_recent`` parameter controls how many tail messages are kept."""
+        msgs = _make_long_history(12)  # ~660 tokens total
+        summary_text = "Summary of old turns."
+        llm = _MockLLM(response_content=summary_text)
+
+        # Budget must exceed 7 compacted messages (~385) but be under 12 original (~660).
+        result = await CompactUtils.llm_compact(
+            msgs, llm=llm, max_tokens=500, keep_recent=6,
+        )
+
+        assert llm.call_count == 1
+        # 1 summary message + 6 recent messages = 7 total.
+        assert len(result) == 7
+        assert result[0].role == "system"
+        for i, orig in enumerate(msgs[-6:]):
+            assert result[i + 1].content == orig.content
+
+    async def test_llm_compact_too_few_messages_falls_back(self):
+        """When len(messages) <= keep_recent, fall back to smart_truncate."""
+        # 3 messages with keep_recent=4 — not enough to split.
+        msgs = _make_long_history(3)
+        llm = _MockLLM(response_content="should not be called")
+
+        result = await CompactUtils.llm_compact(
+            msgs, llm=llm, max_tokens=50, keep_recent=4,
+        )
+
+        # LLM should not have been called — fell straight to smart_truncate.
+        assert llm.call_count == 0
+        # Result should fit the budget.
+        total_tokens = CompactUtils.estimate_messages_tokens(result)
+        assert total_tokens <= 50
+
+    async def test_llm_compact_empty_messages(self):
+        """Empty input returns empty list without calling the LLM."""
+        llm = _MockLLM(response_content="nope")
+        result = await CompactUtils.llm_compact([], llm=llm, max_tokens=8000)
+        assert result == []
+        assert llm.call_count == 0

@@ -1,0 +1,132 @@
+"""Tests for the ``_format_replan_context`` helper in the DAG chat endpoint."""
+
+from __future__ import annotations
+
+from fim_agent.core.planner.types import AnalysisResult, ExecutionPlan, PlanStep
+from fim_agent.web.api.chat import _format_replan_context
+
+
+class TestFormatReplanContext:
+    """Unit tests for ``_format_replan_context``."""
+
+    def test_format_replan_context_basic(self):
+        """Formats plan steps and analysis reasoning into a readable string."""
+        plan = ExecutionPlan(
+            goal="Summarise the weather",
+            steps=[
+                PlanStep(
+                    id="step_1",
+                    task="Fetch weather data",
+                    status="completed",
+                    result="Temperature: 22C, sunny.",
+                ),
+                PlanStep(
+                    id="step_2",
+                    task="Summarise findings",
+                    status="failed",
+                    result=None,
+                ),
+            ],
+            current_round=1,
+        )
+        analysis = AnalysisResult(
+            achieved=False,
+            confidence=0.3,
+            reasoning="Step 2 failed so the summary was not produced.",
+        )
+
+        text = _format_replan_context(plan, analysis)
+
+        # Should mention the round number.
+        assert "round 1" in text
+
+        # Should include the analyzer reasoning.
+        assert "Step 2 failed so the summary was not produced." in text
+
+        # Should include step results / status.
+        assert "[step_1] status=completed" in text
+        assert "Temperature: 22C, sunny." in text
+        assert "[step_2] status=failed" in text
+        assert "(no result)" in text
+
+        # Should end with the replanning instruction.
+        assert "revised plan" in text.lower()
+
+    def test_format_replan_context_truncates_long_results(self):
+        """Step results longer than 500 characters are truncated with '...'."""
+        long_result = "A" * 600
+        plan = ExecutionPlan(
+            goal="Test truncation",
+            steps=[
+                PlanStep(
+                    id="step_1",
+                    task="Produce long output",
+                    status="completed",
+                    result=long_result,
+                ),
+            ],
+            current_round=2,
+        )
+        analysis = AnalysisResult(
+            achieved=False,
+            confidence=0.4,
+            reasoning="Output too verbose.",
+        )
+
+        text = _format_replan_context(plan, analysis)
+
+        # The full 600-char result must NOT appear.
+        assert long_result not in text
+
+        # Instead we should see the first 500 chars followed by "...".
+        assert long_result[:500] + "..." in text
+
+    def test_format_replan_context_short_result_not_truncated(self):
+        """Step results at exactly 500 characters are NOT truncated."""
+        exact_result = "B" * 500
+        plan = ExecutionPlan(
+            goal="Boundary test",
+            steps=[
+                PlanStep(
+                    id="step_1",
+                    task="Produce boundary output",
+                    status="completed",
+                    result=exact_result,
+                ),
+            ],
+            current_round=1,
+        )
+        analysis = AnalysisResult(
+            achieved=False,
+            confidence=0.2,
+            reasoning="Needs more detail.",
+        )
+
+        text = _format_replan_context(plan, analysis)
+
+        # The 500-char result should appear in full without trailing "...".
+        assert exact_result in text
+        # Make sure there is no spurious "..." appended right after it.
+        idx = text.index(exact_result)
+        after = text[idx + len(exact_result): idx + len(exact_result) + 3]
+        assert after != "..."
+
+    def test_format_replan_context_multiple_steps(self):
+        """All steps in the plan are included in the output."""
+        steps = [
+            PlanStep(id=f"step_{i}", task=f"Task {i}", status="completed", result=f"Result {i}")
+            for i in range(1, 6)
+        ]
+        plan = ExecutionPlan(goal="Multi-step", steps=steps, current_round=3)
+        analysis = AnalysisResult(
+            achieved=False,
+            confidence=0.45,
+            reasoning="Not all sub-goals met.",
+        )
+
+        text = _format_replan_context(plan, analysis)
+
+        for i in range(1, 6):
+            assert f"[step_{i}]" in text
+            assert f"Result {i}" in text
+        assert "round 3" in text

@@ -1,13 +1,29 @@
 """Smart truncation utilities for conversation history compaction.
 
 Provides token estimation and message truncation so that long conversation
-histories fit within a configurable token budget without requiring a separate
-LLM call.
+histories fit within a configurable token budget.  Supports both a fast
+heuristic mode (``smart_truncate``) and an LLM-powered mode
+(``llm_compact``) that summarises old turns to preserve semantic context.
 """
 
 from __future__ import annotations
 
+import logging
+from typing import TYPE_CHECKING
+
 from fim_agent.core.model.types import ChatMessage
+
+if TYPE_CHECKING:
+    from fim_agent.core.model import BaseLLM
+
+logger = logging.getLogger(__name__)
+
+_COMPACT_PROMPT = """\
+Summarise the following conversation history into a concise paragraph.
+Preserve key facts, decisions, tool results, and any data the user or
+assistant referenced.  Drop greetings, filler, and redundant back-and-forth.
+Reply with ONLY the summary text — no JSON, no markdown headers.
+Write in the same language as the conversation."""
 
 
 class CompactUtils:
@@ -104,3 +120,73 @@ class CompactUtils:
             result.pop(0)
 
         return result
+
+    @classmethod
+    async def llm_compact(
+        cls,
+        messages: list[ChatMessage],
+        llm: BaseLLM,
+        max_tokens: int = 8000,
+        keep_recent: int = 4,
+    ) -> list[ChatMessage]:
+        """Compress conversation history using an LLM summary.
+
+        If the history already fits within *max_tokens*, it is returned
+        unchanged.  Otherwise the earliest turns are summarised into a
+        single system message while the most recent *keep_recent*
+        user/assistant pairs are kept verbatim.
+
+        Args:
+            messages: Full conversation history (oldest first).
+            llm: A fast LLM to use for summarisation.
+            max_tokens: Maximum token budget for the returned history.
+            keep_recent: Number of recent messages to preserve verbatim.
+
+        Returns:
+            A compacted message list that fits within *max_tokens*.
+        """
+        if not messages:
+            return []
+
+        total = cls.estimate_messages_tokens(messages)
+        if total <= max_tokens:
+            return list(messages)
+
+        # Split: keep the most recent messages, summarise the rest.
+        if len(messages) <= keep_recent:
+            # Not enough to split — fall back to heuristic truncation.
+            return cls.smart_truncate(messages, max_tokens)
+
+        old_messages = messages[:-keep_recent]
+        recent_messages = list(messages[-keep_recent:])
+
+        # Build the text block to summarise.
+        lines: list[str] = []
+        for msg in old_messages:
+            prefix = "User" if msg.role == "user" else "Assistant"
+            lines.append(f"{prefix}: {msg.content}")
+        history_text = "\n".join(lines)
+
+        try:
+            result = await llm.chat([
+                ChatMessage(role="system", content=_COMPACT_PROMPT),
+                ChatMessage(role="user", content=history_text),
+            ])
+            summary = (result.message.content or "").strip()
+        except Exception:
+            logger.warning("LLM compact failed, falling back to truncation", exc_info=True)
+            return cls.smart_truncate(messages, max_tokens)
+
+        if not summary:
+            return cls.smart_truncate(messages, max_tokens)
+
+        compacted = [
+            ChatMessage(role="system", content=f"[Conversation summary]: {summary}"),
+            *recent_messages,
+        ]
+
+        # If the compacted result is still too long, truncate the recent part.
+        if cls.estimate_messages_tokens(compacted) > max_tokens:
+            return cls.smart_truncate(compacted, max_tokens)
+
+        return compacted

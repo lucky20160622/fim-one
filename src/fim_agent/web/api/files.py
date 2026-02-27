@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import uuid
 from pathlib import Path
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
-UPLOAD_ROOT = Path("uploads")
+UPLOAD_ROOT = Path(os.environ.get("UPLOADS_DIR", "uploads"))
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
@@ -141,3 +142,27 @@ async def download_file(
         filename=meta["filename"],
         media_type="application/octet-stream",
     )
+
+
+@router.delete("/{file_id}", response_model=ApiResponse)
+async def delete_file(
+    file_id: str,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+) -> ApiResponse:
+    index = _load_index(current_user.id)
+    meta = index.get(file_id)
+    if meta is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
+
+    # Remove from disk
+    file_path = _user_dir(current_user.id) / meta["stored_name"]
+    file_path.unlink(missing_ok=True)
+
+    # Remove from index
+    del index[file_id]
+    _save_index(current_user.id, index)
+
+    return ApiResponse(data={"deleted": file_id})

@@ -121,6 +121,27 @@ def get_tools() -> ToolRegistry:
     return registry
 
 
+def get_llm_from_config(config: dict[str, object]) -> OpenAICompatibleLLM | None:
+    """Build an LLM from an agent's ``model_config_json`` dict.
+
+    Accepts either inline config (``model_name``, ``base_url``, ``api_key``)
+    or falls back to env-based defaults for any missing field.
+
+    Returns ``None`` when ``config`` is empty or has no usable model info.
+    """
+    if not config:
+        return None
+    model_name = config.get("model_name") or config.get("model")
+    if not model_name:
+        return None
+    return OpenAICompatibleLLM(
+        api_key=str(config.get("api_key", "")) or _api_key(),
+        base_url=str(config.get("base_url", "")) or _base_url(),
+        model=str(model_name),
+        default_temperature=float(config.get("temperature", 0) or _temperature()),
+    )
+
+
 def get_user_id() -> str:
     """Return the current user identifier.
 

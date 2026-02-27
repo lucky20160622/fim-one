@@ -32,6 +32,7 @@ export interface DagStepsResult {
   analysisPhase: DagPhaseEvent | null
   doneEvent: DagDoneEvent | null
   currentPhase: string | null
+  currentRound: number
 }
 
 export function useDagSteps(messages: SSEMessage[], isRunning: boolean): DagStepsResult {
@@ -41,11 +42,22 @@ export function useDagSteps(messages: SSEMessage[], isRunning: boolean): DagStep
     let analysisPhase: DagPhaseEvent | null = null
     let doneEvent: DagDoneEvent | null = null
     let currentPhase: string | null = null
+    let currentRound = 1
 
     for (const msg of messages) {
       if (msg.event === "phase") {
         const phase = msg.data as DagPhaseEvent
+
+        // Track round number from any phase event that includes it
+        if (phase.round != null) {
+          currentRound = phase.round
+        }
+
         if (phase.name === "planning" && phase.status === "done" && phase.steps) {
+          // On re-plan (round > 1), clear old steps before populating new ones
+          if (currentRound > 1) {
+            stepMap.clear()
+          }
           planSteps = phase.steps
           for (const s of phase.steps) {
             stepMap.set(s.id, {
@@ -65,6 +77,9 @@ export function useDagSteps(messages: SSEMessage[], isRunning: boolean): DagStep
           if (phase.status === "done") {
             analysisPhase = phase
           }
+        }
+        if (phase.name === "replanning") {
+          currentPhase = "replanning"
         }
         if (phase.name === "planning" && phase.status === "start") {
           currentPhase = "planning"
@@ -167,6 +182,7 @@ export function useDagSteps(messages: SSEMessage[], isRunning: boolean): DagStep
       analysisPhase,
       doneEvent,
       currentPhase,
+      currentRound,
     }
   }, [messages, isRunning])
 }

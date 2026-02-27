@@ -99,16 +99,16 @@ Layer 3 — Sidecar engine  : Embed into enterprise legacy systems as invisible 
 - [x] **Shell Exec Tool**: Sandboxed shell execution (`shell_exec`) — run curl, jq, awk, grep etc. with command blocklist (30+ patterns), env var scrubbing, system path write protection, per-user sandbox directory
 - [x] **Persistent Storage**: SQLAlchemy ORM + SQLite (conversations, messages, model configs); async engine with WAL mode and StaticPool for concurrency
 - [x] **Conversation Persistence**: Session history stored durably; multi-turn context via `DbMemory` — loads prior turns from DB, smart truncation with CJK-aware token estimation, auto-compact within token budget; both ReAct and DAG modes supported
-- [ ] **Multi-Tenant**: User registration/login (JWT), workspace isolation
-- [ ] **Project & Agent Management**: Create/configure/publish agents; bind tools, model, and prompt per project
-- [ ] **File Upload & Management**: Chat-level file upload with type/size metadata display; upload/download/associate files with tasks and agents
+- [x] **Multi-Tenant**: User registration/login (JWT), SSE token-based auth, conversation ownership validation
+- [x] **Project & Agent Management**: Create/configure/publish agents; bind tools, model, and prompt per agent; agent-aware chat endpoints resolve LLM, tools, and instructions from agent config
+- [x] **File Upload & Management**: Upload/download/delete files with per-user isolation; configurable upload directory
 
 ### v0.5 -- RAG, Knowledge & Memory
 
 > *"Give the Agent memory and knowledge"*
 
 **Memory & Compact**
-- [ ] **LLM Compact**: When conversation history exceeds threshold, use a fast LLM to compress early turns into a summary; retain recent turns verbatim; transparent to the agent
+- [x] **LLM Compact**: When conversation history exceeds threshold, use a fast LLM to compress early turns into a summary; retain recent turns verbatim; transparent to the agent
 - [ ] **Conversation Summary Memory**: Automatic rolling summaries that persist across long sessions; hybrid window + summary strategy
 - [ ] **Semantic Memory Store**: Cross-conversation knowledge extraction and retrieval; agent remembers facts/preferences across sessions via embedding-based lookup
 - [ ] **Memory Lifecycle**: TTL-based expiry, importance scoring, explicit forget/remember commands
@@ -116,7 +116,7 @@ Layer 3 — Sidecar engine  : Embed into enterprise legacy systems as invisible 
 **DAG Mode Feature Parity** *(avoid falling behind ReAct)*
 - [ ] **DAG Multi-Turn Polish**: Currently injects history as text prefix to planner; upgrade to structured message history so planner can reason about prior tool results and plan evolution
 - [ ] **DAG LLM Compact**: Apply LLM compact to the enriched query before planning; long conversation context can blow up planner input
-- [ ] **DAG Re-Planning**: When a step fails or produces unexpected results, allow the planner to revise the remaining DAG on-the-fly instead of just failing
+- [x] **DAG Re-Planning**: When the analyzer determines the goal was not achieved (confidence < 0.5), the pipeline automatically re-plans using previous step results as context and retries, up to 3 rounds; new SSE phase event `replanning`; done payload includes `rounds` count
 - [ ] **DAG Step-Level Memory**: Each step executor sees relevant prior conversation context, not just the step task description
 - [ ] **DAG Streaming Improvements**: Stream planner reasoning (not just step progress); show plan changes in real-time when re-planning occurs
 - [ ] **DAG History Replay**: Frontend replays persisted DAG executions with the flow graph (currently only ReAct timeline replays correctly)

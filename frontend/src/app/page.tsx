@@ -13,7 +13,7 @@ import { useMediaQuery } from "@/hooks/use-media-query"
 import { useLocalStorage } from "@/hooks/use-local-storage"
 import { useAuth } from "@/contexts/auth-context"
 import { useConversation } from "@/contexts/conversation-context"
-import { API_BASE_URL } from "@/lib/constants"
+import { API_BASE_URL, ACCESS_TOKEN_KEY } from "@/lib/constants"
 import { cn } from "@/lib/utils"
 import {
   Dialog,
@@ -167,7 +167,11 @@ export default function PlaygroundPage() {
       }
 
       const endpoint = mode === "react" ? "react" : "dag"
-      const url = `${API_BASE_URL}/api/${endpoint}?q=${encodeURIComponent(trimmed)}&conversation_id=${convId}`
+      let url = `${API_BASE_URL}/api/${endpoint}?q=${encodeURIComponent(trimmed)}&conversation_id=${convId}`
+      const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY)
+      if (accessToken) {
+        url += `&token=${encodeURIComponent(accessToken)}`
+      }
       setSourceMode(mode)
       start(url)
     },
@@ -296,6 +300,7 @@ function HistoryTurn({ userContent, sseMessages, mode, hideDagGraph }: {
           analysisPhase={dagData.analysisPhase}
           doneEvent={dagData.doneEvent}
           currentPhase={dagData.currentPhase}
+          currentRound={dagData.currentRound}
           hideDagGraph={hideDagGraph}
         />
       )}
@@ -505,9 +510,11 @@ function PlaygroundContent({
     if (!isRunning || !modeMatches) return null
     if (mode === "dag") {
       if (dagData.doneEvent) return null
-      if (dagData.currentPhase === "planning") return "Planning..."
-      if (dagData.currentPhase === "executing") return "Executing steps..."
-      if (dagData.currentPhase === "analyzing") return "Analyzing..."
+      const roundSuffix = dagData.currentRound > 1 ? ` (Round ${dagData.currentRound})` : ""
+      if (dagData.currentPhase === "replanning") return "Re-planning..."
+      if (dagData.currentPhase === "planning") return `Planning${roundSuffix}...`
+      if (dagData.currentPhase === "executing") return `Executing steps${roundSuffix}...`
+      if (dagData.currentPhase === "analyzing") return `Analyzing${roundSuffix}...`
       return "Processing..."
     } else {
       if (reactItems.some(i => i.event === "done")) return null
@@ -601,6 +608,7 @@ function PlaygroundContent({
                         analysisPhase={dagData.analysisPhase}
                         doneEvent={dagData.doneEvent}
                         currentPhase={dagData.currentPhase}
+                        currentRound={dagData.currentRound}
                         hideDagGraph={showSidebar}
                       />
                     )

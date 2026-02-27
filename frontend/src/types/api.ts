@@ -30,8 +30,9 @@ export interface ReactDoneEvent {
 
 // DAG events
 export interface DagPhaseEvent {
-  name: "planning" | "executing" | "analyzing"
+  name: "planning" | "executing" | "analyzing" | "replanning"
   status: "start" | "done"
+  round?: number
   steps?: Array<{
     id: string
     task: string
@@ -77,6 +78,8 @@ export interface DagDoneEvent {
   achieved: boolean
   confidence: number
   elapsed: number
+  /** Total number of plan-execute-analyze rounds (>1 means re-planning occurred). */
+  rounds?: number
   /** Aggregated token usage across all DAG phases. */
   usage?: TokenUsage
 }
