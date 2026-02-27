@@ -149,11 +149,11 @@ Open http://localhost:3000 — that's it.
 
 ### start.sh Commands
 
-| Command | What starts | URL |
-|---------|-------------|-----|
-| `./start.sh` | Next.js + FastAPI | http://localhost:3000 (UI) + :8000 (API) |
-| `./start.sh dev` | Same, with hot reload (Python `--reload` + Next.js HMR) | Same |
-| `./start.sh api` | FastAPI only (headless, for integration or testing) | http://localhost:8000/api |
+| Command          | What starts                                             | URL                                      |
+| ---------------- | ------------------------------------------------------- | ---------------------------------------- |
+| `./start.sh`     | Next.js + FastAPI                                       | http://localhost:3000 (UI) + :8000 (API) |
+| `./start.sh dev` | Same, with hot reload (Python `--reload` + Next.js HMR) | Same                                     |
+| `./start.sh api` | FastAPI only (headless, for integration or testing)     | http://localhost:8000/api                |
 
 > **Docker deployment** is on the [Roadmap](https://github.com/fim-ai/fim-agent/wiki/Roadmap) (v0.9). For now, `./start.sh` is the recommended way to run.
 
@@ -165,17 +165,17 @@ The portal offers two modes: **ReAct Agent** (single-query tool loop) and **DAG 
 
 Two API keys unlock all features:
 
-| Service | What it powers | Get a key |
-|---------|---------------|-----------|
-| **Anthropic** (Claude) | Agent reasoning (main LLM) | [console.anthropic.com](https://console.anthropic.com/) |
-| **Jina AI** | Web search/fetch, embedding, reranker | [jina.ai](https://jina.ai/) (free tier available) |
+| Service                | What it powers                        | Get a key                                               |
+| ---------------------- | ------------------------------------- | ------------------------------------------------------- |
+| **Anthropic** (Claude) | Agent reasoning (main LLM)            | [console.anthropic.com](https://console.anthropic.com/) |
+| **Jina AI**            | Web search/fetch, embedding, reranker | [jina.ai](https://jina.ai/) (free tier available)       |
 
 Minimal `.env` to get everything working:
 
 ```bash
 LLM_API_KEY=sk-ant-...          # Anthropic API key
 LLM_BASE_URL=https://api.anthropic.com/v1
-LLM_MODEL=claude-sonnet-4-20250514
+LLM_MODEL=claude-sonnet-4-6
 
 JINA_API_KEY=jina_...           # Unlocks web tools + RAG
 ```
@@ -184,22 +184,22 @@ JINA_API_KEY=jina_...           # Unlocks web tools + RAG
 
 ### All Variables
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `LLM_API_KEY` | Yes | | API key for the LLM provider |
-| `LLM_BASE_URL` | No | `https://api.openai.com/v1` | Base URL of the OpenAI-compatible API |
-| `LLM_MODEL` | No | `gpt-4o` | Model identifier to use |
-| `LLM_TEMPERATURE` | No | `0.7` | Default sampling temperature |
-| `LLM_CONTEXT_SIZE` | No | `128000` | Context window size for the main LLM |
-| `LLM_MAX_OUTPUT_TOKENS` | No | `64000` | Max output tokens per call for the main LLM |
-| `FAST_LLM_CONTEXT_SIZE` | No | *(falls back to `LLM_CONTEXT_SIZE`)* | Context window size for the fast LLM |
-| `FAST_LLM_MAX_OUTPUT_TOKENS` | No | *(falls back to `LLM_MAX_OUTPUT_TOKENS`)* | Max output tokens per call for the fast LLM |
-| `MAX_CONCURRENCY` | No | `5` | Max parallel steps in DAG executor |
-| `JINA_API_KEY` | No | | Jina API key for embedding, reranker, and web tools |
-| `EMBEDDING_MODEL` | No | `jina-embeddings-v3` | Embedding model identifier |
-| `EMBEDDING_DIMENSION` | No | `1024` | Embedding vector dimension |
-| `RERANKER_MODEL` | No | `jina-reranker-v2-base-multilingual` | Reranker model identifier |
-| `VECTOR_STORE_DIR` | No | `./data/vector_store` | Directory for LanceDB vector store data |
+| Variable                     | Required | Default                                   | Description                                         |
+| ---------------------------- | -------- | ----------------------------------------- | --------------------------------------------------- |
+| `LLM_API_KEY`                | Yes      |                                           | API key for the LLM provider                        |
+| `LLM_BASE_URL`               | No       | `https://api.openai.com/v1`               | Base URL of the OpenAI-compatible API               |
+| `LLM_MODEL`                  | No       | `gpt-4o`                                  | Model identifier to use                             |
+| `LLM_TEMPERATURE`            | No       | `0.7`                                     | Default sampling temperature                        |
+| `LLM_CONTEXT_SIZE`           | No       | `128000`                                  | Context window size for the main LLM                |
+| `LLM_MAX_OUTPUT_TOKENS`      | No       | `64000`                                   | Max output tokens per call for the main LLM         |
+| `FAST_LLM_CONTEXT_SIZE`      | No       | *(falls back to `LLM_CONTEXT_SIZE`)*      | Context window size for the fast LLM                |
+| `FAST_LLM_MAX_OUTPUT_TOKENS` | No       | *(falls back to `LLM_MAX_OUTPUT_TOKENS`)* | Max output tokens per call for the fast LLM         |
+| `MAX_CONCURRENCY`            | No       | `5`                                       | Max parallel steps in DAG executor                  |
+| `JINA_API_KEY`               | No       |                                           | Jina API key for embedding, reranker, and web tools |
+| `EMBEDDING_MODEL`            | No       | `jina-embeddings-v3`                      | Embedding model identifier                          |
+| `EMBEDDING_DIMENSION`        | No       | `1024`                                    | Embedding vector dimension                          |
+| `RERANKER_MODEL`             | No       | `jina-reranker-v2-base-multilingual`      | Reranker model identifier                           |
+| `VECTOR_STORE_DIR`           | No       | `./data/vector_store`                     | Directory for LanceDB vector store data             |
 
 Copy `example.env` to `.env` and fill in your values:
 
