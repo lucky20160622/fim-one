@@ -102,6 +102,7 @@ Layer 3 — Sidecar engine  : Embed into enterprise legacy systems as invisible 
 - [x] **Multi-Tenant**: User registration/login (JWT), SSE token-based auth, conversation ownership validation
 - [x] **Project & Agent Management**: Create/configure/publish agents; bind tools, model, and prompt per agent; agent-aware chat endpoints resolve LLM, tools, and instructions from agent config
 - [x] **File Upload & Management**: Upload/download/delete files with per-user isolation; configurable upload directory
+- [x] **Clipboard Image Paste**: Chat input supports pasting images directly from clipboard; same upload flow as file picker
 
 ### v0.5 -- RAG, Knowledge & Memory
 
