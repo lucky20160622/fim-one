@@ -9,7 +9,7 @@ import {
   useEdgesState,
   BackgroundVariant,
 } from "@xyflow/react"
-import type { NodeMouseHandler } from "@xyflow/react"
+import type { NodeChange, NodeMouseHandler } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 
 import { Badge } from "@/components/ui/badge"
@@ -19,7 +19,7 @@ import type { StepState } from "@/hooks/use-dag-steps"
 import { StepNode } from "./step-node"
 import { useDagLayout } from "./use-dag-layout"
 import { StepDetailPanel } from "./step-detail-panel"
-import type { StepNodeData } from "./types"
+import type { StepFlowNode, StepNodeData } from "./types"
 
 // MUST be defined outside the component to prevent ReactFlow infinite re-renders
 const nodeTypes = { step: StepNode }
@@ -34,7 +34,7 @@ interface DagFlowGraphProps {
 }
 
 export function DagFlowGraph({ planSteps, stepStates, mode = "inline", expanded, resizeKey, onStepClick }: DagFlowGraphProps) {
-  const { nodes: layoutNodes, edges: layoutEdges } = useDagLayout({
+  const { nodes: layoutNodes, edges: layoutEdges, dagreCenters } = useDagLayout({
     planSteps,
     stepStates,
   })
@@ -43,6 +43,37 @@ export function DagFlowGraph({ planSteps, stepStates, mode = "inline", expanded,
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutEdges)
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
   const fitViewFn = useRef<((opts?: { duration?: number }) => void) | null>(null)
+
+  // Stable ref for Dagre center-Y values (used in dimension-change handler)
+  const dagreCentersRef = useRef(dagreCenters)
+  dagreCentersRef.current = dagreCenters
+
+  // Intercept dimension changes to center-align nodes based on measured height
+  const handleNodesChange = useCallback(
+    (changes: NodeChange<StepFlowNode>[]) => {
+      onNodesChange(changes)
+
+      const hasDimChange = changes.some((c) => c.type === "dimensions")
+      if (!hasDimChange) return
+
+      setNodes((currentNodes) => {
+        let changed = false
+        const next = currentNodes.map((node) => {
+          const centerY = dagreCentersRef.current.get(node.id)
+          if (centerY === undefined) return node
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const h = (node as any).measured?.height as number | undefined
+          if (!h) return node
+          const newY = centerY - h / 2
+          if (Math.abs(node.position.y - newY) < 0.5) return node
+          changed = true
+          return { ...node, position: { ...node.position, y: newY } }
+        })
+        return changed ? next : currentNodes
+      })
+    },
+    [onNodesChange, setNodes],
+  )
 
   // Re-fit view when sidebar expands/collapses (wait for CSS transition)
   useEffect(() => {
@@ -132,7 +163,7 @@ export function DagFlowGraph({ planSteps, stepStates, mode = "inline", expanded,
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
-          onNodesChange={onNodesChange}
+          onNodesChange={handleNodesChange}
           onEdgesChange={onEdgesChange}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
@@ -175,7 +206,7 @@ export function DagFlowGraph({ planSteps, stepStates, mode = "inline", expanded,
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
-          onNodesChange={onNodesChange}
+          onNodesChange={handleNodesChange}
           onEdgesChange={onEdgesChange}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}

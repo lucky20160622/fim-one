@@ -3,15 +3,76 @@
 import { useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Bot, ChevronLeft, ChevronRight, Library, Loader2 } from "lucide-react"
+import { Bot, ChevronLeft, ChevronRight, Library, Loader2, MessagesSquare, Plus, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { APP_NAME, APP_VERSION } from "@/lib/constants"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/contexts/auth-context"
-import { ConversationProvider } from "@/contexts/conversation-context"
+import { ConversationProvider, useConversation } from "@/contexts/conversation-context"
 import { ConversationSidebar } from "@/components/layout/conversation-sidebar"
+import { ChatSearchDialog } from "@/components/layout/chat-search-dialog"
 import { UserMenu } from "@/components/layout/user-menu"
+
+function SidebarNewChat({ collapsed }: { collapsed: boolean }) {
+  const { clearActive } = useConversation()
+  const router = useRouter()
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  const handleNewChat = () => {
+    clearActive()
+    router.push("/new")
+  }
+
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center gap-1 px-2 py-2 shrink-0">
+        <button
+          onClick={handleNewChat}
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          title="New Chat"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          title="Search (Cmd+K)"
+        >
+          <Search className="h-4 w-4" />
+        </button>
+        <ChatSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="px-3 py-2 shrink-0">
+      <div className="flex items-center gap-1.5">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 justify-start gap-2"
+          onClick={handleNewChat}
+        >
+          <Plus className="h-4 w-4" />
+          New Chat
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0 px-2"
+          onClick={() => setSearchOpen(true)}
+          title="Search (Cmd+K)"
+        >
+          <Search className="h-4 w-4" />
+        </Button>
+      </div>
+      <ChatSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+    </div>
+  )
+}
 
 function RedirectToLogin() {
   const router = useRouter()
@@ -76,13 +137,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <Separator />
 
-          {/* Conversation list */}
-          <div className="flex-1 min-h-0 py-2">
-            <ConversationSidebar collapsed={collapsed} />
-          </div>
+          {/* New Chat + Search — highest priority */}
+          <SidebarNewChat collapsed={collapsed} />
+
+          <Separator />
 
           {/* Navigation */}
-          <div className="px-3 pb-2 shrink-0">
+          <div className="px-3 py-2 shrink-0">
             <Link
               href="/agents"
               className={cn(
@@ -109,6 +170,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Library className="h-4 w-4" />
               {!collapsed && <span>Knowledge</span>}
             </Link>
+            <Link
+              href="/chats"
+              className={cn(
+                "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                pathname === "/chats"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground",
+                collapsed && "justify-center px-0"
+              )}
+            >
+              <MessagesSquare className="h-4 w-4" />
+              {!collapsed && <span>All Chats</span>}
+            </Link>
+          </div>
+
+          <Separator />
+
+          {/* Conversation list */}
+          <div className="flex-1 min-h-0 py-2 overflow-hidden">
+            <ConversationSidebar collapsed={collapsed} hideHeader />
           </div>
 
           {/* Bottom area */}

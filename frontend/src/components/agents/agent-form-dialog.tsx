@@ -92,7 +92,7 @@ export function AgentFormDialog({
       name: trimmedName,
       description: description.trim() || null,
       instructions: instructions.trim() || null,
-      ...(toolCategories.length > 0 && { tool_categories: toolCategories }),
+      tool_categories: toolCategories,
       ...(prompts.length > 0 && { suggested_prompts: prompts }),
       ...(selectedKBs.length > 0 && { kb_ids: selectedKBs }),
       ...(selectedKBs.length > 0 && confidenceThreshold != null && {

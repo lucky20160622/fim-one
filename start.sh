@@ -60,20 +60,26 @@ case "$CMD" in
     echo "  API backend  → http://localhost:8000 (--reload)"
     echo "  Next.js app  → http://localhost:3000 (HMR)"
     rm -rf frontend/.next
-    mkdir -p frontend/.next && touch frontend/.next/.metadata_never_index
+    mkdir -p frontend/.next/static/development
+    # Prevent macOS Spotlight from indexing .next
+    touch frontend/.next/.metadata_never_index
+    touch frontend/.next/static/.metadata_never_index
+    touch frontend/.next/static/development/.metadata_never_index
+    mdutil -i off frontend/.next &>/dev/null || true
     uv run uvicorn fim_agent.web:create_app --factory --host 0.0.0.0 --port 8000 --reload --reload-dir src &
     API_PID=$!
     trap "kill $API_PID 2>/dev/null" EXIT
     cd frontend
     # Auto-restart on crash (e.g. Turbopack tmp file race condition)
     while true; do
+      find .next -name '*.tmp.*' -delete 2>/dev/null || true
       pnpm dev
       EXIT_CODE=$?
       # Ctrl+C (SIGINT=130) → stop for real
       [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 130 ] && break
       echo ""
-      echo "  Next.js dev server crashed (exit $EXIT_CODE), restarting in 1s..."
-      sleep 1
+      echo "  Next.js dev server crashed (exit $EXIT_CODE), restarting in 2s..."
+      sleep 2
     done
     ;;
   api)

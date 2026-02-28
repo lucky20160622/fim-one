@@ -11,13 +11,14 @@ specifiers:
   '@xyflow/react': ^12.10.1
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
+  cmdk: ^1.1.1
   dagre: ^0.8.5
   eslint: ^9
   eslint-config-next: '15'
   highlight.js: ^11.11.1
   katex: ^0.16.33
   lucide-react: ^0.575.0
-  next: '15'
+  next: ~15.5.12
   radix-ui: ^1.4.3
   react: ^18
   react-dom: ^18
@@ -36,6 +37,7 @@ dependencies:
   '@xyflow/react': 12.10.1_95cf71520f32bee5ede2baa0d40faed2
   class-variance-authority: 0.7.1
   clsx: 2.1.1
+  cmdk: 1.1.1_a9933653a6ee863f81cb88f8604aea5b
   dagre: 0.8.5
   highlight.js: 11.11.1
   katex: 0.16.33
@@ -1801,6 +1803,26 @@ packages:
       react-dom: 18.3.1_react@18.3.1
     dev: false
 
+  /@radix-ui/react-primitive/2.1.4_a9933653a6ee863f81cb88f8604aea5b:
+    resolution: {integrity: sha512-9hQc4+GNVtJAIEPEqlYqW5RiYdrr8ea5XQ0ZOnD6fgru+83kqT15mq2OCcbe8KnjRZl5vF3ks69AKz3kh1jrhg==}
+    peerDependencies:
+      '@types/react': '*'
+      '@types/react-dom': '*'
+      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
+        optional: true
+    dependencies:
+      '@radix-ui/react-slot': 1.2.4_51138f14b38d93b7070bf9e55fa8ad95
+      '@types/react': 18.3.28
+      '@types/react-dom': 18.3.7_@types+react@18.3.28
+      react: 18.3.1
+      react-dom: 18.3.1_react@18.3.1
+    dev: false
+
   /@radix-ui/react-progress/1.1.7_a9933653a6ee863f81cb88f8604aea5b:
     resolution: {integrity: sha512-vPdg/tF6YC/ynuBIJlk1mm7Le0VgW6ub6J2UWnTQ7/D23KXcPI1qy+0vBkgKgd38RCMJavBXpB83HPNFMTb0Fg==}
     peerDependencies:
@@ -1999,6 +2021,20 @@ packages:
 
   /@radix-ui/react-slot/1.2.3_51138f14b38d93b7070bf9e55fa8ad95:
     resolution: {integrity: sha512-aeNmHnBxbi2St0au6VBVC7JXFlhLlOnvIIlePNniyUNAClzmtAUEY8/pBiK3iHjufOlwA+c20/8jngo7xcrg8A==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+    dependencies:
+      '@radix-ui/react-compose-refs': 1.1.2_51138f14b38d93b7070bf9e55fa8ad95
+      '@types/react': 18.3.28
+      react: 18.3.1
+    dev: false
+
+  /@radix-ui/react-slot/1.2.4_51138f14b38d93b7070bf9e55fa8ad95:
+    resolution: {integrity: sha512-Jl+bCv8HxKnlTLVrcDE8zTMJ09R9/ukw4qBs/oZClOfoQk/cOTbDn+NceXfV7j09YPVQUryJPHurafcSg6EVKA==}
     peerDependencies:
       '@types/react': '*'
       react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
@@ -3364,6 +3400,23 @@ packages:
   /clsx/2.1.1:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
     engines: {node: '>=6'}
+    dev: false
+
+  /cmdk/1.1.1_a9933653a6ee863f81cb88f8604aea5b:
+    resolution: {integrity: sha512-Vsv7kFaXm+ptHDMZ7izaRsP70GgrW9NBNGswt9OZaVBLlE0SNpDq8eu/VGXyF9r7M0azK3Wy7OlYXsuyYLFzHg==}
+    peerDependencies:
+      react: ^18 || ^19 || ^19.0.0-rc
+      react-dom: ^18 || ^19 || ^19.0.0-rc
+    dependencies:
+      '@radix-ui/react-compose-refs': 1.1.2_51138f14b38d93b7070bf9e55fa8ad95
+      '@radix-ui/react-dialog': 1.1.15_a9933653a6ee863f81cb88f8604aea5b
+      '@radix-ui/react-id': 1.1.1_51138f14b38d93b7070bf9e55fa8ad95
+      '@radix-ui/react-primitive': 2.1.4_a9933653a6ee863f81cb88f8604aea5b
+      react: 18.3.1
+      react-dom: 18.3.1_react@18.3.1
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
     dev: false
 
   /code-block-writer/13.0.3:

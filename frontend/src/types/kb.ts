@@ -27,7 +27,7 @@ export interface KBDocumentResponse {
 
 export interface KBCreate {
   name: string
-  description?: string
+  description?: string | null
   chunk_strategy?: string
   chunk_size?: number
   chunk_overlap?: number
@@ -36,7 +36,7 @@ export interface KBCreate {
 
 export interface KBUpdate {
   name?: string
-  description?: string
+  description?: string | null
   chunk_strategy?: string
   chunk_size?: number
   chunk_overlap?: number
@@ -47,4 +47,37 @@ export interface KBRetrieveResult {
   content: string
   metadata: Record<string, unknown>
   score: number
+}
+
+export interface ChunkResponse {
+  id: string
+  text: string
+  chunk_index: number
+  metadata: Record<string, unknown> | null
+  content_hash: string
+}
+
+export interface PaginatedChunks {
+  items: ChunkResponse[]
+  total: number
+  page: number
+  size: number
+  pages: number
+}
+
+export interface PaginatedDocuments {
+  items: KBDocumentResponse[]
+  total: number
+  page: number
+  size: number
+  pages: number
+}
+
+export interface ChunkUpdate {
+  text: string
+}
+
+export interface DocumentCreate {
+  filename: string
+  content: string
 }

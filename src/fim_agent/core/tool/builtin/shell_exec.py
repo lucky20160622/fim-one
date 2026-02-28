@@ -240,7 +240,7 @@ class ShellExecTool(BaseTool):
 
     @property
     def category(self) -> str:
-        return "system"
+        return "computation"
 
     @property
     def description(self) -> str:

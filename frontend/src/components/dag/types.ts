@@ -1,3 +1,4 @@
+import type { Node } from "@xyflow/react"
 import type { StepState } from "@/hooks/use-dag-steps"
 
 export interface StepNodeData {
@@ -12,9 +13,4 @@ export interface StepNodeData {
   [key: string]: unknown // ReactFlow requires index signature
 }
 
-export type StepFlowNode = {
-  id: string
-  type: "step"
-  position: { x: number; y: number }
-  data: StepNodeData
-}
+export type StepFlowNode = Node<StepNodeData, "step">

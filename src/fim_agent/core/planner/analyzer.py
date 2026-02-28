@@ -55,6 +55,13 @@ what is missing or went wrong.
 results and conclusions, not a verbose repetition of each step's raw output.
 - LANGUAGE: The "final_answer" and "reasoning" must be in the same language \
 as the original goal. If the goal is in Chinese, respond in Chinese.
+- When step results come from different sources (e.g. web search vs knowledge \
+base retrieval), explicitly compare them. If the information is consistent, \
+note that sources corroborate each other. If there are contradictions \
+(different numbers, dates, or claims), flag each discrepancy clearly in the \
+"final_answer" with both versions and indicate which source is likely more \
+authoritative based on recency and specificity.
+- Lower the "confidence" score when sources contradict each other.
 """
 
 
@@ -203,9 +210,10 @@ class PlanAnalyzer:
         lines: list[str] = []
         for step in plan.steps:
             deps = ", ".join(step.dependencies) if step.dependencies else "none"
+            hint = step.tool_hint or "none"
             result_text = step.result or "(no result)"
             lines.append(
-                f"[{step.id}] (status: {step.status}, deps: {deps})\n"
+                f"[{step.id}] (status: {step.status}, deps: {deps}, tool_hint: {hint})\n"
                 f"  Task: {step.task}\n"
                 f"  Result: {result_text}"
             )

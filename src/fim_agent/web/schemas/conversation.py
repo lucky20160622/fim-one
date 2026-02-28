@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ConversationCreate(BaseModel):
@@ -17,6 +17,11 @@ class ConversationCreate(BaseModel):
 class ConversationUpdate(BaseModel):
     title: str | None = None
     status: Literal["active", "archived"] | None = None
+    starred: bool | None = None
+
+
+class BatchDeleteRequest(BaseModel):
+    ids: list[str] = Field(..., max_length=50)
 
 
 class ConversationResponse(BaseModel):
@@ -25,6 +30,7 @@ class ConversationResponse(BaseModel):
     mode: str
     agent_id: str | None
     status: str
+    starred: bool
     model_name: str | None
     total_tokens: int
     created_at: str

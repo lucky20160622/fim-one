@@ -44,6 +44,13 @@ Before starting parallel worktree development:
 4. Worktree agents MUST commit their changes on their branch (not leave uncommitted changes)
 5. Merge via `git merge` / `git cherry-pick`, not manual file copying
 
+## Frontend Build Safety
+
+- **NEVER run `rm -rf frontend/.next`** while the dev server is running — this kills Turbopack HMR
+- Production builds use a separate dir: `.next-build` (configured via `distDir` in `next.config.ts`)
+- To build: just run `cd frontend && pnpm build` — the build script handles cleaning `.next-build`
+- **NEVER run `rm -rf .next && next build`** — use `pnpm build` which only cleans `.next-build`
+
 ## Code Conventions
 
 - Type hints on all public functions

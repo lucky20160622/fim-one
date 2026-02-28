@@ -61,6 +61,8 @@ If the goal is in Chinese, write tasks in Chinese.
 or echo large blocks of text, conversation history, or report content into \
 the task field. Instead, reference it briefly (e.g. "Translate the report \
 from the previous conversation into English, preserving Markdown formatting").
+9. If a list of available tools is provided, the "tool_hint" field MUST only \
+reference tools from that list. Do NOT suggest tools that are not available.
 
 Respond with a single JSON object:
 {{
@@ -82,7 +84,12 @@ class DAGPlanner:
     def __init__(self, llm: BaseLLM) -> None:
         self._llm = llm
 
-    async def plan(self, goal: str, context: str = "") -> ExecutionPlan:
+    async def plan(
+        self,
+        goal: str,
+        context: str = "",
+        tool_names: list[str] | None = None,
+    ) -> ExecutionPlan:
         """Generate an execution plan for the given goal.
 
         Args:
@@ -97,7 +104,7 @@ class DAGPlanner:
             ValueError: If the LLM produces an invalid DAG (cycles or
                 dangling dependency references).
         """
-        messages = self._build_messages(goal, context)
+        messages = self._build_messages(goal, context, tool_names)
         response_format = self._json_response_format()
 
         result = await self._llm.chat(
@@ -124,12 +131,19 @@ class DAGPlanner:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _build_messages(self, goal: str, context: str) -> list[ChatMessage]:
+    def _build_messages(
+        self,
+        goal: str,
+        context: str,
+        tool_names: list[str] | None = None,
+    ) -> list[ChatMessage]:
         """Construct the message list for the planning LLM call.
 
         Args:
             goal: The high-level objective.
             context: Optional extra context.
+            tool_names: Optional list of available tool names to constrain
+                the planner's ``tool_hint`` suggestions.
 
         Returns:
             A list of ``ChatMessage`` objects.
@@ -147,6 +161,8 @@ class DAGPlanner:
         ]
 
         user_content = f"Goal: {goal}"
+        if tool_names:
+            user_content += f"\n\nAvailable tools: {', '.join(tool_names)}"
         if context:
             user_content += f"\n\nAdditional context:\n{context}"
 
@@ -189,10 +205,14 @@ class DAGPlanner:
 
         raw_steps = data.get("steps")
         if not isinstance(raw_steps, list):
-            raise ValueError(
-                "LLM response missing 'steps' array. "
-                f"Got keys: {list(data.keys())}"
-            )
+            # LLM sometimes returns a single step object instead of {"steps": [...]}
+            if "id" in data and "task" in data:
+                raw_steps = [data]
+            else:
+                raise ValueError(
+                    "LLM response missing 'steps' array. "
+                    f"Got keys: {list(data.keys())}"
+                )
 
         steps: list[PlanStep] = []
         for raw in raw_steps:

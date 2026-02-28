@@ -16,7 +16,6 @@ import { useAuth } from "@/contexts/auth-context"
 import { kbApi } from "@/lib/api"
 import { KBCard } from "@/components/kb/kb-card"
 import { KBFormDialog } from "@/components/kb/kb-form-dialog"
-import { KBDetailDialog } from "@/components/kb/kb-detail-dialog"
 import { KBUploadDialog } from "@/components/kb/kb-upload-dialog"
 import type { KBResponse, KBCreate } from "@/types/kb"
 
@@ -30,7 +29,6 @@ export default function KBPage() {
   const [editingKB, setEditingKB] = useState<KBResponse | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [viewingKB, setViewingKB] = useState<KBResponse | null>(null)
   const [uploadingKB, setUploadingKB] = useState<KBResponse | null>(null)
 
   // Auth guard
@@ -97,7 +95,6 @@ export default function KBPage() {
     }
   }
 
-  const handleView = (kb: KBResponse) => setViewingKB(kb)
   const handleUpload = (kb: KBResponse) => setUploadingKB(kb)
 
   if (authLoading || !user) return null
@@ -145,7 +142,6 @@ export default function KBPage() {
               <KBCard
                 key={kb.id}
                 kb={kb}
-                onView={handleView}
                 onUpload={handleUpload}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
@@ -162,13 +158,6 @@ export default function KBPage() {
         kb={editingKB}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
-      />
-
-      {/* Detail Dialog */}
-      <KBDetailDialog
-        open={viewingKB !== null}
-        onOpenChange={(open) => { if (!open) setViewingKB(null) }}
-        kb={viewingKB}
       />
 
       {/* Upload Dialog */}

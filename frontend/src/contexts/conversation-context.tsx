@@ -29,6 +29,8 @@ interface ConversationContextValue {
   ) => Promise<ConversationResponse>
   deleteConversation: (id: string) => Promise<void>
   updateTitle: (id: string, title: string) => Promise<void>
+  toggleStar: (id: string) => Promise<void>
+  batchDeleteConversations: (ids: string[]) => Promise<void>
   clearActive: () => void
 }
 
@@ -50,7 +52,7 @@ export function ConversationProvider({
   const loadConversations = useCallback(async () => {
     setIsLoadingList(true)
     try {
-      const res = await conversationApi.list(1, 50)
+      const res = await conversationApi.list(1, 20)
       setConversations(res.items)
     } catch (err) {
       console.error("Failed to load conversations:", err)
@@ -120,6 +122,27 @@ export function ConversationProvider({
     [activeConversation?.id],
   )
 
+  const toggleStar = useCallback(async (id: string) => {
+    const conv = conversations.find((c) => c.id === id)
+    if (!conv) return
+    const updated = await conversationApi.update(id, { starred: !conv.starred })
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, starred: updated.starred } : c)),
+    )
+  }, [conversations])
+
+  const batchDeleteConversations = useCallback(
+    async (ids: string[]) => {
+      await conversationApi.batchDelete(ids)
+      setConversations((prev) => prev.filter((c) => !ids.includes(c.id)))
+      if (activeId && ids.includes(activeId)) {
+        setActiveConversation(null)
+        setActiveId(null)
+      }
+    },
+    [activeId],
+  )
+
   const clearActive = useCallback(() => {
     setActiveConversation(null)
     setActiveId(null)
@@ -138,6 +161,8 @@ export function ConversationProvider({
         createConversation,
         deleteConversation,
         updateTitle,
+        toggleStar,
+        batchDeleteConversations,
         clearActive,
       }}
     >

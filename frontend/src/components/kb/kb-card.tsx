@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { Eye, Upload, Pencil, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -8,7 +9,6 @@ import type { KBResponse } from "@/types/kb"
 
 interface KBCardProps {
   kb: KBResponse
-  onView: (kb: KBResponse) => void
   onUpload: (kb: KBResponse) => void
   onEdit: (kb: KBResponse) => void
   onDelete: (id: string) => void
@@ -16,11 +16,12 @@ interface KBCardProps {
 
 export function KBCard({
   kb,
-  onView,
   onUpload,
   onEdit,
   onDelete,
 }: KBCardProps) {
+  const router = useRouter()
+
   return (
     <div className="flex flex-col rounded-lg border border-border bg-card p-4 transition-colors hover:border-border/80 hover:bg-accent/5">
       {/* Header: name + badges */}
@@ -64,7 +65,7 @@ export function KBCard({
         <Button
           variant="ghost"
           size="icon-xs"
-          onClick={() => onView(kb)}
+          onClick={() => router.push(`/kb/${kb.id}`)}
           className="text-muted-foreground hover:text-foreground"
           title="View"
         >

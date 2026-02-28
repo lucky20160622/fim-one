@@ -222,8 +222,9 @@ def _resolve_tools(
     """Build tool registry, optionally scoped to a per-conversation sandbox."""
     sandbox_root = _conversation_sandbox_root(conversation_id)
     tools = get_tools(sandbox_root=sandbox_root)
-    if agent_cfg and agent_cfg.get("tool_categories"):
-        tools = tools.filter_by_category(*agent_cfg["tool_categories"])
+    if agent_cfg:
+        cats = agent_cfg.get("tool_categories") or []
+        tools = tools.filter_by_category(*cats)
 
     # Inject user_id into the auto-discovered KBRetrieveTool so that
     # retrieval queries the correct per-user vector store directory.
@@ -769,8 +770,13 @@ async def dag_endpoint(
                     logger.info("Client disconnected before planning round %d", round_num)
                     return
 
+                tool_names = [t.name for t in tools.list_tools()]
                 planner = DAGPlanner(llm=llm)
-                plan = await planner.plan(enriched_query, context=replan_context)
+                plan = await planner.plan(
+                    enriched_query,
+                    context=replan_context,
+                    tool_names=tool_names,
+                )
                 plan.current_round = round_num
                 yield _emit(
                     sse_events,

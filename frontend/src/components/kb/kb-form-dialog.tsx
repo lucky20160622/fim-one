@@ -59,9 +59,10 @@ export function KBFormDialog({
     const trimmedName = name.trim()
     if (!trimmedName) return
 
+    const trimmedDesc = description.trim()
     const data: KBCreate = {
       name: trimmedName,
-      ...(description.trim() && { description: description.trim() }),
+      description: trimmedDesc || null,
       chunk_strategy: chunkStrategy,
       chunk_size: chunkSize,
       chunk_overlap: chunkOverlap,
@@ -84,131 +85,148 @@ export function KBFormDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Name */}
-          <div className="space-y-1.5">
-            <label htmlFor="kb-name" className="text-sm font-medium">
-              Name <span className="text-destructive">*</span>
-            </label>
-            <input
-              id="kb-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="My Knowledge Base"
-              required
-              className={inputClass}
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* ── Section: General ── */}
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-semibold text-foreground">General</legend>
 
-          {/* Description */}
-          <div className="space-y-1.5">
-            <label htmlFor="kb-description" className="text-sm font-medium">
-              Description
-            </label>
-            <textarea
-              id="kb-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="A brief description of this knowledge base..."
-              rows={2}
-              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-            />
-          </div>
+            {/* Name */}
+            <div className="space-y-1.5">
+              <label htmlFor="kb-name" className="text-sm font-medium">
+                Name <span className="text-destructive">*</span>
+              </label>
+              <input
+                id="kb-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="My Knowledge Base"
+                required
+                className={inputClass}
+              />
+            </div>
 
-          {/* Chunk Settings */}
-          <div className="space-y-1.5">
-            <label htmlFor="kb-chunk-strategy" className="text-sm font-medium">
-              Chunk Strategy {isEditing && <span className="text-xs text-muted-foreground font-normal">(locked)</span>}
-            </label>
+            {/* Description */}
+            <div className="space-y-1.5">
+              <label htmlFor="kb-description" className="text-sm font-medium">
+                Description
+              </label>
+              <textarea
+                id="kb-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="A brief description of this knowledge base..."
+                rows={2}
+                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+              />
+            </div>
+          </fieldset>
+
+          {/* ── Section: Chunking ── */}
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-semibold text-foreground">
+              Chunking
+              {isEditing && <span className="text-xs text-muted-foreground font-normal ml-2">(locked after creation)</span>}
+            </legend>
             {!isEditing && (
               <p className="text-xs text-amber-500">
                 Chunk settings cannot be changed after creation.
               </p>
             )}
-            <select
-              id="kb-chunk-strategy"
-              value={chunkStrategy}
-              onChange={(e) => setChunkStrategy(e.target.value)}
-              disabled={isEditing}
-              className={inputClass}
-            >
-              <option value="recursive">Recursive</option>
-              <option value="markdown">Markdown</option>
-              <option value="fixed">Fixed</option>
-              <option value="semantic">Semantic</option>
-            </select>
-            <p className="text-xs text-muted-foreground">
-              {chunkStrategy === "recursive" && "Split by paragraphs, sentences, then words. Best for general use."}
-              {chunkStrategy === "markdown" && "Split by # headers first, then recursively within sections. Best for .md files."}
-              {chunkStrategy === "fixed" && "Fixed character-length chunks. Best for unstructured text or logs."}
-              {chunkStrategy === "semantic" && "Split by semantic similarity using embeddings. Best for long documents."}
-            </p>
-          </div>
 
-          {/* Chunk Size & Overlap */}
-          {chunkStrategy === "semantic" && (
-            <p className="text-xs text-muted-foreground">
-              Semantic chunking primarily splits by meaning. Size/overlap are used as fallback limits.
-            </p>
-          )}
-          <div className="grid grid-cols-2 gap-4">
+            {/* Strategy */}
             <div className="space-y-1.5">
-              <label htmlFor="kb-chunk-size" className="text-sm font-medium">
-                Chunk Size {isEditing && <span className="text-xs text-muted-foreground font-normal">(locked)</span>}
+              <label htmlFor="kb-chunk-strategy" className="text-sm font-medium">
+                Strategy
               </label>
-              <input
-                id="kb-chunk-size"
-                type="number"
-                min={100}
-                max={6000}
-                value={chunkSize}
-                onChange={(e) => setChunkSize(Math.min(Number(e.target.value), 6000))}
+              <select
+                id="kb-chunk-strategy"
+                value={chunkStrategy}
+                onChange={(e) => setChunkStrategy(e.target.value)}
                 disabled={isEditing}
                 className={inputClass}
-              />
+              >
+                <option value="recursive">Recursive</option>
+                <option value="markdown">Markdown</option>
+                <option value="fixed">Fixed</option>
+                <option value="semantic">Semantic</option>
+              </select>
               <p className="text-xs text-muted-foreground">
-                Recommended: 1000. Max: 6000 (embedding model limit).
+                {chunkStrategy === "recursive" && "Split by paragraphs, sentences, then words. Best for general use."}
+                {chunkStrategy === "markdown" && "Split by # headers first, then recursively within sections. Best for .md files."}
+                {chunkStrategy === "fixed" && "Fixed character-length chunks. Best for unstructured text or logs."}
+                {chunkStrategy === "semantic" && "Split by semantic similarity using embeddings. Best for long documents."}
               </p>
             </div>
-            <div className="space-y-1.5">
-              <label htmlFor="kb-chunk-overlap" className="text-sm font-medium">
-                Chunk Overlap {isEditing && <span className="text-xs text-muted-foreground font-normal">(locked)</span>}
-              </label>
-              <input
-                id="kb-chunk-overlap"
-                type="number"
-                min={0}
-                max={1000}
-                value={chunkOverlap}
-                onChange={(e) => setChunkOverlap(Number(e.target.value))}
-                disabled={isEditing}
-                className={inputClass}
-              />
-            </div>
-          </div>
 
-          {/* Retrieval Mode */}
-          <div className="space-y-1.5">
-            <label htmlFor="kb-retrieval-mode" className="text-sm font-medium">
-              Retrieval Mode
-            </label>
-            <select
-              id="kb-retrieval-mode"
-              value={retrievalMode}
-              onChange={(e) => setRetrievalMode(e.target.value)}
-              className={inputClass}
-            >
-              <option value="hybrid">Hybrid</option>
-              <option value="dense">Dense</option>
-              <option value="fts">Full-Text Search</option>
-            </select>
-            <p className="text-xs text-muted-foreground">
-              {retrievalMode === "hybrid" && "Vector + full-text search with RRF fusion + reranking. Best quality."}
-              {retrievalMode === "dense" && "Pure vector similarity search. Good for semantic matching."}
-              {retrievalMode === "fts" && "Pure keyword search. Good for exact terms, codes, and names."}
-            </p>
-          </div>
+            {/* Size & Overlap */}
+            {chunkStrategy === "semantic" && (
+              <p className="text-xs text-muted-foreground">
+                Semantic chunking primarily splits by meaning. Size/overlap are used as fallback limits.
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label htmlFor="kb-chunk-size" className="text-sm font-medium">
+                  Size
+                </label>
+                <input
+                  id="kb-chunk-size"
+                  type="number"
+                  min={100}
+                  max={6000}
+                  value={chunkSize}
+                  onChange={(e) => setChunkSize(Math.min(Number(e.target.value), 6000))}
+                  disabled={isEditing}
+                  className={inputClass}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Recommended: 1000. Max: 6000 (embedding model limit).
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="kb-chunk-overlap" className="text-sm font-medium">
+                  Overlap
+                </label>
+                <input
+                  id="kb-chunk-overlap"
+                  type="number"
+                  min={0}
+                  max={1000}
+                  value={chunkOverlap}
+                  onChange={(e) => setChunkOverlap(Number(e.target.value))}
+                  disabled={isEditing}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </fieldset>
+
+          {/* ── Section: Retrieval ── */}
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-semibold text-foreground">Retrieval</legend>
+
+            <div className="space-y-1.5">
+              <label htmlFor="kb-retrieval-mode" className="text-sm font-medium">
+                Mode
+              </label>
+              <select
+                id="kb-retrieval-mode"
+                value={retrievalMode}
+                onChange={(e) => setRetrievalMode(e.target.value)}
+                className={inputClass}
+              >
+                <option value="hybrid">Hybrid</option>
+                <option value="dense">Dense</option>
+                <option value="fts">Full-Text Search</option>
+              </select>
+              <p className="text-xs text-muted-foreground">
+                {retrievalMode === "hybrid" && "Vector + full-text search with RRF fusion + reranking. Best quality."}
+                {retrievalMode === "dense" && "Pure vector similarity search. Good for semantic matching."}
+                {retrievalMode === "fts" && "Pure keyword search. Good for exact terms, codes, and names."}
+              </p>
+            </div>
+          </fieldset>
 
           <DialogFooter>
             <Button

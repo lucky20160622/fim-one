@@ -14,13 +14,19 @@ interface UseDagLayoutArgs {
   stepStates: StepState[]
 }
 
+interface UseDagLayoutResult {
+  nodes: StepFlowNode[]
+  edges: Edge[]
+  dagreCenters: Map<string, number>
+}
+
 export function useDagLayout({
   planSteps,
   stepStates,
-}: UseDagLayoutArgs): { nodes: StepFlowNode[]; edges: Edge[] } {
+}: UseDagLayoutArgs): UseDagLayoutResult {
   return useMemo(() => {
     if (!planSteps || planSteps.length === 0) {
-      return { nodes: [], edges: [] }
+      return { nodes: [], edges: [], dagreCenters: new Map() }
     }
 
     const stateMap = new Map<string, StepState>()
@@ -60,8 +66,11 @@ export function useDagLayout({
 
     dagre.layout(g)
 
+    const dagreCenters = new Map<string, number>()
+
     const nodes: StepFlowNode[] = planSteps.map((step) => {
       const nodeWithPosition = g.node(step.id)
+      dagreCenters.set(step.id, nodeWithPosition.y)
       const state = stateMap.get(step.id)
 
       const nodeData: StepNodeData = {
@@ -92,6 +101,6 @@ export function useDagLayout({
       }
     })
 
-    return { nodes, edges: edgeList }
+    return { nodes, edges: edgeList, dagreCenters }
   }, [planSteps, stepStates])
 }

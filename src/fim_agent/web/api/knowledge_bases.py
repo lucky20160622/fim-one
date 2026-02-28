@@ -18,6 +18,9 @@ from fim_agent.web.deps import get_embedding, get_kb_manager
 from fim_agent.web.models import KBDocument, KnowledgeBase, User
 from fim_agent.web.schemas.common import ApiResponse, PaginatedResponse
 from fim_agent.web.schemas.knowledge_base import (
+    ChunkResponse,
+    ChunkUpdate,
+    DocumentCreate,
     KBCreate,
     KBDocumentResponse,
     KBResponse,
@@ -195,20 +198,37 @@ async def delete_kb(
 # ── Documents ────────────────────────────────────────────────────
 
 
-@router.get("/{kb_id}/documents", response_model=ApiResponse)
+@router.get("/{kb_id}/documents", response_model=PaginatedResponse)
 async def list_documents(
     kb_id: str,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
-) -> ApiResponse:
+) -> PaginatedResponse:
     await _get_owned_kb(kb_id, current_user.id, db)  # ownership check
+
+    base = select(KBDocument).where(KBDocument.kb_id == kb_id)
+
+    count_result = await db.execute(
+        select(func.count()).select_from(base.subquery())
+    )
+    total = count_result.scalar_one()
+
     result = await db.execute(
-        select(KBDocument)
-        .where(KBDocument.kb_id == kb_id)
-        .order_by(KBDocument.created_at.desc())
+        base.order_by(KBDocument.created_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
     )
     docs = result.scalars().all()
-    return ApiResponse(data=[_doc_to_response(d).model_dump() for d in docs])
+
+    return PaginatedResponse(
+        items=[_doc_to_response(d).model_dump() for d in docs],
+        total=total,
+        page=page,
+        size=size,
+        pages=math.ceil(total / size) if total else 0,
+    )
 
 
 @router.post("/{kb_id}/documents", response_model=ApiResponse)
@@ -389,6 +409,275 @@ async def delete_document(
     await db.commit()
 
     return ApiResponse(data={"deleted": doc_id})
+
+
+# ── Document Create (Markdown) ───────────────────────────────────
+
+
+@router.post("/{kb_id}/documents/create", response_model=ApiResponse)
+async def create_document(
+    kb_id: str,
+    body: DocumentCreate,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Create a new markdown document by writing content to disk and ingesting."""
+    kb = await _get_owned_kb(kb_id, current_user.id, db)
+
+    # Check for filename collision
+    upload_dir = _UPLOADS_DIR / kb_id
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    file_path = upload_dir / body.filename
+    if file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"File '{body.filename}' already exists in this knowledge base",
+        )
+
+    # Write file to disk
+    content_bytes = body.content.encode("utf-8")
+    file_path.write_bytes(content_bytes)
+
+    # Create document record
+    doc = KBDocument(
+        kb_id=kb_id,
+        filename=body.filename,
+        file_path=str(file_path),
+        file_size=len(content_bytes),
+        file_type="md",
+        status="processing",
+    )
+    db.add(doc)
+    await db.commit()
+    await db.refresh(doc)
+
+    # Background ingest (reuse existing pipeline)
+    asyncio.create_task(
+        _ingest_document(
+            doc_id=doc.id,
+            kb_id=kb_id,
+            user_id=current_user.id,
+            file_path=file_path,
+            chunk_strategy=kb.chunk_strategy,
+            chunk_size=kb.chunk_size,
+            chunk_overlap=kb.chunk_overlap,
+        )
+    )
+
+    return ApiResponse(data=_doc_to_response(doc).model_dump())
+
+
+# ── Chunk CRUD ────────────────────────────────────────────────────
+
+
+async def _get_owned_doc(
+    kb_id: str, doc_id: str, user_id: str, db: AsyncSession
+) -> tuple[KnowledgeBase, KBDocument]:
+    """Fetch KB and document with ownership and status checks."""
+    kb = await _get_owned_kb(kb_id, user_id, db)
+    result = await db.execute(
+        select(KBDocument).where(
+            KBDocument.id == doc_id, KBDocument.kb_id == kb_id
+        )
+    )
+    doc = result.scalar_one_or_none()
+    if doc is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+    return kb, doc
+
+
+@router.get("/{kb_id}/documents/{doc_id}/chunks", response_model=PaginatedResponse)
+async def list_chunks(
+    kb_id: str,
+    doc_id: str,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> PaginatedResponse:
+    """List paginated chunks for a document."""
+    _kb, doc = await _get_owned_doc(kb_id, doc_id, current_user.id, db)
+
+    if doc.status != "ready":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Document is not ready (status: {doc.status})",
+        )
+
+    manager = get_kb_manager()
+    chunks, total = await manager.get_chunks_by_document(
+        kb_id=kb_id, user_id=current_user.id, document_id=doc_id,
+        page=page, size=size,
+    )
+
+    items = [
+        ChunkResponse(
+            id=c["id"],
+            text=c["text"],
+            chunk_index=c["chunk_index"],
+            metadata=c.get("metadata"),
+            content_hash=c["content_hash"],
+        ).model_dump()
+        for c in chunks
+    ]
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=math.ceil(total / size) if total else 0,
+    )
+
+
+@router.get("/{kb_id}/chunks/{chunk_id}", response_model=ApiResponse)
+async def get_chunk(
+    kb_id: str,
+    chunk_id: str,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Get a single chunk by ID."""
+    await _get_owned_kb(kb_id, current_user.id, db)
+
+    manager = get_kb_manager()
+    chunk = await manager.get_chunk(
+        kb_id=kb_id, user_id=current_user.id, chunk_id=chunk_id,
+    )
+    if chunk is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chunk not found",
+        )
+
+    resp = ChunkResponse(
+        id=chunk["id"],
+        text=chunk["text"],
+        chunk_index=chunk["chunk_index"],
+        metadata=chunk.get("metadata"),
+        content_hash=chunk["content_hash"],
+    )
+    return ApiResponse(data=resp.model_dump())
+
+
+@router.put("/{kb_id}/chunks/{chunk_id}", response_model=ApiResponse)
+async def update_chunk(
+    kb_id: str,
+    chunk_id: str,
+    body: ChunkUpdate,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Update a chunk's text (re-embeds synchronously)."""
+    await _get_owned_kb(kb_id, current_user.id, db)
+
+    # Verify chunk exists and check document status
+    manager = get_kb_manager()
+    existing = await manager.get_chunk(
+        kb_id=kb_id, user_id=current_user.id, chunk_id=chunk_id,
+    )
+    if existing is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chunk not found",
+        )
+
+    # Ensure the parent document is in "ready" status
+    doc_id = existing.get("document_id", "")
+    if doc_id:
+        result = await db.execute(
+            select(KBDocument).where(KBDocument.id == doc_id)
+        )
+        doc = result.scalar_one_or_none()
+        if doc and doc.status != "ready":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Document is not ready (status: {doc.status})",
+            )
+
+    updated = await manager.update_chunk_text(
+        kb_id=kb_id, user_id=current_user.id,
+        chunk_id=chunk_id, new_text=body.text,
+    )
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update chunk",
+        )
+
+    # Return updated chunk
+    chunk = await manager.get_chunk(
+        kb_id=kb_id, user_id=current_user.id, chunk_id=chunk_id,
+    )
+    resp = ChunkResponse(
+        id=chunk["id"],
+        text=chunk["text"],
+        chunk_index=chunk["chunk_index"],
+        metadata=chunk.get("metadata"),
+        content_hash=chunk["content_hash"],
+    )
+    return ApiResponse(data=resp.model_dump())
+
+
+@router.delete("/{kb_id}/chunks/{chunk_id}", response_model=ApiResponse)
+async def delete_chunk(
+    kb_id: str,
+    chunk_id: str,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Delete a single chunk and decrement counters."""
+    kb = await _get_owned_kb(kb_id, current_user.id, db)
+
+    # Verify chunk exists and get its document_id
+    manager = get_kb_manager()
+    existing = await manager.get_chunk(
+        kb_id=kb_id, user_id=current_user.id, chunk_id=chunk_id,
+    )
+    if existing is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chunk not found",
+        )
+
+    # Ensure the parent document is in "ready" status
+    doc_id = existing.get("document_id", "")
+    if doc_id:
+        result = await db.execute(
+            select(KBDocument).where(KBDocument.id == doc_id)
+        )
+        doc = result.scalar_one_or_none()
+        if doc and doc.status != "ready":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Document is not ready (status: {doc.status})",
+            )
+
+    deleted = await manager.delete_chunk(
+        kb_id=kb_id, user_id=current_user.id, chunk_id=chunk_id,
+    )
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete chunk",
+        )
+
+    # Decrement counters on KBDocument and KnowledgeBase
+    if doc_id:
+        result = await db.execute(
+            select(KBDocument).where(KBDocument.id == doc_id)
+        )
+        doc = result.scalar_one_or_none()
+        if doc:
+            doc.chunk_count = max(0, doc.chunk_count - 1)
+
+    kb.total_chunks = max(0, kb.total_chunks - 1)
+    await db.commit()
+
+    return ApiResponse(data={"deleted": chunk_id})
 
 
 # ── Retrieval ────────────────────────────────────────────────────

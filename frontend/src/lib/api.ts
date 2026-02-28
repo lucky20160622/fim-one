@@ -8,7 +8,18 @@ import type {
 } from "@/types/conversation"
 import type { AgentResponse, AgentCreate, AgentUpdate } from "@/types/agent"
 import type { FileUploadResponse, FileListItem } from "@/types/file"
-import type { KBResponse, KBCreate, KBUpdate, KBDocumentResponse, KBRetrieveResult } from "@/types/kb"
+import type {
+  KBResponse,
+  KBCreate,
+  KBUpdate,
+  KBDocumentResponse,
+  KBRetrieveResult,
+  ChunkResponse,
+  PaginatedChunks,
+  PaginatedDocuments,
+  ChunkUpdate,
+  DocumentCreate,
+} from "@/types/kb"
 
 // --- Auth failure callback ---
 let authFailureCallback: (() => void) | null = null
@@ -141,10 +152,11 @@ interface ApiResponse<T> {
 }
 
 export const conversationApi = {
-  list: (page = 1, size = 50) =>
-    apiFetch<PaginatedResponse<ConversationResponse>>(
-      `/api/conversations?page=${page}&size=${size}`,
-    ),
+  list: (page = 1, size = 50, q?: string) => {
+    let url = `/api/conversations?page=${page}&size=${size}`
+    if (q) url += `&q=${encodeURIComponent(q)}`
+    return apiFetch<PaginatedResponse<ConversationResponse>>(url)
+  },
 
   create: (body: ConversationCreate) =>
     apiFetch<ApiResponse<ConversationResponse>>("/api/conversations", {
@@ -157,7 +169,7 @@ export const conversationApi = {
       `/api/conversations/${id}`,
     ).then((r) => r.data),
 
-  update: (id: string, body: { title?: string; status?: string }) =>
+  update: (id: string, body: { title?: string; status?: string; starred?: boolean }) =>
     apiFetch<ApiResponse<ConversationResponse>>(
       `/api/conversations/${id}`,
       { method: "PATCH", body: JSON.stringify(body) },
@@ -167,6 +179,12 @@ export const conversationApi = {
     apiFetch<ApiResponse<{ deleted: string }>>(
       `/api/conversations/${id}`,
       { method: "DELETE" },
+    ),
+
+  batchDelete: (ids: string[]) =>
+    apiFetch<ApiResponse<{ deleted: number }>>(
+      `/api/conversations/batch`,
+      { method: "DELETE", body: JSON.stringify({ ids }) },
     ),
 }
 
@@ -269,10 +287,10 @@ export const kbApi = {
     }),
 
   // Documents
-  listDocuments: (kbId: string) =>
-    apiFetch<ApiResponse<KBDocumentResponse[]>>(
-      `/api/knowledge-bases/${kbId}/documents`,
-    ).then((r) => r.data),
+  listDocuments: (kbId: string, page = 1, size = 20) =>
+    apiFetch<PaginatedDocuments>(
+      `/api/knowledge-bases/${kbId}/documents?page=${page}&size=${size}`,
+    ),
 
   uploadDocument: async (kbId: string, file: File): Promise<KBDocumentResponse> => {
     const token = getAccessToken()
@@ -297,6 +315,35 @@ export const kbApi = {
       `/api/knowledge-bases/${kbId}/documents/${docId}`,
       { method: "DELETE" },
     ),
+
+  createDocument: (kbId: string, body: DocumentCreate) =>
+    apiFetch<ApiResponse<KBDocumentResponse>>(
+      `/api/knowledge-bases/${kbId}/documents/create`,
+      { method: "POST", body: JSON.stringify(body) },
+    ).then((r) => r.data),
+
+  // Chunks
+  listChunks: (kbId: string, docId: string, page = 1, size = 20) =>
+    apiFetch<PaginatedChunks>(
+      `/api/knowledge-bases/${kbId}/documents/${docId}/chunks?page=${page}&size=${size}`,
+    ),
+
+  getChunk: (kbId: string, chunkId: string) =>
+    apiFetch<ApiResponse<ChunkResponse>>(
+      `/api/knowledge-bases/${kbId}/chunks/${chunkId}`,
+    ).then((r) => r.data),
+
+  updateChunk: (kbId: string, chunkId: string, body: ChunkUpdate) =>
+    apiFetch<ApiResponse<ChunkResponse>>(
+      `/api/knowledge-bases/${kbId}/chunks/${chunkId}`,
+      { method: "PUT", body: JSON.stringify(body) },
+    ).then((r) => r.data),
+
+  deleteChunk: (kbId: string, chunkId: string) =>
+    apiFetch<ApiResponse<{ deleted: string }>>(
+      `/api/knowledge-bases/${kbId}/chunks/${chunkId}`,
+      { method: "DELETE" },
+    ).then(() => undefined),
 
   // Retrieval
   retrieve: (kbId: string, query: string, topK = 5) =>

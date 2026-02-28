@@ -58,3 +58,20 @@ class KBRetrieveResponse(BaseModel):
     content: str
     metadata: dict | None = None
     score: float
+
+
+class ChunkResponse(BaseModel):
+    id: str
+    text: str
+    chunk_index: int
+    metadata: dict | None = None
+    content_hash: str
+
+
+class ChunkUpdate(BaseModel):
+    text: str = Field(min_length=1, max_length=6000)
+
+
+class DocumentCreate(BaseModel):
+    filename: str = Field(min_length=1, max_length=200, pattern=r"^[\w\-. ]+\.md$")
+    content: str = Field(min_length=1)

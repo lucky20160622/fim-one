@@ -1,0 +1,377 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { useParams, useRouter } from "next/navigation"
+import {
+  ArrowLeft,
+  Loader2,
+  Upload,
+  FilePlus,
+  Search,
+  RefreshCw,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { cn } from "@/lib/utils"
+import { useAuth } from "@/contexts/auth-context"
+import { kbApi } from "@/lib/api"
+import { DocumentTable } from "@/components/kb/document-table"
+import { KBUploadDialog } from "@/components/kb/kb-upload-dialog"
+import { MdCreateDialog } from "@/components/kb/md-create-dialog"
+import { Pagination } from "@/components/kb/pagination"
+import type { KBResponse, KBDocumentResponse, KBRetrieveResult } from "@/types/kb"
+
+export default function KBDetailPage() {
+  const params = useParams<{ id: string }>()
+  const kbId = params.id
+  const router = useRouter()
+  const { user, isLoading: authLoading } = useAuth()
+
+  const [kb, setKb] = useState<KBResponse | null>(null)
+  const [documents, setDocuments] = useState<KBDocumentResponse[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<"documents" | "search">("documents")
+
+  // Document pagination
+  const DOC_PAGE_SIZE = 20
+  const [docPage, setDocPage] = useState(1)
+  const [docTotalPages, setDocTotalPages] = useState(0)
+  const [docTotal, setDocTotal] = useState(0)
+
+  // Upload dialog
+  const [uploadOpen, setUploadOpen] = useState(false)
+
+  // MD create dialog
+  const [mdCreateOpen, setMdCreateOpen] = useState(false)
+
+  // Delete confirmation
+  const [pendingDeleteDocId, setPendingDeleteDocId] = useState<string | null>(null)
+
+  // Search
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<KBRetrieveResult[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+
+  // Refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Auth guard
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/login")
+    }
+  }, [authLoading, user, router])
+
+  const loadKB = useCallback(async () => {
+    try {
+      const data = await kbApi.get(kbId)
+      setKb(data)
+    } catch (err) {
+      console.error("Failed to load KB:", err)
+      router.replace("/kb")
+    }
+  }, [kbId, router])
+
+  const loadDocuments = useCallback(async () => {
+    try {
+      const data = await kbApi.listDocuments(kbId, docPage, DOC_PAGE_SIZE)
+      setDocuments(data.items)
+      setDocTotalPages(data.pages)
+      setDocTotal(data.total)
+    } catch (err) {
+      console.error("Failed to load documents:", err)
+    }
+  }, [kbId, docPage])
+
+  const loadAll = useCallback(async () => {
+    setIsLoading(true)
+    await Promise.all([loadKB(), loadDocuments()])
+    setIsLoading(false)
+  }, [loadKB, loadDocuments])
+
+  useEffect(() => {
+    if (user) loadAll()
+  }, [user, loadAll])
+
+  // Auto-poll when any document is processing
+  const hasProcessing = documents.some((d) => d.status === "processing")
+  useEffect(() => {
+    if (!hasProcessing) return
+    const id = setInterval(() => {
+      loadDocuments()
+      loadKB()
+    }, 3000)
+    return () => clearInterval(id)
+  }, [hasProcessing, loadDocuments, loadKB])
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await Promise.all([loadKB(), loadDocuments()])
+    setIsRefreshing(false)
+  }
+
+  const handleDeleteDocument = (docId: string) => setPendingDeleteDocId(docId)
+
+  const confirmDeleteDocument = async () => {
+    if (!pendingDeleteDocId) return
+    const docId = pendingDeleteDocId
+    setPendingDeleteDocId(null)
+    try {
+      await kbApi.deleteDocument(kbId, docId)
+      setDocuments((prev) => prev.filter((d) => d.id !== docId))
+      await loadKB()
+    } catch (err) {
+      console.error("Failed to delete document:", err)
+    }
+  }
+
+  const handleUploaded = async () => {
+    await Promise.all([loadKB(), loadDocuments()])
+  }
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!searchQuery.trim()) return
+    setIsSearching(true)
+    setHasSearched(true)
+    try {
+      const results = await kbApi.retrieve(kbId, searchQuery.trim())
+      setSearchResults(results)
+    } catch (err) {
+      console.error("Failed to search:", err)
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  if (authLoading || !user) return null
+
+  if (isLoading || !kb) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Header */}
+      <div className="shrink-0 border-b border-border/40 px-6 py-4 space-y-1">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/kb")}
+            className="gap-1.5 -ml-2 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to KB
+          </Button>
+        </div>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold text-foreground truncate">
+              {kb.name}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {kb.description || "No description"}
+              {" "}&middot;{" "}
+              strategy: {kb.chunk_strategy}
+              {" "}&middot;{" "}
+              {kb.document_count} docs, {kb.total_chunks} chunks
+            </p>
+          </div>
+          <Badge
+            variant="secondary"
+            className="shrink-0 text-[10px] px-1.5 py-0 h-5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+          >
+            {kb.status}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="shrink-0 flex items-center justify-between gap-2 px-6 py-3 border-b border-border/40">
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => setUploadOpen(true)}
+            className="gap-1.5"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Upload
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setMdCreateOpen(true)}
+            className="gap-1.5"
+          >
+            <FilePlus className="h-3.5 w-3.5" />
+            New MD
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="gap-1.5 text-muted-foreground"
+            title="Refresh documents"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
+          </Button>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant={activeTab === "documents" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("documents")}
+            className="text-xs h-7 px-2.5"
+          >
+            Documents
+          </Button>
+          <Button
+            variant={activeTab === "search" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("search")}
+            className="text-xs h-7 px-2.5 gap-1"
+          >
+            <Search className="h-3 w-3" />
+            Search
+          </Button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {activeTab === "documents" && (
+          <div className="space-y-4">
+            <DocumentTable
+              kbId={kbId}
+              documents={documents}
+              onDeleteDocument={handleDeleteDocument}
+              chunkSize={kb.chunk_size}
+            />
+            {docTotalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">
+                  {docTotal} documents total
+                </span>
+                <Pagination
+                  page={docPage}
+                  totalPages={docTotalPages}
+                  onPageChange={setDocPage}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "search" && (
+          <div className="space-y-4">
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search knowledge base..."
+                className="flex h-9 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSearching || !searchQuery.trim()}
+              >
+                {isSearching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+              </Button>
+            </form>
+
+            {isSearching ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : searchResults.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-10">
+                {hasSearched
+                  ? "No results found."
+                  : "Enter a query and press Enter to search."}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {searchResults.map((result, i) => (
+                  <div
+                    key={i}
+                    className="rounded-md border border-border p-3"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] px-1.5 py-0 h-5"
+                      >
+                        Score: {result.score.toFixed(3)}
+                      </Badge>
+                      {"source" in result.metadata && result.metadata.source != null && (
+                        <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                          {String(result.metadata.source)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-6">
+                      {result.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Upload Dialog */}
+      <KBUploadDialog
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        kb={kb}
+        onUploaded={handleUploaded}
+      />
+
+      {/* MD Create Dialog */}
+      <MdCreateDialog
+        open={mdCreateOpen}
+        onOpenChange={setMdCreateOpen}
+        kbId={kbId}
+        onCreated={handleUploaded}
+      />
+
+      {/* Delete Document Confirmation */}
+      <Dialog open={pendingDeleteDocId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteDocId(null) }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete document?</DialogTitle>
+            <DialogDescription>
+              &ldquo;{documents.find((d) => d.id === pendingDeleteDocId)?.filename}&rdquo; and its vectors will be permanently deleted. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" className="px-6" onClick={() => setPendingDeleteDocId(null)}>Cancel</Button>
+            <Button variant="destructive" className="px-6" onClick={confirmDeleteDocument}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

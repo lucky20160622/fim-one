@@ -108,13 +108,31 @@ class GroundedRetrieveTool(BaseTool):
                     f"Please inform the user that no confident evidence was found in the knowledge base."
                 )
 
-            return _format_grounded_result(result)
+            # Look up KB names for display
+            kb_names: dict[str, str] = {}
+            try:
+                from fim_agent.db import create_session
+                from fim_agent.web.models.knowledge_base import KnowledgeBase as KBModel
+                from sqlalchemy import select
+
+                db = create_session()
+                try:
+                    rows = await db.execute(
+                        select(KBModel.id, KBModel.name).where(KBModel.id.in_(kb_ids))
+                    )
+                    kb_names = {row.id: row.name for row in rows}
+                finally:
+                    await db.close()
+            except Exception:
+                pass  # Graceful fallback — just won't show KB names
+
+            return _format_grounded_result(result, kb_names)
 
         except Exception as exc:
             return f"[Error] {type(exc).__name__}: {exc}"
 
 
-def _format_grounded_result(result: Any) -> str:
+def _format_grounded_result(result: Any, kb_names: dict[str, str] | None = None) -> str:
     """Format a GroundedResult into a readable string for the LLM."""
     if not result.evidence:
         return "No relevant evidence found."
@@ -124,8 +142,13 @@ def _format_grounded_result(result: Any) -> str:
 
     for i, unit in enumerate(result.evidence, start=1):
         score = f"{unit.chunk.score:.3f}" if unit.chunk.score is not None else "N/A"
+        kb_label = ""
+        if kb_names and unit.kb_id:
+            name = kb_names.get(unit.kb_id)
+            if name:
+                kb_label = f" [KB: {name}]"
         lines.append(
-            f"[{i}] Source: {_source_name(unit)} "
+            f"[{i}] Source: {_source_name(unit)}{kb_label} "
             f"(relevance: {score}, alignment: {unit.query_alignment:.3f})"
         )
         if unit.citations:

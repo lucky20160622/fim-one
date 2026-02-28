@@ -2,6 +2,7 @@ export interface ParsedSource {
   index: number
   name: string
   displayName: string
+  kbName?: string
   relevance: number
   alignment: number
   quote: string
@@ -40,8 +41,8 @@ export function parseEvidence(content: string): ParsedEvidence | null {
   const confidence = parseFloat(headerMatch[1])
   const sourceCount = parseInt(headerMatch[2])
 
-  // Match [N] Source: name (relevance: X.XXX, alignment: X.XXX)
-  const sourceRegex = /\[(\d+)\]\s*Source:\s*(.+?)\s*\(relevance:\s*([\d.]+),\s*alignment:\s*([\d.]+)\)\s*\n\s*>\s*"([^"]+)"\s*(?:p\.(\d+))?/g
+  // Match [N] Source: name [KB: kb_name]? (relevance: X.XXX, alignment: X.XXX)
+  const sourceRegex = /\[(\d+)\]\s*Source:\s*(.+?)(?:\s*\[KB:\s*(.+?)\])?\s*\(relevance:\s*([\d.]+),\s*alignment:\s*([\d.]+)\)\s*\n\s*>\s*"([^"]+)"\s*(?:p\.(\d+))?/g
   const sources: ParsedSource[] = []
   let match
   while ((match = sourceRegex.exec(content)) !== null) {
@@ -50,10 +51,11 @@ export function parseEvidence(content: string): ParsedEvidence | null {
       index: parseInt(match[1]),
       name,
       displayName: extractDisplayName(name),
-      relevance: parseFloat(match[3]),
-      alignment: parseFloat(match[4]),
-      quote: match[5],
-      page: match[6] ? parseInt(match[6]) : undefined,
+      kbName: match[3]?.trim(),
+      relevance: parseFloat(match[4]),
+      alignment: parseFloat(match[5]),
+      quote: match[6],
+      page: match[7] ? parseInt(match[7]) : undefined,
     })
   }
 

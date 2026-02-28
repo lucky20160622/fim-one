@@ -86,6 +86,7 @@ class LanceDBVectorStore:
             pa.field("document_id", pa.string()),
             pa.field("kb_id", pa.string()),
             pa.field("user_id", pa.string()),
+            pa.field("chunk_index", pa.int32()),
             pa.field("metadata_json", pa.string()),
             pa.field("vector", pa.list_(pa.float32(), self._embedding_dim)),
         ])
@@ -167,6 +168,7 @@ class LanceDBVectorStore:
                 "document_id": document_id,
                 "kb_id": kb_id,
                 "user_id": user_id,
+                "chunk_index": meta.get("chunk_index", 0),
                 "metadata_json": json.dumps(meta, ensure_ascii=False),
                 "vector": vector,
             })
@@ -441,3 +443,270 @@ class LanceDBVectorStore:
             return 0
         table = db.open_table(_TABLE_NAME)
         return table.count_rows()
+
+    # ------------------------------------------------------------------
+    # Chunk CRUD
+    # ------------------------------------------------------------------
+
+    async def get_chunks_by_document(
+        self,
+        *,
+        kb_id: str,
+        user_id: str,
+        document_id: str,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """Return paginated chunks for a document, sorted by chunk_index.
+
+        Args:
+            kb_id: Knowledge base ID.
+            user_id: User ID for data isolation.
+            document_id: Document ID to filter by.
+            offset: Number of chunks to skip.
+            limit: Max number of chunks to return.
+
+        Returns:
+            Tuple of (list of chunk dicts, total_count).
+        """
+        return await asyncio.to_thread(
+            self._get_chunks_by_document_sync,
+            kb_id=kb_id, user_id=user_id, document_id=document_id,
+            offset=offset, limit=limit,
+        )
+
+    def _get_chunks_by_document_sync(
+        self,
+        *,
+        kb_id: str,
+        user_id: str,
+        document_id: str,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> tuple[list[dict[str, Any]], int]:
+        import json
+
+        db = self._get_db(user_id, kb_id)
+        if _TABLE_NAME not in _list_table_names(db):
+            return [], 0
+
+        table = db.open_table(_TABLE_NAME)
+        where_clause = f"document_id = '{document_id}'"
+
+        # Step 1: Get total count without loading data into memory
+        try:
+            total_count = table.count_rows(where_clause)
+        except Exception:
+            logger.warning("count_rows failed for document chunks", exc_info=True)
+            return [], 0
+
+        if total_count == 0:
+            return [], 0
+
+        # Step 2: Fetch rows. chunk_index lives inside metadata_json,
+        # so we must load all matching rows, parse index, sort, then slice.
+        try:
+            all_rows = (
+                table.search()
+                .where(where_clause)
+                .select(["id", "text", "content_hash", "metadata_json"])
+                .limit(total_count)
+                .to_list()
+            )
+        except Exception:
+            logger.warning("get_chunks_by_document failed", exc_info=True)
+            return [], 0
+
+        # Parse chunk_index for sorting, but defer full metadata parse to page slice
+        indexed: list[tuple[int, dict]] = []
+        for row in all_rows:
+            raw_meta = row.get("metadata_json", "{}")
+            # Fast extraction: only parse chunk_index for sorting
+            try:
+                meta = json.loads(raw_meta)
+                idx = meta.get("chunk_index", 0)
+            except Exception:
+                idx = 0
+            indexed.append((idx, row))
+
+        indexed.sort(key=lambda t: t[0])
+        page_slice = indexed[offset : offset + limit]
+
+        parsed: list[dict[str, Any]] = []
+        for idx, row in page_slice:
+            meta = json.loads(row.get("metadata_json", "{}"))
+            parsed.append({
+                "id": row["id"],
+                "text": row["text"],
+                "chunk_index": idx,
+                "metadata": meta,
+                "content_hash": row.get("content_hash", ""),
+            })
+
+        return parsed, total_count
+
+    async def get_chunk(
+        self, *, kb_id: str, user_id: str, chunk_id: str
+    ) -> dict[str, Any] | None:
+        """Return a single chunk dict or None.
+
+        Args:
+            kb_id: Knowledge base ID.
+            user_id: User ID for data isolation.
+            chunk_id: Chunk ID.
+
+        Returns:
+            Chunk dict with id, text, chunk_index, metadata, content_hash, or None.
+        """
+        return await asyncio.to_thread(
+            self._get_chunk_sync,
+            kb_id=kb_id, user_id=user_id, chunk_id=chunk_id,
+        )
+
+    def _get_chunk_sync(
+        self, *, kb_id: str, user_id: str, chunk_id: str
+    ) -> dict[str, Any] | None:
+        import json
+
+        db = self._get_db(user_id, kb_id)
+        if _TABLE_NAME not in _list_table_names(db):
+            return None
+
+        table = db.open_table(_TABLE_NAME)
+        try:
+            rows = (
+                table.search()
+                .where(f"id = '{chunk_id}'")
+                .select(["id", "text", "content_hash", "metadata_json", "document_id"])
+                .limit(1)
+                .to_list()
+            )
+        except Exception:
+            logger.warning("get_chunk failed for %s", chunk_id, exc_info=True)
+            return None
+
+        if not rows:
+            return None
+
+        row = rows[0]
+        meta = json.loads(row.get("metadata_json", "{}"))
+        return {
+            "id": row["id"],
+            "text": row["text"],
+            "chunk_index": meta.get("chunk_index", 0),
+            "metadata": meta,
+            "content_hash": row.get("content_hash", ""),
+            "document_id": row.get("document_id", ""),
+        }
+
+    async def update_chunk(
+        self,
+        *,
+        kb_id: str,
+        user_id: str,
+        chunk_id: str,
+        new_text: str,
+        new_vector: list[float],
+        new_content_hash: str,
+    ) -> bool:
+        """In-place update a chunk's text, vector, and content hash.
+
+        Args:
+            kb_id: Knowledge base ID.
+            user_id: User ID for data isolation.
+            chunk_id: Chunk ID to update.
+            new_text: New chunk text.
+            new_vector: New embedding vector.
+            new_content_hash: New SHA256 content hash.
+
+        Returns:
+            True if the chunk was found and updated, False otherwise.
+        """
+        return await asyncio.to_thread(
+            self._update_chunk_sync,
+            kb_id=kb_id, user_id=user_id, chunk_id=chunk_id,
+            new_text=new_text, new_vector=new_vector,
+            new_content_hash=new_content_hash,
+        )
+
+    def _update_chunk_sync(
+        self,
+        *,
+        kb_id: str,
+        user_id: str,
+        chunk_id: str,
+        new_text: str,
+        new_vector: list[float],
+        new_content_hash: str,
+    ) -> bool:
+        db = self._get_db(user_id, kb_id)
+        if _TABLE_NAME not in _list_table_names(db):
+            return False
+
+        table = db.open_table(_TABLE_NAME)
+        try:
+            # Verify chunk exists first
+            rows = (
+                table.search()
+                .where(f"id = '{chunk_id}'")
+                .select(["id"])
+                .limit(1)
+                .to_list()
+            )
+            if not rows:
+                return False
+
+            table.update(
+                where=f"id = '{chunk_id}'",
+                values={
+                    "text": new_text,
+                    "vector": new_vector,
+                    "content_hash": new_content_hash,
+                },
+            )
+
+            # Rebuild FTS index after text update
+            try:
+                table.create_fts_index("text", replace=True)
+            except Exception:
+                logger.debug("FTS index rebuild skipped after chunk update", exc_info=True)
+
+            return True
+        except Exception:
+            logger.warning("update_chunk failed for %s", chunk_id, exc_info=True)
+            return False
+
+    async def delete_chunk(
+        self, *, kb_id: str, user_id: str, chunk_id: str
+    ) -> bool:
+        """Delete a single chunk by ID.
+
+        Args:
+            kb_id: Knowledge base ID.
+            user_id: User ID for data isolation.
+            chunk_id: Chunk ID to delete.
+
+        Returns:
+            True if the chunk was found and deleted, False otherwise.
+        """
+        return await asyncio.to_thread(
+            self._delete_chunk_sync,
+            kb_id=kb_id, user_id=user_id, chunk_id=chunk_id,
+        )
+
+    def _delete_chunk_sync(
+        self, *, kb_id: str, user_id: str, chunk_id: str
+    ) -> bool:
+        db = self._get_db(user_id, kb_id)
+        if _TABLE_NAME not in _list_table_names(db):
+            return False
+
+        table = db.open_table(_TABLE_NAME)
+        try:
+            before = table.count_rows()
+            table.delete(f"id = '{chunk_id}'")
+            after = table.count_rows()
+            return before > after
+        except Exception:
+            logger.warning("delete_chunk failed for %s", chunk_id, exc_info=True)
+            return False

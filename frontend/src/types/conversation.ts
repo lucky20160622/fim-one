@@ -6,6 +6,7 @@ export interface ConversationResponse {
   status: string
   model_name: string | null
   total_tokens: number
+  starred: boolean
   created_at: string
   updated_at: string | null
 }

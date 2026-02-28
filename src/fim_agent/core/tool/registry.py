@@ -66,6 +66,13 @@ class ToolRegistry:
         """Return all unique categories of registered tools."""
         return sorted({tool.category for tool in self._tools.values()})
 
+    def tool_summaries(self) -> list[str]:
+        """Return 'name (category): description' for each tool."""
+        return [
+            f"- {t.name} ({t.category}): {t.description[:80]}"
+            for t in self._tools.values()
+        ]
+
     def filter_by_category(self, *categories: str) -> ToolRegistry:
         """Return a new ToolRegistry containing only tools in the given categories."""
         filtered = ToolRegistry()
@@ -100,7 +107,7 @@ class ToolRegistry:
             schema used in chat completion requests.
         """
         tools = self._tools.values()
-        if categories:
+        if categories is not None:
             tools = [t for t in tools if t.category in categories]
         return [
             {

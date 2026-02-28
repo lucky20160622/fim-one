@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,6 +17,7 @@ from fim_agent.web.auth import get_current_user
 from fim_agent.web.models import Conversation, Message, User
 from fim_agent.web.schemas.common import ApiResponse, PaginatedResponse
 from fim_agent.web.schemas.conversation import (
+    BatchDeleteRequest,
     ConversationCreate,
     ConversationDetail,
     ConversationResponse,
@@ -26,6 +27,10 @@ from fim_agent.web.schemas.conversation import (
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_CONVERSATIONS_DIR = _PROJECT_ROOT / "tmp" / "conversations"
+_logger = logging.getLogger(__name__)
+
 
 def _conv_to_response(conv: Conversation) -> ConversationResponse:
     return ConversationResponse(
@@ -34,6 +39,7 @@ def _conv_to_response(conv: Conversation) -> ConversationResponse:
         mode=conv.mode,
         agent_id=conv.agent_id,
         status=conv.status,
+        starred=conv.starred,
         model_name=conv.model_name,
         total_tokens=conv.total_tokens,
         created_at=conv.created_at.isoformat() if conv.created_at else "",
@@ -96,6 +102,7 @@ async def list_conversations(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     conv_status: str = Query("active", alias="status"),
+    q: str | None = Query(None, min_length=1, max_length=200),
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> PaginatedResponse:
@@ -104,13 +111,26 @@ async def list_conversations(
         Conversation.status == conv_status,
     )
 
+    if q:
+        pattern = f"%{q}%"
+        base = (
+            base.outerjoin(Message, Message.conversation_id == Conversation.id)
+            .where(
+                or_(
+                    Conversation.title.ilike(pattern),
+                    Message.content.ilike(pattern),
+                )
+            )
+            .distinct()
+        )
+
     count_result = await db.execute(
         select(func.count()).select_from(base.subquery())
     )
     total = count_result.scalar_one()
 
     result = await db.execute(
-        base.order_by(Conversation.created_at.desc())
+        base.order_by(Conversation.starred.desc(), Conversation.created_at.desc())
         .offset((page - 1) * size)
         .limit(size)
     )
@@ -123,6 +143,31 @@ async def list_conversations(
         size=size,
         pages=math.ceil(total / size) if total else 0,
     )
+
+
+@router.delete("/batch", response_model=ApiResponse)
+async def batch_delete_conversations(
+    body: BatchDeleteRequest,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    result = await db.execute(
+        select(Conversation).where(
+            Conversation.id.in_(body.ids),
+            Conversation.user_id == current_user.id,
+        )
+    )
+    conversations = result.scalars().all()
+    count = 0
+    for conv in conversations:
+        await db.delete(conv)
+        sandbox_dir = _CONVERSATIONS_DIR / conv.id
+        if sandbox_dir.exists():
+            shutil.rmtree(sandbox_dir, ignore_errors=True)
+            _logger.info("Removed sandbox dir for conversation %s", conv.id)
+        count += 1
+    await db.commit()
+    return ApiResponse(data={"deleted": count})
 
 
 @router.get("/{conversation_id}", response_model=ApiResponse)
@@ -153,6 +198,7 @@ async def get_conversation(
         mode=conv.mode,
         agent_id=conv.agent_id,
         status=conv.status,
+        starred=conv.starred,
         model_name=conv.model_name,
         total_tokens=conv.total_tokens,
         created_at=conv.created_at.isoformat() if conv.created_at else "",
@@ -175,15 +221,12 @@ async def update_conversation(
         conv.title = body.title
     if body.status is not None:
         conv.status = body.status
+    if body.starred is not None:
+        conv.starred = body.starred
 
     await db.commit()
     await db.refresh(conv)
     return ApiResponse(data=_conv_to_response(conv).model_dump())
-
-
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
-_CONVERSATIONS_DIR = _PROJECT_ROOT / "tmp" / "conversations"
-_logger = logging.getLogger(__name__)
 
 
 @router.delete("/{conversation_id}", response_model=ApiResponse)

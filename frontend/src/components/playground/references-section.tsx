@@ -51,6 +51,11 @@ export function ReferencesSection({ items }: ReferencesSectionProps) {
                   {source.displayName}
                   {source.page != null && <span className="ml-1 text-muted-foreground">p.{source.page}</span>}
                 </span>
+                {source.kbName && (
+                  <span className="text-[10px] text-muted-foreground/70">
+                    KB: {source.kbName}
+                  </span>
+                )}
                 {source.quote && (
                   <p className="mt-0.5 pl-2 border-l-2 border-muted text-muted-foreground/80 break-words">
                     &ldquo;{source.quote.length > 150 ? source.quote.slice(0, 150) + "\u2026" : source.quote}&rdquo;
