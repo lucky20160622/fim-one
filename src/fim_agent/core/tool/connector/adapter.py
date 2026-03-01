@@ -149,24 +149,29 @@ class ConnectorToolAdapter(BaseTool):
             return f"[Error] {type(exc).__name__}: {exc}"
 
     def _inject_auth(self, headers: dict[str, str]) -> None:
-        """Inject authentication into request headers."""
+        """Inject authentication into request headers.
+
+        Priority: per-user credentials > default credentials in auth_config.
+        """
         creds = self._auth_credentials
+        cfg = self._auth_config
 
         if self._auth_type == "bearer":
-            token = creds.get("token", "")
+            token = creds.get("token", "") or cfg.get("default_token", "")
             if token:
-                prefix = self._auth_config.get("token_prefix", "Bearer")
+                prefix = cfg.get("token_prefix", "Bearer")
                 headers["Authorization"] = f"{prefix} {token}"
         elif self._auth_type == "api_key":
-            header_name = self._auth_config.get("header_name", "X-API-Key")
-            key = creds.get("api_key", "")
+            header_name = cfg.get("header_name", "X-API-Key")
+            key = creds.get("api_key", "") or cfg.get("default_api_key", "")
             if key:
                 headers[header_name] = key
         elif self._auth_type == "basic":
-            username = creds.get("username", "")
-            password = creds.get("password", "")
-            encoded = base64.b64encode(f"{username}:{password}".encode()).decode()
-            headers["Authorization"] = f"Basic {encoded}"
+            username = creds.get("username", "") or cfg.get("default_username", "")
+            password = creds.get("password", "") or cfg.get("default_password", "")
+            if username or password:
+                encoded = base64.b64encode(f"{username}:{password}".encode()).decode()
+                headers["Authorization"] = f"Basic {encoded}"
 
     @staticmethod
     def _render_template(template: dict, params: dict) -> dict:

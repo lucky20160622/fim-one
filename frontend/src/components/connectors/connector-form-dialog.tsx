@@ -29,10 +29,16 @@ export function ConnectorFormDialog({
 }: ConnectorFormDialogProps) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [type, setType] = useState("api")
   const [baseUrl, setBaseUrl] = useState("")
   const [authType, setAuthType] = useState("none")
+  // Auth config fields
+  const [tokenPrefix, setTokenPrefix] = useState("Bearer")
   const [headerName, setHeaderName] = useState("X-API-Key")
+  // Default credentials (for testing / v0.6.1)
+  const [defaultToken, setDefaultToken] = useState("")
+  const [defaultApiKey, setDefaultApiKey] = useState("")
+  const [defaultUsername, setDefaultUsername] = useState("")
+  const [defaultPassword, setDefaultPassword] = useState("")
 
   // Pre-fill when editing or reset when creating
   useEffect(() => {
@@ -40,18 +46,26 @@ export function ConnectorFormDialog({
     if (connector) {
       setName(connector.name)
       setDescription(connector.description || "")
-      setType(connector.type)
       setBaseUrl(connector.base_url)
       setAuthType(connector.auth_type)
-      const hdr = connector.auth_config?.header_name
-      setHeaderName(typeof hdr === "string" ? hdr : "X-API-Key")
+      const cfg = connector.auth_config || {}
+      setTokenPrefix(typeof cfg.token_prefix === "string" ? cfg.token_prefix : "Bearer")
+      setHeaderName(typeof cfg.header_name === "string" ? cfg.header_name : "X-API-Key")
+      setDefaultToken(typeof cfg.default_token === "string" ? cfg.default_token : "")
+      setDefaultApiKey(typeof cfg.default_api_key === "string" ? cfg.default_api_key : "")
+      setDefaultUsername(typeof cfg.default_username === "string" ? cfg.default_username : "")
+      setDefaultPassword(typeof cfg.default_password === "string" ? cfg.default_password : "")
     } else {
       setName("")
       setDescription("")
-      setType("api")
       setBaseUrl("")
       setAuthType("none")
+      setTokenPrefix("Bearer")
       setHeaderName("X-API-Key")
+      setDefaultToken("")
+      setDefaultApiKey("")
+      setDefaultUsername("")
+      setDefaultPassword("")
     }
   }, [open, connector])
 
@@ -62,14 +76,29 @@ export function ConnectorFormDialog({
     if (!trimmedName || !trimmedUrl) return
 
     let authConfig: Record<string, unknown> | null = null
-    if (authType === "api_key") {
-      authConfig = { header_name: headerName.trim() || "X-API-Key" }
+    if (authType === "bearer") {
+      authConfig = {
+        token_prefix: tokenPrefix.trim() || "Bearer",
+        ...(defaultToken.trim() && { default_token: defaultToken.trim() }),
+      }
+    } else if (authType === "api_key") {
+      authConfig = {
+        header_name: headerName.trim() || "X-API-Key",
+        ...(defaultApiKey.trim() && { default_api_key: defaultApiKey.trim() }),
+      }
+    } else if (authType === "basic") {
+      authConfig = {
+        ...(defaultUsername.trim() && { default_username: defaultUsername.trim() }),
+        ...(defaultPassword.trim() && { default_password: defaultPassword.trim() }),
+      }
+      // Only set if has content
+      if (Object.keys(authConfig).length === 0) authConfig = null
     }
 
     const data: ConnectorCreate = {
       name: trimmedName,
       description: description.trim() || null,
-      type,
+      type: "api",
       base_url: trimmedUrl,
       auth_type: authType,
       ...(authConfig && { auth_config: authConfig }),
@@ -124,22 +153,6 @@ export function ConnectorFormDialog({
             />
           </div>
 
-          {/* Type */}
-          <div className="space-y-1.5">
-            <label htmlFor="connector-type" className="text-sm font-medium">
-              Type
-            </label>
-            <select
-              id="connector-type"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className={inputClass}
-            >
-              <option value="api">API</option>
-              <option value="database">Database</option>
-            </select>
-          </div>
-
           {/* Base URL */}
           <div className="space-y-1.5">
             <label htmlFor="connector-base-url" className="text-sm font-medium">
@@ -169,27 +182,118 @@ export function ConnectorFormDialog({
             >
               <option value="none">None</option>
               <option value="bearer">Bearer Token</option>
-              <option value="api_key">API Key</option>
-              <option value="basic">Basic Auth</option>
+              <option value="api_key">API Key (Custom Header)</option>
+              <option value="basic">Basic Auth (Username/Password)</option>
             </select>
           </div>
 
-          {/* Auth Config — conditional */}
+          {/* Bearer Token config */}
+          {authType === "bearer" && (
+            <div className="space-y-3 rounded-md border border-border p-3">
+              <div className="space-y-1.5">
+                <label htmlFor="connector-token-prefix" className="text-sm font-medium">
+                  Token Prefix
+                </label>
+                <input
+                  id="connector-token-prefix"
+                  type="text"
+                  value={tokenPrefix}
+                  onChange={(e) => setTokenPrefix(e.target.value)}
+                  placeholder="Bearer"
+                  className={inputClass}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Prefix before the token in Authorization header. Default: Bearer.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="connector-default-token" className="text-sm font-medium">
+                  Default Token
+                </label>
+                <input
+                  id="connector-default-token"
+                  type="password"
+                  value={defaultToken}
+                  onChange={(e) => setDefaultToken(e.target.value)}
+                  placeholder="ghp_xxxxxxxxxxxx"
+                  className={inputClass}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used for testing. Per-user credentials will override this in a future version.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* API Key config */}
           {authType === "api_key" && (
-            <div className="space-y-1.5">
-              <label htmlFor="connector-header-name" className="text-sm font-medium">
-                Header Name
-              </label>
-              <input
-                id="connector-header-name"
-                type="text"
-                value={headerName}
-                onChange={(e) => setHeaderName(e.target.value)}
-                placeholder="X-API-Key"
-                className={inputClass}
-              />
+            <div className="space-y-3 rounded-md border border-border p-3">
+              <div className="space-y-1.5">
+                <label htmlFor="connector-header-name" className="text-sm font-medium">
+                  Header Name
+                </label>
+                <input
+                  id="connector-header-name"
+                  type="text"
+                  value={headerName}
+                  onChange={(e) => setHeaderName(e.target.value)}
+                  placeholder="X-API-Key"
+                  className={inputClass}
+                />
+                <p className="text-xs text-muted-foreground">
+                  The HTTP header used to send the API key. Default: X-API-Key.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="connector-default-api-key" className="text-sm font-medium">
+                  Default API Key
+                </label>
+                <input
+                  id="connector-default-api-key"
+                  type="password"
+                  value={defaultApiKey}
+                  onChange={(e) => setDefaultApiKey(e.target.value)}
+                  placeholder="sk-xxxxxxxxxxxx"
+                  className={inputClass}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used for testing. Per-user credentials will override this in a future version.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Basic Auth config */}
+          {authType === "basic" && (
+            <div className="space-y-3 rounded-md border border-border p-3">
+              <div className="space-y-1.5">
+                <label htmlFor="connector-default-username" className="text-sm font-medium">
+                  Username
+                </label>
+                <input
+                  id="connector-default-username"
+                  type="text"
+                  value={defaultUsername}
+                  onChange={(e) => setDefaultUsername(e.target.value)}
+                  placeholder="admin"
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="connector-default-password" className="text-sm font-medium">
+                  Password
+                </label>
+                <input
+                  id="connector-default-password"
+                  type="password"
+                  value={defaultPassword}
+                  onChange={(e) => setDefaultPassword(e.target.value)}
+                  placeholder="********"
+                  className={inputClass}
+                />
+              </div>
               <p className="text-xs text-muted-foreground">
-                The HTTP header used to send the API key. Default: X-API-Key.
+                Used for testing. Per-user credentials will override this in a future version.
               </p>
             </div>
           )}
