@@ -1,9 +1,9 @@
 """Abstract base class for LLM providers."""
 
+from __future__ import annotations
+
 __fim_license__ = "FIM-SAL-1.1"
 __fim_origin__ = "https://github.com/fim-ai/fim-agent"
-
-from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
