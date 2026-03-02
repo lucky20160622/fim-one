@@ -13,7 +13,7 @@ import { useMediaQuery } from "@/hooks/use-media-query"
 import { useLocalStorage } from "@/hooks/use-local-storage"
 import { useAuth } from "@/contexts/auth-context"
 import { useConversation } from "@/contexts/conversation-context"
-import { agentApi, fileApi } from "@/lib/api"
+import { agentApi, fileApi, chatApi } from "@/lib/api"
 import { API_BASE_URL, ACCESS_TOKEN_KEY } from "@/lib/constants"
 import { cn, formatFileSize, isImageFile } from "@/lib/utils"
 import {
@@ -47,7 +47,6 @@ import { ReactOutput } from "@/components/playground/react-output"
 import { DagOutput } from "@/components/playground/dag-output"
 import { Examples } from "@/components/playground/examples"
 import { RightSidebar } from "@/components/playground/right-sidebar"
-import { ReactSidebarTimeline } from "@/components/playground/react-sidebar-timeline"
 import { DagFlowGraph } from "@/components/dag/dag-flow-graph"
 import { HistoryMessages } from "@/components/playground/history-messages"
 import { reconstructSSEMessages } from "@/lib/sse-utils"
@@ -84,6 +83,7 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
   const [pendingQuery, setPendingQuery] = useState<string | null>(null)
   const [pendingMode, setPendingMode] = useState<AgentMode | null>(null)
   const { messages, isRunning, start, reset, abort } = useSSE()
+  const [injectedMessages, setInjectedMessages] = useState<{id?: string; content: string; ts: number}[]>([])
 
   // Ref to track conversation IDs we created ourselves (via send),
   // so the "switch conversation" effect doesn't reset SSE for them.
@@ -183,6 +183,7 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
       sseJustFinishedRef.current = true
     } else if (sseJustFinishedRef.current) {
       sseJustFinishedRef.current = false
+      setInjectedMessages([])
       loadConversations()
     }
   }, [isRunning]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -192,7 +193,24 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
   const runWithQuery = useCallback(
     async (q: string, imageIds?: string[]) => {
       const trimmed = q.trim()
-      if (!trimmed || isRunning) return
+      if (!trimmed) return
+
+      // INJECT MODE: during active execution, inject message
+      if (isRunning && activeId) {
+        setQuery("")
+        const ts = Date.now()
+        setInjectedMessages(prev => [...prev, { content: trimmed, ts }])
+        try {
+          const res = await chatApi.inject(activeId, trimmed)
+          // Store the backend-assigned id for recall support
+          setInjectedMessages(prev => prev.map(m => m.ts === ts ? { ...m, id: res.id } : m))
+        } catch {
+          // 409 = execution already finished, silently ignore
+        }
+        return
+      }
+
+      if (isRunning) return
 
       // Clear input and show user message immediately
       setQuery("")
@@ -236,7 +254,7 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
       setSourceMode(mode)
       start(url)
     },
-    [isRunning, mode, start, activeId, createConversation, selectConversation, selectedAgent],
+    [isRunning, mode, start, activeId, createConversation, selectConversation, selectedAgent, setInjectedMessages],
   )
 
   const handleExampleSelect = useCallback(
@@ -245,6 +263,20 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
       runWithQuery(example)
     },
     [runWithQuery],
+  )
+
+  const handleRecallInject = useCallback(
+    (msg: {id?: string; content: string; ts: number}) => {
+      // Remove from optimistic state
+      setInjectedMessages(prev => prev.filter(m => m.ts !== msg.ts))
+      // Recall from backend queue
+      if (msg.id && activeId) {
+        chatApi.recallInject(activeId, msg.id).catch(() => {})
+      }
+      // If input is empty, fill with recalled content for easy re-edit
+      setQuery(prev => prev.trim() ? prev : msg.content)
+    },
+    [activeId],
   )
 
   if (authLoading || !user) return null
@@ -261,6 +293,8 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
         isRunning={isRunning}
         activeConversation={activeConversation}
         selectedAgent={selectedAgent}
+        injectedMessages={injectedMessages}
+        onRecallInject={handleRecallInject}
         onAgentChange={setSelectedAgent}
         onQueryChange={setQuery}
         onLanguageChange={setLanguage}
@@ -437,6 +471,8 @@ interface PlaygroundContentProps {
   isRunning: boolean
   activeConversation: ReturnType<typeof useConversation>["activeConversation"]
   selectedAgent: AgentResponse | null
+  injectedMessages: {id?: string; content: string; ts: number}[]
+  onRecallInject: (msg: {id?: string; content: string; ts: number}) => void
   onAgentChange: (agent: AgentResponse | null) => void
   onQueryChange: (q: string) => void
   onLanguageChange: (lang: Language) => void
@@ -456,6 +492,8 @@ function PlaygroundContent({
   isRunning,
   activeConversation,
   selectedAgent,
+  injectedMessages,
+  onRecallInject,
   onAgentChange,
   onQueryChange,
   onLanguageChange,
@@ -516,7 +554,14 @@ function PlaygroundContent({
       if (msg.role === "assistant") {
         const reconstructed = reconstructSSEMessages(msg)
         if (reconstructed) {
-          const userMsg = i > 0 && msgs[i - 1].role === "user" ? msgs[i - 1] : null
+          // Walk backwards to find the original "text" user message, skipping inject messages.
+          let userMsg: MessageResponse | null = null
+          for (let j = i - 1; j >= 0; j--) {
+            if (msgs[j].role === "user" && msgs[j].message_type !== "inject") {
+              userMsg = msgs[j]
+              break
+            }
+          }
           turns.push({ user: userMsg, sseMessages: reconstructed })
         }
       }
@@ -533,8 +578,8 @@ function PlaygroundContent({
 
   const hasRichHistory = !hasLiveMessages && allHistoryTurns !== null
 
-  // Sidebar only shown during live streaming (history shows all turns -- sidebar would mismatch)
-  const showSidebar = hasLiveMessages && sidebarOpen && isWideScreen
+  // Sidebar only shown during live DAG streaming (React mode no longer uses sidebar)
+  const showSidebar = hasLiveMessages && sidebarOpen && isWideScreen && mode === "dag"
 
   const handleSuggestionSelect = useCallback((q: string) => {
     onRunWithQuery(q)
@@ -648,10 +693,6 @@ function PlaygroundContent({
     scrollInViewport(`[data-step-id="${stepId}"]`)
   }, [scrollInViewport])
 
-  const scrollToReactItem = useCallback((idx: number) => {
-    scrollInViewport(`[data-react-idx="${idx}"]`)
-  }, [scrollInViewport])
-
   // Fetch published agents on mount
   useEffect(() => {
     if (agentsLoaded) return
@@ -747,7 +788,7 @@ function PlaygroundContent({
 
   const handleKeyDownWithFiles = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
         e.preventDefault()
         handleRunWithFiles()
       }
@@ -797,7 +838,7 @@ function PlaygroundContent({
                 </span>
               )}
               <div className="flex-1" />
-              {hasLiveMessages && isWideScreen && (
+              {hasLiveMessages && isWideScreen && mode === "dag" && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -836,7 +877,7 @@ function PlaygroundContent({
                   })}
                   {/* Fallback: old messages without sse_events */}
                   {!allHistoryTurns && !hasLiveMessages && hasHistory && (
-                    <HistoryMessages messages={activeConversation!.messages} />
+                    <HistoryMessages messages={activeConversation!.messages.filter(m => m.message_type !== "inject")} />
                   )}
                   {/* Compact divider -- shown when AI summarized older context */}
                   {compactEvent && (
@@ -879,6 +920,42 @@ function PlaygroundContent({
                       />
                     )
                   )}
+                  {/* Optimistic inject messages not yet confirmed by SSE */}
+                  {injectedMessages
+                    .filter((msg) => {
+                      // Keep optimistic messages that haven't been confirmed by SSE inject events.
+                      // Prefer id-based matching; fall back to content matching.
+                      return !messages.some(
+                        (m) => {
+                          if (m.event !== "inject") return false
+                          const data = m.data as { content: string; id?: string }
+                          if (msg.id && data.id) return data.id === msg.id
+                          return data.content === msg.content
+                        }
+                      )
+                    })
+                    .map((msg) => (
+                    <div key={msg.ts} className="group flex gap-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                        <User className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <div className="flex-1 pt-0.5">
+                        <p className="text-sm text-foreground">{msg.content}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {msg.id ? (
+                            <button
+                              onClick={() => onRecallInject(msg)}
+                              className="hidden group-hover:inline text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                            >
+                              Recall
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground/50">Queued</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </ScrollArea>
               {showScrollBtn && (
@@ -906,30 +983,26 @@ function PlaygroundContent({
           {/* Right sidebar */}
           {showSidebar && (
             <RightSidebar
-              title={mode === "dag" ? "Execution Plan" : "Steps Timeline"}
-              badge={mode === "dag" ? dagData.planSteps?.length : reactItems.filter(i => i.event === "step" || i.event === "done").length}
+              title="Execution Plan"
+              badge={dagData.planSteps?.length}
               expanded={sidebarExpanded}
               onToggleExpand={() => { setSidebarExpanded(!sidebarExpanded); setCustomRatio(null) }}
               className={cn(!isDragging && "transition-all duration-300")}
               style={{ flex: `${currentRatio} 1 0%`, minWidth: 0 }}
             >
-              {mode === "dag" ? (
-                dagData.planSteps && dagData.planSteps.length > 0 ? (
-                  <DagFlowGraph
-                    planSteps={dagData.planSteps}
-                    stepStates={dagData.stepStates}
-                    mode="sidebar"
-                    expanded={sidebarExpanded}
-                    resizeKey={resizeKey}
-                    onStepClick={scrollToStep}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-                    Waiting for plan...
-                  </div>
-                )
+              {dagData.planSteps && dagData.planSteps.length > 0 ? (
+                <DagFlowGraph
+                  planSteps={dagData.planSteps}
+                  stepStates={dagData.stepStates}
+                  mode="sidebar"
+                  expanded={sidebarExpanded}
+                  resizeKey={resizeKey}
+                  onStepClick={scrollToStep}
+                />
               ) : (
-                <ReactSidebarTimeline items={reactItems} isRunning={isRunning} onItemClick={scrollToReactItem} />
+                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                  Waiting for plan...
+                </div>
               )}
             </RightSidebar>
           )}
@@ -995,19 +1068,21 @@ function PlaygroundContent({
             onKeyDown={handleKeyDownWithFiles}
             onPaste={handlePaste}
             placeholder={
-              mode === "react"
-                ? "Ask the ReAct agent to solve a problem..."
-                : "Describe a multi-step task for the DAG planner..."
+              isRunning
+                ? "Send a message to interrupt the agent..."
+                : mode === "react"
+                  ? "Ask the ReAct agent to solve a problem..."
+                  : "Describe a multi-step task for the DAG planner..."
             }
             className="min-h-[72px] max-h-[160px] resize-none"
           />
           <Button
-            onClick={isRunning ? onAbort : handleRunWithFiles}
+            onClick={isRunning ? (query.trim() ? handleRunWithFiles : onAbort) : handleRunWithFiles}
             disabled={!isRunning && !query.trim()}
             className="h-[72px] w-16 shrink-0"
-            variant={isRunning ? "destructive" : "default"}
+            variant={isRunning && !query.trim() ? "destructive" : "default"}
           >
-            {isRunning ? (
+            {isRunning && !query.trim() ? (
               <Square className="h-4 w-4" />
             ) : (
               <Send className="h-4 w-4" />

@@ -9,7 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { MarkdownContent } from "@/lib/markdown"
 import { useState, useEffect } from "react"
-import { Loader2, Wrench, Brain, CheckCircle2, Clock, RefreshCw, BarChart3, ChevronDown, ChevronUp, Sparkles } from "lucide-react"
+import { Loader2, Wrench, Brain, CheckCircle2, Clock, RefreshCw, BarChart3, ChevronDown, ChevronUp, Sparkles, User } from "lucide-react"
 import { fmtDuration } from "@/lib/utils"
 import type { ReactStepEvent, ReactDoneEvent } from "@/types/api"
 import type { StepItem } from "@/hooks/use-react-steps"
@@ -35,11 +35,6 @@ export function ReactOutput({ items, onSuggestionSelect }: ReactOutputProps) {
     return step.type === "tool_call"
   }).length
 
-  const maxIteration = stepItems.reduce((max, i) => {
-    const iter = i.displayIteration ?? 0
-    return iter > max ? iter : max
-  }, 0)
-
   const elapsed = doneItem ? (doneItem.data as ReactDoneEvent).elapsed : 0
 
   // After completion with tool calls: show collapsible summary bar + done card
@@ -56,8 +51,6 @@ export function ReactOutput({ items, onSuggestionSelect }: ReactOutputProps) {
           <span>
             {toolCallCount} tool call{toolCallCount !== 1 ? "s" : ""}
             {" \u00b7 "}
-            {maxIteration} iteration{maxIteration !== 1 ? "s" : ""}
-            {" \u00b7 "}
             {fmtDuration(elapsed)}
           </span>
           {stepsExpanded ? (
@@ -67,7 +60,7 @@ export function ReactOutput({ items, onSuggestionSelect }: ReactOutputProps) {
           )}
         </button>
 
-        {/* Expanded step cards */}
+        {/* Expanded step cards (inject events always visible outside) */}
         {stepsExpanded && (
           <div className="space-y-3 animate-in fade-in-0 slide-in-from-top-1 duration-200">
             {stepItems.map((item) => {
@@ -81,6 +74,22 @@ export function ReactOutput({ items, onSuggestionSelect }: ReactOutputProps) {
             })}
           </div>
         )}
+
+        {/* Inject events — always visible (they are user messages) */}
+        {items.filter((i) => i.event === "inject").map((item) => {
+          const originalIdx = items.indexOf(item)
+          const injectData = item.data as { content: string }
+          return (
+            <div key={originalIdx} data-react-idx={originalIdx} className="flex gap-3">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                <User className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div className="flex-1 pt-0.5">
+                <p className="text-sm text-foreground">{injectData.content}</p>
+              </div>
+            </div>
+          )
+        })}
 
         {/* Done card */}
         {doneItem && (
@@ -101,6 +110,19 @@ export function ReactOutput({ items, onSuggestionSelect }: ReactOutputProps) {
           return (
             <div key={idx} data-react-idx={idx}>
               <StepCard step={step} duration={item.duration} displayIteration={item.displayIteration} />
+            </div>
+          )
+        }
+        if (item.event === "inject") {
+          const injectData = item.data as { content: string }
+          return (
+            <div key={idx} data-react-idx={idx} className="flex gap-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                <User className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div className="flex-1 pt-0.5">
+                <p className="text-sm text-foreground">{injectData.content}</p>
+              </div>
             </div>
           )
         }

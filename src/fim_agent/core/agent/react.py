@@ -177,6 +177,7 @@ class ReActAgent:
         query: str,
         on_iteration: IterationCallback | None = None,
         image_urls: list[str] | None = None,
+        interrupt_queue: Any | None = None,
     ) -> AgentResult:
         """Execute the ReAct loop for a given user query.
 
@@ -186,13 +187,21 @@ class ReActAgent:
                 ``(iteration, action, observation, error)``.
             image_urls: Optional list of base64 data-URLs for images to
                 include in the first user message (vision model support).
+            interrupt_queue: Optional queue for mid-stream user message
+                injection.  Messages are drained between iterations.
 
         Returns:
             An ``AgentResult`` containing the final answer and full step trace.
         """
         if self._native_mode_active:
-            return await self._run_native(query, on_iteration, image_urls=image_urls)
-        return await self._run_json(query, on_iteration, image_urls=image_urls)
+            return await self._run_native(
+                query, on_iteration, image_urls=image_urls,
+                interrupt_queue=interrupt_queue,
+            )
+        return await self._run_json(
+            query, on_iteration, image_urls=image_urls,
+            interrupt_queue=interrupt_queue,
+        )
 
     # ------------------------------------------------------------------
     # JSON mode (original ReAct loop)
@@ -203,6 +212,7 @@ class ReActAgent:
         query: str,
         on_iteration: IterationCallback | None = None,
         image_urls: list[str] | None = None,
+        interrupt_queue: Any | None = None,
     ) -> AgentResult:
         """Execute the JSON-based ReAct loop."""
         usage_tracker = UsageTracker()
@@ -283,8 +293,28 @@ class ReActAgent:
                 ChatMessage(role="assistant", content=assistant_content),
             )
 
+            # --- Interrupt check: drain queued user messages ---
+            # Drain BEFORE checking final_answer so injections are never lost.
+            # (In JSON mode there is no tool_use/tool_result pairing constraint,
+            # so it is safe to insert a user message here.)
+            injected_msgs = interrupt_queue.drain() if interrupt_queue is not None else []
+            self._emit_and_append_injections(
+                injected_msgs, messages, iteration, on_iteration,
+            )
+
             # -- Final answer path --
             if action.type == "final_answer":
+                # If user injected messages, force another iteration so the
+                # agent sees them instead of ending.
+                if injected_msgs and iteration < self._max_iterations:
+                    logger.info(
+                        "Deferring final answer — %d injected message(s) "
+                        "pending (iteration %d)",
+                        len(injected_msgs),
+                        iteration,
+                    )
+                    continue
+
                 steps.append(StepResult(action=action))
                 if on_iteration is not None:
                     on_iteration(iteration, action, None, None)
@@ -306,21 +336,6 @@ class ReActAgent:
 
             if on_iteration is not None:
                 on_iteration(iteration, action, step.observation, step.error)
-
-            # Feed the observation (or error) back as a user message so the
-            # LLM can reason about the result in the next iteration.
-            if step.error is not None:
-                observation_text = (
-                    f"Tool `{action.tool_name}` raised an error:\n{step.error}"
-                )
-            else:
-                observation_text = (
-                    f"Tool `{action.tool_name}` returned:\n{step.observation}"
-                )
-
-            messages.append(
-                ChatMessage(role="user", content=observation_text),
-            )
 
         # Max iterations exceeded -- synthesise a timeout answer.
         logger.warning(
@@ -348,6 +363,7 @@ class ReActAgent:
         query: str,
         on_iteration: IterationCallback | None = None,
         image_urls: list[str] | None = None,
+        interrupt_queue: Any | None = None,
     ) -> AgentResult:
         """Execute the native function-calling loop."""
         usage_tracker = UsageTracker()
@@ -399,6 +415,9 @@ class ReActAgent:
             messages.append(assistant_msg)
 
             # -- Tool call path --
+            # In native mode, tool_result blocks MUST immediately follow the
+            # assistant's tool_use blocks.  Drain the interrupt queue only
+            # AFTER tool results are appended to preserve this ordering.
             if assistant_msg.tool_calls:
                 tool_results = await self._execute_native_tool_calls(
                     assistant_msg.tool_calls,
@@ -407,9 +426,23 @@ class ReActAgent:
                     on_iteration,
                 )
                 messages.extend(tool_results)
+
+                # Now safe to drain — tool_use/tool_result pairing is intact.
+                injected_msgs = interrupt_queue.drain() if interrupt_queue is not None else []
+                self._emit_and_append_injections(
+                    injected_msgs, messages, iteration, on_iteration,
+                )
                 continue
 
             # -- Final answer path (no tool calls) --
+            # Drain before returning so injections are never lost.
+            injected_msgs = interrupt_queue.drain() if interrupt_queue is not None else []
+            self._emit_and_append_injections(
+                injected_msgs, messages, iteration, on_iteration,
+            )
+            if injected_msgs and iteration < self._max_iterations:
+                continue
+
             answer = assistant_msg.content or ""
             action = Action(
                 type="final_answer",
@@ -537,6 +570,51 @@ class ReActAgent:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _emit_and_append_injections(
+        injected_msgs: list,
+        messages: list[ChatMessage],
+        iteration: int,
+        on_iteration: IterationCallback | None,
+    ) -> None:
+        """Emit SSE inject events and append a combined user message.
+
+        This is shared by both ``_run_json`` and ``_run_native`` to avoid
+        duplicating the drain → emit → append logic.
+        """
+        if not injected_msgs:
+            return
+
+        # Emit individual SSE inject events for frontend rendering.
+        for injected in injected_msgs:
+            if on_iteration:
+                on_iteration(iteration, Action(
+                    type="tool_call", reasoning="",
+                    tool_name="__inject__",
+                    tool_args={"content": injected.content, "id": injected.id},
+                ), injected.content, None)
+
+        # Append as a SINGLE combined message so the LLM addresses ALL
+        # injected messages, not just the last one.
+        if len(injected_msgs) == 1:
+            combined_content = (
+                f"[USER INTERRUPT]: {injected_msgs[0].content}"
+                "\n\nAcknowledge and adjust if needed."
+            )
+        else:
+            parts = [f"{i+1}. {m.content}" for i, m in enumerate(injected_msgs)]
+            combined_content = (
+                f"[USER INTERRUPT]: The user sent {len(injected_msgs)} "
+                "messages while you were working:\n"
+                + "\n".join(parts)
+                + "\n\nAcknowledge ALL of them and adjust your response if needed."
+            )
+        messages.append(ChatMessage(
+            role="user",
+            content=combined_content,
+            pinned=True,
+        ))
 
     def _build_system_prompt(self) -> str:
         """Build the system prompt, including descriptions of available tools.

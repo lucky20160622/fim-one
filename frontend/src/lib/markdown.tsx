@@ -145,6 +145,13 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
           hr(props) {
             return <hr className="my-4 border-border" {...props} />
           },
+          a({ children, ...props }) {
+            return (
+              <a target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:text-primary/80" {...props}>
+                {children}
+              </a>
+            )
+          },
           strong({ children, ...props }) {
             return (
               <strong className="font-semibold text-foreground" {...props}>

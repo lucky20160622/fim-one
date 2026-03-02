@@ -452,3 +452,17 @@ export const connectorApi = {
       { method: "DELETE" },
     ),
 }
+
+// --- Chat API ---
+export const chatApi = {
+  inject: (conversationId: string, content: string) =>
+    apiFetch<{ success: boolean; id: string }>("/api/chat/inject", {
+      method: "POST",
+      body: JSON.stringify({ conversation_id: conversationId, content }),
+    }),
+  recallInject: (conversationId: string, injectId: string) =>
+    apiFetch<{ success: boolean }>("/api/chat/inject/recall", {
+      method: "POST",
+      body: JSON.stringify({ conversation_id: conversationId, inject_id: injectId }),
+    }),
+}

@@ -23,14 +23,19 @@ import base64
 import json
 import logging
 import time
+import uuid
 from collections.abc import AsyncGenerator
 from contextlib import suppress
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy import select as sa_select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from fim_agent.core.agent import ReActAgent
 from fim_agent.core.model import BaseLLM
@@ -56,8 +61,78 @@ from ..deps import (
     get_model_registry,
     get_tools,
 )
+from fim_agent.db import get_session
+from fim_agent.web.auth import get_current_user_optional
+from fim_agent.web.models import User
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Interrupt queue infrastructure
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class InjectedMessage:
+    """A user message injected mid-stream into a running agent execution."""
+
+    id: str  # unique id for recall/edit
+    content: str
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class InterruptQueue:
+    """Async-safe interrupt queue that supports recall (cancel) of pending messages."""
+
+    def __init__(self) -> None:
+        self._queue: asyncio.Queue[InjectedMessage] = asyncio.Queue()
+        self._recalled: set[str] = set()  # ids of recalled messages
+
+    def put(self, msg: InjectedMessage) -> None:
+        self._queue.put_nowait(msg)
+
+    def recall(self, msg_id: str) -> bool:
+        """Mark a message as recalled. Returns True if the id was not already recalled."""
+        if msg_id in self._recalled:
+            return False
+        self._recalled.add(msg_id)
+        return True
+
+    def drain(self) -> list[InjectedMessage]:
+        """Drain all non-recalled messages from the queue."""
+        result: list[InjectedMessage] = []
+        while not self._queue.empty():
+            try:
+                msg = self._queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+            if msg.id not in self._recalled:
+                result.append(msg)
+        return result
+
+    def empty(self) -> bool:
+        return self._queue.empty()
+
+
+_interrupt_queues: dict[str, InterruptQueue] = {}
+
+
+def register_interrupt_queue(conversation_id: str) -> InterruptQueue:
+    """Create and register an interrupt queue for a conversation."""
+    q = InterruptQueue()
+    _interrupt_queues[conversation_id] = q
+    return q
+
+
+def unregister_interrupt_queue(conversation_id: str) -> None:
+    """Remove the interrupt queue for a conversation."""
+    _interrupt_queues.pop(conversation_id, None)
+
+
+def get_interrupt_queue(conversation_id: str) -> InterruptQueue | None:
+    """Get the interrupt queue for a conversation, or None if not active."""
+    return _interrupt_queues.get(conversation_id)
 
 router = APIRouter(prefix="/api")
 
@@ -424,6 +499,83 @@ def _load_image_data_urls(
 
 
 # ---------------------------------------------------------------------------
+# Inject endpoint — mid-stream message injection
+# ---------------------------------------------------------------------------
+
+
+class InjectMessageRequest(BaseModel):
+    """Request body for injecting a message into an active agent execution."""
+
+    conversation_id: str
+    content: str
+
+
+@router.post("/chat/inject")
+async def inject_message(
+    body: InjectMessageRequest,
+    current_user: User | None = Depends(get_current_user_optional),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> dict[str, Any]:
+    """Inject a user message into a running agent execution.
+
+    The message is queued for the agent to absorb at its next natural
+    breakpoint (between iterations).  It is also persisted immediately
+    to the conversation history.
+
+    Returns 409 if no active execution exists for the conversation.
+    """
+    q = get_interrupt_queue(body.conversation_id)
+    if q is None:
+        raise HTTPException(
+            status_code=409,
+            detail="No active execution for this conversation",
+        )
+    msg_id = uuid.uuid4().hex[:12]
+    q.put(InjectedMessage(id=msg_id, content=body.content))
+
+    # Persist the injected message to DB immediately.
+    try:
+        from fim_agent.web.models import Message as MessageModel
+
+        msg = MessageModel(
+            conversation_id=body.conversation_id,
+            role="user",
+            content=body.content,
+            message_type="inject",
+        )
+        db.add(msg)
+        await db.commit()
+    except Exception:
+        logger.warning(
+            "Failed to persist injected message for conversation %s",
+            body.conversation_id,
+            exc_info=True,
+        )
+
+    return {"success": True, "id": msg_id}
+
+
+class RecallInjectRequest(BaseModel):
+    """Request body for recalling a queued inject message."""
+
+    conversation_id: str
+    inject_id: str
+
+
+@router.post("/chat/inject/recall")
+async def recall_inject(
+    body: RecallInjectRequest,
+    current_user: User | None = Depends(get_current_user_optional),  # noqa: B008
+) -> dict[str, bool]:
+    """Recall (cancel) a queued inject message before the agent consumes it."""
+    q = get_interrupt_queue(body.conversation_id)
+    if q is None:
+        raise HTTPException(status_code=409, detail="No active execution")
+    recalled = q.recall(body.inject_id)
+    return {"success": recalled}
+
+
+# ---------------------------------------------------------------------------
 # ReAct endpoint
 # ---------------------------------------------------------------------------
 
@@ -532,6 +684,11 @@ async def react_endpoint(
                 )
                 db_session = None
 
+        # Register interrupt queue for mid-stream injection.
+        interrupt_queue: InterruptQueue | None = None
+        if conversation_id:
+            interrupt_queue = register_interrupt_queue(conversation_id)
+
         progress_queue: asyncio.Queue[str] = asyncio.Queue()
         done_event = asyncio.Event()
         iter_start = time.time()
@@ -543,6 +700,19 @@ async def react_endpoint(
             error: str | None,
         ) -> None:
             nonlocal iter_start
+
+            # Handle injected user messages as a special SSE event.
+            if action.tool_name == "__inject__":
+                inject_payload: dict[str, Any] = {
+                    "type": "inject",
+                    "content": action.tool_args.get("content", ""),
+                }
+                if action.tool_args.get("id"):
+                    inject_payload["id"] = action.tool_args["id"]
+                sse_events.append({"event": "inject", "data": inject_payload})
+                progress_queue.put_nowait(_sse("inject", inject_payload))
+                return
+
             if action.type == "tool_call":
                 is_starting = observation is None and error is None
                 now = time.time()
@@ -594,6 +764,7 @@ async def react_endpoint(
                 try:
                     return await agent.run(
                         q, on_iteration=on_iteration, image_urls=image_urls,
+                        interrupt_queue=interrupt_queue,
                     )
                 finally:
                     done_event.set()
@@ -649,6 +820,12 @@ async def react_endpoint(
                     "completion_tokens": result.usage.completion_tokens,
                     "total_tokens": result.usage.total_tokens,
                 }
+            # Final drain of any remaining injected messages.
+            if interrupt_queue is not None:
+                remaining = interrupt_queue.drain()
+                if remaining:
+                    done_payload["pending_injections"] = [m.content for m in remaining]
+
             sse_events.append({"event": "done", "data": done_payload})
 
             # -- Persist assistant message BEFORE yielding done -----------
@@ -705,6 +882,8 @@ async def react_endpoint(
                 },
             )
         finally:
+            if conversation_id:
+                unregister_interrupt_queue(conversation_id)
             if db_session:
                 await db_session.close()
 
@@ -821,6 +1000,11 @@ async def dag_endpoint(
                 )
                 db_session = None
 
+        # Register interrupt queue for mid-stream injection.
+        dag_interrupt_queue: InterruptQueue | None = None
+        if conversation_id:
+            dag_interrupt_queue = register_interrupt_queue(conversation_id)
+
         # -- Load conversation context for multi-turn DAG planning ----------
         # When images are attached, annotate the query so the text-only
         # planner is aware of them.
@@ -908,6 +1092,19 @@ async def dag_endpoint(
                 replan_context = ""
                 if plan is not None and analysis is not None:
                     replan_context = _format_replan_context(plan, analysis)
+
+                # Drain any injected messages at phase transition.
+                if dag_interrupt_queue is not None:
+                    for injected in dag_interrupt_queue.drain():
+                        current_phase = "planning" if plan is None else "replanning"
+                        inject_payload = {
+                            "type": "inject",
+                            "content": injected.content,
+                            "phase": current_phase,
+                        }
+                        sse_events.append({"event": "inject", "data": inject_payload})
+                        yield _sse("inject", inject_payload)
+                        enriched_query += f"\n\n[User follow-up]: {injected.content}"
 
                 # Phase 1: Plan (smart LLM)
                 yield _emit(
@@ -1039,6 +1236,18 @@ async def dag_endpoint(
                     logger.info("Client disconnected — skipping DAG analysis phase")
                     return
 
+                # Drain any injected messages before analysis.
+                if dag_interrupt_queue is not None:
+                    for injected in dag_interrupt_queue.drain():
+                        inject_payload = {
+                            "type": "inject",
+                            "content": injected.content,
+                            "phase": "analyzing",
+                        }
+                        sse_events.append({"event": "inject", "data": inject_payload})
+                        yield _sse("inject", inject_payload)
+                        enriched_query += f"\n\n[User follow-up]: {injected.content}"
+
                 # Phase 3: Analyze (smart LLM)
                 yield _emit(
                     sse_events,
@@ -1143,6 +1352,12 @@ async def dag_endpoint(
                     "completion_tokens": cumulative_usage.completion_tokens,
                     "total_tokens": cumulative_usage.total_tokens,
                 }
+            # Final drain of any remaining injected messages.
+            if dag_interrupt_queue is not None:
+                remaining = dag_interrupt_queue.drain()
+                if remaining:
+                    dag_done_payload["pending_injections"] = [m.content for m in remaining]
+
             sse_events.append({"event": "done", "data": dag_done_payload})
 
             # -- Persist assistant message BEFORE yielding done -----------
@@ -1202,6 +1417,8 @@ async def dag_endpoint(
                 },
             )
         finally:
+            if conversation_id:
+                unregister_interrupt_queue(conversation_id)
             if db_session:
                 await db_session.close()
 

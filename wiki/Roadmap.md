@@ -192,11 +192,6 @@ Hub          → Central cross-system orchestration (Portal / API)
 **Validation**:
 1. GitHub: two users with separate PATs → same Connector → each sees own repos → 403 passthrough on no permission
 2. Feishu Connector: docs/messages/calendar APIs → user connects via Feishu app credentials → chat queries own Feishu docs and messages
-3. Confirmation Gate: Agent attempts POST to GitHub → user sees confirmation dialog → approve/reject → result returned
-
-**Safety**
-- [ ] **Confirmation Gate**: Write operations (POST/PUT/DELETE) require user confirmation before execution; SSE event `confirmation_required`; configurable per-action (some reads may also need confirmation for sensitive data)
-- [ ] **Dry-run Mode**: Preview operation effects without actual execution
 
 #### v0.6.3 — AI-Assisted Connector Builder
 
@@ -218,23 +213,35 @@ Hub          → Central cross-system orchestration (Portal / API)
 - **CRM / Contracts** (Salesforce, custom PG): Agent reads contract clauses via API Connector, performs risk analysis, generates review opinions
 - **Business DB** (MySQL / PG): Agent scans for anomalies via DB Connector, generates alerts, notifies responsible parties via Teams / WeCom (企微) / email
 
-### v0.7 -- Connector Distribution & OAuth
+### v0.7 -- Organization, Connector Distribution & OAuth
 
-> *"Build once, distribute to many"*
+> *"Who uses what — then distribute everywhere"*
+>
+> Organization is the foundation for enterprise deployment. Admin configures connectors, agents, and knowledge bases, then publishes to org members. Combined with connector distribution and OAuth, this version makes FIM Agent deployable to enterprise teams — like OpenAI / Anthropic Console's org model.
 
+**Organization & Resource Sharing**
+- [ ] **Organization Model**: Org CRUD (create, rename, delete); member invite (email or invite link) and remove; two roles — **admin** (full configuration: create/edit/publish connectors, agents, KBs, manage members) and **member** (use published resources, manage own conversations and credentials). Replaces current flat JWT auth with org-scoped access.
+- [ ] **Resource Visibility**: Connector / Agent / KB gain `org_id` + `visibility` field (`personal` | `org-shared`). Admin publishes resources to org; members see org-shared resources alongside their personal ones. Published resources are read-only for members (use, not edit).
+- [ ] **KB Tags**: Tag-based categorization for knowledge bases; org members can filter/discover KBs by tag (e.g., "contract", "finance", "HR", "regulations"); tags managed by admin, displayed as filterable chips in KB list
+- [ ] **Frontend — Organization Management**: Org settings page (name, logo, invite link), member list with role badges, invite flow, resource publish/unpublish toggle on Connector/Agent/KB detail pages; org switcher in top nav (for users in multiple orgs)
+
+**Connector Distribution**
 - [ ] **Connector Export/Import**: Export JSON/YAML (without credentials), others can import
 - [ ] **Fork Mechanism**: Create a copy from a published Connector, freely modify actions
-- [ ] **OAuth 2.0 Support**:
-  - OAuth configuration (client_id, client_secret, auth_url, token_url, scopes)
-  - User clicks "Connect" → OAuth authorization page → callback → store refresh_token
-  - Automatic token refresh (silent refresh before expiry)
 - [ ] **Connector Versioning**: Track changes, support rollback
 - [ ] **Official Connector Library**: GitHub, Lark, Slack and other preset connectors
 - [ ] **MCP Server Export**: Generate standalone FastMCP Server code from Connector; users can run independently or fork
 
-### v0.8 -- Database Connector, Message Push & Access Control
+**OAuth 2.0**
+- [ ] **OAuth 2.0 Support**:
+  - OAuth configuration (client_id, client_secret, auth_url, token_url, scopes)
+  - User clicks "Connect" → OAuth authorization page → callback → store refresh_token
+  - Automatic token refresh (silent refresh before expiry)
+  - Works with Organization: admin configures OAuth app credentials at org level, each member authorizes individually
 
-> *"Not just APIs — databases, notifications, and who can do what"*
+### v0.8 -- Database Connector, Message Push & Governance
+
+> *"Not just APIs — databases, notifications, and operational safety"*
 
 **Connector Types**
 - [ ] **Database Connector Type**:
@@ -247,20 +254,94 @@ Hub          → Central cross-system orchestration (Portal / API)
   - Templated message formatting
   - Can serve as Agent's "output channel"
 
-**Access Control & Governance**
-- [ ] **RBAC (Role-Based Access Control)**: Roles (admin / editor / viewer) with granular permissions on agents, connectors, and knowledge bases; platform admin can manage users and roles; replaces current flat JWT auth with hierarchical access model
+**Governance**
 - [ ] **Operation Audit Log**: Every tool call recorded (timestamp, user, Connector, Action, params, result); filterable audit trail UI in admin panel
+- [ ] **Confirmation Gate**: User confirmation before connector write operations and cross-connector actions. Especially critical in Hub mode where connectors communicate through the platform (e.g., Agent reads from CRM → writes to ERP → sends notification via Lark — each write hop should be user-confirmed). Four-option permission model inspired by Claude Code:
+  - **Allow once**: approve this specific operation
+  - **Allow always for this action**: auto-approve future calls to the same connector action (persisted per user)
+  - **Deny once**: reject this specific operation
+  - **Deny always for this action**: auto-reject future calls to the same connector action
+  - SSE event `confirmation_required` with operation details (connector, action, method, URL, params preview)
+  - Configurable per action: `requires_confirmation: true/false` (default true for POST/PUT/DELETE, false for GET)
+  - Dry-run mode (optional): preview operation effects without actual execution
 
 **Reference Implementation**
 - [ ] **Zhihe Contract System Reference Connector**: First official business connector — search / detail / compare / timeline / statistics
 
 **Planning & Execution Intelligence**
-- [ ] **DAG Execution Gating (HITL)**: Human-in-the-loop checkpoints during DAG execution — Plan Preview (show generated plan → user approve/modify/reject before execution), Step-level Gates (`GateNode` type with `single_select` / `multi_select` / `freeform` interaction modes), Confidence-based Soft Gates (planner confidence < threshold triggers user review, timeout auto-selects default); SSE event `gate_required`; complements v0.6.2 Confirmation Gate (connector write ops) with plan-level oversight
-- [ ] **KB Routing Strategy**: Multi-layer knowledge base selection — L1: static `kb_scope` per step (whitelist within agent's `kb_ids`), L2: priority hints in step config (`high` / `medium` / `low` with trigger conditions), L3: optional agent dynamic selection within whitelist for large KB pools (>5); reduces unnecessary retrieval, improves grounding precision
 
-### v0.9 -- Sandbox Hardening + Observability
+- [ ] **Plan Preview (DAG only)**:
+  After DAGPlanner generates the full execution plan, present it to the user as an editable step list **before any execution begins**.
+  User can: approve as-is, reorder steps, add/remove steps, modify tool/KB bindings per step, inject constraints (e.g., "skip step 2", "step 3 must use the contract regulations KB").
+  Primary controllability mechanism — user sees the entire plan before anything runs.
+  Configurable per agent: `plan_review: true/false` (default false for backward compatibility).
 
-> *"Production-ready"*
+- [ ] **Soft Gate (DAG + ReAct)**:
+  Intelligent, zero-config gating — the agent **autonomously pauses when uncertain** and asks the user for guidance. No manual gate schema or per-step configuration needed; the only setting is a global confidence threshold.
+
+  **How it works:**
+  - During execution, whenever the agent faces an ambiguous decision (which tool to use, which KB to query, which approach to take), it evaluates confidence across candidate options
+  - If max confidence < threshold (default 0.5, configurable per agent), the agent pauses and presents candidates as a single-select gate via SSE event `gate_required`
+  - Frontend renders options with confidence percentages and a countdown timer
+  - If user selects an option → inject into context and continue
+  - If user doesn't respond within timeout (default 30s, configurable) → auto-select the highest-confidence option and continue
+  - Works in both DAG (planner-level and step-level uncertainty) and ReAct (tool selection and parameter uncertainty)
+
+  **Example scenarios:**
+  - ReAct: Agent bound to 3 KBs, unsure which to query → presents KB options with relevance scores
+  - ReAct: Agent unsure whether to use `web_search` or `kb_retrieve` → presents tool options
+  - DAG: Planner unsure whether to split into 2 or 3 steps → presents plan alternatives
+  - DAG step: Step-level ReAct agent encounters same tool/KB ambiguity as standalone ReAct
+
+  **Relationship to other gates (all in v0.8):**
+  - Confirmation Gate: **hardcoded safety** — connector write operations require user permission (allow once / allow always / deny)
+  - Plan Preview: **explicit user review** — user opts in to review every DAG plan before execution
+  - Soft Gate: **intelligent safety net** — agent self-triggers only when uncertain, zero config overhead
+
+  **Implementation:**
+  - SSE event `gate_required` with `{type: "soft_gate", options: [...], confidence: [...], timeout: 30}`
+  - User response via POST `/api/chat/{id}/gate_response`
+  - Agent config: `soft_gate_threshold: float` (default 0.5), `soft_gate_timeout: int` (default 30s)
+  - No changes to DAG schema or tool bindings — Soft Gate is an execution-time behavior, not a configuration-time concept
+
+### v0.9 -- Blueprint Mode & Production Hardening
+
+> *"A familiar visual shell for enterprise clients, then harden for production"*
+>
+> Enterprise clients accustomed to Dify-style visual workflows need a controllable, auditable execution model before adopting AI agents. Blueprint Mode provides the static pipeline shell — drag-and-drop nodes, per-node KB/tool/prompt binding, IF/ELSE branching — while the agent handles dynamic reasoning within each node's scope. Combined with sandbox hardening and observability, this version makes FIM Agent enterprise-deployable.
+
+**Blueprint Mode (Static Pipeline + Dynamic Execution)**
+
+- [ ] **Visual Pipeline Builder**: Lightweight drag-and-drop editor for defining static execution pipelines — a Dify-equivalent visual workflow that enterprise clients can adopt without fear of uncontrollable AI behavior:
+  - Canvas with draggable nodes and connectable edges
+  - Node types: Action (tool/agent execution), Gate (guided HITL dialog from v0.8), Condition (if-else branching), Start/End
+  - Per-node configuration: tool set binding, KB scope (which knowledge bases this node can access), system prompt / instruction template, model override, token budget
+  - Conditional branches: rule-based (field value matching) or LLM-evaluated (confidence-based routing)
+  - Pipeline saved as versioned JSON template; one template can be bound to multiple agents
+
+- [ ] **Execution Model — Three Progressive Phases**:
+
+  **Phase 1 — Fully Static (Dify-equivalent, ship first)**:
+  Pure static planning + pure static execution. No agent reasoning inside nodes — each node runs a **fixed prompt template** against a designated LLM, with deterministic input/output wiring between nodes. This is the baseline for enterprise clients migrating from Dify:
+  - Each node has a fixed prompt template with `{{variable}}` placeholders filled from upstream node outputs
+  - KB retrieval nodes query explicitly bound knowledge bases with fixed retrieval parameters (top_k, threshold) — no agent decision-making
+  - Tool call nodes invoke a single pre-configured tool with static parameters — no tool selection
+  - Conditional branches evaluate deterministic rules (field value matching, threshold comparison)
+  - Execution is fully reproducible: same input → same node sequence → same output (modulo LLM non-determinism)
+  - No Soft Gate needed (nothing is uncertain — everything is pre-configured)
+  - Essentially a Dify workflow runtime with FIM Agent's connector and KB infrastructure
+
+  **Phase 2 — Semi-dynamic (agent-assisted nodes)**:
+  Selected nodes upgrade from fixed prompt templates to agent-mode execution — the node scope (tool set, KB whitelist, token budget) is still statically defined, but within those boundaries the agent can reason, select tools, and iterate. Non-critical nodes remain fully static. Soft Gate (v0.8) activates for agent-mode nodes to handle uncertainty.
+
+  **Phase 3 — Fully dynamic (no blueprint)**:
+  No static pipeline — pure DAGPlanner generates and executes the plan autonomously. This is the current default behavior, suitable for advanced users comfortable with AI-driven execution.
+
+- [ ] **Template Library**: Pre-built pipeline templates for common enterprise scenarios:
+  - Contract Review: document parsing → clause extraction → risk analysis → review report
+  - Finance Reconciliation: data collection → variance comparison → anomaly flagging → report generation
+  - Approval Assist: application parsing → rule matching → recommendation generation → notification push
+  - Templates are forkable — clients can copy and customize
 
 **Sandbox Hardening**
 - [ ] **Per-User Virtual Environment**: Each conversation spawns an isolated Python venv; user code executes via subprocess in the venv, not the host interpreter; prevents cross-session state leakage and module pollution
@@ -314,23 +395,36 @@ Hub          → Central cross-system orchestration (Portal / API)
 ## Multi-Tenant Model
 
 ```
-Platform (multi-tenant)
-├── Tenant A (Manufacturing)
-│   ├── Project 1: SAP Finance Copilot      [connector: db(oracle) + msg(lark)]
-│   ├── Project 2: OA Approval Assistant     [connector: api(seeyon) + built-in tools]
-│   └── Project 3: General AI Assistant      [tools: search, browser, code]
-├── Tenant B (Tech Company)
-│   ├── Project 1: Salesforce CRM Agent      [connector: api(salesforce) + msg(slack)]
-│   └── Project 2: Internal Knowledge Agent  [tools: rag + built-in + MCP]
+Platform
+├── Organization A (Manufacturing Company)
+│   ├── Admin: configures connectors, agents, KBs
+│   ├── Members: use published resources with own credentials
+│   ├── Connectors (org-shared):
+│   │   ├── SAP ERP (db connector)
+│   │   ├── Seeyon OA (api connector)
+│   │   └── Lark (msg connector, OAuth)
+│   ├── Agents (org-shared):
+│   │   ├── Finance Copilot        [connector: sap + lark]
+│   │   ├── OA Approval Assistant   [connector: seeyon + built-in tools]
+│   │   └── General AI Assistant    [tools: search, browser, code]
+│   └── Knowledge Bases (org-shared, tagged):
+│       ├── Contract Regulations    [tags: contract, legal]
+│       ├── Finance Policies        [tags: finance, audit]
+│       └── Employee Handbook       [tags: HR, onboarding]
+├── Organization B (Tech Company)
+│   ├── Connectors: Salesforce (api), Slack (msg, OAuth)
+│   ├── Agents: CRM Agent, Internal Knowledge Agent
+│   └── Knowledge Bases: Product Docs, API Reference
 ```
 
 ### Consider
 
-> Items worth exploring but deferred from version roadmap. Priority labels indicate likelihood of future promotion.
+> Items deferred from version roadmap. Priority labels indicate likelihood of future promotion.
 
 **P2 — Worth building if the product direction supports it**
 
-- [ ] **Static Pipeline Template (L1 + L2 Architecture)**: User-defined DAG templates with fixed node structure and edges; each node constrains execution scope (allowed tool set, KB whitelist, token budget) while the agent dynamically decides details within constraints. L1 static layer = user-defined flow (JSON template, no visual editor initially), L2 dynamic layer = existing DAGPlanner inside each node. *Deferred because: requires significant frontend investment (workflow builder UI) and the industry hasn't converged on whether visual workflow builders or prompt-driven planning is the better abstraction for agent orchestration. Re-evaluate when connector scenarios demand fixed multi-step pipelines that pure LLM planning cannot reliably produce.*
+- [ ] **Advanced KB Routing Strategy**: Multi-layer knowledge base selection beyond basic node-level binding. L1: static `kb_scope` per step (whitelist within agent's `kb_ids`); L2: priority hints with trigger conditions (e.g., "prefer contract regulations KB when legal clauses are involved"); L3: optional agent dynamic selection within whitelist for large KB pools (>5). *Deferred because: basic node-level KB binding in Blueprint Mode (v0.9) covers the primary enterprise use case. Advanced routing adds value only when KB pools are large and diverse enough to warrant automated selection. Re-evaluate after Blueprint Mode ships and real usage patterns emerge.*
+- [ ] **Dify Workflow Migration**: Import Dify workflow export JSON and map to FIM Agent Blueprint templates — node type mapping (LLM → Action, Knowledge Retrieval → Action with KB scope, Code → python_exec, HTTP Request → connector, IF/ELSE → Condition), KB mapping wizard, variable mapping, migration report with clean/approximate/unsupported classification. *Deferred because: Blueprint Mode already serves as a Dify replacement for new pipelines. Migration tooling only matters when clients have a significant existing Dify workflow investment they refuse to rebuild. Build on demand when a concrete client migration project materializes.*
 
 **P3 — Deferred indefinitely; being absorbed by LLM providers or already solved**
 
