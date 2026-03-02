@@ -57,8 +57,9 @@ The AI execution landscape can be mapped on two axes -- how plans are created (s
               │   graph at design   │                     │
               │   time)             │                     │
               ├─────────────────────┼─────────────────────┤
-  Dynamic     │                     │  Autonomous Agent   │
-  Planning    │                     │  AutoGPT (unbounded)│
+  Dynamic     │  (transitional —    │  Autonomous Agent   │
+  Planning    │   unstable quadrant)│  AutoGPT, Manus     │
+              │                     │  Claude Code (Teams) │
               │                     │                     │
               │                     │  ★ FIM Agent        │
               │                     │  (bounded: re-plan  │

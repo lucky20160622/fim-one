@@ -90,8 +90,8 @@ This is a deliberate architectural boundary, not a capability gap.
  Planning   │ Camunda, Activiti    │ (Salesforce Case)    │
             │ Dify, n8n, Coze     │                      │
             ├──────────────────────┼──────────────────────┤
- Dynamic    │                      │ Autonomous Agent     │
- Planning   │                      │ AutoGPT (unbounded)  │
+ Dynamic    │ (transitional —      │ Autonomous Agent     │
+ Planning   │  unstable quadrant)  │ AutoGPT, Manus       │
             │                      │ ★ FIM Agent (bounded)│
             └──────────────────────┴──────────────────────┘
 ```
