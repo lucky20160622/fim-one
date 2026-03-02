@@ -10,6 +10,8 @@
 
 **AI-Powered Connector Hub — embed into one system as a Copilot, or connect them all as a Hub.**
 
+🌐 [Website](https://agent.fim.ai/) · 📖 [Wiki](https://github.com/fim-ai/fim-agent/wiki) · 🐛 [Report Bug](https://github.com/fim-ai/fim-agent/issues)
+
 </div>
 
 ---
@@ -334,6 +336,6 @@ See [LICENSE](LICENSE) for full terms.
 
 <div align="center">
 
-[Report Bug](https://github.com/fim-ai/fim-agent/issues) · [Request Feature](https://github.com/fim-ai/fim-agent/issues) · [Wiki](https://github.com/fim-ai/fim-agent/wiki)
+🌐 [Website](https://agent.fim.ai/) · 🐛 [Report Bug](https://github.com/fim-ai/fim-agent/issues) · 💡 [Request Feature](https://github.com/fim-ai/fim-agent/issues) · 📖 [Wiki](https://github.com/fim-ai/fim-agent/wiki)
 
 </div>
