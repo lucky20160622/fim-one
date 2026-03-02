@@ -1,53 +1,51 @@
 # Roadmap
 
-> Goal: Build a **provider-agnostic Agent Platform** -- from standalone AI assistant to embeddable runtime that modernizes legacy systems.
+> Goal: Build an **AI-powered Connector Hub** — Standalone (portal assistant), Copilot (embedded in host system), Hub (central cross-system orchestration).
 >
-> Principles: **Provider-agnostic** (no vendor lock-in), **minimal-abstraction**, **protocol-first**, **dual-mode** (standalone + embedded).
+> Principles: **Provider-agnostic** (no vendor lock-in), **minimal-abstraction**, **protocol-first**, **connector-first** (integration is the core value).
 
 ## Product Vision
 
-FIM Agent is an **AI Agent engine** that serves three progressive layers:
+FIM Agent is an **AI Connector Hub** that serves three progressive modes:
 
 ```
-Layer 1 — Self-use        : Your own AI assistant (Portal mode)
-Layer 2 — Dify alternative : Deploy as a standalone Agent platform for clients
-Layer 3 — Sidecar engine  : Embed into enterprise legacy systems as invisible AI infrastructure
+Standalone   → Your own AI assistant (Portal)
+Copilot      → AI embedded in a host system (iframe / widget / embed)
+Hub          → Central cross-system orchestration (Portal / API)
 ```
 
-**Layer 3 is the core differentiator.** Enterprise clients have frozen legacy systems -- ERP, CRM, OA, finance, HR -- that cannot be modified. FIM Agent bridges into these systems proactively:
+**Hub Mode is the core differentiator.** Enterprise clients have legacy systems — ERP, CRM, OA, finance, HR — that need to talk to each other through AI:
 
 ```
                         ┌───────────────────────────┐
-                        │     FIM Agent Engine       │
-                        │                           │
-                        │  Agent A: Finance Audit    │──→ DB Connector  ──→ SAP / Kingdee (金蝶) (Oracle/PG)
-                        │  Agent B: Contract Review  │──→ API Connector ──→ CRM / CLM system (REST)
-                        │  Agent C: Notification     │──→ Msg Connector ──→ DingTalk (钉钉) / Slack / Teams
-                        │  Agent D: Data Reporting   │──→ DB Connector  ──→ Business DB (MySQL/PG)
-                        │                           │
+                        │     FIM Agent Hub          │
+                        │                            │
+ ERP (SAP/Kingdee) ────│►  Agent A: Finance Audit   │───► DingTalk / Slack
+ CRM (Salesforce)  ────│►  Agent B: Contract Review  │───► Email / WeCom
+ OA (Seeyon/Weaver) ───│►  Agent C: Approval Assist  │───► Teams / Webhook
+ Custom DB (PG/MySQL) ──│►  Agent D: Data Reporting   │───► Any API
+                        │                            │
                         └──────────┬────────────────┘
                                    │
                    ┌───────────────┼───────────────┐
                    │               │               │
               Portal (UI)    API (headless)    iframe (embed)
-              standalone      sidecar mode     injected into
-              deployment      for integration  host pages
 ```
 
-**Two integration directions:**
+**GTM path: Land and Expand**
 
-| Direction | When | How |
-|-----------|------|-----|
-| **Agent → Host** (active) | Host system can't be modified (90% of cases) | Agent reads DB / calls API / pushes messages directly |
-| **Host → Agent** (passive) | Host system can be modified | Host calls FIM Agent's `/api/execute` like calling Dify |
+| Step | Mode | What happens |
+|------|------|-------------|
+| Land | Copilot | Embed into one system, prove value inside their UI |
+| Expand | Hub | Set up central portal, orchestrate across all systems |
 
 ## Delivery Modes (per-project)
 
 | Mode | Description |
 |------|-------------|
 | **Portal (Web UI)** | Platform's built-in interface (standalone assistant) |
-| **API (headless)** | Pure HTTP/SSE interface; no UI required; for sidecar and programmatic access |
-| **iframe / standalone URL** | Embed into host system pages, authenticate and operate host APIs/databases |
+| **API (headless)** | Pure HTTP/SSE interface; no UI required; for embedding and programmatic access |
+| **iframe / standalone URL** | Embed into host system pages; works with any mode |
 
 ---
 
@@ -314,7 +312,7 @@ Layer 3 — Sidecar engine  : Embed into enterprise legacy systems as invisible 
 ```
 Platform (multi-tenant)
 ├── Tenant A (Manufacturing)
-│   ├── Project 1: SAP Finance Sidecar      [connector: db(oracle) + msg(dingtalk)]
+│   ├── Project 1: SAP Finance Copilot      [connector: db(oracle) + msg(dingtalk)]
 │   ├── Project 2: OA Approval Assistant     [connector: api(seeyon) + built-in tools]
 │   └── Project 3: General AI Assistant      [tools: search, browser, code]
 ├── Tenant B (Tech Company)
@@ -334,9 +332,9 @@ Platform (multi-tenant)
 | v0.8 Observability | Tracing, cost, monitoring | **Moved** to v0.9 | Connector features take priority |
 | v0.9 Workflow Engine | Dify-style visual orchestration | **Removed** | Not pursuing Dify parity |
 | -- | -- | **New** v0.6 System Connector | Core differentiator |
-| -- | -- | **New** v0.7 Embeddable UI | Sidecar delivery mode |
+| -- | -- | **New** v0.7 Embeddable UI | Embedded delivery mode |
 | -- | -- | **New** v0.8 Declarative Connector | Standardization at scale |
-| v0.6–v1.0 | System Adapter → Connector Platform | **Restructured** | Adapter SDK evolved into Connector entity model; per-user credentials; AI Builder; Sandbox Hardening moved to v0.9; Embeddable UI moved to v1.0 |
+| v0.6–v1.0 | System Adapter → Connector Platform | **Restructured** | governance layer evolved into Connector entity model; per-user credentials; AI Builder; Sandbox Hardening moved to v0.9; Embeddable UI moved to v1.0 |
 | v1.0 | Multi-Agent Orchestration | **Moved** to Consider | LLM providers building natively (OpenAI Swarm, Claude Teams, A2A); competing is not sustainable |
 | Backlog | Semantic Memory Store, Memory Lifecycle | **Moved** to Consider | Context windows growing rapidly; providers adding native memory features |
 

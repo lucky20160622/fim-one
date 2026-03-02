@@ -8,121 +8,164 @@
 [![GitHub forks](https://img.shields.io/github/forks/fim-ai/fim-agent?style=social)](https://github.com/fim-ai/fim-agent/network)
 [![GitHub issues](https://img.shields.io/github/issues/fim-ai/fim-agent)](https://github.com/fim-ai/fim-agent/issues)
 
-**Provider-agnostic Agent Platform: from standalone AI assistant to embeddable runtime that modernizes legacy systems.**
+**AI-Powered Connector Hub — embed into one system as a Copilot, or connect them all as a Hub.**
 
 </div>
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
-- [📖 Overview](#-overview)
-- [💡 Why FIM Agent](#-why-fim-agent)
-- [✨ Key Features](#-key-features)
-- [🏗️ Architecture](#%EF%B8%8F-architecture)
-- [🚀 Quick Start](#-quick-start)
-- [⚙️ Configuration](#%EF%B8%8F-configuration)
-- [🛠️ Development](#%EF%B8%8F-development)
-- [🗺️ Roadmap](#%EF%B8%8F-roadmap)
-- [⭐ Star History](#-star-history)
-- [👥 Contributors](#-contributors)
-- [📄 License](#-license)
+- [Overview](#-overview)
+- [Why FIM Agent](#-why-fim-agent)
+- [Where FIM Agent Sits](#where-fim-agent-sits)
+- [Key Features](#-key-features)
+- [Architecture](#%EF%B8%8F-architecture)
+- [Quick Start](#-quick-start)
+- [Configuration](#%EF%B8%8F-configuration)
+- [Development](#%EF%B8%8F-development)
+- [Roadmap](#%EF%B8%8F-roadmap)
+- [Star History](#-star-history)
+- [Contributors](#-contributors)
+- [License](#-license)
 
-## 📖 Overview
+## Overview
 
-FIM Agent is a provider-agnostic Python framework for building AI agents that dynamically plan and execute complex tasks. It operates in two modes:
+FIM Agent is a provider-agnostic Python framework for building AI agents that dynamically plan and execute complex tasks. What makes it different is the **Connector Hub** architecture — three delivery modes, one agent core:
 
-- 🖥️ **Standalone (Portal)**: A full-featured AI assistant with dynamic DAG planning, concurrent execution, and real-time streaming. The LLM decomposes goals into dependency-aware DAGs at runtime, runs independent steps in parallel, and re-plans if needed.
-- 🔗 **Sidecar (Embedded Engine)**: An embeddable runtime that proactively bridges into legacy systems, reading their databases, calling their APIs, and pushing notifications, all without requiring a single line of code change on the host side.
-
-Both modes share the same agent core: ReAct reasoning loops, pluggable tools, and a protocol-first architecture with zero vendor lock-in.
-
-## 💡 Why FIM Agent
-
-> 🏷️ **Dify**: "Build AI workflows visually" · **Manus**: "Your AI that does the work" · **FIM Agent**: "AI that works *inside* your existing systems"
-
-Enterprise clients don't want "another system to maintain". Their legacy systems (ERP such as SAP, Kingdee/金蝶, Yonyou/用友; CRM such as Salesforce, Fanruan/帆软; OA such as Seeyon/致远, Weaver/泛微; finance; HR) are often **frozen**: untouchable codebases with decades of business logic baked in.
-
-FIM Agent solves this with two integration directions:
+| Mode | What it is | How you access it |
+|------|-----------|------------------|
+| **Standalone** | General-purpose AI assistant — search, code, knowledge base | Portal |
+| **Copilot** | AI embedded in a host system — works alongside users in their existing UI | iframe / widget / embed into host pages |
+| **Hub** | Central AI orchestration — all your systems connected, cross-system intelligence | Portal / API |
 
 ```
-┌─ If they CAN'T modify their system (90% of cases) ───────────────┐
-│                                                                    │
-│  FIM Agent ──→ reads their DB directly (bypass app layer)         │
-│            ──→ calls their existing APIs / RPCs                   │
-│            ──→ pushes results to DingTalk (钉钉) / WeCom (企微)   │
-│                 / Slack / Teams / email                            │
-│            ──→ writes back via DB or API when authorized          │
-│                                                                    │
-│  Zero code change on their side. Agent = active "digital worker". │
-└────────────────────────────────────────────────────────────────────┘
-
-┌─ If they CAN modify their system (bonus) ─────────────────────────┐
-│                                                                    │
-│  Their system ──→ calls FIM Agent API (like calling Dify)         │
-│  FIM Agent exposes: /api/execute, /api/stream, /api/kb            │
-│                                                                    │
-│  Standard API integration. We expose, they consume.               │
-└────────────────────────────────────────────────────────────────────┘
+            ┌──────────────────────────┐
+ ERP ──────►│                          │◄────── CRM
+ Database ──►│    FIM Agent Hub         │◄────── OA
+ DingTalk ──►│    (AI orchestration)   │◄────── Custom API
+            └──────────────────────────┘
 ```
 
-**vs Dify / n8n**: Static workflow engines that require the host system to call *their* API. If the host can't be modified, the project stalls. FIM Agent goes the other direction: the agent reaches into the host.
+The core is always the same: ReAct reasoning loops, dynamic DAG planning with concurrent execution, pluggable tools, and a protocol-first architecture with zero vendor lock-in.
 
-**vs Manus / AutoGPT**: Single-use autonomous agents with no platform layer. FIM Agent adds multi-tenant management, persistent conversations, knowledge bases, and an Adapter protocol that standardizes how agents connect to external systems.
+## Why FIM Agent
 
-### 🔍 Competitive Positioning
+### Land and Expand
+
+Start by embedding a **Copilot** into one system — say, your ERP. Users interact with AI right inside their familiar interface: query financial data, generate reports, get answers without leaving the page.
+
+When the value is proven, set up a **Hub** — a central portal that connects all your systems together. The ERP Copilot keeps running embedded; the Hub adds cross-system orchestration: query contracts in CRM, check approvals in OA, notify stakeholders on DingTalk — all from one place.
+
+Copilot proves value inside one system. Hub unlocks value across all systems.
+
+### What FIM Agent Does NOT Do
+
+FIM Agent does not replicate workflow logic that already exists in your target systems:
+
+- **No BPM/FSM engine** — Approval chains, routing, escalation, and state machines are the target system's responsibility. These systems spent years building this logic.
+- **No drag-and-drop workflow editor** — Use Dify if you need visual flowcharts. FIM Agent's DAG planner generates execution graphs dynamically.
+- **Connector = API call** — From the connector's perspective, "transfer approval" = one API call, "reject with reason" = one API call. All complex workflow operations collapse to HTTP requests. FIM Agent calls the API; the target system manages the state.
+
+This is a deliberate architectural boundary, not a capability gap.
+
+### Competitive Positioning
 
 |  | Dify | Manus | Coze | FIM Agent |
 |--|------|-------|------|-----------|
-| **Approach** | Visual workflow builder | Autonomous agent | Builder + agent space | Agent platform + system adapter |
+| **Approach** | Visual workflow builder | Autonomous agent | Builder + agent space | AI Connector Hub |
 | **Planning** | Human-designed static DAGs | Multi-agent CoT | Static + dynamic | LLM DAG planning + ReAct |
-| **Legacy Integration** | API nodes (manual) | ❌ | Plugin marketplace | ✅ Adapter protocol |
-| **Human Confirmation** | ❌ | ❌ | ❌ | ✅ Pre-execution gate |
-| **Self-hosted** | ✅ Docker stack | ❌ | ✅ Coze Studio | ✅ Single process |
+| **Cross-system** | API nodes (manual) | No | Plugin marketplace | Hub Mode (N:N orchestration) |
+| **Human Confirmation** | No | No | No | Yes (pre-execution gate) |
+| **Self-hosted** | Yes (Docker stack) | No | Yes (Coze Studio) | Yes (single process) |
 
-> Deep dive: [Philosophy](https://github.com/fim-ai/fim-agent/wiki/Philosophy) | [Execution Modes](https://github.com/fim-ai/fim-agent/wiki/Execution-Modes) | [Planning Landscape](https://github.com/fim-ai/fim-agent/wiki/Planning-Landscape)
+> Deep dive: [Philosophy](https://github.com/fim-ai/fim-agent/wiki/Philosophy) | [Execution Modes](https://github.com/fim-ai/fim-agent/wiki/Execution-Modes) | [Competitive Landscape](https://github.com/fim-ai/fim-agent/wiki/Competitive-Landscape)
 
-## ✨ Key Features
+### Where FIM Agent Sits
 
-#### 🧠 Intelligent Planning & Execution
+```
+                Static Execution          Dynamic Execution
+            ┌──────────────────────┬──────────────────────┐
+ Static     │ BPM                  │ ACM                  │
+ Planning   │ (Camunda, Activiti)  │ (Salesforce Case)    │
+            ├──────────────────────┼──────────────────────┤
+ Dynamic    │ JIT Workflow         │ Autonomous Agent     │
+ Planning   │ (Dify, n8n)         │ (AutoGPT)            │
+            │                      │  ★ FIM Agent         │
+            └──────────────────────┴──────────────────────┘
+```
+
+FIM Agent falls in the **Dynamic Planning + Dynamic Execution** quadrant — DAG topology generated by LLM at runtime, each node runs a full ReAct loop, with re-planning when goals aren't met. But bounded (max 3 re-plan rounds, token budgets, confirmation gates), so more controlled than pure autonomous agents.
+
+FIM Agent doesn't do BPM/FSM — workflow logic belongs to the target system, Connectors just call APIs.
+
+> Full explanation: [Philosophy](https://github.com/fim-ai/fim-agent/wiki/Philosophy)
+
+## Key Features
+
+#### Connector Platform (the core)
+- **Connector Hub Architecture** — Standalone assistant, embedded Copilot, or central Hub — same agent core, different delivery.
+- **Any System, One Pattern** — Connect APIs, databases, and message buses. Actions auto-register as agent tools with auth injection (Bearer, API Key, Basic).
+- **AI-Assisted Builder** — Natural language → Connector. OpenAPI import → auto-generated actions. Test and publish from conversation.
+
+#### Intelligent Planning & Execution
 - **Dynamic DAG Planning** — LLM decomposes goals into dependency graphs at runtime. No hard-coded workflows.
 - **Concurrent Execution** — Independent steps run in parallel via asyncio.
 - **DAG Re-Planning** — Auto-revises the plan up to 3 rounds when goals aren't met.
 - **ReAct Agent** — Structured reasoning-and-acting loop with automatic error recovery.
 
-#### 🔌 Tools & Connectors
+#### Tools & Integrations
 - **Pluggable Tool System** — Auto-discovery; ships with Python executor, calculator, web search/fetch, HTTP request, shell exec, and more.
-- **Connector Platform** — Connect any third-party API/Database. Actions auto-register as agent tools with auth injection.
+- **MCP Protocol** — Connect any MCP server as tools. Third-party MCP ecosystem works out of the box.
 - **OpenAI-Compatible** — Works with any `/v1/chat/completions` provider (OpenAI, DeepSeek, Qwen, Ollama, vLLM…).
 
-#### 📚 RAG & Knowledge
+#### RAG & Knowledge
 - **Full RAG Pipeline** — Jina embedding + LanceDB + FTS + RRF hybrid retrieval + reranker. Supports PDF, DOCX, Markdown, HTML, CSV.
 - **Grounded Generation** — Evidence-anchored RAG with inline `[N]` citations, conflict detection, and explainable confidence scores.
 
-#### 🖥️ Portal & UX
+#### Portal & UX
 - **Real-time Streaming** — SSE with KaTeX math rendering and tool step folding.
 - **DAG Visualization** — Interactive flow graph with live status, dependency edges, and click-to-scroll.
-- **🌗 Dark / Light / System Theme** — Full theme support with system-preference detection.
-- **⌘K Command Palette** — Conversation search, starring, batch operations, and title rename.
+- **Dark / Light / System Theme** — Full theme support with system-preference detection.
+- **Command Palette** — Conversation search, starring, batch operations, and title rename.
 
-#### 🏢 Platform & Multi-Tenant
+#### Platform & Multi-Tenant
 - **JWT Auth** — Token-based SSE auth, conversation ownership, per-user resource isolation.
 - **Agent Management** — Create, configure, and publish agents with bound models, tools, and instructions.
 - **Personal Center** — Per-user global system instructions, applied across all conversations.
 
-#### ⚡ Context & Memory
+#### Context & Memory
 - **LLM Compact** — Automatic LLM-powered summarization to stay within token budgets.
 - **ContextGuard + Pinned Messages** — Token budget manager; pinned messages are protected from compaction.
 - **Single-Process Deployment** — No Redis, no PostgreSQL, no message queue. One process + SQLite.
 
-## 🏗️ Architecture
+## Architecture
+
+### Connector Hub
+
+```
+                        ┌───────────────────────────┐
+                        │     FIM Agent Hub          │
+                        │                            │
+ ERP (SAP/Kingdee) ────│►  Agent A: Finance Audit   │───► DingTalk / Slack
+ CRM (Salesforce)  ────│►  Agent B: Contract Review  │───► Email / WeCom
+ OA (Seeyon/Weaver) ───│►  Agent C: Approval Assist  │───► Teams / Webhook
+ Custom DB (PG/MySQL) ──│►  Agent D: Data Reporting   │───► Any API
+                        │                            │
+                        └───────────────────────────┘
+                              Portal / API / iframe
+```
+
+Each connector is a standardized bridge — the agent doesn't know or care whether it's talking to SAP or a custom PostgreSQL database. See [Connector Architecture](https://github.com/fim-ai/fim-agent/wiki/Connector-Architecture) for details.
+
+### Internal Execution
 
 FIM Agent provides two execution modes:
 
 | Mode | Best for | How it works |
 |------|----------|-------------|
-| 🔄 **ReAct** | Single complex queries | Reason → Act → Observe loop with tools |
-| 🔀 **DAG Planning** | Multi-step parallel tasks | LLM generates dependency graph, independent steps run concurrently |
+| ReAct | Single complex queries | Reason → Act → Observe loop with tools |
+| DAG Planning | Multi-step parallel tasks | LLM generates dependency graph, independent steps run concurrently |
 
 ```
 User Query
@@ -153,7 +196,7 @@ User Query
  Final Answer
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -193,7 +236,7 @@ Open http://localhost:3000 — that's it.
 
 The portal offers two modes: **ReAct Agent** (single-query tool loop) and **DAG Planner** (multi-step planning with concurrent execution), with real-time SSE streaming, DAG visualization, and KaTeX math rendering.
 
-## ⚙️ Configuration
+## Configuration
 
 ### Recommended Setup
 
@@ -241,7 +284,7 @@ Copy `example.env` to `.env` and fill in your values:
 cp example.env .env
 ```
 
-## 🛠️ Development
+## Development
 
 ```bash
 # Install all dependencies (including dev extras)
@@ -260,21 +303,21 @@ ruff check src/ tests/
 mypy src/
 ```
 
-## 🗺️ Roadmap
+## Roadmap
 
 See the full [Roadmap](https://github.com/fim-ai/fim-agent/wiki/Roadmap) for version history and what's next.
 
 Contributions and ideas are welcome. Open an issue or submit a PR on [GitHub](https://github.com/fim-ai/fim-agent).
 
-## ⭐ Star History
+## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=fim-ai/fim-agent&type=Date)](https://star-history.com/#fim-ai/fim-agent&Date)
 
-## 👥 Contributors
+## Contributors
 
 [![Contributors](https://contrib.rocks/image?repo=fim-ai/fim-agent)](https://github.com/fim-ai/fim-agent/graphs/contributors)
 
-## 📄 License
+## License
 
 FIM Agent Source Available License. This is **not** an OSI-approved open source license.
 

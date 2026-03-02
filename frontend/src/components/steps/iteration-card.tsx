@@ -1,19 +1,20 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2, ChevronRight } from "lucide-react"
+import { Loader2, ChevronRight, Clock } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import type { IterationData } from "./types"
 import { IterationHeader } from "./iteration-header"
 import { ErrorBlock } from "./error-block"
-import { generateStepSummary } from "./step-summary"
+import { generateStepSummary, getToolIcon, getToolDisplayName } from "./step-summary"
+import { fmtDuration } from "@/lib/utils"
 import { IterationDetailDrawer } from "./iteration-detail-drawer"
 
 interface IterationCardProps {
   data: IterationData
   summary?: string
   size?: "default" | "compact"
-  variant?: "card" | "inline"
+  variant?: "card" | "inline" | "pill"
   defaultCollapsed?: boolean
   showReasoning?: boolean
 }
@@ -74,6 +75,54 @@ export function IterationCard({
         >
           <CardContent className="py-0">{inner}</CardContent>
         </Card>
+        <IterationDetailDrawer
+          data={drawerOpen ? data : null}
+          summary={summary}
+          onClose={() => setDrawerOpen(false)}
+        />
+      </>
+    )
+  }
+
+  if (variant === "pill") {
+    const ToolIcon = data.tool_name ? getToolIcon(data.tool_name) : Loader2
+    const displayName = data.tool_name ? getToolDisplayName(data.tool_name) : "Thinking"
+
+    return (
+      <>
+        <div
+          className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors
+            ${data.error
+              ? "bg-destructive/5 border border-destructive/30 hover:bg-destructive/10"
+              : "bg-muted/30 border border-border/30 hover:bg-muted/50"
+            }
+            ${hasDetail ? "cursor-pointer group" : ""}`}
+          onClick={handleClick}
+        >
+          {isLoading ? (
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
+          ) : (
+            <ToolIcon className="h-3 w-3 text-muted-foreground shrink-0" />
+          )}
+          <span className="font-medium shrink-0">{displayName}</span>
+          {summary && (
+            <span className="text-muted-foreground truncate min-w-0">{summary}</span>
+          )}
+          {!isLoading && data.duration != null && (
+            <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+              <Clock className="h-2.5 w-2.5" />
+              {fmtDuration(data.duration)}
+            </span>
+          )}
+          {hasDetail && !isLoading && (
+            <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0 group-hover:text-foreground transition-colors" />
+          )}
+        </div>
+        {data.error && (
+          <div className="mt-1">
+            <ErrorBlock error={data.error} size="compact" />
+          </div>
+        )}
         <IterationDetailDrawer
           data={drawerOpen ? data : null}
           summary={summary}

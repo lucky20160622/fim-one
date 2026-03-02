@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-FIM Agent is a Python async agent framework (Dify alternative). Provider-agnostic, minimal-abstraction, protocol-first.
+FIM Agent is an AI-powered Connector Hub. Python async framework, provider-agnostic, protocol-first.
 
 - **Package manager**: `uv` (not pip)
 - **Frontend**: Next.js + pnpm (in `frontend/`)

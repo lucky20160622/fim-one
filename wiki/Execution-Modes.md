@@ -1,15 +1,90 @@
 # Execution Modes
 
-## Two execution modes
+## Three modes
 
-FIM Agent provides two execution modes that cover the full spectrum from simple queries to complex parallel tasks:
+FIM Agent operates in three modes, determined by how the agent is deployed and used:
 
-| Mode | Best for | Determinism | Flexibility | Status |
-|---|---|---|---|---|
-| **ReAct Agent** | Single complex queries, tool-use loops | Medium | Medium | Implemented |
-| **DAG Planning** | Multi-step tasks with parallelizable subtasks | Medium | High | Implemented |
+| Mode | What it is | Delivery | Example |
+|------|-----------|----------|---------|
+| **Standalone** | General-purpose AI assistant | Portal | Chat, search, code execution, knowledge base Q&A |
+| **Copilot** | AI embedded in a host system | iframe / widget / embed | "Finance Copilot" embedded in ERP web UI |
+| **Hub** | Central cross-system orchestration | Portal / API | Agent queries ERP, checks OA approvals, notifies via DingTalk |
 
-ReAct is the atomic execution unit -- a single agent that reasons, acts, and observes in a loop. DAG Planning is the orchestration layer on top -- it decomposes a goal into a dependency graph and runs independent steps concurrently, with each step powered by its own ReAct Agent.
+The progression is natural: start standalone, embed into a host system as a Copilot, then set up a Hub for cross-system orchestration. The Copilot keeps running embedded; the Hub adds a central orchestration layer.
+
+## Mode details
+
+### Standalone (0 connectors)
+
+The default mode. FIM Agent works as a full-featured AI assistant:
+
+- Built-in tools: web search, Python execution, calculator, file operations, shell commands
+- Knowledge base with RAG (PDF, DOCX, Markdown, HTML, CSV)
+- Dynamic DAG planning for complex multi-step tasks
+- Real-time streaming with DAG visualization
+
+No external system access needed. Useful for general analysis, research, and code tasks.
+
+### Copilot (embedded)
+
+Embed FIM Agent into a host system's web UI. The agent works alongside users in their familiar interface — no context switching required. Copilot mode can use multiple connectors (e.g., the host system's DB + a notification service).
+
+```
+┌────────────────────────────────────────────────┐
+│              Host System (ERP / CRM / OA)      │
+│                                                │
+│   ┌──────────────────────────┐                 │
+│   │   FIM Agent Copilot      │                 │
+│   │   (iframe / widget)      │─── Connectors ──│──► DB, API, DingTalk...
+│   └──────────────────────────┘                 │
+│                                                │
+└────────────────────────────────────────────────┘
+```
+
+Examples:
+- **Finance Copilot**: Connected to Kingdee (金蝶) via DB connector → query financial statements, generate analysis reports
+- **Contract Copilot**: Connected to contract management system via API connector → search contracts, extract clauses, assess risk
+- **HR Copilot**: Connected to HR system via API connector → query employee info, generate statistics
+
+The agent uses the same ReAct/DAG engine as Standalone mode, but now has access to real business data through the connector.
+
+### Hub (central orchestration)
+
+The Hub is a standalone portal (or API) that serves as the central intelligence layer. It's not embedded in any single system — instead, it connects to all of them. Users access it through the Portal UI or API.
+
+```
+            ┌──────────────────────────┐
+ ERP ──────►│                          │◄────── CRM
+ Database ──►│    FIM Agent Hub         │◄────── OA
+ DingTalk ──►│    (AI orchestration)   │◄────── Custom API
+            └──────────────────────────┘
+```
+
+Examples:
+- "Check overdue contracts in CRM, cross-reference with ERP payments, notify finance team on DingTalk"
+- "When OA approval completes, update contract status in CRM and log to audit database"
+- "Query sales data from Salesforce, generate forecast using business DB, email summary to management"
+
+Each connector is an independent bridge. Adding or removing one doesn't affect the others.
+
+## Delivery methods
+
+| Delivery | Description | Typical mode |
+|----------|-------------|-------------|
+| **Portal (Web UI)** | Built-in Next.js interface | Standalone, Hub |
+| **API (headless)** | HTTP/SSE endpoints (`/api/execute`, `/api/stream`) | Hub (programmatic access) |
+| **iframe / Embed** | Injected into host system pages | Copilot |
+
+Delivery and mode are related but not locked: you can access a Hub via API, or use a standalone agent through the Portal. But the typical pattern is Portal for Hub, embed for Copilot.
+
+## Execution engines (internal implementation)
+
+Under the hood, FIM Agent provides two execution engines:
+
+| Engine | Best for | How it works |
+|--------|----------|-------------|
+| **ReAct** | Single complex queries | Reason → Act → Observe loop with tools |
+| **DAG Planning** | Multi-step parallel tasks | LLM generates dependency graph, independent steps run concurrently |
 
 ```
 DAG Planning (orchestration layer)
@@ -21,27 +96,16 @@ DAG Planning (orchestration layer)
   +-- step_3 --> ReAct Agent --> Tools        (waits for step_1 & step_2)
 ```
 
+ReAct is the atomic unit; DAG is the orchestration layer. Both engines work in all three modes (Standalone, Copilot, Hub). In Hub mode, a single DAG step might call connectors to different systems.
+
 ## Why no traditional workflow engine
 
-FIM Agent deliberately does **not** build a Dify-style drag-and-drop workflow editor. This is a strategic choice, not a gap.
+FIM Agent deliberately does **not** build a drag-and-drop workflow editor. This is a strategic choice:
 
-**The core argument:**
+1. **Workflows already exist elsewhere.** Enterprise clients' fixed processes (approval chains, audit flows) live in their OA, ERP, and legacy systems. They need AI that connects to those systems, not another workflow editor.
 
-1. **Clients already have workflows.** Government and enterprise clients' fixed processes (approval chains, report generation, audit flows) already live in their OA, ERP, and legacy systems. They don't need another workflow engine -- they need AI that can **read and operate** the systems they already have. This is exactly what the Adapter Protocol (v0.6) delivers.
+2. **Dynamic DAG covers the flexible case.** For tasks not pre-defined, LLM-generated DAGs adapt at runtime — no human pre-design required.
 
-2. **Dynamic DAG covers the flexible case.** For tasks that aren't pre-defined, LLM-generated DAGs adapt to each request at runtime -- no human pre-design required. This is strictly more capable than static flowcharts for exploratory and analytical work.
+3. **Existing capabilities compose into fixed pipelines.** Scheduled Jobs (planned) trigger a DAG agent with a fixed prompt; the DAG plans the steps; Connectors bridge to target systems. The combination equals a static pipeline — but more flexible, because the LLM adjusts its plan based on data it encounters.
 
-3. **Existing capabilities already compose into fixed pipelines.** Scheduled Jobs (v1.0) trigger a DAG agent with a fixed prompt; the DAG dynamically plans the steps; Adapters (v0.6) connect to the target systems. The combination is equivalent to a static pipeline -- but more flexible, because the LLM can adjust its plan based on the data it encounters.
-
-```
-Scheduled Job ("0 8 * * *")
-  → DAG Agent: "Query finance DB, analyze anomalies, push summary to DingTalk"
-  → LLM generates DAG: fetch_data ──→ analyze ──→ notify
-  → Adapter connects to finance DB + DingTalk
-```
-
-No separate pipeline DSL needed. The agent IS the pipeline engine.
-
-4. **ROI is negative.** A visual workflow editor (canvas, node types, variable passing, debug/replay, versioning) represents months of full-time work to produce a lower-quality version of what Dify already offers with 121K stars and a dedicated team.
-
-**Summary:** ReAct handles exploration, DAG handles parallel intelligence, Scheduled Jobs + DAG + Adapters handle repeatable fixed processes, and Adapters connect to where the real workflows already live. A drag-and-drop editor adds complexity without adding capability that matters to our target users.
+4. **Connector = API call.** Complex workflow operations (transfer, reject, escalate) are the target system's responsibility. From the connector's perspective, each operation is just an HTTP request with parameters. FIM Agent calls the API; the target system manages the state machine.

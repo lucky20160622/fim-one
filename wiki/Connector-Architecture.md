@@ -1,6 +1,31 @@
-# Adapter Architecture
+# Connector Architecture
 
-> How FIM Agent connects to legacy systems without modifying them.
+> How FIM Agent connects systems through AI — from Copilot to Hub.
+
+## Copilot vs Hub
+
+The architecture supports two integration scales:
+
+```
+Copilot (embedded)                  Hub (central portal)
+
+┌─────────────────────────┐        ┌──────────────────────────┐
+│   Host System (ERP)     │        │                          │
+│                         │        │   FIM Agent Hub          │
+│  ┌─────────────────┐   │        │   (Portal / API)         │
+│  │  FIM Agent       │   │        │                          │
+│  │  Copilot         │───│──►DB   │───►ERP  ───►CRM          │
+│  │  (iframe/widget) │───│──►API  │───►OA   ───►DingTalk     │
+│  └─────────────────┘   │        │───►DB   ───►Custom API    │
+│                         │        │                          │
+└─────────────────────────┘        └──────────────────────────┘
+```
+
+**Copilot** embeds into a host system's UI. Users interact with AI without leaving their familiar interface. It can use multiple connectors (host DB + notification service, etc.).
+
+**Hub** is a standalone portal that connects all systems. It's not embedded in any single system -- it's the central intelligence layer where systems meet AI.
+
+Same connector architecture, different delivery. A Copilot uses the same `ConnectorToolAdapter` as a Hub.
 
 ## Core Principle
 
@@ -13,7 +38,7 @@
 │              FIM Agent Platform                  │  Multi-tenant, scheduling,
 │          ReAct / DAG / Portal UI                │  conversation persistence
 ├─────────────────────────────────────────────────┤
-│            Adapter SDK (Governance)              │  read_only enforcement,
+│        Connector Governance Layer                │  read_only enforcement,
 │         audit log, auth passthrough,            │  confirmation gate, circuit
 │         operation classification                 │  breaker
 ├─────────────────────────────────────────────────┤
@@ -29,7 +54,7 @@ Each layer has a distinct responsibility:
 | Layer | Owns | Changes when... |
 |---|---|---|
 | **Platform** | Orchestration, multi-tenant, UI | New platform features ship |
-| **Adapter SDK** | Enterprise governance policies | Security/compliance requirements change |
+| **Connector Governance Layer** | Enterprise governance policies | Security/compliance requirements change |
 | **MCP Protocol** | Transport, tool interface standard | Never (open standard) |
 | **Legacy System** | Business data and logic | Never (that's the whole point) |
 
@@ -44,9 +69,9 @@ Adapters are implemented as **MCP Servers**. This is a deliberate architectural 
 
 ### What MCP alone does not provide
 
-The **Adapter SDK** adds enterprise governance that raw MCP lacks:
+The **Connector Governance Layer** adds enterprise governance that raw MCP lacks:
 
-| Concern | MCP | Adapter SDK |
+| Concern | MCP | Connector Governance Layer |
 |---|---|---|
 | Read-only enforcement | No | `read_only` flag on operations; write blocked by default |
 | Audit logging | No | Every tool call recorded (timestamp, user, tool, params, result) |
@@ -70,8 +95,8 @@ Everything runs in a single Docker Compose deployment. The client installs nothi
 │  │  ReAct / DAG       │    ┌─ MCP Server: Finance DB ────┐   │
 │  │  Platform API      │───→│  SQL queries (read-only)     │───│──→ Client's Oracle DB
 │  │  Portal UI         │    └──────────────────────────────┘   │
-│  │  Adapter SDK       │    ┌─ MCP Server: OA System ─────┐   │
-│  │  (governance)      │───→│  REST API calls              │───│──→ Client's Seeyon OA
+│  │  Connector         │    ┌─ MCP Server: OA System ─────┐   │
+│  │  Governance        │───→│  REST API calls              │───│──→ Client's Seeyon OA
 │  │                    │    └──────────────────────────────┘   │
 │  │                    │    ┌─ MCP Server: DingTalk ───────┐   │
 │  │                    │───→│  Webhook notifications       │───│──→ DingTalk API
@@ -93,28 +118,28 @@ Everything runs in a single Docker Compose deployment. The client installs nothi
 | Database access only | Database adapter (direct SQL, read-only by default) |
 | Database + message bus | Database adapter + message push adapter |
 
-## Agent-Adapter Decoupling
+## Agent-Connector Decoupling
 
-The agent sees adapters as ordinary tools. It does not know or care whether a tool is built-in, a third-party MCP Server, or a legacy system adapter.
+The agent sees connectors as ordinary tools. It does not know or care whether a tool is built-in, a third-party MCP Server, or a legacy system connector.
 
 ```
 Agent's tool list:
   [web_search, calculator, contract_query, finance_report, dingtalk_push]
    ~~~~~~~~~~  ~~~~~~~~~~  ~~~~~~~~~~~~~~  ~~~~~~~~~~~~~~  ~~~~~~~~~~~~~
-   built-in    built-in    MCP adapter     MCP adapter     MCP adapter
+   built-in    built-in    connector       connector       connector
 ```
 
 This means:
 
-- **Adding** a new legacy system = adding an MCP Server config. Agent code does not change.
-- **Removing** an adapter = removing the config. No code changes.
-- The same agent can use built-in tools and legacy system adapters in a single task.
+- **Adding** a new system = adding a connector config. Agent code does not change.
+- **Removing** a connector = removing the config. No code changes.
+- The same agent can use built-in tools and connectors in a single task.
 
 ## Hot-Plug Evolution
 
-| Version | How to add a new adapter | Restart required? |
+| Version | How to add a new connector | Restart required? |
 |---|---|---|
-| **v0.6** | Write a Python MCP Server with Adapter SDK, add to docker-compose | Redeploy |
+| **v0.6** | Write a Python MCP Server with Connector Governance Layer, add to docker-compose | Redeploy |
 | **v0.8** | Write a YAML/JSON config, platform generates MCP Server | Restart |
 | **v1.0** | Upload OpenAPI spec, AI generates config automatically | **No restart (hot-plug)** |
 
@@ -131,7 +156,7 @@ User: "Check all overdue contracts from the finance system and push a summary to
    Think: I need to query the finance DB for overdue contracts, then push to DingTalk.
 
 3. Act: contract_query(status="overdue", days_past_due=">30")
-   → Adapter SDK: audit log, read_only check (pass)
+   → Connector Governance: audit log, read_only check (pass)
    → MCP Server: translates to SQL
    → Client DB: SELECT * FROM contracts WHERE status='overdue' AND ...
    ← Returns 7 overdue contracts
@@ -139,7 +164,7 @@ User: "Check all overdue contracts from the finance system and push a summary to
 4. Think: Found 7 overdue contracts. I'll summarize and push.
 
 5. Act: dingtalk_push(message="7 overdue contracts found: ...")
-   → Adapter SDK: audit log, write operation → confirmation gate
+   → Connector Governance: audit log, write operation → confirmation gate
    → User approves via Portal
    → MCP Server: POST to DingTalk webhook
    ← Push successful
@@ -147,20 +172,20 @@ User: "Check all overdue contracts from the finance system and push a summary to
 6. Answer: "Found 7 overdue contracts. Summary pushed to DingTalk group."
 ```
 
-## Adapter Standardization Levels
+## Connector Standardization Levels
 
 | Level | Version | Approach | Who builds it |
 |---|---|---|---|
-| **Level 1** | v0.6 | Python MCP Server with Adapter SDK | FIM Agent developer |
+| **Level 1** | v0.6 | Python MCP Server with Connector Governance | FIM Agent developer |
 | **Level 2** | v0.8 | YAML/JSON config, platform auto-generates MCP Server | Implementation engineer (no Python needed) |
 | **Level 3** | v1.0 | Upload OpenAPI/Swagger spec, AI generates config | AI (with human review) |
 
 ## Relationship to Existing MCP Ecosystem
 
-FIM Agent's MCP Client (shipped in v0.3) already supports third-party MCP Servers. Legacy system adapters are simply **domain-specific MCP Servers** built with the Adapter SDK for enterprise governance.
+FIM Agent's MCP Client (shipped in v0.3) already supports third-party MCP Servers. Legacy system adapters are simply **domain-specific MCP Servers** built with the Connector Governance Layer for enterprise governance.
 
 ```
-MCP ecosystem (third-party)     +     Adapter SDK (FIM Agent)
+MCP ecosystem (third-party)     +     Connector Governance (FIM Agent)
   - filesystem server                   - read_only enforcement
   - GitHub server                       - audit logging
   - Slack server                        - auth passthrough
@@ -172,4 +197,4 @@ MCP ecosystem (third-party)     +     Adapter SDK (FIM Agent)
                     Agent sees all as tools
 ```
 
-The Adapter SDK does not replace MCP -- it extends MCP with the governance layer that enterprise legacy system integration requires.
+The Connector Governance Layer does not replace MCP -- it extends MCP with the governance layer that enterprise legacy system integration requires.

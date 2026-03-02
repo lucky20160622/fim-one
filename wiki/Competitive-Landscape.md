@@ -7,20 +7,21 @@
 ```
 Dify:       "Build AI workflows visually"
 Manus:      "Your AI that does the work"
-FIM Agent:  "AI that works inside your existing systems"
+FIM Agent:  "The hub where your systems meet AI"
 ```
 
-Dify / Manus are **replacement products** -- they ask users to move work into a new platform. FIM Agent is an **augmentation product** -- it embeds into systems users already have.
+Dify / Manus are **replacement products** — they ask users to move work into a new platform. FIM Agent is a **connector hub** — it bridges the systems users already have, letting them communicate through AI.
 
 ## Competitive Matrix
 
 | Dimension | Dify | Manus | Coze | FIM Agent |
 |-----------|------|-------|------|-----------|
-| **Approach** | Visual DAG workflow builder | Autonomous consumer agent | Visual builder + agent space | Agent platform + system adapter |
-| **Delivery** | Standalone platform | Cloud SaaS + API | Cloud SaaS + self-hosted (Coze Studio) | Platform / API |
+| **Approach** | Visual DAG workflow builder | Autonomous consumer agent | Visual builder + agent space | AI Connector Hub |
+| **Delivery** | Standalone platform | Cloud SaaS + API | Cloud SaaS + self-hosted (Coze Studio) | Platform / API / embed |
 | **Planning** | Human-designed static DAGs | Multi-agent Chain-of-Thought | Static workflows + dynamic agents | LLM DAG planning + ReAct loops |
-| **Legacy system integration** | API nodes (manual wiring) | None | Plugin marketplace | Adapter protocol (standardized) |
-| **Embeddable** | iframe + script embed | API only | Chat SDK + 10+ channels | API (Widget planned) |
+| **Legacy system integration** | API nodes (manual wiring) | None | Plugin marketplace | Connector Platform (standardized) |
+| **Cross-system orchestration** | No | No | No | Hub Mode (N:N) |
+| **Embeddable** | iframe + script embed | API only | Chat SDK + 10+ channels | API / iframe (Widget planned) |
 | **Human confirmation** | No | No | No | Yes (pre-execution gate) |
 | **Self-hosted** | Yes (Docker Compose) | No | Yes (Coze Studio, Apache 2.0) | Yes (single process) |
 | **License** | Apache 2.0 | Proprietary | Apache 2.0 (Coze Studio) | Source Available |
@@ -38,19 +39,19 @@ Dify / Manus are **replacement products** -- they ask users to move work into a 
 
 ## FIM Agent's Unique Differentiators
 
-### 1. Adapter Architecture (MCP + Governance)
+### 1. Connector Architecture (MCP + Governance)
 
 ```
 Platform (ReAct / DAG / Portal)
     ↓
-Adapter SDK (governance: audit, read_only, auth, confirmation gate)
+Connector Governance (audit, read_only, auth, confirmation gate)
     ↓
 MCP Protocol (standard transport, process isolation)
     ↓
 Legacy System (DB / API / message bus)
 ```
 
-Adapters are implemented as **MCP Servers** with a governance layer on top. The agent doesn't know it's talking to a legacy system -- adapters surface as ordinary tools in the ToolRegistry. No other platform in this space has a standardized adapter architecture with enterprise governance built in. See [Adapter Architecture](Adapter-Architecture) for the full design.
+Connectors are implemented as **MCP Servers** with a governance layer on top. The agent doesn't know it's talking to a legacy system -- connectors surface as ordinary tools in the ToolRegistry. No other platform in this space has a standardized connector architecture with enterprise governance built in. See [Connector Architecture](Connector-Architecture) for the full design.
 
 ### 2. Dual-Mode Delivery
 
@@ -81,7 +82,7 @@ When embedded, the widget reads context from the host page (current contract ID,
 | Enterprise system integration | **Very low** | Connecting to legacy APIs/DBs is integration work, not model capability |
 | Context engineering | **Low** | Manus blog confirms: performance gains come from context, not smarter models |
 
-**FIM Agent's defensibility**: The adapter protocol and embedded delivery mode sit in the "very low" absorption risk zone. The further we go from pure LLM orchestration toward enterprise system integration, the more durable the moat.
+**FIM Agent's defensibility**: The Connector Platform and embedded delivery mode sit in the "very low" absorption risk zone. The further we go from pure LLM orchestration toward enterprise system integration, the more durable the moat.
 
 ## Key Competitors Deep Dive
 
@@ -90,7 +91,7 @@ When embedded, the widget reads context from the host page (current contract ID,
 - 121K+ GitHub stars, Apache 2.0
 - Visual workflow builder with RAG, agent, and tool nodes
 - Strength: massive community, production-proven, accessible to non-developers
-- Weakness: static DAGs break when requirements change, no legacy system adaptation
+- Weakness: static DAGs break when requirements change, no legacy system connector architecture
 - Our take: learn platform features (multi-tenant, agent management, knowledge base), don't compete on visual workflow. Clients' fixed processes already live in their OA/ERP -- they need AI that connects to those systems, not another workflow editor
 
 ### Manus (Category validator)
@@ -111,14 +112,14 @@ When embedded, the widget reads context from the host page (current contract ID,
 
 ## The MuleSoft Analogy
 
-FIM Agent's Adapter architecture is conceptually **AI-era MuleSoft**:
+FIM Agent's Connector architecture is conceptually **AI-era MuleSoft**:
 
 | | MuleSoft | FIM Agent |
 |-|----------|-----------|
-| **What** | System-to-system API integration | AI Agent-to-legacy-system adaptation |
-| **How** | Connectors + declarative mapping | MCP Servers + Adapter SDK governance |
+| **What** | System-to-system API integration | AI Connector Hub for system integration |
+| **How** | Connectors + declarative mapping | MCP Servers + Connector Governance Layer |
 | **Protocol** | Anypoint SDK | MCP (open standard) + governance layer |
 | **Standardization** | Anypoint connectors | Level 1 (Python MCP Server) -> Level 2 (YAML) -> Level 3 (AI-generated) |
-| **Value** | "Connect everything" | "AI that works inside everything" |
+| **Value** | "Connect everything" | "The hub where all your systems meet AI" |
 
 This analogy is powerful for enterprise positioning.

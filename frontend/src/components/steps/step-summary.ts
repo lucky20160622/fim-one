@@ -1,3 +1,6 @@
+import type { LucideIcon } from "lucide-react"
+import { Search, Globe, Code2, Calculator, FolderOpen, BookOpen, Terminal, Send, Plug, Wrench } from "lucide-react"
+
 /** Tool display name mapping: internal_name → friendly name */
 const TOOL_DISPLAY_NAMES: Record<string, string> = {
   web_fetch: "Fetch Webpage",
@@ -95,4 +98,64 @@ export function generateStepSummary(
 
   // 5. Fallback — no summary, display name is enough
   return ""
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tool icon mapping                                                  */
+/* ------------------------------------------------------------------ */
+
+const TOOL_ICONS: Record<string, LucideIcon> = {
+  web_search: Search,
+  web_fetch: Globe,
+  python_exec: Code2,
+  calculator: Calculator,
+  file_ops: FolderOpen,
+  kb_retrieve: BookOpen,
+  grounded_retrieve: BookOpen,
+  shell_exec: Terminal,
+  http_request: Send,
+}
+
+/** Get a Lucide icon component for a tool. */
+export function getToolIcon(tool_name: string): LucideIcon {
+  if (TOOL_ICONS[tool_name]) return TOOL_ICONS[tool_name]
+  if (tool_name.includes("__")) return Plug // connector__* or mcp__*
+  return Wrench
+}
+
+/* ------------------------------------------------------------------ */
+/*  Group title generation                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Generate a short title for a collapsed iteration group.
+ * Tries to extract the first sentence from the final answer;
+ * falls back to a "Used N tools in Xs" summary.
+ */
+export function generateGroupTitle(
+  doneAnswer: string,
+  toolCallCount: number,
+  elapsed: number,
+): string {
+  // Try to extract first sentence from done answer
+  if (doneAnswer) {
+    // Strip markdown formatting
+    const plain = doneAnswer
+      .replace(/[#*_`~\[\]()>]/g, "")
+      .replace(/!\[.*?\]\(.*?\)/g, "")
+      .replace(/\n+/g, " ")
+      .trim()
+    // Get first sentence
+    const match = plain.match(/^(.+?)[.!?。！？]\s/)
+    const firstSentence = match ? match[1] + match[0].slice(-2, -1) : plain
+    if (firstSentence.length > 0 && firstSentence.length <= 80) {
+      return firstSentence
+    }
+    if (firstSentence.length > 80) {
+      return firstSentence.slice(0, 77) + "…"
+    }
+  }
+  // Fallback
+  const dur = elapsed < 10 ? `${elapsed.toFixed(1)}s` : `${Math.round(elapsed)}s`
+  return `Used ${toolCallCount} tool${toolCallCount !== 1 ? "s" : ""} in ${dur}`
 }
