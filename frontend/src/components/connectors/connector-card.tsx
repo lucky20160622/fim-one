@@ -1,7 +1,6 @@
 "use client"
 
-import { Pencil, Trash2, Zap, Globe, ArrowUpCircle, ArrowDownCircle } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { Pencil, Trash2, Zap, Globe } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { ConnectorResponse } from "@/types/connector"
 
@@ -10,7 +9,6 @@ interface ConnectorCardProps {
   onEdit: (connector: ConnectorResponse) => void
   onDelete: (id: string) => void
   onManageActions: (connector: ConnectorResponse) => void
-  onTogglePublish: (connector: ConnectorResponse) => void
 }
 
 const AUTH_LABELS: Record<string, string> = {
@@ -26,10 +24,7 @@ export function ConnectorCard({
   onEdit,
   onDelete,
   onManageActions,
-  onTogglePublish,
 }: ConnectorCardProps) {
-  const isPublished = connector.status === "published"
-
   return (
     <div className="flex flex-col rounded-lg border border-border bg-card p-4 transition-colors hover:border-border/80 hover:bg-accent/5">
       {/* Header: name + badges */}
@@ -37,21 +32,9 @@ export function ConnectorCard({
         <h3 className="flex-1 min-w-0 text-sm font-medium truncate text-card-foreground">
           {connector.name}
         </h3>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[10px] px-1.5 py-0 h-5 inline-flex items-center rounded-full bg-amber-500/10 text-amber-500 font-medium">
-            {connector.type === "api" ? "API" : "Database"}
-          </span>
-          <Badge
-            variant="secondary"
-            className={
-              isPublished
-                ? "text-[10px] px-1.5 py-0 h-5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                : "text-[10px] px-1.5 py-0 h-5 bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20"
-            }
-          >
-            {connector.status}
-          </Badge>
-        </div>
+        <span className="shrink-0 text-[10px] px-1.5 py-0 h-5 inline-flex items-center rounded-full bg-amber-500/10 text-amber-500 font-medium">
+          {connector.type === "api" ? "API" : "Database"}
+        </span>
       </div>
 
       {/* Auth type */}
@@ -91,19 +74,6 @@ export function ConnectorCard({
           title="Edit"
         >
           <Pencil className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onTogglePublish(connector)}
-          className="text-muted-foreground hover:text-foreground"
-          title={isPublished ? "Unpublish" : "Publish"}
-        >
-          {isPublished ? (
-            <ArrowDownCircle className="h-3.5 w-3.5" />
-          ) : (
-            <ArrowUpCircle className="h-3.5 w-3.5" />
-          )}
         </Button>
         <div className="flex-1" />
         <Button

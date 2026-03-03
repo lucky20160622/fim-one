@@ -28,7 +28,7 @@ class Connector(UUIDPKMixin, TimestampMixin, Base):
     base_url: Mapped[str] = mapped_column(String(500), nullable=False)
     auth_type: Mapped[str] = mapped_column(String(20), default="none")
     auth_config: Any = Column(JSON, nullable=True)
-    status: Mapped[str] = mapped_column(String(20), default="draft")
+    status: Mapped[str] = mapped_column(String(20), default="published")
     is_official: Mapped[bool] = mapped_column(Boolean, default=False)
     forked_from: Mapped[str | None] = mapped_column(String(36), nullable=True)
     version: Mapped[int] = mapped_column(Integer, default=1)

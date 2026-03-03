@@ -417,18 +417,6 @@ export const connectorApi = {
   delete: (id: string) =>
     apiFetch<ApiResponse<void>>(`/api/connectors/${id}`, { method: "DELETE" }),
 
-  publish: (id: string) =>
-    apiFetch<ApiResponse<ConnectorResponse>>(
-      `/api/connectors/${id}/publish`,
-      { method: "POST" },
-    ).then((r) => r.data),
-
-  unpublish: (id: string) =>
-    apiFetch<ApiResponse<ConnectorResponse>>(
-      `/api/connectors/${id}/unpublish`,
-      { method: "POST" },
-    ).then((r) => r.data),
-
   // Action CRUD
   createAction: (connectorId: string, body: ConnectorActionCreate) =>
     apiFetch<ApiResponse<ConnectorActionResponse>>(

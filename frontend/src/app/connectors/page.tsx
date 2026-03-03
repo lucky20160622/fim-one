@@ -29,8 +29,6 @@ export default function ConnectorsPage() {
   const [editingConnector, setEditingConnector] = useState<ConnectorResponse | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [pendingPublishId, setPendingPublishId] = useState<string | null>(null)
-  const [pendingUnpublishId, setPendingUnpublishId] = useState<string | null>(null)
   const [managingActionsConnector, setManagingActionsConnector] = useState<ConnectorResponse | null>(null)
 
   // Auth guard
@@ -101,38 +99,6 @@ export default function ConnectorsPage() {
     setManagingActionsConnector(connector)
   }
 
-  const handleTogglePublish = (connector: ConnectorResponse) => {
-    if (connector.status === "published") {
-      setPendingUnpublishId(connector.id)
-    } else {
-      setPendingPublishId(connector.id)
-    }
-  }
-
-  const confirmPublish = async () => {
-    if (!pendingPublishId) return
-    const id = pendingPublishId
-    setPendingPublishId(null)
-    try {
-      const updated = await connectorApi.publish(id)
-      setConnectors((prev) => prev.map((c) => (c.id === id ? updated : c)))
-    } catch (err) {
-      console.error("Failed to publish connector:", err)
-    }
-  }
-
-  const confirmUnpublish = async () => {
-    if (!pendingUnpublishId) return
-    const id = pendingUnpublishId
-    setPendingUnpublishId(null)
-    try {
-      const updated = await connectorApi.unpublish(id)
-      setConnectors((prev) => prev.map((c) => (c.id === id ? updated : c)))
-    } catch (err) {
-      console.error("Failed to unpublish connector:", err)
-    }
-  }
-
   const handleActionCreated = async () => {
     // Reload connectors to get updated action lists
     await loadConnectors()
@@ -196,7 +162,6 @@ export default function ConnectorsPage() {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onManageActions={handleManageActions}
-                onTogglePublish={handleTogglePublish}
               />
             ))}
           </div>
@@ -238,37 +203,6 @@ export default function ConnectorsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Publish Confirmation */}
-      <Dialog open={pendingPublishId !== null} onOpenChange={(open) => { if (!open) setPendingPublishId(null) }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Publish connector?</DialogTitle>
-            <DialogDescription>
-              Once published, this connector will be available for agents to use in conversations.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" className="px-6" onClick={() => setPendingPublishId(null)}>Cancel</Button>
-            <Button className="px-6" onClick={confirmPublish}>Publish</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Unpublish Confirmation */}
-      <Dialog open={pendingUnpublishId !== null} onOpenChange={(open) => { if (!open) setPendingUnpublishId(null) }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Unpublish connector?</DialogTitle>
-            <DialogDescription>
-              This connector will be set back to draft and no longer available for agents to use.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" className="px-6" onClick={() => setPendingUnpublishId(null)}>Cancel</Button>
-            <Button variant="secondary" className="px-6" onClick={confirmUnpublish}>Unpublish</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

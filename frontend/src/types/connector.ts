@@ -44,7 +44,6 @@ export interface ConnectorResponse {
   base_url: string
   auth_type: string // "api_key" | "bearer" | "oauth2" | "basic" | "none"
   auth_config: Record<string, unknown> | null
-  status: string // "draft" | "published"
   is_official: boolean
   forked_from: string | null
   version: number

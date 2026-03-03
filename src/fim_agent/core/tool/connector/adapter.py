@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import os
 import re
 from typing import Any
 
@@ -13,6 +14,14 @@ import httpx
 from fim_agent.core.tool.base import BaseTool
 
 logger = logging.getLogger(__name__)
+
+# Response truncation limits (ENV-configurable)
+CONNECTOR_RESPONSE_MAX_CHARS = int(
+    os.environ.get("CONNECTOR_RESPONSE_MAX_CHARS", "50000")
+)
+CONNECTOR_RESPONSE_MAX_ITEMS = int(
+    os.environ.get("CONNECTOR_RESPONSE_MAX_ITEMS", "10")
+)
 
 
 class ConnectorToolAdapter(BaseTool):
@@ -137,16 +146,53 @@ class ConnectorToolAdapter(BaseTool):
                     except Exception:
                         pass  # Fall through to raw response
 
-                # Truncate long responses
-                max_chars = 20_000
-                if len(content) > max_chars:
-                    content = content[:max_chars] + f"\n\n[Truncated -- {len(content)} chars total]"
+                # Smart truncation for long responses
+                content = self._truncate_response(content)
                 return content
 
         except httpx.TimeoutException:
             return "[Timeout] Request exceeded 30 seconds."
         except httpx.RequestError as exc:
             return f"[Error] {type(exc).__name__}: {exc}"
+
+    @staticmethod
+    def _truncate_response(content: str) -> str:
+        """Truncate response with awareness of JSON structure.
+
+        - JSON arrays: keep first N complete items (CONNECTOR_RESPONSE_MAX_ITEMS).
+        - JSON objects / other JSON: apply CONNECTOR_RESPONSE_MAX_CHARS limit.
+        - Non-JSON: character-based truncation at CONNECTOR_RESPONSE_MAX_CHARS.
+        """
+        max_chars = CONNECTOR_RESPONSE_MAX_CHARS
+        max_items = CONNECTOR_RESPONSE_MAX_ITEMS
+
+        # Try to parse as JSON for smart truncation
+        try:
+            data = json.loads(content)
+        except (json.JSONDecodeError, ValueError):
+            # Non-JSON fallback: plain character truncation
+            if len(content) > max_chars:
+                return (
+                    content[:max_chars]
+                    + f"\n\n[Truncated -- {len(content)} chars total]"
+                )
+            return content
+
+        # JSON array: keep first N complete items
+        if isinstance(data, list) and len(data) > max_items:
+            truncated = json.dumps(data[:max_items], ensure_ascii=False, indent=2)
+            return (
+                truncated
+                + f"\n\n[Showing {max_items} of {len(data)} items]"
+            )
+
+        # JSON object or small array: character-based with higher limit
+        if len(content) > max_chars:
+            return (
+                content[:max_chars]
+                + f"\n\n[Truncated -- {len(content)} chars total]"
+            )
+        return content
 
     def _inject_auth(self, headers: dict[str, str]) -> None:
         """Inject authentication into request headers.

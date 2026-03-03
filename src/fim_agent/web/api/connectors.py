@@ -58,7 +58,6 @@ def _connector_to_response(connector: Connector) -> ConnectorResponse:
         base_url=connector.base_url,
         auth_type=connector.auth_type,
         auth_config=connector.auth_config,
-        status=connector.status,
         is_official=connector.is_official,
         forked_from=connector.forked_from,
         version=connector.version,
@@ -105,7 +104,7 @@ async def create_connector(
         base_url=body.base_url,
         auth_type=body.auth_type,
         auth_config=body.auth_config,
-        status="draft",
+        status="published",
     )
     db.add(connector)
     await db.commit()
@@ -117,13 +116,10 @@ async def create_connector(
 async def list_connectors(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    connector_status: str | None = Query(None, alias="status"),
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> PaginatedResponse:
     base = select(Connector).where(Connector.user_id == current_user.id)
-    if connector_status is not None:
-        base = base.where(Connector.status == connector_status)
 
     count_result = await db.execute(
         select(func.count()).select_from(base.subquery())
@@ -185,32 +181,6 @@ async def delete_connector(
     await db.delete(connector)
     await db.commit()
     return ApiResponse(data={"deleted": connector_id})
-
-
-@router.post("/{connector_id}/publish", response_model=ApiResponse)
-async def publish_connector(
-    connector_id: str,
-    current_user: User = Depends(get_current_user),  # noqa: B008
-    db: AsyncSession = Depends(get_session),  # noqa: B008
-) -> ApiResponse:
-    connector = await _get_owned_connector(connector_id, current_user.id, db)
-    connector.status = "published"
-    await db.commit()
-    await db.refresh(connector)
-    return ApiResponse(data=_connector_to_response(connector).model_dump())
-
-
-@router.post("/{connector_id}/unpublish", response_model=ApiResponse)
-async def unpublish_connector(
-    connector_id: str,
-    current_user: User = Depends(get_current_user),  # noqa: B008
-    db: AsyncSession = Depends(get_session),  # noqa: B008
-) -> ApiResponse:
-    connector = await _get_owned_connector(connector_id, current_user.id, db)
-    connector.status = "draft"
-    await db.commit()
-    await db.refresh(connector)
-    return ApiResponse(data=_connector_to_response(connector).model_dump())
 
 
 # ---------------------------------------------------------------------------

@@ -79,7 +79,6 @@ class ConnectorResponse(BaseModel):
     base_url: str
     auth_type: str
     auth_config: dict[str, Any] | None
-    status: str
     is_official: bool
     forked_from: str | None
     version: int
