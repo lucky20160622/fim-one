@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Files,
   FlaskConical,
+  Library,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { kbApi } from "@/lib/api"
@@ -168,37 +170,42 @@ export default function KBDetailPage() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 border-b border-border/40 px-6 py-4 space-y-1">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push("/kb")}
-            className="gap-1.5 -ml-2 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to KB
-          </Button>
-        </div>
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold text-foreground truncate">
-              {kb.name}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {kb.description || "No description"}
-              {" "}&middot;{" "}
-              strategy: {kb.chunk_strategy}
-              {" "}&middot;{" "}
-              {kb.document_count} docs, {kb.total_chunks} chunks
-            </p>
+      <div className="shrink-0 border-b border-border/40 px-6 py-4">
+        <div className="flex items-start gap-3">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => router.push("/kb")}
+                className="mt-1"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={5}>Back to KB</TooltipContent>
+          </Tooltip>
+          <div className="flex-1 min-w-0 flex items-start justify-between gap-4">
+            <div className="min-w-0 space-y-0.5">
+              <h1 className="text-lg font-semibold text-foreground truncate flex items-center gap-2">
+                <Library className="h-5 w-5 shrink-0" />
+                {kb.name}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {kb.description || "No description"}
+                {" "}&middot;{" "}
+                strategy: {kb.chunk_strategy}
+                {" "}&middot;{" "}
+                {kb.document_count} docs, {kb.total_chunks} chunks
+              </p>
+            </div>
+            <Badge
+              variant="secondary"
+              className="shrink-0 text-[10px] px-1.5 py-0 h-5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+            >
+              {kb.status}
+            </Badge>
           </div>
-          <Badge
-            variant="secondary"
-            className="shrink-0 text-[10px] px-1.5 py-0 h-5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-          >
-            {kb.status}
-          </Badge>
         </div>
       </div>
 
@@ -222,16 +229,20 @@ export default function KBDetailPage() {
             <FilePlus className="h-3.5 w-3.5" />
             New MD
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="gap-1.5 text-muted-foreground"
-            title="Refresh documents"
-          >
-            <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="gap-1.5 text-muted-foreground"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={5}>Refresh documents</TooltipContent>
+          </Tooltip>
         </div>
         <div className="flex items-center gap-1">
           <Button

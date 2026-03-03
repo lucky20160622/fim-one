@@ -5,6 +5,7 @@ import { Eye, Upload, Pencil, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { KBResponse } from "@/types/kb"
 
 interface KBCardProps {
@@ -62,43 +63,59 @@ export function KBCard({
 
       {/* Action buttons */}
       <div className="flex items-center gap-1 -ml-1">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => router.push(`/kb/${kb.id}`)}
-          className="text-muted-foreground hover:text-foreground"
-          title="View"
-        >
-          <Eye className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onUpload(kb)}
-          className="text-muted-foreground hover:text-foreground"
-          title="Upload Document"
-        >
-          <Upload className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onEdit(kb)}
-          className="text-muted-foreground hover:text-foreground"
-          title="Edit"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => router.push(`/kb/${kb.id}`)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Eye className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={5}>View</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => onUpload(kb)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Upload className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={5}>Upload Document</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => onEdit(kb)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={5}>Edit</TooltipContent>
+        </Tooltip>
         <div className="flex-1" />
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onDelete(kb.id)}
-          className="text-muted-foreground hover:text-destructive"
-          title="Delete"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => onDelete(kb.id)}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={5}>Delete</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   )

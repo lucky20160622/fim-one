@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, Plus, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -80,7 +80,8 @@ export function KBFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {isEditing ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
             {isEditing ? "Edit Knowledge Base" : "Create Knowledge Base"}
           </DialogTitle>
         </DialogHeader>

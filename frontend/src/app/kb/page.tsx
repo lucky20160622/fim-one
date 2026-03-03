@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Loader2 } from "lucide-react"
+import { Plus, Loader2, Library, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -104,7 +104,10 @@ export default function KBPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-border/40">
         <div>
-          <h1 className="text-lg font-semibold text-foreground">Knowledge Base</h1>
+          <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Library className="h-5 w-5" />
+            Knowledge Base
+          </h1>
           <p className="text-sm text-muted-foreground">
             Manage your knowledge bases and documents
           </p>
@@ -172,7 +175,10 @@ export default function KBPage() {
       <Dialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null) }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete knowledge base?</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4" />
+              Delete knowledge base?
+            </DialogTitle>
             <DialogDescription>
               This knowledge base and all its documents will be permanently deleted. This action cannot be undone.
             </DialogDescription>

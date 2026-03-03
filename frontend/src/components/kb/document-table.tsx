@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { ChunkDrawer } from "@/components/kb/chunk-drawer"
@@ -104,9 +103,14 @@ export function DocumentTable({
           >
             {/* Filename */}
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="truncate" title={doc.filename}>
-                {doc.filename}
-              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="truncate">
+                    {doc.filename}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={5}>{doc.filename}</TooltipContent>
+              </Tooltip>
               <span className="text-[10px] text-muted-foreground shrink-0">
                 {formatFileSize(doc.file_size)}
               </span>
@@ -125,24 +129,22 @@ export function DocumentTable({
               const effectiveStatus = getEffectiveStatus(doc)
               if (effectiveStatus === "failed" && doc.error_message) {
                 return (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            "text-[10px] px-1.5 py-0 h-5 w-fit gap-1 cursor-help",
-                            statusColor(effectiveStatus),
-                          )}
-                        >
-                          {effectiveStatus}
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        {doc.error_message}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "text-[10px] px-1.5 py-0 h-5 w-fit gap-1 cursor-help",
+                          statusColor(effectiveStatus),
+                        )}
+                      >
+                        {effectiveStatus}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      {doc.error_message}
+                    </TooltipContent>
+                  </Tooltip>
                 )
               }
               return (
@@ -164,40 +166,52 @@ export function DocumentTable({
             {/* Actions */}
             <div className="flex items-center justify-end gap-0.5">
               {getEffectiveStatus(doc) === "failed" && (
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => handleRetry(doc)}
-                  disabled={retryingIds.has(doc.id)}
-                  className="text-muted-foreground hover:text-foreground"
-                  title="Retry processing"
-                >
-                  <RotateCw
-                    className={cn(
-                      "h-3.5 w-3.5",
-                      retryingIds.has(doc.id) && "animate-spin",
-                    )}
-                  />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => handleRetry(doc)}
+                      disabled={retryingIds.has(doc.id)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <RotateCw
+                        className={cn(
+                          "h-3.5 w-3.5",
+                          retryingIds.has(doc.id) && "animate-spin",
+                        )}
+                      />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" sideOffset={5}>Retry processing</TooltipContent>
+                </Tooltip>
               )}
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setSelectedDoc(doc)}
-                className="text-muted-foreground hover:text-foreground"
-                title="View chunks"
-              >
-                <Eye className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => onDeleteDocument(doc.id)}
-                className="text-muted-foreground hover:text-destructive"
-                title="Delete document"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => setSelectedDoc(doc)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={5}>View chunks</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => onDeleteDocument(doc.id)}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" sideOffset={5}>Delete document</TooltipContent>
+              </Tooltip>
             </div>
           </div>
         ))}

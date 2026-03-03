@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Star, Loader2, Trash2, MoreHorizontal, Check, Pencil } from "lucide-react"
+import { Plus, Star, Loader2, Trash2, MoreHorizontal, Check, Pencil, MessagesSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -206,7 +206,10 @@ export default function ChatsPage() {
     <div className="max-w-3xl mx-auto py-8 px-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Chats</h1>
+        <h1 className="text-2xl font-semibold flex items-center gap-2">
+          <MessagesSquare className="h-6 w-6" />
+          Chats
+        </h1>
         <Button size="sm" variant="outline" className="gap-2" onClick={handleNewChat}>
           <Plus className="h-4 w-4" />
           New chat
@@ -402,7 +405,8 @@ export default function ChatsPage() {
       }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4" />
               {singleDeleteId
                 ? "Delete this conversation?"
                 : `Delete ${selectedIds.size} conversation${selectedIds.size !== 1 ? "s" : ""}?`}
@@ -440,7 +444,10 @@ export default function ChatsPage() {
       }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Rename conversation</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-4 w-4" />
+              Rename conversation
+            </DialogTitle>
           </DialogHeader>
           <Input
             autoFocus

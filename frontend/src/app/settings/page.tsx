@@ -46,7 +46,10 @@ function SettingsContent() {
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center px-6 py-4 shrink-0 border-b border-border/40">
-        <h1 className="text-lg font-semibold text-foreground">Settings</h1>
+        <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <Settings className="h-5 w-5" />
+          Settings
+        </h1>
       </div>
 
       {/* Body: left nav + right content */}

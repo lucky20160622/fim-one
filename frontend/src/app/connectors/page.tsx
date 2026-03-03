@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Loader2 } from "lucide-react"
+import { Plus, Loader2, Plug, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -69,7 +69,10 @@ export default function ConnectorsPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-border/40">
         <div>
-          <h1 className="text-lg font-semibold text-foreground">Connectors</h1>
+          <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Plug className="h-5 w-5" />
+            Connectors
+          </h1>
           <p className="text-sm text-muted-foreground">
             Manage API connectors and their actions
           </p>
@@ -109,7 +112,6 @@ export default function ConnectorsPage() {
                 connector={connector}
                 onEdit={(c) => router.push(`/connectors/${c.id}`)}
                 onDelete={handleDelete}
-                onManageActions={(c) => router.push(`/connectors/${c.id}`)}
               />
             ))}
           </div>
@@ -120,7 +122,10 @@ export default function ConnectorsPage() {
       <Dialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null) }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete connector?</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4" />
+              Delete connector?
+            </DialogTitle>
             <DialogDescription>
               This connector and all its actions will be permanently deleted. This action cannot be undone.
             </DialogDescription>

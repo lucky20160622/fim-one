@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Loader2 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { connectorApi } from "@/lib/api"
@@ -128,8 +129,12 @@ export function ConnectorSettingsForm({
       }
 
       onSaved(result)
+      toast.success(connector ? "Connector updated" : "Connector created")
     } catch (err) {
       console.error("Failed to save connector:", err)
+      const message =
+        err instanceof Error ? err.message : "Unknown error"
+      toast.error(`Failed to save connector: ${message}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -141,7 +146,7 @@ export function ConnectorSettingsForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
       <ScrollArea className="flex-1">
-        <div className="space-y-4 pr-4">
+        <div className="space-y-4 pl-0.5 pr-4">
           {/* Name */}
           <div className="space-y-1.5">
             <label htmlFor="connector-name" className="text-sm font-medium">

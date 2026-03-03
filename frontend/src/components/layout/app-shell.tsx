@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Bot, Library, Loader2, MessagesSquare, PanelLeftClose, PanelLeftOpen, Plug, Plus, Search } from "lucide-react"
+import { Bot, Library, Loader2, MessagesSquare, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, Search, Sun } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { APP_NAME } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useTheme } from "next-themes"
 import { useAuth } from "@/contexts/auth-context"
 import { ConversationProvider, useConversation } from "@/contexts/conversation-context"
 import { ConversationSidebar } from "@/components/layout/conversation-sidebar"
@@ -87,15 +88,19 @@ function SidebarNewChat({ collapsed }: { collapsed: boolean }) {
           <Plus className="h-4 w-4" />
           New Chat
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="shrink-0 px-2"
-          onClick={() => setSearchOpen(true)}
-          title="Search (Cmd+K)"
-        >
-          <Search className="h-4 w-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 px-2"
+              onClick={() => setSearchOpen(true)}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={5}>Search (Cmd+K)</TooltipContent>
+        </Tooltip>
       </div>
       <ChatSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
@@ -110,6 +115,64 @@ function RedirectToLogin() {
   return (
     <div className="flex h-screen items-center justify-center bg-background">
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  )
+}
+
+function ThemeToggle({ collapsed }: { collapsed: boolean }) {
+  const { resolvedTheme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => setMounted(true), [])
+
+  const toggle = () => setTheme(resolvedTheme === "dark" ? "light" : "dark")
+
+  // Avoid hydration mismatch — render a placeholder until mounted
+  if (!mounted) {
+    return (
+      <button
+        className={cn(
+          "inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+          collapsed ? "h-9 w-9" : "h-8 w-8",
+        )}
+        disabled
+      >
+        <Sun className="h-4 w-4" />
+      </button>
+    )
+  }
+
+  return (
+    <SidebarTooltip label={resolvedTheme === "dark" ? "Light mode" : "Dark mode"} collapsed={collapsed}>
+      <button
+        onClick={toggle}
+        className={cn(
+          "inline-flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+          collapsed ? "h-9 w-9" : "h-8 w-8",
+        )}
+      >
+        {resolvedTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </button>
+    </SidebarTooltip>
+  )
+}
+
+function SidebarFooter({ collapsed }: { collapsed: boolean }) {
+  if (collapsed) {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <ThemeToggle collapsed />
+        <UserMenu collapsed />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <div className="flex-1 min-w-0">
+        <UserMenu collapsed={false} />
+      </div>
+      <ThemeToggle collapsed={false} />
     </div>
   )
 }
@@ -150,6 +213,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Authenticated: full layout with conversation sidebar
   return (
     <ConversationProvider>
+      <TooltipProvider delayDuration={300}>
       <div className="flex h-screen overflow-hidden bg-background">
         {/* Sidebar */}
         <aside
@@ -158,7 +222,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             collapsed ? "w-16" : "w-60",
           )}
         >
-         <TooltipProvider delayDuration={300}>
           {/* Logo area + collapse toggle */}
           <div className={cn("flex h-14 items-center shrink-0", collapsed ? "justify-center px-2" : "justify-between px-4")}>
             {!collapsed && (
@@ -269,9 +332,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Bottom area */}
           <div className={cn("shrink-0 pb-3", collapsed ? "px-2" : "px-3")}>
             <Separator className="mb-2" />
-            <UserMenu collapsed={collapsed} />
+            <SidebarFooter collapsed={collapsed} />
           </div>
-         </TooltipProvider>
         </aside>
 
         {/* Main area */}
@@ -280,6 +342,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <main className="flex-1 overflow-hidden">{children}</main>
         </div>
       </div>
+      </TooltipProvider>
     </ConversationProvider>
   )
 }
