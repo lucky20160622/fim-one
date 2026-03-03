@@ -97,6 +97,7 @@ You are an API connector creation assistant. Analyze the user's instruction and 
 
 2. Otherwise, generate the connector configuration from the description → output:
    {"mode": "generate", "connector": {"name": "...", "description": "...", "base_url": "...", "auth_type": "none", "auth_config": null}, "actions": [<array of action objects>]}
+   The connector "name" MUST start with a single relevant emoji followed by a space (e.g. "🐙 GitHub", "📮 Slack API", "🔍 Google Search").
 
 For generated actions, each action object MUST have:
 - "name": string (snake_case)

@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, Plug, Settings, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/contexts/auth-context"
 import { connectorApi } from "@/lib/api"
 import { ConnectorSettingsForm } from "@/components/connectors/connector-settings-form"
@@ -82,15 +83,20 @@ export default function ConnectorEditorPage() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Top bar */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40 shrink-0">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => router.push("/connectors")}
-          title="Back to Connectors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="text-sm font-semibold text-foreground truncate">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => router.push("/connectors")}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={5}>Back to Connectors</TooltipContent>
+        </Tooltip>
+        <h1 className="text-sm font-semibold text-foreground truncate flex items-center gap-2">
+          <Plug className="h-4 w-4 shrink-0" />
           {isNew ? "New Connector" : connector?.name || "Connector"}
         </h1>
       </div>
@@ -104,6 +110,8 @@ export default function ConnectorEditorPage() {
             onActionsChanged={reload}
             onConnectorUpdated={(updated) => setConnector(updated)}
             formDirty={formDirty}
+            isNewMode={isNew}
+            onConnectorCreated={handleConnectorSaved}
           />
         </div>
 
@@ -115,11 +123,15 @@ export default function ConnectorEditorPage() {
             className="flex flex-col h-full"
           >
             <TabsList className="shrink-0 mx-4 mt-3 w-fit">
-              <TabsTrigger value="connector">Connector</TabsTrigger>
-              <TabsTrigger value="actions" disabled={isNew}>
+              <TabsTrigger value="connector" className="gap-1.5">
+                <Settings className="h-3.5 w-3.5" />
+                Connector
+              </TabsTrigger>
+              <TabsTrigger value="actions" disabled={isNew} className="gap-1.5">
+                <Zap className="h-3.5 w-3.5" />
                 Actions
                 {connector && connector.actions.length > 0 && (
-                  <span className="ml-1.5 text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     ({connector.actions.length})
                   </span>
                 )}

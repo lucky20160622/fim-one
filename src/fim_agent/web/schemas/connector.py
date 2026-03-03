@@ -119,3 +119,12 @@ class AIActionResult(BaseModel):
     failed: list[str] = []
     connector_updated: ConnectorResponse | None = None
     message: str = ""
+
+
+class AICreateConnectorRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=5000)
+
+
+class AICreateConnectorResult(BaseModel):
+    connector: ConnectorResponse
+    message: str = ""

@@ -96,3 +96,8 @@ export interface AIActionResult {
   connector_updated: ConnectorResponse | null
   message: string
 }
+
+export interface AICreateConnectorResult {
+  connector: ConnectorResponse
+  message: string
+}

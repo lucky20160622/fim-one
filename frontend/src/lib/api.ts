@@ -6,7 +6,7 @@ import type {
   ConversationCreate,
   PaginatedResponse,
 } from "@/types/conversation"
-import type { AgentResponse, AgentCreate, AgentUpdate } from "@/types/agent"
+import type { AgentResponse, AgentCreate, AgentUpdate, AICreateAgentResult, AIRefineAgentResult } from "@/types/agent"
 import type { FileUploadResponse, FileListItem } from "@/types/file"
 import type {
   KBResponse,
@@ -263,6 +263,18 @@ export const agentApi = {
   unpublish: (id: string) =>
     apiFetch<ApiResponse<AgentResponse>>(`/api/agents/${id}/unpublish`, {
       method: "POST",
+    }).then((r) => r.data),
+
+  aiCreateAgent: (body: { instruction: string }) =>
+    apiFetch<ApiResponse<AICreateAgentResult>>(`/api/agents/ai/create`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).then((r) => r.data),
+
+  aiRefineAgent: (agentId: string, body: { instruction: string }) =>
+    apiFetch<ApiResponse<AIRefineAgentResult>>(`/api/agents/${agentId}/ai/refine`, {
+      method: "POST",
+      body: JSON.stringify(body),
     }).then((r) => r.data),
 }
 
