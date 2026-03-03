@@ -23,6 +23,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **Observation JSON Highlighting**: Auto-detect JSON in tool output, pretty-print with syntax highlighting; label renamed to "Output"
 - **Sonner Toast Notifications**: Toast notification library for non-blocking user feedback
 - **KB Document Management in README**: Added KB Document Management to README Key Features section
+- **RETRIEVAL_MODE Config**: Switch between grounding pipeline and basic RAG via `RETRIEVAL_MODE` env var (grounding | simple); simple mode uses `kb_retrieve` for basic RAG, grounding mode uses `grounded_retrieve` for full 5-stage pipeline; `KBRetrieveTool` supports bound kb_ids with multi-KB merge; frontend `parseSimpleEvidence()` for simple mode references
+- **Agent Quick Chat Link**: "Start Chat" button on agent cards and detail page for published agents; auto-selects agent from `?agent=` URL param in chat interface
 
 ### Changed
 - **Roadmap v1.1 restructured**: Renamed from "Enterprise & Scale" to "Agent as a Service" — added Agent Publishing (published pages, API endpoints, API keys, version snapshots, custom branding), 3 delivery channels (Web App / API / Embed), access control (visitor modes, rate limiting, domain/IP restrictions), and usage analytics (per-agent dashboard, conversation logs, cost attribution); existing Connector Ecosystem and Enterprise Operations items retained
@@ -35,6 +37,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - KB chunk drawer search replaced with collapsible toggle icon button (auto-focus, Escape to close)
 - KB detail page "Search" tab renamed to "Retrieve Test"
 - Inject recall button now always visible (not hidden on success)
+- **ThinkingCard Loading**: Simplified to single "Processing..." label with shiny-text shimmer animation; removed fake rotating THINKING_HINTS
 
 ### Fixed
 - IME composition handling in chat input (Chinese/Japanese input no longer triggers premature submit)
