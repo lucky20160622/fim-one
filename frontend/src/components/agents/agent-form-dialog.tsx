@@ -103,8 +103,8 @@ export function AgentFormDialog({
       instructions: instructions.trim() || null,
       tool_categories: toolCategories,
       ...(prompts.length > 0 && { suggested_prompts: prompts }),
-      ...(selectedKBs.length > 0 && { kb_ids: selectedKBs }),
-      ...(selectedConnectors.length > 0 && { connector_ids: selectedConnectors }),
+      kb_ids: selectedKBs,
+      connector_ids: selectedConnectors,
       ...(selectedKBs.length > 0 && confidenceThreshold != null && {
         grounding_config: { confidence_threshold: confidenceThreshold },
       }),
@@ -256,6 +256,42 @@ export function AgentFormDialog({
             </div>
           )}
 
+          {/* Confidence Threshold - only show when KBs are selected */}
+          {selectedKBs.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Confidence Threshold</label>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {confidenceThreshold != null
+                    ? `${Math.round(confidenceThreshold * 100)}%`
+                    : "Off"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                When set, answers with confidence below this threshold will be
+                rejected. Leave off to always show results.
+              </p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={
+                    confidenceThreshold != null
+                      ? Math.round(confidenceThreshold * 100)
+                      : 0
+                  }
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value)
+                    setConfidenceThreshold(val === 0 ? null : val / 100)
+                  }}
+                  className="flex-1 h-1.5 accent-primary"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Connectors */}
           {(availableConnectors.length > 0 || selectedConnectors.some((id) => !availableConnectors.some((c) => c.id === id))) && (
             <div className="space-y-1.5">
@@ -316,42 +352,6 @@ export function AgentFormDialog({
                       </div>
                     )
                   })}
-              </div>
-            </div>
-          )}
-
-          {/* Confidence Threshold - only show when KBs are selected */}
-          {selectedKBs.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Confidence Threshold</label>
-                <span className="text-xs text-muted-foreground font-mono">
-                  {confidenceThreshold != null
-                    ? `${Math.round(confidenceThreshold * 100)}%`
-                    : "Off"}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                When set, answers with confidence below this threshold will be
-                rejected. Leave off to always show results.
-              </p>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={5}
-                  value={
-                    confidenceThreshold != null
-                      ? Math.round(confidenceThreshold * 100)
-                      : 0
-                  }
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value)
-                    setConfidenceThreshold(val === 0 ? null : val / 100)
-                  }}
-                  className="flex-1 h-1.5 accent-primary"
-                />
               </div>
             </div>
           )}
