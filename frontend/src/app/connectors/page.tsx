@@ -15,9 +15,7 @@ import {
 import { useAuth } from "@/contexts/auth-context"
 import { connectorApi } from "@/lib/api"
 import { ConnectorCard } from "@/components/connectors/connector-card"
-import { ConnectorFormDialog } from "@/components/connectors/connector-form-dialog"
-import { ActionEditorDialog } from "@/components/connectors/action-editor-dialog"
-import type { ConnectorResponse, ConnectorCreate, ConnectorUpdate } from "@/types/connector"
+import type { ConnectorResponse } from "@/types/connector"
 
 export default function ConnectorsPage() {
   const { user, isLoading: authLoading } = useAuth()
@@ -25,11 +23,7 @@ export default function ConnectorsPage() {
 
   const [connectors, setConnectors] = useState<ConnectorResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingConnector, setEditingConnector] = useState<ConnectorResponse | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
-  const [managingActionsConnector, setManagingActionsConnector] = useState<ConnectorResponse | null>(null)
 
   // Auth guard
   useEffect(() => {
@@ -54,33 +48,6 @@ export default function ConnectorsPage() {
     if (user) loadConnectors()
   }, [user, loadConnectors])
 
-  const handleCreate = () => {
-    setEditingConnector(null)
-    setDialogOpen(true)
-  }
-
-  const handleEdit = (connector: ConnectorResponse) => {
-    setEditingConnector(connector)
-    setDialogOpen(true)
-  }
-
-  const handleSubmit = async (data: ConnectorCreate | ConnectorUpdate) => {
-    setIsSubmitting(true)
-    try {
-      if (editingConnector) {
-        await connectorApi.update(editingConnector.id, data)
-      } else {
-        await connectorApi.create(data as ConnectorCreate)
-      }
-      setDialogOpen(false)
-      await loadConnectors()
-    } catch (err) {
-      console.error("Failed to save connector:", err)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
   const handleDelete = (id: string) => setPendingDeleteId(id)
 
   const confirmDelete = async () => {
@@ -92,25 +59,6 @@ export default function ConnectorsPage() {
       setConnectors((prev) => prev.filter((c) => c.id !== id))
     } catch (err) {
       console.error("Failed to delete connector:", err)
-    }
-  }
-
-  const handleManageActions = (connector: ConnectorResponse) => {
-    setManagingActionsConnector(connector)
-  }
-
-  const handleActionCreated = async () => {
-    // Reload connectors to get updated action lists
-    await loadConnectors()
-    // Also refresh the managing connector reference
-    if (managingActionsConnector) {
-      try {
-        const updated = await connectorApi.get(managingActionsConnector.id)
-        setManagingActionsConnector(updated)
-      } catch {
-        // connector may have been deleted
-        setManagingActionsConnector(null)
-      }
     }
   }
 
@@ -126,7 +74,7 @@ export default function ConnectorsPage() {
             Manage API connectors and their actions
           </p>
         </div>
-        <Button onClick={handleCreate} size="sm" className="gap-1.5">
+        <Button onClick={() => router.push("/connectors/new")} size="sm" className="gap-1.5">
           <Plus className="h-4 w-4" />
           New Connector
         </Button>
@@ -144,7 +92,7 @@ export default function ConnectorsPage() {
               No connectors yet. Create your first one to connect external APIs.
             </p>
             <Button
-              onClick={handleCreate}
+              onClick={() => router.push("/connectors/new")}
               variant="outline"
               size="sm"
               className="mt-4 gap-1.5"
@@ -159,33 +107,14 @@ export default function ConnectorsPage() {
               <ConnectorCard
                 key={connector.id}
                 connector={connector}
-                onEdit={handleEdit}
+                onEdit={(c) => router.push(`/connectors/${c.id}`)}
                 onDelete={handleDelete}
-                onManageActions={handleManageActions}
+                onManageActions={(c) => router.push(`/connectors/${c.id}`)}
               />
             ))}
           </div>
         )}
       </div>
-
-      {/* Form Dialog */}
-      <ConnectorFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        connector={editingConnector}
-        onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
-      />
-
-      {/* Action Editor Dialog */}
-      {managingActionsConnector && (
-        <ActionEditorDialog
-          open={managingActionsConnector !== null}
-          onOpenChange={(open) => { if (!open) setManagingActionsConnector(null) }}
-          connector={managingActionsConnector}
-          onActionCreated={handleActionCreated}
-        />
-      )}
 
       {/* Delete Confirmation */}
       <Dialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null) }}>
@@ -202,7 +131,6 @@ export default function ConnectorsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   )
 }

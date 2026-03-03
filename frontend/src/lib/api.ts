@@ -27,6 +27,10 @@ import type {
   ConnectorActionCreate,
   ConnectorActionUpdate,
   ConnectorActionResponse,
+  OpenAPIImportRequest,
+  AIGenerateActionsRequest,
+  AIRefineActionRequest,
+  AIActionResult,
 } from "@/types/connector"
 
 // --- Auth failure callback ---
@@ -448,6 +452,32 @@ export const connectorApi = {
       `/api/connectors/${connectorId}/actions/${actionId}`,
       { method: "DELETE" },
     ),
+
+  // OpenAPI import
+  importOpenAPI: (body: OpenAPIImportRequest) =>
+    apiFetch<ApiResponse<ConnectorResponse>>("/api/connectors/import-openapi", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).then((r) => r.data),
+
+  importOpenAPIToConnector: (connectorId: string, body: OpenAPIImportRequest) =>
+    apiFetch<ApiResponse<ConnectorResponse>>(
+      `/api/connectors/${connectorId}/import-openapi`,
+      { method: "POST", body: JSON.stringify(body) },
+    ).then((r) => r.data),
+
+  // AI action generation
+  aiGenerateActions: (connectorId: string, body: AIGenerateActionsRequest) =>
+    apiFetch<ApiResponse<AIActionResult>>(
+      `/api/connectors/${connectorId}/ai/generate-actions`,
+      { method: "POST", body: JSON.stringify(body) },
+    ).then((r) => r.data),
+
+  aiRefineAction: (connectorId: string, body: AIRefineActionRequest) =>
+    apiFetch<ApiResponse<AIActionResult>>(
+      `/api/connectors/${connectorId}/ai/refine-action`,
+      { method: "POST", body: JSON.stringify(body) },
+    ).then((r) => r.data),
 }
 
 // --- Chat API ---

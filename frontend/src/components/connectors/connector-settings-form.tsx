@@ -3,30 +3,21 @@
 import { useState, useEffect } from "react"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import type { ConnectorCreate, ConnectorUpdate, ConnectorResponse } from "@/types/connector"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { connectorApi } from "@/lib/api"
+import type { ConnectorCreate, ConnectorResponse } from "@/types/connector"
 
-interface ConnectorFormDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+interface ConnectorSettingsFormProps {
   connector: ConnectorResponse | null // null = create mode
-  onSubmit: (data: ConnectorCreate | ConnectorUpdate) => Promise<void>
-  isSubmitting: boolean
+  onSaved: (connector: ConnectorResponse) => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
-export function ConnectorFormDialog({
-  open,
-  onOpenChange,
+export function ConnectorSettingsForm({
   connector,
-  onSubmit,
-  isSubmitting,
-}: ConnectorFormDialogProps) {
+  onSaved,
+  onDirtyChange,
+}: ConnectorSettingsFormProps) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [baseUrl, setBaseUrl] = useState("")
@@ -34,15 +25,16 @@ export function ConnectorFormDialog({
   // Auth config fields
   const [tokenPrefix, setTokenPrefix] = useState("Bearer")
   const [headerName, setHeaderName] = useState("X-API-Key")
-  // Default credentials (for testing / v0.6.1)
+  // Default credentials
   const [defaultToken, setDefaultToken] = useState("")
   const [defaultApiKey, setDefaultApiKey] = useState("")
   const [defaultUsername, setDefaultUsername] = useState("")
   const [defaultPassword, setDefaultPassword] = useState("")
 
-  // Pre-fill when editing or reset when creating
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Pre-fill when connector prop changes (full sync)
   useEffect(() => {
-    if (!open) return
     if (connector) {
       setName(connector.name)
       setDescription(connector.description || "")
@@ -67,7 +59,30 @@ export function ConnectorFormDialog({
       setDefaultUsername("")
       setDefaultPassword("")
     }
-  }, [open, connector])
+  }, [connector])
+
+  // Compute and notify dirty state
+  useEffect(() => {
+    if (!onDirtyChange) return
+    if (!connector) {
+      // Create mode: dirty if user typed anything required
+      onDirtyChange(name.trim() !== "" || baseUrl.trim() !== "")
+      return
+    }
+    const cfg = connector.auth_config || {}
+    const dirty =
+      name !== connector.name ||
+      description !== (connector.description || "") ||
+      baseUrl !== connector.base_url ||
+      authType !== connector.auth_type ||
+      tokenPrefix !== (typeof cfg.token_prefix === "string" ? cfg.token_prefix : "Bearer") ||
+      headerName !== (typeof cfg.header_name === "string" ? cfg.header_name : "X-API-Key") ||
+      defaultToken !== (typeof cfg.default_token === "string" ? cfg.default_token : "") ||
+      defaultApiKey !== (typeof cfg.default_api_key === "string" ? cfg.default_api_key : "") ||
+      defaultUsername !== (typeof cfg.default_username === "string" ? cfg.default_username : "") ||
+      defaultPassword !== (typeof cfg.default_password === "string" ? cfg.default_password : "")
+    onDirtyChange(dirty)
+  }, [connector, name, description, baseUrl, authType, tokenPrefix, headerName, defaultToken, defaultApiKey, defaultUsername, defaultPassword, onDirtyChange])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,53 +90,58 @@ export function ConnectorFormDialog({
     const trimmedUrl = baseUrl.trim()
     if (!trimmedName || !trimmedUrl) return
 
-    let authConfig: Record<string, unknown> | null = null
-    if (authType === "bearer") {
-      authConfig = {
-        token_prefix: tokenPrefix.trim() || "Bearer",
-        ...(defaultToken.trim() && { default_token: defaultToken.trim() }),
+    setIsSubmitting(true)
+    try {
+      let authConfig: Record<string, unknown> | null = null
+      if (authType === "bearer") {
+        authConfig = {
+          token_prefix: tokenPrefix.trim() || "Bearer",
+          ...(defaultToken.trim() && { default_token: defaultToken.trim() }),
+        }
+      } else if (authType === "api_key") {
+        authConfig = {
+          header_name: headerName.trim() || "X-API-Key",
+          ...(defaultApiKey.trim() && { default_api_key: defaultApiKey.trim() }),
+        }
+      } else if (authType === "basic") {
+        authConfig = {
+          ...(defaultUsername.trim() && { default_username: defaultUsername.trim() }),
+          ...(defaultPassword.trim() && { default_password: defaultPassword.trim() }),
+        }
+        if (Object.keys(authConfig).length === 0) authConfig = null
       }
-    } else if (authType === "api_key") {
-      authConfig = {
-        header_name: headerName.trim() || "X-API-Key",
-        ...(defaultApiKey.trim() && { default_api_key: defaultApiKey.trim() }),
-      }
-    } else if (authType === "basic") {
-      authConfig = {
-        ...(defaultUsername.trim() && { default_username: defaultUsername.trim() }),
-        ...(defaultPassword.trim() && { default_password: defaultPassword.trim() }),
-      }
-      // Only set if has content
-      if (Object.keys(authConfig).length === 0) authConfig = null
-    }
 
-    const data: ConnectorCreate = {
-      name: trimmedName,
-      description: description.trim() || null,
-      type: "api",
-      base_url: trimmedUrl,
-      auth_type: authType,
-      ...(authConfig && { auth_config: authConfig }),
-    }
+      const data: ConnectorCreate = {
+        name: trimmedName,
+        description: description.trim() || null,
+        type: "api",
+        base_url: trimmedUrl,
+        auth_type: authType,
+        ...(authConfig && { auth_config: authConfig }),
+      }
 
-    await onSubmit(data)
+      let result: ConnectorResponse
+      if (connector) {
+        result = await connectorApi.update(connector.id, data)
+      } else {
+        result = await connectorApi.create(data)
+      }
+
+      onSaved(result)
+    } catch (err) {
+      console.error("Failed to save connector:", err)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
-
-  const isEditing = connector !== null
 
   const inputClass =
     "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEditing ? "Edit Connector" : "Create Connector"}
-          </DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
+      <ScrollArea className="flex-1">
+        <div className="space-y-4 pr-4">
           {/* Name */}
           <div className="space-y-1.5">
             <label htmlFor="connector-name" className="text-sm font-medium">
@@ -297,23 +317,16 @@ export function ConnectorFormDialog({
               </p>
             </div>
           )}
+        </div>
+      </ScrollArea>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting || !name.trim() || !baseUrl.trim()}>
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isEditing ? "Save Changes" : "Create"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      {/* Save button outside scroll area */}
+      <div className="flex justify-end pt-4">
+        <Button type="submit" disabled={isSubmitting || !name.trim() || !baseUrl.trim()}>
+          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+          Save
+        </Button>
+      </div>
+    </form>
   )
 }

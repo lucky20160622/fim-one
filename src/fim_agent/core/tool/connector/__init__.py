@@ -1,3 +1,4 @@
 from fim_agent.core.tool.connector.adapter import ConnectorToolAdapter
+from fim_agent.core.tool.connector.openapi_parser import parse_openapi_spec
 
-__all__ = ["ConnectorToolAdapter"]
+__all__ = ["ConnectorToolAdapter", "parse_openapi_spec"]

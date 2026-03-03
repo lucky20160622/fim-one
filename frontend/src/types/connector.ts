@@ -71,3 +71,28 @@ export interface ConnectorUpdate {
   auth_type?: string
   auth_config?: Record<string, unknown> | null
 }
+
+export interface OpenAPIImportRequest {
+  spec?: Record<string, unknown>
+  spec_url?: string
+  spec_raw?: string
+  replace_existing?: boolean
+}
+
+export interface AIGenerateActionsRequest {
+  instruction: string
+  context?: string
+}
+
+export interface AIRefineActionRequest {
+  instruction: string
+  action_id?: string
+}
+
+export interface AIActionResult {
+  created: ConnectorActionResponse[]
+  updated: ConnectorActionResponse[]
+  deleted: string[]
+  connector_updated: ConnectorResponse | null
+  message: string
+}

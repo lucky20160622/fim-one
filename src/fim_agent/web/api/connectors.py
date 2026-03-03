@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import math
+from typing import Any
 
+import httpx
+import yaml
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from fim_agent.core.tool.connector.openapi_parser import parse_openapi_spec
 from fim_agent.db import get_session
 from fim_agent.web.auth import get_current_user
 from fim_agent.web.models.connector import Connector, ConnectorAction
@@ -21,7 +27,10 @@ from fim_agent.web.schemas.connector import (
     ConnectorCreate,
     ConnectorResponse,
     ConnectorUpdate,
+    OpenAPIImportRequest,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/connectors", tags=["connectors"])
 
@@ -181,6 +190,154 @@ async def delete_connector(
     await db.delete(connector)
     await db.commit()
     return ApiResponse(data={"deleted": connector_id})
+
+
+# ---------------------------------------------------------------------------
+# OpenAPI Import
+# ---------------------------------------------------------------------------
+
+
+async def _resolve_openapi_spec(body: OpenAPIImportRequest) -> dict[str, Any]:
+    """Resolve OpenAPI spec from one of three input modes.
+
+    Priority: ``spec`` (parsed dict) > ``spec_raw`` (string) > ``spec_url``.
+    """
+    if body.spec is not None:
+        return body.spec
+
+    raw: str | None = body.spec_raw
+
+    if raw is None and body.spec_url:
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(body.spec_url)
+                resp.raise_for_status()
+                raw = resp.text
+        except httpx.HTTPError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to fetch spec URL: {exc}",
+            ) from exc
+
+    if raw is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide one of: spec, spec_raw, or spec_url",
+        )
+
+    # Try JSON first, then YAML
+    try:
+        return json.loads(raw)  # type: ignore[no-any-return]
+    except (json.JSONDecodeError, ValueError):
+        pass
+    try:
+        parsed = yaml.safe_load(raw)
+        if isinstance(parsed, dict):
+            return parsed
+    except yaml.YAMLError:
+        pass
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Unable to parse spec as JSON or YAML",
+    )
+
+
+@router.post("/import-openapi", response_model=ApiResponse)
+async def import_openapi(
+    body: OpenAPIImportRequest,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """One-shot import: create a Connector + Actions from an OpenAPI spec."""
+    spec = await _resolve_openapi_spec(body)
+    info = spec.get("info", {})
+    servers = spec.get("servers", [])
+    base_url = servers[0]["url"] if servers else ""
+
+    if not base_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Spec must have at least one server URL",
+        )
+
+    connector = Connector(
+        user_id=current_user.id,
+        name=info.get("title", "Imported API")[:200],
+        description=info.get("description"),
+        type="api",
+        base_url=base_url,
+        auth_type="none",
+        status="published",
+    )
+    db.add(connector)
+    await db.flush()  # get connector.id
+
+    action_dicts = parse_openapi_spec(spec)
+    for ad in action_dicts:
+        action = ConnectorAction(
+            connector_id=connector.id,
+            name=ad["name"],
+            description=ad.get("description"),
+            method=ad.get("method", "GET"),
+            path=ad.get("path", "/"),
+            parameters_schema=ad.get("parameters_schema"),
+            request_body_template=ad.get("request_body_template"),
+            requires_confirmation=ad.get("requires_confirmation", False),
+        )
+        db.add(action)
+
+    await db.commit()
+
+    # Reload with actions
+    result = await db.execute(
+        select(Connector)
+        .options(selectinload(Connector.actions))
+        .where(Connector.id == connector.id)
+    )
+    connector = result.scalar_one()
+    return ApiResponse(data=_connector_to_response(connector).model_dump())
+
+
+@router.post("/{connector_id}/import-openapi", response_model=ApiResponse)
+async def import_openapi_actions(
+    connector_id: str,
+    body: OpenAPIImportRequest,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Add actions from an OpenAPI spec to an existing connector."""
+    connector = await _get_owned_connector(connector_id, current_user.id, db)
+    spec = await _resolve_openapi_spec(body)
+
+    if body.replace_existing:
+        for existing_action in list(connector.actions or []):
+            await db.delete(existing_action)
+
+    action_dicts = parse_openapi_spec(spec)
+    for ad in action_dicts:
+        action = ConnectorAction(
+            connector_id=connector.id,
+            name=ad["name"],
+            description=ad.get("description"),
+            method=ad.get("method", "GET"),
+            path=ad.get("path", "/"),
+            parameters_schema=ad.get("parameters_schema"),
+            request_body_template=ad.get("request_body_template"),
+            requires_confirmation=ad.get("requires_confirmation", False),
+        )
+        db.add(action)
+
+    await db.commit()
+
+    # Reload with updated actions
+    result = await db.execute(
+        select(Connector)
+        .options(selectinload(Connector.actions))
+        .where(Connector.id == connector.id)
+    )
+    connector = result.scalar_one()
+    return ApiResponse(data=_connector_to_response(connector).model_dump())
 
 
 # ---------------------------------------------------------------------------

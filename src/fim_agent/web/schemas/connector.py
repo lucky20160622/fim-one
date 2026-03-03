@@ -47,6 +47,18 @@ class ActionResponse(BaseModel):
     updated_at: str | None
 
 
+# --- OpenAPI Import ---
+
+
+class OpenAPIImportRequest(BaseModel):
+    """Accepts an OpenAPI spec via one of three input modes."""
+
+    spec: dict[str, Any] | None = None
+    spec_url: str | None = None
+    spec_raw: str | None = None
+    replace_existing: bool = False
+
+
 # --- Connector Schemas ---
 
 
@@ -85,3 +97,25 @@ class ConnectorResponse(BaseModel):
     actions: list[ActionResponse]
     created_at: str
     updated_at: str | None
+
+
+# --- AI Action Schemas ---
+
+
+class AIGenerateActionsRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=2000)
+    context: str | None = Field(default=None, max_length=10000)
+
+
+class AIRefineActionRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=2000)
+    action_id: str | None = None
+
+
+class AIActionResult(BaseModel):
+    created: list[ActionResponse] = []
+    updated: list[ActionResponse] = []
+    deleted: list[str] = []
+    failed: list[str] = []
+    connector_updated: ConnectorResponse | None = None
+    message: str = ""

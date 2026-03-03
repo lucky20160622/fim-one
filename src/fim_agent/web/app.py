@@ -34,6 +34,7 @@ from .api.agents import router as agents_router
 from .api.auth import router as auth_router
 from .api.chat import router as chat_router
 from .api.oauth import router as oauth_router
+from .api.connector_ai import router as connector_ai_router
 from .api.connectors import router as connectors_router
 from .api.conversations import router as conversations_router
 from .api.files import router as files_router
@@ -113,6 +114,7 @@ def create_app() -> FastAPI:
     app.include_router(conversations_router)
     app.include_router(agents_router)
     app.include_router(connectors_router)
+    app.include_router(connector_ai_router)
     app.include_router(files_router)
     app.include_router(kb_router)
     app.include_router(models_router)
