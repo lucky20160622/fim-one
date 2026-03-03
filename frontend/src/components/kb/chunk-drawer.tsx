@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Loader2, Pencil, Trash2, FileText, Search, X } from "lucide-react"
 import {
   Sheet,
@@ -69,14 +69,24 @@ export function ChunkDrawer({
   const [totalPages, setTotalPages] = useState(0)
   const [total, setTotal] = useState(0)
   const [editingChunkId, setEditingChunkId] = useState<string | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [searchInput, setSearchInput] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => setSearchQuery(searchInput), 300)
     return () => clearTimeout(timer)
   }, [searchInput])
+
+  // Focus input when search opens
+  useEffect(() => {
+    if (searchOpen) {
+      // Small delay to let the element render/expand
+      requestAnimationFrame(() => searchInputRef.current?.focus())
+    }
+  }, [searchOpen])
 
   // Reset page when search query changes
   useEffect(() => {
@@ -108,6 +118,7 @@ export function ChunkDrawer({
   useEffect(() => {
     setPage(1)
     setEditingChunkId(null)
+    setSearchOpen(false)
     setSearchInput("")
     setSearchQuery("")
   }, [document.id])
@@ -166,45 +177,66 @@ export function ChunkDrawer({
               <span className="truncate">{document.filename}</span>
             </SheetTitle>
             <SheetDescription asChild>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge
-                  variant="secondary"
-                  className="text-[10px] px-1.5 py-0 h-5"
-                >
-                  {document.file_type}
-                </Badge>
-                <span className="text-xs text-muted-foreground">
-                  {total > 0 ? total : document.chunk_count} chunks
-                </span>
-                <Badge
-                  variant="secondary"
-                  className={cn(
-                    "text-[10px] px-1.5 py-0 h-5",
-                    statusColor(document.status),
-                  )}
-                >
-                  {document.status}
-                </Badge>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] px-1.5 py-0 h-5"
+                  >
+                    {document.file_type}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {total > 0 ? total : document.chunk_count} chunks
+                  </span>
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      "text-[10px] px-1.5 py-0 h-5",
+                      statusColor(document.status),
+                    )}
+                  >
+                    {document.status}
+                  </Badge>
+                </div>
+                {!searchOpen && (
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => setSearchOpen(true)}
+                    className="text-muted-foreground hover:text-foreground"
+                    title="Search chunks"
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
             </SheetDescription>
           </SheetHeader>
-          <div className="relative mt-3">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="搜索切片内容..."
-              className="h-8 pl-8 pr-8 text-xs bg-background/50"
-            />
-            {searchInput && (
+          {searchOpen && (
+            <div className="relative mt-3">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                ref={searchInputRef}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setSearchOpen(false)
+                    setSearchInput("")
+                    setSearchQuery("")
+                  }
+                }}
+                placeholder="Search chunks..."
+                className="h-8 pl-8 pr-8 text-xs bg-background/50"
+              />
               <button
-                onClick={() => { setSearchInput(""); setSearchQuery("") }}
+                onClick={() => { setSearchOpen(false); setSearchInput(""); setSearchQuery("") }}
                 className="absolute right-2 top-1/2 -translate-y-1/2"
               >
                 <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Scrollable chunk list */}

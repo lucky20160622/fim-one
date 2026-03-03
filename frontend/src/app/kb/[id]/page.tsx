@@ -9,6 +9,8 @@ import {
   FilePlus,
   Search,
   RefreshCw,
+  Files,
+  FlaskConical,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -236,8 +238,9 @@ export default function KBDetailPage() {
             variant={activeTab === "documents" ? "secondary" : "ghost"}
             size="sm"
             onClick={() => setActiveTab("documents")}
-            className="text-xs h-7 px-2.5"
+            className="text-xs h-7 px-2.5 gap-1"
           >
+            <Files className="h-3 w-3" />
             Documents
           </Button>
           <Button
@@ -246,8 +249,8 @@ export default function KBDetailPage() {
             onClick={() => setActiveTab("search")}
             className="text-xs h-7 px-2.5 gap-1"
           >
-            <Search className="h-3 w-3" />
-            Search
+            <FlaskConical className="h-3 w-3" />
+            Retrieve Test
           </Button>
         </div>
       </div>
