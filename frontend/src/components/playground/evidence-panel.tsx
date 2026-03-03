@@ -62,7 +62,7 @@ export function EvidencePanel({ content }: EvidencePanelProps) {
                   <span className="text-muted-foreground">p.{source.page}</span>
                 )}
                 <span className="ml-auto text-muted-foreground">
-                  rel: {source.relevance.toFixed(3)} | align: {source.alignment.toFixed(3)}
+                  rel: {source.relevance.toFixed(3)}
                 </span>
               </div>
               <blockquote className="border-l-2 border-primary/30 pl-3 text-xs text-muted-foreground italic">

@@ -50,6 +50,7 @@ from fim_agent.core.planner import (
 )
 from fim_agent.core.memory.context_guard import ContextGuard
 from fim_agent.core.tool import ToolRegistry
+from fim_agent.core.utils import extract_json_value
 
 from ..deps import (
     get_context_budget,
@@ -225,16 +226,7 @@ async def _generate_suggestions(
 
         raw = (result.message.content or "").strip()
 
-        # Strip markdown code fences if present
-        if raw.startswith("```"):
-            # Remove opening fence (```json or ```)
-            first_newline = raw.index("\n") if "\n" in raw else 3
-            raw = raw[first_newline + 1:]
-            # Remove closing fence
-            if raw.endswith("```"):
-                raw = raw[:-3].strip()
-
-        suggestions = json.loads(raw)
+        suggestions = extract_json_value(raw)
         if isinstance(suggestions, list) and all(isinstance(s, str) for s in suggestions):
             return suggestions[:count]
 
@@ -388,16 +380,9 @@ async def _resolve_tools(
         cats = agent_cfg.get("tool_categories") or []
         tools = tools.filter_by_category(*cats)
 
-    # Inject user_id into the auto-discovered KBRetrieveTool so that
-    # retrieval queries the correct per-user vector store directory.
-    if user_id:
-        from fim_agent.core.tool.builtin.kb_retrieve import KBRetrieveTool
-
-        tools = tools.exclude_by_name("kb_retrieve")
-        tools.register(KBRetrieveTool(user_id=user_id))
-
     # When the agent is bound to knowledge bases, replace the basic kb_retrieve
-    # tool with the grounded version.
+    # tool with grounded_retrieve (unified KB retrieval).
+    # citation_mode is controlled by: agent grounding_config > CITATION_MODE env > "auto"
     kb_ids = agent_cfg.get("kb_ids") if agent_cfg else None
     if kb_ids:
         from fim_agent.core.tool.builtin.grounded_retrieve import GroundedRetrieveTool
@@ -405,11 +390,19 @@ async def _resolve_tools(
         tools = tools.exclude_by_name("kb_retrieve", "grounded_retrieve")
         grounding_config = agent_cfg.get("grounding_config") or {}
         confidence_threshold = grounding_config.get("confidence_threshold")
+        citation_mode = grounding_config.get("citation_mode")
         tools.register(GroundedRetrieveTool(
             kb_ids=kb_ids,
             user_id=user_id,
             confidence_threshold=confidence_threshold,
+            citation_mode=citation_mode,
         ))
+    elif user_id:
+        # No bound KBs — keep basic kb_retrieve with user scope
+        from fim_agent.core.tool.builtin.kb_retrieve import KBRetrieveTool
+
+        tools = tools.exclude_by_name("kb_retrieve")
+        tools.register(KBRetrieveTool(user_id=user_id))
 
     # Load connector tools when the agent has bound connectors.
     connector_ids = agent_cfg.get("connector_ids") if agent_cfg else None
@@ -638,7 +631,10 @@ async def react_endpoint(
             "Place citation markers [N] at the END of the sentence or claim they support, "
             "not at the beginning. Example: '\u6536\u8d2d\u4ef7\u683c\u4e3a\u6bcf\u80a13.70\u7f8e\u5143 [1]\u3002'\n"
             "If conflicts are detected between sources, mention them to the user. "
-            "The confidence score indicates evidence quality \u2014 mention it for important claims."
+            "The confidence score indicates evidence quality \u2014 mention it for important claims. "
+            "If you call grounded_retrieve multiple times, source numbers are cumulative "
+            "(e.g., first call [1]-[5], second call [6]-[10]). Use the exact [N] numbers "
+            "from each Evidence block."
         )
         extra_instructions = (extra_instructions or "") + grounding_hint
 
@@ -952,7 +948,10 @@ async def dag_endpoint(
             "Place citation markers [N] at the END of the sentence or claim they support, "
             "not at the beginning. Example: '\u6536\u8d2d\u4ef7\u683c\u4e3a\u6bcf\u80a13.70\u7f8e\u5143 [1]\u3002'\n"
             "If conflicts are detected between sources, mention them to the user. "
-            "The confidence score indicates evidence quality \u2014 mention it for important claims."
+            "The confidence score indicates evidence quality \u2014 mention it for important claims. "
+            "If you call grounded_retrieve multiple times, source numbers are cumulative "
+            "(e.g., first call [1]-[5], second call [6]-[10]). Use the exact [N] numbers "
+            "from each Evidence block."
         )
         extra_instructions = (extra_instructions or "") + grounding_hint
 

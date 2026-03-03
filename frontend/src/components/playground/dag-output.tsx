@@ -34,6 +34,7 @@ import { DagFlowGraph } from "@/components/dag/dag-flow-graph"
 import { IterationCard } from "@/components/steps"
 import type { IterationData } from "@/components/steps"
 import { SuggestedFollowups } from "./suggested-followups"
+import { stripCitations } from "@/lib/evidence-utils"
 
 interface DagOutputProps {
   planSteps: DagPhaseEvent["steps"]
@@ -180,7 +181,15 @@ export function DagOutput({
         </div>
       ))}
 
-      {/* Analysis phase */}
+      {/* Analysis phase — spinner while waiting, then full card */}
+      {currentPhase === "analyzing" && !analysisPhase && (
+        <Card className="border-purple-500/20 py-4">
+          <CardContent className="flex items-center gap-3">
+            <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
+            <span className="text-sm shiny-text">Analyzing results...</span>
+          </CardContent>
+        </Card>
+      )}
       {analysisPhase && <AnalysisCard phase={analysisPhase} />}
 
       {/* Done card */}
@@ -324,8 +333,11 @@ function stripInlineMarkdown(s: string): string {
 function ResultBlock({ content }: { content: string }) {
   const [expanded, setExpanded] = useState(false)
 
+  // Strip orphan citation markers [1], [10] etc. — DAG mode has no References panel
+  const cleanContent = stripCitations(content)
+
   // First non-empty line as preview (strip all markdown syntax)
-  const preview = stripInlineMarkdown(content.split("\n").find((l) => l.trim()) ?? "")
+  const preview = stripInlineMarkdown(cleanContent.split("\n").find((l) => l.trim()) ?? "")
   const shortPreview = preview.length > 40 ? preview.slice(0, 40) + "…" : preview
 
   return (
@@ -345,7 +357,7 @@ function ResultBlock({ content }: { content: string }) {
       {expanded && (
         <div className="mt-2">
           <MarkdownContent
-            content={content}
+            content={cleanContent}
             className="text-xs text-foreground/80 [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_h4]:text-xs [&_p]:text-xs [&_li]:text-xs [&_td]:text-xs [&_th]:text-xs [&_table]:text-xs"
           />
         </div>
@@ -424,7 +436,7 @@ function DagDoneCard({ done, onSuggestionSelect }: { done: DagDoneEvent; onSugge
       </CardHeader>
       <CardContent>
         <MarkdownContent
-          content={done.answer}
+          content={stripCitations(done.answer)}
           className="prose-sm text-sm text-foreground/90"
         />
         {done.suggestions?.length && onSuggestionSelect ? (

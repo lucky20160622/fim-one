@@ -4,7 +4,6 @@ export interface ParsedSource {
   displayName: string
   kbName?: string
   relevance: number
-  alignment: number
   quote: string
   page?: number
 }
@@ -29,8 +28,8 @@ export function extractDisplayName(path: string): string {
  * Parse the **Evidence** block from a grounded-generation tool observation.
  *
  * Expected format:
- *   **Evidence** (confidence: 85.0%, 3 sources):
- *   [1] Source: uploads/kb/.../file.md (relevance: 0.912, alignment: 0.850)
+ *   **Evidence** (confidence: 85%, 3 sources):
+ *   [1] Source: uploads/kb/.../file.md (relevance: 0.912)
  *   > "quoted text"
  */
 export function parseEvidence(content: string): ParsedEvidence | null {
@@ -41,8 +40,8 @@ export function parseEvidence(content: string): ParsedEvidence | null {
   const confidence = parseFloat(headerMatch[1])
   const sourceCount = parseInt(headerMatch[2])
 
-  // Match [N] Source: name [KB: kb_name]? (relevance: X.XXX, alignment: X.XXX)
-  const sourceRegex = /\[(\d+)\]\s*Source:\s*(.+?)(?:\s*\[KB:\s*(.+?)\])?\s*\(relevance:\s*([\d.]+),\s*alignment:\s*([\d.]+)\)\s*\n\s*>\s*"?([^"\n]+)"?\s*(?:p\.(\d+))?/g
+  // Match [N] Source: name [KB: kb_name]? (relevance: X.XXX)
+  const sourceRegex = /\[(\d+)\]\s*Source:\s*(.+?)(?:\s*\[KB:\s*(.+?)\])?\s*\(relevance:\s*([\d.]+)\)\s*\n\s*>\s*"?([^"\n]+)"?\s*(?:p\.(\d+))?/g
   const sources: ParsedSource[] = []
   let match
   while ((match = sourceRegex.exec(content)) !== null) {
@@ -53,9 +52,8 @@ export function parseEvidence(content: string): ParsedEvidence | null {
       displayName: extractDisplayName(name),
       kbName: match[3]?.trim(),
       relevance: parseFloat(match[4]),
-      alignment: parseFloat(match[5]),
-      quote: match[6],
-      page: match[7] ? parseInt(match[7]) : undefined,
+      quote: match[5],
+      page: match[6] ? parseInt(match[6]) : undefined,
     })
   }
 
@@ -75,4 +73,42 @@ export function parseEvidence(content: string): ParsedEvidence | null {
   }
 
   return { confidence, sourceCount, sources, conflicts }
+}
+
+/**
+ * Strip citation markers like [1], [10], [27] from text.
+ *
+ * Targets bracketed numbers (`[N]`) that are NOT followed by `(`,
+ * which preserves markdown links like `[text](url)`.
+ * Also cleans up extra whitespace left behind, e.g. `text [10].` becomes `text.`
+ */
+export function stripCitations(text: string): string {
+  // Remove ` [N]` (with preceding space) when NOT followed by `(`
+  // Then remove `[N]` at start of string or after newline, also not followed by `(`
+  return text
+    .replace(/ \[\d+\](?!\()/g, "")
+    .replace(/\[\d+\](?!\()/g, "")
+}
+
+/**
+ * Merge multiple ParsedEvidence blocks into a single unified result.
+ *
+ * - confidence: max across all blocks
+ * - sourceCount: sum across all blocks
+ * - sources: concatenated (backend uses cumulative numbering so indices are non-overlapping)
+ * - conflicts: concatenated
+ */
+export function mergeEvidence(blocks: ParsedEvidence[]): ParsedEvidence {
+  if (blocks.length === 0) {
+    return { confidence: 0, sourceCount: 0, sources: [], conflicts: [] }
+  }
+  if (blocks.length === 1) {
+    return blocks[0]
+  }
+  return {
+    confidence: Math.max(...blocks.map((b) => b.confidence)),
+    sourceCount: blocks.reduce((sum, b) => sum + b.sourceCount, 0),
+    sources: blocks.flatMap((b) => b.sources),
+    conflicts: blocks.flatMap((b) => b.conflicts),
+  }
 }

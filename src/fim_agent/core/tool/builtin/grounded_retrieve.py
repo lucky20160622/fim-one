@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Any
 
@@ -21,10 +22,14 @@ class GroundedRetrieveTool(BaseTool):
         kb_ids: list[str] | None = None,
         user_id: str | None = None,
         confidence_threshold: float | None = None,
+        citation_mode: str | None = None,
     ) -> None:
         self._bound_kb_ids = kb_ids or []
         self._user_id = user_id
         self._confidence_threshold = confidence_threshold
+        self._citation_mode = citation_mode
+        self._source_offset: int = 0
+        self._offset_lock: asyncio.Lock = asyncio.Lock()
 
     @property
     def name(self) -> str:
@@ -91,15 +96,20 @@ class GroundedRetrieveTool(BaseTool):
             embedding = get_embedding()
             fast_llm = get_fast_llm()
 
+            config: dict[str, Any] = {"top_k": top_k}
+            if self._citation_mode:
+                config["citation_mode"] = self._citation_mode
+
             pipeline = GroundingPipeline(
                 kb_manager=kb_manager,
                 embedding=embedding,
                 llm=fast_llm,
-                config={"top_k": top_k},
+                config=config,
             )
             result = await pipeline.ground(query, kb_ids, user_id)
 
-            # Hard gate: if confidence below threshold, refuse to answer with this evidence
+            # Hard gate: if confidence below threshold, refuse to answer
+            # with this evidence.  Do NOT advance the offset.
             if self._confidence_threshold is not None and result.confidence < self._confidence_threshold:
                 return (
                     f"[Evidence insufficient] Confidence {result.confidence:.0%} is below "
@@ -107,6 +117,20 @@ class GroundedRetrieveTool(BaseTool):
                     f"The retrieved evidence is not reliable enough to answer this question. "
                     f"Please inform the user that no confident evidence was found in the knowledge base."
                 )
+
+            actual = len(result.evidence) if result.evidence else 0
+
+            # Atomically assign offset AFTER we know the actual evidence count.
+            # This avoids gaps when multiple calls run concurrently via
+            # asyncio.gather() — each call only reserves exactly the slots
+            # it needs, and the lock ensures no interleaving.
+            async with self._offset_lock:
+                offset = self._source_offset
+                self._source_offset += actual
+
+            if not result.evidence:
+                # No evidence — offset did not advance (actual == 0)
+                pass
 
             # Look up KB names for display
             kb_names: dict[str, str] = {}
@@ -129,14 +153,27 @@ class GroundedRetrieveTool(BaseTool):
             except Exception:
                 pass  # Graceful fallback — just won't show KB names
 
-            return _format_grounded_result(result, kb_names)
+            return _format_grounded_result(result, kb_names, source_offset=offset)
 
         except Exception as exc:
+            # Pipeline failed — do NOT advance the offset
             return f"[Error] {type(exc).__name__}: {exc}"
 
 
-def _format_grounded_result(result: Any, kb_names: dict[str, str] | None = None) -> str:
-    """Format a GroundedResult into a readable string for the LLM."""
+def _format_grounded_result(
+    result: Any,
+    kb_names: dict[str, str] | None = None,
+    source_offset: int = 0,
+) -> str:
+    """Format a GroundedResult into a readable string for the LLM.
+
+    Args:
+        result: The GroundedResult from the grounding pipeline.
+        kb_names: Optional mapping of KB IDs to display names.
+        source_offset: Starting offset for source numbering (0-based).
+            Sources will be numbered ``[source_offset + 1]``,
+            ``[source_offset + 2]``, etc.
+    """
     if not result.evidence:
         return "No relevant evidence found."
 
@@ -144,6 +181,7 @@ def _format_grounded_result(result: Any, kb_names: dict[str, str] | None = None)
     lines = [f"**Evidence** (confidence: {pct}%, {result.total_sources} sources):\n"]
 
     for i, unit in enumerate(result.evidence, start=1):
+        num = source_offset + i
         score = f"{unit.chunk.score:.3f}" if unit.chunk.score is not None else "N/A"
         kb_label = ""
         if kb_names and unit.kb_id:
@@ -151,8 +189,8 @@ def _format_grounded_result(result: Any, kb_names: dict[str, str] | None = None)
             if name:
                 kb_label = f" [KB: {name}]"
         lines.append(
-            f"[{i}] Source: {_source_name(unit)}{kb_label} "
-            f"(relevance: {score}, alignment: {unit.query_alignment:.3f})"
+            f"[{num}] Source: {_source_name(unit)}{kb_label} "
+            f"(relevance: {score})"
         )
         if unit.citations:
             for cit in unit.citations:
