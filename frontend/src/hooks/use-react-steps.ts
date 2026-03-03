@@ -83,17 +83,24 @@ export function useReactSteps(messages: SSEMessage[], isRunning: boolean): StepI
     }
 
     // When aborted (not running, no done event), convert remaining tool_start
-    // items to tool_call so spinners and "Executing..." indicators stop.
+    // items to tool_call so spinners and "Executing..." indicators stop,
+    // and drop empty thinking steps (animated placeholders).
     if (!isRunning && !hasDone && result.length > 0) {
-      return result.map(item => {
-        if (item.event === "step") {
+      return result
+        .filter(item => {
+          if (item.event !== "step") return true
           const step = item.data as ReactStepEvent
-          if (step.type === "tool_start") {
-            return { ...item, data: { ...step, type: "tool_call" as const } }
+          return step.type !== "thinking" || !!step.reasoning
+        })
+        .map(item => {
+          if (item.event === "step") {
+            const step = item.data as ReactStepEvent
+            if (step.type === "tool_start") {
+              return { ...item, data: { ...step, type: "tool_call" as const } }
+            }
           }
-        }
-        return item
-      })
+          return item
+        })
     }
 
     // After completion, drop empty thinking steps — they were only useful as
