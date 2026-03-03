@@ -214,7 +214,24 @@ Hub          → Central cross-system orchestration (Portal / API)
 - **CRM / Contracts** (Salesforce, custom PG): Agent reads contract clauses via API Connector, performs risk analysis, generates review opinions
 - **Business DB** (MySQL / PG): Agent scans for anomalies via DB Connector, generates alerts, notifies responsible parties via Teams / WeCom (企微) / email
 
-### v0.7 -- Organization, Connector Distribution & OAuth
+### v0.7 -- SaaS Runtime & Provider Abstraction
+
+> *"Secure execution and pluggable services for multi-tenant deployment"*
+>
+> SaaS deployment means untrusted code from multiple users runs on shared infrastructure. The in-process python_exec sandbox (module blocklist + timeout) is a critical security gap — container-level or microVM isolation is required. Meanwhile, hardcoded service providers (Jina Search/Fetch) must become pluggable for global availability and provider flexibility.
+
+**Sandbox Execution Backend**
+- [ ] **Code Execution Sandbox**: Replace in-process `exec()` with container/microVM isolation for SaaS deployment; each execution runs in an isolated environment with its own filesystem and network stack; configurable backend via `CODE_EXEC_BACKEND` env var (`local` for self-hosted backward compatibility, `e2b` for SaaS via E2B Python SDK); `local` mode retains current in-process sandbox for zero-dependency self-hosted deployments
+- [ ] **Sandbox Lifecycle Management**: Sandbox pooling and reuse within a conversation session; idle timeout and cleanup; resource limits (CPU, memory, execution time) configurable per agent
+- [ ] **Shell Exec Sandboxing**: Route `shell_exec` tool through the same sandbox backend; SaaS mode executes shell commands inside sandbox, not on host
+- [ ] **Multi-Language Execution**: Sandbox kernels support Python, JavaScript, TypeScript, Bash; expose language selection in code execution tool (extend beyond Python-only)
+
+**Service Provider Abstraction**
+- [ ] **Web Search Adapter**: `BaseWebSearch` protocol with pluggable implementations — Jina Search (default, free tier), Tavily, Google Custom Search, Brave Search; configured via `SEARCH_PROVIDER` + provider-specific env vars; graceful fallback chain
+- [ ] **Web Fetch Adapter**: `BaseWebFetch` protocol — Jina Reader (default), self-hosted httpx + html2text fallback; configured via `FETCH_PROVIDER` env var
+- [ ] **Reranker Providers**: Add Cohere Reranker and OpenAI-compatible reranker implementations alongside existing Jina; configured via `RERANKER_PROVIDER` env var; `BaseReranker` interface already exists, only new implementations needed
+
+### v0.8 -- Organization, Connector Distribution & OAuth
 
 > *"Who uses what — then distribute everywhere"*
 >
@@ -240,7 +257,7 @@ Hub          → Central cross-system orchestration (Portal / API)
   - Automatic token refresh (silent refresh before expiry)
   - Works with Organization: admin configures OAuth app credentials at org level, each member authorizes individually
 
-### v0.8 -- Database Connector, Message Push & Governance
+### v0.9 -- Database Connector, Message Push & Governance
 
 > *"Not just APIs — databases, notifications, and operational safety"*
 
@@ -294,7 +311,7 @@ Hub          → Central cross-system orchestration (Portal / API)
   - DAG: Planner unsure whether to split into 2 or 3 steps → presents plan alternatives
   - DAG step: Step-level ReAct agent encounters same tool/KB ambiguity as standalone ReAct
 
-  **Relationship to other gates (all in v0.8):**
+  **Relationship to other gates (all in v0.9):**
   - Confirmation Gate: **hardcoded safety** — connector write operations require user permission (allow once / allow always / deny)
   - Plan Preview: **explicit user review** — user opts in to review every DAG plan before execution
   - Soft Gate: **intelligent safety net** — agent self-triggers only when uncertain, zero config overhead
@@ -305,11 +322,11 @@ Hub          → Central cross-system orchestration (Portal / API)
   - Agent config: `soft_gate_threshold: float` (default 0.5), `soft_gate_timeout: int` (default 30s)
   - No changes to DAG schema or tool bindings — Soft Gate is an execution-time behavior, not a configuration-time concept
 
-### v0.9 -- Blueprint Mode & Production Hardening
+### v1.0 -- Blueprint Mode & Production Hardening
 
 > *"A familiar visual shell for enterprise clients, then harden for production"*
 >
-> Enterprise clients accustomed to Dify-style visual workflows need a controllable, auditable execution model before adopting AI agents. Blueprint Mode provides the static pipeline shell — drag-and-drop nodes, per-node KB/tool/prompt binding, IF/ELSE branching — while the agent handles dynamic reasoning within each node's scope. Combined with sandbox hardening and observability, this version makes FIM Agent enterprise-deployable.
+> Enterprise clients accustomed to Dify-style visual workflows need a controllable, auditable execution model before adopting AI agents. Blueprint Mode provides the static pipeline shell — drag-and-drop nodes, per-node KB/tool/prompt binding, IF/ELSE branching — while the agent handles dynamic reasoning within each node's scope. Combined with observability and production hardening, this version makes FIM Agent enterprise-deployable.
 
 **Blueprint Mode (Static Pipeline + Dynamic Execution)**
 
@@ -344,12 +361,6 @@ Hub          → Central cross-system orchestration (Portal / API)
   - Approval Assist: application parsing → rule matching → recommendation generation → notification push
   - Templates are forkable — clients can copy and customize
 
-**Sandbox Hardening**
-- [ ] **Per-User Virtual Environment**: Each conversation spawns an isolated Python venv; user code executes via subprocess in the venv, not the host interpreter; prevents cross-session state leakage and module pollution
-- [ ] **Resource Limits**: CPU time and memory caps via `resource.setrlimit()` (Unix) for both Python exec and shell exec; prevents OOM and infinite-loop DoS
-- [ ] **File I/O Sandboxing**: Replace whitelisted `open()` in python_exec with path-validated wrapper; all file access confined to conversation sandbox directory
-- [ ] **Shell Exec Allowlist Mode**: Optional switch from command blocklist (regex-bypassable) to strict allowlist (`curl`, `grep`, `jq`, `awk`, `sed`, etc.); defense-in-depth against variable expansion / command substitution bypass
-
 **Observability**
 - [ ] **OpenTelemetry Tracing**: Full-chain tracing for LLM calls, tool execution, and Connector invocations
 - [ ] **Cost Dashboard**: Token usage aggregation by user / project / agent / model
@@ -362,7 +373,7 @@ Hub          → Central cross-system orchestration (Portal / API)
 **i18n**
 - [ ] **Chinese / English**: Frontend + backend error messages; locale auto-detection + manual switch
 
-### v1.0 -- Enterprise & Scale
+### v1.1 -- Enterprise & Scale
 
 > *"Enterprise-ready"*
 
@@ -390,8 +401,8 @@ Hub          → Central cross-system orchestration (Portal / API)
 | Level | Version | Approach |
 |-------|---------|----------|
 | **Level 1** | v0.6 | Manual/AI-created Connector, DB storage, runtime HTTP proxy |
-| **Level 2** | v0.7 | Export/Import + Fork, MCP Server export |
-| **Level 3** | v1.0 | Upload OpenAPI spec, AI auto-generates complete Connector |
+| **Level 2** | v0.8 | Export/Import + Fork, MCP Server export |
+| **Level 3** | v1.1 | Upload OpenAPI spec, AI auto-generates complete Connector |
 
 ## Multi-Tenant Model
 
@@ -424,7 +435,8 @@ Platform
 
 **P2 — Worth building if the product direction supports it**
 
-- [ ] **Advanced KB Routing Strategy**: Multi-layer knowledge base selection beyond basic node-level binding. L1: static `kb_scope` per step (whitelist within agent's `kb_ids`); L2: priority hints with trigger conditions (e.g., "prefer contract regulations KB when legal clauses are involved"); L3: optional agent dynamic selection within whitelist for large KB pools (>5). *Deferred because: basic node-level KB binding in Blueprint Mode (v0.9) covers the primary enterprise use case. Advanced routing adds value only when KB pools are large and diverse enough to warrant automated selection. Re-evaluate after Blueprint Mode ships and real usage patterns emerge.*
+- [ ] **Cost-Aware Request Routing**: Skip full Agent loop for simple queries that pattern matching can resolve; local rule-based handling to reduce LLM cost. Inspired by Ruflo's 3-Tier routing (local transform → fast model → full model). *Deferred because: the LLM call IS the core product; fast_llm + ModelRegistry already handle cost optimization; pattern-matchable queries are rare in the Connector Hub use case. Re-evaluate when request volume scales up.*
+- [ ] **Advanced KB Routing Strategy**: Multi-layer knowledge base selection beyond basic node-level binding. L1: static `kb_scope` per step (whitelist within agent's `kb_ids`); L2: priority hints with trigger conditions (e.g., "prefer contract regulations KB when legal clauses are involved"); L3: optional agent dynamic selection within whitelist for large KB pools (>5). *Deferred because: basic node-level KB binding in Blueprint Mode (v1.0) covers the primary enterprise use case. Advanced routing adds value only when KB pools are large and diverse enough to warrant automated selection. Re-evaluate after Blueprint Mode ships and real usage patterns emerge.*
 - [ ] **Dify Workflow Migration**: Import Dify workflow export JSON and map to FIM Agent Blueprint templates — node type mapping (LLM → Action, Knowledge Retrieval → Action with KB scope, Code → python_exec, HTTP Request → connector, IF/ELSE → Condition), KB mapping wizard, variable mapping, migration report with clean/approximate/unsupported classification. *Deferred because: Blueprint Mode already serves as a Dify replacement for new pipelines. Migration tooling only matters when clients have a significant existing Dify workflow investment they refuse to rebuild. Build on demand when a concrete client migration project materializes.*
 
 **P3 — Deferred indefinitely; being absorbed by LLM providers or already solved**
