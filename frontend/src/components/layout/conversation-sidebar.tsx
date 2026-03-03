@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Trash2, Loader2, Search, Star, MoreHorizontal, Pencil } from "lucide-react"
+import { Plus, Trash2, Loader2, Search, Star, MoreHorizontal, Pencil, MessagesSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import Link from "next/link"
 import { useConversation } from "@/contexts/conversation-context"
 import { ChatSearchDialog } from "@/components/layout/chat-search-dialog"
 import type { ConversationResponse } from "@/types/conversation"
@@ -188,62 +189,72 @@ export function ConversationSidebar({ collapsed, hideHeader }: ConversationSideb
                 No conversations yet
               </div>
             ) : (
-              groups.map((group) => (
-                <div key={group.label} className="mb-3">
-                  <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wider">
-                    {group.label}
-                  </div>
-                  {group.items.map((conv) => (
-                    <div
-                      key={conv.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => handleSelectConversation(conv.id)}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleSelectConversation(conv.id) }}
-                      className={cn(
-                        "group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors text-left cursor-pointer",
-                        activeId === conv.id
-                          ? "bg-accent text-accent-foreground"
-                          : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground",
-                      )}
-                    >
-                      <span className="flex-1 truncate text-[13px]">
-                        {conv.title || "Untitled"}
-                      </span>
-                      <span className="shrink-0 text-[10px] text-muted-foreground/40 font-normal select-none">
-                        {conv.mode === "react" ? "ReAct" : conv.mode === "dag" ? "DAG" : conv.mode}
-                      </span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            onClick={(e) => e.stopPropagation()}
-                            className="shrink-0 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity rounded p-0.5 hover:bg-accent"
-                          >
-                            <MoreHorizontal className="h-3.5 w-3.5" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-36">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openRename(conv) }}>
-                            <Pencil className="h-3.5 w-3.5 mr-2" />
-                            Rename
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toggleStar(conv.id) }}>
-                            <Star className={cn("h-3.5 w-3.5 mr-2", conv.starred && "fill-yellow-500 text-yellow-500")} />
-                            {conv.starred ? "Unstar" : "Star"}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => { e.stopPropagation(); setPendingDeleteId(conv.id) }}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="h-3.5 w-3.5 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+              <>
+                {groups.map((group) => (
+                  <div key={group.label} className="mb-3">
+                    <div className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wider">
+                      {group.label}
                     </div>
-                  ))}
-                </div>
-              ))
+                    {group.items.map((conv) => (
+                      <div
+                        key={conv.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleSelectConversation(conv.id)}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleSelectConversation(conv.id) }}
+                        className={cn(
+                          "group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors text-left cursor-pointer",
+                          activeId === conv.id
+                            ? "bg-accent text-accent-foreground"
+                            : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground",
+                        )}
+                      >
+                        <span className="flex-1 truncate text-[13px]">
+                          {conv.title || "Untitled"}
+                        </span>
+                        <span className="shrink-0 text-[10px] text-muted-foreground/40 font-normal select-none">
+                          {conv.mode === "react" ? "ReAct" : conv.mode === "dag" ? "DAG" : conv.mode}
+                        </span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              onClick={(e) => e.stopPropagation()}
+                              className="shrink-0 opacity-0 group-hover:opacity-70 hover:!opacity-100 transition-opacity rounded p-0.5 hover:bg-accent"
+                            >
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-36">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openRename(conv) }}>
+                              <Pencil className="h-3.5 w-3.5 mr-2" />
+                              Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toggleStar(conv.id) }}>
+                              <Star className={cn("h-3.5 w-3.5 mr-2", conv.starred && "fill-yellow-500 text-yellow-500")} />
+                              {conv.starred ? "Unstar" : "Star"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => { e.stopPropagation(); setPendingDeleteId(conv.id) }}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                {/* Bottom "All Chats" link */}
+                <Link
+                  href="/chats"
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 mt-1 text-xs text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent/50 transition-colors"
+                >
+                  <MessagesSquare className="h-3.5 w-3.5" />
+                  All Chats
+                </Link>
+              </>
             )}
           </div>
         </ScrollArea>

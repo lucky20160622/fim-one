@@ -144,12 +144,12 @@ export default function ChatsPage() {
     try {
       const ids = Array.from(selectedIds)
       await conversationApi.batchDelete(ids)
-      setConversations((prev) => prev.filter((c) => !selectedIds.has(c.id)))
-      setTotal((prev) => prev - ids.length)
       setSelectedIds(new Set())
       setSelectMode(false)
       setDeleteDialogOpen(false)
       loadConversations()
+      // Refetch page 1 so the main content area shows remaining data
+      await fetchPage(1, debouncedQuery, false)
     } catch (err) {
       console.error("Failed to batch delete:", err)
     } finally {
@@ -166,11 +166,11 @@ export default function ChatsPage() {
     setDeleting(true)
     try {
       await conversationApi.delete(singleDeleteId)
-      setConversations((prev) => prev.filter((c) => c.id !== singleDeleteId))
-      setTotal((prev) => prev - 1)
       setSingleDeleteId(null)
       setDeleteDialogOpen(false)
       loadConversations()
+      // Refetch page 1 so the main content area shows remaining data
+      await fetchPage(1, debouncedQuery, false)
     } catch (err) {
       console.error("Failed to delete conversation:", err)
     } finally {
