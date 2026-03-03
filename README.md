@@ -138,6 +138,7 @@ FIM Agent doesn't do BPM/FSM — workflow logic belongs to the target system, Co
 - **JWT Auth** — Token-based SSE auth, conversation ownership, per-user resource isolation.
 - **Agent Management** — Create, configure, and publish agents with bound models, tools, and instructions.
 - **Personal Center** — Per-user global system instructions, applied across all conversations.
+- **Language Preference** — Per-user language setting (auto/en/zh) that directs all LLM responses to the chosen language.
 
 #### Context & Memory
 - **LLM Compact** — Automatic LLM-powered summarization to stay within token budgets.
