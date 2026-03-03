@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { LogOut, Settings } from "lucide-react"
+import { Globe, LogOut, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { APP_VERSION } from "@/lib/constants"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -11,22 +11,45 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/contexts/auth-context"
+import { authApi } from "@/lib/api"
 
 interface UserMenuProps {
   collapsed: boolean
 }
 
+const LANGUAGE_OPTIONS = [
+  { value: "auto", label: "Auto" },
+  { value: "en", label: "English" },
+  { value: "zh", label: "中文" },
+] as const
+
 export function UserMenu({ collapsed }: UserMenuProps) {
-  const { user, logout } = useAuth()
+  const { user, logout, updateUser } = useAuth()
   const router = useRouter()
 
   if (!user) return null
 
   const displayLabel = user.display_name || user.username
   const initial = displayLabel.charAt(0).toUpperCase()
+
+  const handleLanguageChange = async (value: string) => {
+    try {
+      const updated = await authApi.updateProfile({ preferred_language: value })
+      if (updated) {
+        updateUser({ preferred_language: value as "auto" | "en" | "zh" })
+      }
+    } catch {
+      // Silently fail — user will see old value
+    }
+  }
 
   return (
     <DropdownMenu>
@@ -61,6 +84,24 @@ export function UserMenu({ collapsed }: UserMenuProps) {
           <Settings className="h-4 w-4" />
           Settings
         </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Globe className="h-4 w-4" />
+            Language
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup
+              value={user.preferred_language || "auto"}
+              onValueChange={handleLanguageChange}
+            >
+              {LANGUAGE_OPTIONS.map((opt) => (
+                <DropdownMenuRadioItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={logout}>
           <LogOut className="h-4 w-4" />

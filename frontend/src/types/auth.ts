@@ -11,6 +11,7 @@ export interface UserInfo {
   display_name: string | null
   is_admin: boolean
   system_instructions?: string | null
+  preferred_language?: "auto" | "en" | "zh"
   oauth_provider?: string | null
   email?: string | null
   has_password?: boolean

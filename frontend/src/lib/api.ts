@@ -31,6 +31,7 @@ import type {
   AIGenerateActionsRequest,
   AIRefineActionRequest,
   AIActionResult,
+  AICreateConnectorResult,
 } from "@/types/connector"
 
 // --- Auth failure callback ---
@@ -155,7 +156,7 @@ export const authApi = {
       body: JSON.stringify({ refresh_token: refreshToken }),
     }),
 
-  updateProfile: (body: { system_instructions?: string | null; display_name?: string | null; email?: string | null }) =>
+  updateProfile: (body: { system_instructions?: string | null; display_name?: string | null; email?: string | null; preferred_language?: string | null }) =>
     apiFetch<ApiResponse<UserInfo>>("/api/auth/profile", {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -476,6 +477,12 @@ export const connectorApi = {
   aiRefineAction: (connectorId: string, body: AIRefineActionRequest) =>
     apiFetch<ApiResponse<AIActionResult>>(
       `/api/connectors/${connectorId}/ai/refine-action`,
+      { method: "POST", body: JSON.stringify(body) },
+    ).then((r) => r.data),
+
+  aiCreateConnector: (body: { instruction: string }) =>
+    apiFetch<ApiResponse<AICreateConnectorResult>>(
+      `/api/connectors/ai/create`,
       { method: "POST", body: JSON.stringify(body) },
     ).then((r) => r.data),
 }
