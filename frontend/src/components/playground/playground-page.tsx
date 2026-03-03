@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Send, Loader2, PanelRightOpen, PanelRightClose, ArrowDown, Square, Zap, GitBranch, User, Paperclip, X, Plus, ChevronsUpDown, Check, Undo2 } from "lucide-react"
+import { toast } from "sonner"
 import { useSSE } from "@/hooks/use-sse"
 import { useDagSteps } from "@/hooks/use-dag-steps"
 import { useReactSteps } from "@/hooks/use-react-steps"
@@ -84,6 +85,7 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
   const [pendingMode, setPendingMode] = useState<AgentMode | null>(null)
   const { messages, isRunning, start, reset, abort } = useSSE()
   const [injectedMessages, setInjectedMessages] = useState<{id?: string; content: string; ts: number}[]>([])
+  const failedInjectRef = useRef<string | null>(null)
 
   // Ref to track conversation IDs we created ourselves (via send),
   // so the "switch conversation" effect doesn't reset SSE for them.
@@ -185,6 +187,13 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
       sseJustFinishedRef.current = false
       setInjectedMessages([])
       loadConversations()
+      // Restore failed inject content to input box for user to re-send
+      const queued = failedInjectRef.current
+      if (queued) {
+        failedInjectRef.current = null
+        setQuery(queued)
+        toast.warning("Message couldn't be injected — press Enter to send as a new turn.")
+      }
     }
   }, [isRunning]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -205,7 +214,9 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
           // Store the backend-assigned id for recall support
           setInjectedMessages(prev => prev.map(m => m.ts === ts ? { ...m, id: res.id } : m))
         } catch {
-          // 409 = execution already finished, silently ignore
+          // 409 = execution already finished — restore to input for user to re-send
+          setInjectedMessages(prev => prev.filter(m => m.ts !== ts))
+          failedInjectRef.current = trimmed
         }
         return
       }
@@ -950,7 +961,7 @@ function PlaygroundContent({
                       )
                     })
                     .map((msg) => (
-                    <div key={msg.ts} className={`group flex items-center gap-3 ${msg.id ? "inject-breathe" : "animate-pulse"}`}>
+                    <div key={msg.ts} className={`flex items-center gap-3 ${msg.id ? "inject-breathe" : "animate-pulse"}`}>
                       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
                         <User className="h-3.5 w-3.5 text-primary" />
                       </div>
@@ -960,7 +971,7 @@ function PlaygroundContent({
                           {msg.id ? (
                             <button
                               onClick={() => onRecallInject(msg)}
-                              className="hidden group-hover:inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                              className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/50 hover:text-destructive transition-colors"
                             >
                               <Undo2 className="h-2.5 w-2.5" />
                               Recall
