@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MarkdownContent } from "@/lib/markdown"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Loader2, Wrench, Brain, CheckCircle2, Clock, RefreshCw, BarChart3, ChevronDown, ChevronUp, Sparkles, User } from "lucide-react"
 import { fmtDuration } from "@/lib/utils"
 import type { ReactStepEvent, ReactDoneEvent } from "@/types/api"
@@ -140,24 +140,8 @@ export function ReactOutput({ items, onSuggestionSelect }: ReactOutputProps) {
   )
 }
 
-const THINKING_HINTS = [
-  "Understanding your question...",
-  "Analyzing the task...",
-  "Selecting the best approach...",
-  "Preparing tool calls...",
-]
-
 function ThinkingCard({ iterLabel, duration, reasoning }: { iterLabel: number; duration?: number; reasoning?: string }) {
-  const [hintIdx, setHintIdx] = useState(0)
   const isWaiting = !reasoning && duration == null
-
-  useEffect(() => {
-    if (!isWaiting) return
-    const timer = setInterval(() => {
-      setHintIdx((i) => (i + 1) % THINKING_HINTS.length)
-    }, 2000)
-    return () => clearInterval(timer)
-  }, [isWaiting])
 
   return (
     <Card className="border-amber-500/20 py-4">
@@ -187,9 +171,9 @@ function ThinkingCard({ iterLabel, duration, reasoning }: { iterLabel: number; d
           )}
         </div>
         {isWaiting && (
-          <p className="text-xs text-muted-foreground leading-relaxed pl-9 transition-opacity duration-500">
+          <p className="text-xs text-muted-foreground leading-relaxed pl-9">
             <Loader2 className="inline h-3 w-3 animate-spin mr-1.5 align-text-bottom" />
-            {THINKING_HINTS[hintIdx]}
+            <span className="shiny-text">Processing...</span>
           </p>
         )}
         {reasoning && (
