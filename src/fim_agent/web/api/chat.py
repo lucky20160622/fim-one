@@ -53,12 +53,16 @@ from fim_agent.core.tool import ToolRegistry
 
 from ..deps import (
     get_context_budget,
+    get_dag_max_replan_rounds,
+    get_dag_replan_stop_confidence,
+    get_dag_step_max_iterations,
     get_fast_context_budget,
     get_fast_llm,
     get_llm,
     get_llm_from_config,
     get_max_concurrency,
     get_model_registry,
+    get_react_max_iterations,
     get_tools,
 )
 from fim_agent.db import get_session
@@ -135,13 +139,6 @@ def get_interrupt_queue(conversation_id: str) -> InterruptQueue | None:
     return _interrupt_queues.get(conversation_id)
 
 router = APIRouter(prefix="/api")
-
-# ---------------------------------------------------------------------------
-# DAG re-planning constants
-# ---------------------------------------------------------------------------
-
-MAX_REPLAN_ROUNDS = 3
-REPLAN_STOP_CONFIDENCE = 0.8
 
 # ---------------------------------------------------------------------------
 # SSE helper
@@ -306,11 +303,15 @@ async def _validate_conversation_ownership(
 
 
 async def _resolve_agent_config(
-    agent_id: str | None, conversation_id: str | None,
+    agent_id: str | None,
+    conversation_id: str | None,
+    user_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Load agent configuration from DB.
 
     Resolution priority: explicit ``agent_id`` > conversation's bound agent.
+    When *user_id* is provided, the agent must belong to that user (returns
+    ``None`` otherwise) to prevent cross-user agent access.
     Returns a dict with ``instructions``, ``tool_categories``,
     ``model_config_json``, ``kb_ids``, and ``grounding_config``, or ``None``.
     """
@@ -334,9 +335,10 @@ async def _resolve_agent_config(
         return None
 
     async with create_session() as session:
-        result = await session.execute(
-            sa_select(Agent).where(Agent.id == resolved_id)
-        )
+        stmt = sa_select(Agent).where(Agent.id == resolved_id)
+        if user_id:
+            stmt = stmt.where(Agent.user_id == user_id)
+        result = await session.execute(stmt)
         agent = result.scalar_one_or_none()
         if agent is None:
             return None
@@ -421,11 +423,14 @@ async def _resolve_tools(
 
         try:
             async with create_session() as session:
-                result = await session.execute(
+                stmt = (
                     select(ConnectorModel)
                     .options(selectinload(ConnectorModel.actions))
                     .where(ConnectorModel.id.in_(connector_ids))
                 )
+                if user_id:
+                    stmt = stmt.where(ConnectorModel.user_id == user_id)
+                result = await session.execute(stmt)
                 connectors = result.scalars().all()
                 for conn in connectors:
                     for action in (conn.actions or []):
@@ -613,7 +618,7 @@ async def react_endpoint(
     if conversation_id and current_user_id:
         await _validate_conversation_ownership(conversation_id, current_user_id)
 
-    agent_cfg = await _resolve_agent_config(agent_id, conversation_id)
+    agent_cfg = await _resolve_agent_config(agent_id, conversation_id, user_id=current_user_id)
     llm = _resolve_llm(agent_cfg)
     tools = await _resolve_tools(agent_cfg, conversation_id, user_id=current_user_id)
     agent_instructions = agent_cfg["instructions"] if agent_cfg else None
@@ -753,7 +758,7 @@ async def react_endpoint(
                 llm=llm,
                 tools=tools,
                 extra_instructions=extra_instructions,
-                max_iterations=20,
+                max_iterations=get_react_max_iterations(),
                 memory=memory,
                 context_guard=context_guard,
             )
@@ -927,7 +932,7 @@ async def dag_endpoint(
     if conversation_id and current_user_id:
         await _validate_conversation_ownership(conversation_id, current_user_id)
 
-    agent_cfg = await _resolve_agent_config(agent_id, conversation_id)
+    agent_cfg = await _resolve_agent_config(agent_id, conversation_id, user_id=current_user_id)
     llm = _resolve_llm(agent_cfg)
     tools = await _resolve_tools(agent_cfg, conversation_id, user_id=current_user_id)
     agent_instructions = agent_cfg["instructions"] if agent_cfg else None
@@ -1087,7 +1092,16 @@ async def dag_endpoint(
             analysis: AnalysisResult | None = None
             cumulative_usage: UsageSummary | None = None
 
-            for round_num in range(1, MAX_REPLAN_ROUNDS + 1):
+            max_replan_rounds = get_dag_max_replan_rounds()
+            replan_stop_confidence = get_dag_replan_stop_confidence()
+            dag_step_max_iters = get_dag_step_max_iterations()
+
+            round_num = 0
+            autonomous_replans = 0
+            inject_in_round = False
+            while True:
+                round_num += 1
+                inject_in_round = False
                 # -- Build replan context from previous round's results ----
                 replan_context = ""
                 if plan is not None and analysis is not None:
@@ -1105,6 +1119,7 @@ async def dag_endpoint(
                         sse_events.append({"event": "inject", "data": inject_payload})
                         yield _sse("inject", inject_payload)
                         enriched_query += f"\n\n[User follow-up]: {injected.content}"
+                        inject_in_round = True
 
                 # Phase 1: Plan (smart LLM)
                 yield _emit(
@@ -1159,17 +1174,19 @@ async def dag_endpoint(
                     llm=fast_llm,
                     tools=tools,
                     extra_instructions=extra_instructions,
-                    max_iterations=15,
+                    max_iterations=dag_step_max_iters,
                     memory=dag_memory,
                     context_guard=dag_context_guard,
                 )
                 registry = get_model_registry()
+                exec_stop_event = asyncio.Event()
                 executor = DAGExecutor(
                     agent=agent,
                     max_concurrency=get_max_concurrency(),
                     model_registry=registry,
                     context_guard=dag_context_guard,
                     original_goal=enriched_query,
+                    stop_event=exec_stop_event,
                 )
 
                 # Capture plan in closure to avoid late-binding issues
@@ -1194,6 +1211,19 @@ async def dag_endpoint(
                             with suppress(asyncio.CancelledError, TimeoutError, Exception):
                                 await asyncio.wait_for(exec_task, timeout=5.0)
                             return
+                        # Drain inject queue during execution for real-time feedback.
+                        if dag_interrupt_queue is not None:
+                            for injected in dag_interrupt_queue.drain():
+                                inject_payload = {
+                                    "type": "inject",
+                                    "content": injected.content,
+                                    "phase": "executing",
+                                }
+                                sse_events.append({"event": "inject", "data": inject_payload})
+                                yield _sse("inject", inject_payload)
+                                enriched_query += f"\n\n[User follow-up]: {injected.content}"
+                                inject_in_round = True
+                                exec_stop_event.set()
                         now = time.time()
                         if now - last_keepalive >= 15.0:
                             yield ": keepalive\n\n"
@@ -1247,6 +1277,7 @@ async def dag_endpoint(
                         sse_events.append({"event": "inject", "data": inject_payload})
                         yield _sse("inject", inject_payload)
                         enriched_query += f"\n\n[User follow-up]: {injected.content}"
+                        inject_in_round = True
 
                 # Phase 3: Analyze (smart LLM)
                 yield _emit(
@@ -1289,28 +1320,45 @@ async def dag_endpoint(
                 # -- Check if goal achieved or confident enough ------------
                 if analysis.achieved:
                     break
-                # High confidence that goal cannot be achieved — stop wasting tokens
-                if not analysis.achieved and analysis.confidence >= REPLAN_STOP_CONFIDENCE:
-                    logger.info(
-                        "DAG round %d: goal not achieved with high confidence (%.1f), "
-                        "stopping re-planning",
-                        round_num,
-                        analysis.confidence,
-                    )
-                    break
 
-                if round_num < MAX_REPLAN_ROUNDS:
-                    yield _emit(
-                        sse_events,
-                        "phase",
-                        {
-                            "name": "replanning",
-                            "status": "start",
-                            "round": round_num,
-                            "reason": analysis.reasoning,
-                        },
+                if inject_in_round:
+                    # User-initiated replan — always allowed, does not
+                    # consume autonomous replan budget.
+                    logger.info(
+                        "DAG round %d: user inject triggered replan",
+                        round_num,
                     )
-                # Otherwise loop continues to next round
+                else:
+                    # Autonomous replan — subject to budget and confidence gate.
+                    autonomous_replans += 1
+                    if autonomous_replans >= max_replan_rounds - 1:
+                        logger.info(
+                            "DAG round %d: autonomous replan budget exhausted (%d/%d)",
+                            round_num,
+                            autonomous_replans,
+                            max_replan_rounds - 1,
+                        )
+                        break
+                    if analysis.confidence >= replan_stop_confidence:
+                        logger.info(
+                            "DAG round %d: goal not achieved with high confidence (%.1f), "
+                            "stopping re-planning",
+                            round_num,
+                            analysis.confidence,
+                        )
+                        break
+
+                yield _emit(
+                    sse_events,
+                    "phase",
+                    {
+                        "name": "replanning",
+                        "status": "start",
+                        "round": round_num,
+                        "reason": analysis.reasoning,
+                    },
+                )
+                # Loop continues to next round
 
             # -- After loop: build answer and persist ----------------------
             # plan and analysis are guaranteed set (at least 1 iteration ran)

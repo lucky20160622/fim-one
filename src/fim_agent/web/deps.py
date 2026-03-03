@@ -75,6 +75,26 @@ def get_max_concurrency() -> int:
     return int(os.environ.get("MAX_CONCURRENCY", "5"))
 
 
+def get_dag_max_replan_rounds() -> int:
+    """Max autonomous replan rounds for DAG mode (env: DAG_MAX_REPLAN_ROUNDS)."""
+    return int(os.environ.get("DAG_MAX_REPLAN_ROUNDS", "3"))
+
+
+def get_dag_replan_stop_confidence() -> float:
+    """Confidence threshold to stop DAG re-planning (env: DAG_REPLAN_STOP_CONFIDENCE)."""
+    return float(os.environ.get("DAG_REPLAN_STOP_CONFIDENCE", "0.8"))
+
+
+def get_dag_step_max_iterations() -> int:
+    """Max ReAct iterations per DAG step (env: DAG_STEP_MAX_ITERATIONS)."""
+    return int(os.environ.get("DAG_STEP_MAX_ITERATIONS", "15"))
+
+
+def get_react_max_iterations() -> int:
+    """Max iterations for ReAct agent mode (env: REACT_MAX_ITERATIONS)."""
+    return int(os.environ.get("REACT_MAX_ITERATIONS", "20"))
+
+
 # Reserve for system prompt + tool descriptions in the context window.
 _SYSTEM_PROMPT_RESERVE = 4_000
 

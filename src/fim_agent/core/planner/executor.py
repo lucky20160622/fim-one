@@ -52,12 +52,14 @@ class DAGExecutor:
         model_registry: ModelRegistry | None = None,
         context_guard: ContextGuard | None = None,
         original_goal: str | None = None,
+        stop_event: asyncio.Event | None = None,
     ) -> None:
         self._agent = agent
         self._max_concurrency = max_concurrency
         self._model_registry = model_registry
         self._context_guard = context_guard
         self._original_goal = original_goal
+        self._stop_event = stop_event
 
     async def execute(
         self,
@@ -87,6 +89,17 @@ class DAGExecutor:
         running_tasks: dict[asyncio.Task[None], str] = {}
 
         while pending_ids or running_tasks:
+            # If stop was requested (user inject), skip all remaining pending steps.
+            if self._stop_event is not None and self._stop_event.is_set() and pending_ids:
+                for sid in sorted(pending_ids):
+                    step_index[sid].status = "skipped"
+                    self._notify(sid, "completed", {
+                        "task": step_index[sid].task,
+                        "status": "skipped",
+                        "result": "Skipped — user changed requirements",
+                    })
+                pending_ids.clear()
+
             # Identify steps that are ready to launch (sorted for deterministic order).
             ready_ids: list[str] = sorted(
                 (sid for sid in pending_ids
