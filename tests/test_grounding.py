@@ -82,17 +82,16 @@ def test_confidence_computation():
     )
 
     units = [
-        EvidenceUnit(chunk=_make_doc("a", 0.8), query_alignment=0.9, rank=0),
-        EvidenceUnit(chunk=_make_doc("b", 0.7), query_alignment=0.8, rank=1),
-        EvidenceUnit(chunk=_make_doc("c", 0.6), query_alignment=0.7, rank=2),
+        EvidenceUnit(chunk=_make_doc("a", 0.8), rank=0),
+        EvidenceUnit(chunk=_make_doc("b", 0.7), rank=1),
+        EvidenceUnit(chunk=_make_doc("c", 0.6), rank=2),
     ]
 
     confidence = pipeline._compute_confidence(units)
 
     avg_retrieval = (0.8 + 0.7 + 0.6) / 3
-    avg_alignment = (0.9 + 0.8 + 0.7) / 3
     coverage = min(3 / 10, 1.0)
-    expected = (avg_retrieval * 0.4) + (avg_alignment * 0.4) + (coverage * 0.2)
+    expected = (avg_retrieval * 0.75) + (coverage * 0.25)
 
     assert abs(confidence - expected) < 1e-9
 
@@ -114,13 +113,13 @@ def test_confidence_coverage_capped_at_1():
     )
 
     units = [
-        EvidenceUnit(chunk=_make_doc("a", 1.0), query_alignment=1.0, rank=0),
-        EvidenceUnit(chunk=_make_doc("b", 1.0), query_alignment=1.0, rank=1),
-        EvidenceUnit(chunk=_make_doc("c", 1.0), query_alignment=1.0, rank=2),
+        EvidenceUnit(chunk=_make_doc("a", 1.0), rank=0),
+        EvidenceUnit(chunk=_make_doc("b", 1.0), rank=1),
+        EvidenceUnit(chunk=_make_doc("c", 1.0), rank=2),
     ]
 
     # coverage = min(3/2, 1.0) = 1.0
-    # confidence = (1.0 * 0.4) + (1.0 * 0.4) + (1.0 * 0.2) = 1.0
+    # confidence = (1.0 * 0.75) + (1.0 * 0.25) = 1.0
     assert pipeline._compute_confidence(units) == pytest.approx(1.0, abs=1e-6)
 
 
@@ -133,12 +132,12 @@ def test_confidence_single_evidence():
     )
 
     units = [
-        EvidenceUnit(chunk=_make_doc("a", 0.5), query_alignment=0.6, rank=0),
+        EvidenceUnit(chunk=_make_doc("a", 0.5), rank=0),
     ]
 
-    # avg top3 (only 1): retrieval=0.5, alignment=0.6
+    # avg top3 (only 1): retrieval=0.5
     # coverage = 1/5 = 0.2
-    expected = (0.5 * 0.4) + (0.6 * 0.4) + (0.2 * 0.2)
+    expected = (0.5 * 0.75) + (0.2 * 0.25)
     assert pipeline._compute_confidence(units) == pytest.approx(expected, abs=1e-6)
 
 
@@ -215,8 +214,9 @@ async def test_citation_extraction_with_llm():
 
     llm = AsyncMock()
     llm_response = MagicMock()
+    # Batched format: JSON object keyed by chunk index
     llm_response.message.content = (
-        '[{"text": "Python is a programming language", "char_offset": 0}]'
+        '{"0": [{"text": "Python is a programming language", "char_offset": 0}]}'
     )
     llm.chat = AsyncMock(return_value=llm_response)
 
@@ -243,6 +243,106 @@ async def test_citation_extraction_with_llm():
 
 
 @pytest.mark.asyncio
+async def test_citation_extraction_with_fenced_json():
+    """LLM response wrapped in ```json ... ``` fences should be parsed correctly."""
+    content = "Python is a programming language. It was created by Guido van Rossum."
+    doc = _make_doc(content, 0.9, {
+        "chunk_id": "c1",
+        "document_id": "d1",
+        "source": "python_intro.pdf",
+    })
+
+    llm = AsyncMock()
+    llm_response = MagicMock()
+    llm_response.message.content = (
+        '```json\n'
+        '{"0": [{"text": "Python is a programming language", "char_offset": 0}]}\n'
+        '```'
+    )
+    llm.chat = AsyncMock(return_value=llm_response)
+
+    embedding = _mock_embedding()
+    manager = AsyncMock()
+
+    pipeline = GroundingPipeline(
+        kb_manager=manager,
+        embedding=embedding,
+        llm=llm,
+    )
+
+    unit = EvidenceUnit(chunk=doc, kb_id="kb1", rank=0)
+    await pipeline._extract_citations("What is Python?", [unit])
+
+    assert len(unit.citations) == 1
+    assert unit.citations[0].text == "Python is a programming language"
+
+
+@pytest.mark.asyncio
+async def test_citation_extraction_with_prose_wrapped_json():
+    """LLM response with JSON embedded in prose should be parsed correctly."""
+    content = "Python is a programming language. It was created by Guido van Rossum."
+    doc = _make_doc(content, 0.9, {
+        "chunk_id": "c1",
+        "document_id": "d1",
+        "source": "python_intro.pdf",
+    })
+
+    llm = AsyncMock()
+    llm_response = MagicMock()
+    llm_response.message.content = (
+        'Here are the citations:\n'
+        '{"0": [{"text": "Python is a programming language", "char_offset": 0}]}\n'
+        'Hope this helps!'
+    )
+    llm.chat = AsyncMock(return_value=llm_response)
+
+    embedding = _mock_embedding()
+    manager = AsyncMock()
+
+    pipeline = GroundingPipeline(
+        kb_manager=manager,
+        embedding=embedding,
+        llm=llm,
+    )
+
+    unit = EvidenceUnit(chunk=doc, kb_id="kb1", rank=0)
+    await pipeline._extract_citations("What is Python?", [unit])
+
+    assert len(unit.citations) == 1
+    assert unit.citations[0].text == "Python is a programming language"
+
+
+@pytest.mark.asyncio
+async def test_citation_extraction_unparseable_returns_empty():
+    """When LLM returns completely unparseable content, citations should remain empty."""
+    content = "Some document content."
+    doc = _make_doc(content, 0.9, {
+        "chunk_id": "c1",
+        "document_id": "d1",
+        "source": "test.pdf",
+    })
+
+    llm = AsyncMock()
+    llm_response = MagicMock()
+    llm_response.message.content = "This is not valid JSON at all."
+    llm.chat = AsyncMock(return_value=llm_response)
+
+    embedding = _mock_embedding()
+    manager = AsyncMock()
+
+    pipeline = GroundingPipeline(
+        kb_manager=manager,
+        embedding=embedding,
+        llm=llm,
+    )
+
+    unit = EvidenceUnit(chunk=doc, kb_id="kb1", rank=0)
+    await pipeline._extract_citations("query", [unit])
+
+    assert len(unit.citations) == 0
+
+
+@pytest.mark.asyncio
 async def test_citation_extraction_fallback():
     content = "First sentence. Second sentence. Third sentence."
     doc = _make_doc(content, 0.8, {
@@ -257,7 +357,7 @@ async def test_citation_extraction_fallback():
     pipeline = GroundingPipeline(
         kb_manager=manager,
         embedding=embedding,
-        llm=None,  # No LLM → fallback mode
+        llm=None,  # No LLM -> fallback mode
     )
 
     unit = EvidenceUnit(chunk=doc, kb_id="kb1", rank=0)
@@ -277,7 +377,7 @@ async def test_citation_extraction_fallback():
 
 @pytest.mark.asyncio
 async def test_conflict_detection():
-    """Citations from different docs with high cosine similarity but low text overlap → conflict."""
+    """Citations from different docs with high cosine similarity but low text overlap -> conflict."""
     cit_a = Citation(
         text="The project started in 2020",
         document_id="d1",

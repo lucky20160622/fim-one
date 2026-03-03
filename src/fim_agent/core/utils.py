@@ -61,33 +61,30 @@ def _repair_json_strings(candidate: str) -> str:
     return ''.join(out)
 
 
-def extract_json(text: str) -> dict[str, Any] | None:
-    """Try to extract a JSON object from *text*.
+def extract_json_value(text: str) -> Any | None:
+    """Try to extract any JSON value (object, array, etc.) from *text*.
 
     Handles common LLM output patterns:
 
     1. Pure JSON string.
     2. JSON wrapped in ``\\`\\`\\`json ... \\`\\`\\``` code fences.
-    3. JSON embedded in prose (first balanced ``{`` to ``}``).
+    3. JSON embedded in prose (first balanced ``{`` to ``}`` or ``[`` to ``]``).
 
     Returns:
-        A parsed ``dict`` if a valid JSON object was found, otherwise ``None``.
+        A parsed JSON value (``dict``, ``list``, etc.) if valid JSON was found,
+        otherwise ``None``.
     """
     text = text.strip()
 
     # 1. Direct parse.
     try:
-        data = json.loads(text)
-        if isinstance(data, dict):
-            return data
+        return json.loads(text)
     except (json.JSONDecodeError, TypeError):
         pass
 
     # 1b. Direct parse with escape repair (handles LaTeX like \frac).
     try:
-        data = json.loads(_repair_json_strings(text))
-        if isinstance(data, dict):
-            return data
+        return json.loads(_repair_json_strings(text))
     except (json.JSONDecodeError, TypeError):
         pass
 
@@ -104,68 +101,79 @@ def extract_json(text: str) -> dict[str, Any] | None:
             continue
         inner = fence_match.group(1).strip()
         try:
-            data = json.loads(inner)
-            if isinstance(data, dict):
-                return data
+            return json.loads(inner)
         except (json.JSONDecodeError, TypeError):
             pass
         try:
-            data = json.loads(_repair_json_strings(inner))
-            if isinstance(data, dict):
-                return data
+            return json.loads(_repair_json_strings(inner))
         except (json.JSONDecodeError, TypeError):
             pass
 
-    # 3. Extract first balanced { ... } block.
-    #    The loop is string-aware: braces inside JSON string literals are
-    #    ignored so that values like  "f'{v:.2f}%'"  don't corrupt the
+    # 3. Extract first balanced { ... } or [ ... ] block.
+    #    The loop is string-aware: braces/brackets inside JSON string literals
+    #    are ignored so that values like  "f'{v:.2f}%'"  don't corrupt the
     #    depth counter.  After a failed candidate we continue scanning
-    #    from the next '{' instead of giving up immediately.
-    start = text.find("{")
-    while start != -1:
-        depth = 0
-        in_string = False
-        i = start
-        while i < len(text):
-            ch = text[i]
-            if in_string:
-                if ch == "\\":
-                    i += 2  # skip escaped character
-                    continue
-                elif ch == '"':
-                    in_string = False
-            else:
-                if ch == '"':
-                    in_string = True
-                elif ch == "{":
-                    depth += 1
-                elif ch == "}":
-                    depth -= 1
-                    if depth == 0:
-                        candidate = text[start : i + 1]
-                        try:
-                            data = json.loads(candidate)
-                            if isinstance(data, dict):
-                                return data
-                        except (json.JSONDecodeError, TypeError):
-                            pass
+    #    from the next opening char instead of giving up immediately.
+    for open_ch, close_ch in ("{", "}"), ("[", "]"):
+        start = text.find(open_ch)
+        while start != -1:
+            depth = 0
+            in_string = False
+            i = start
+            while i < len(text):
+                ch = text[i]
+                if in_string:
+                    if ch == "\\":
+                        i += 2  # skip escaped character
+                        continue
+                    elif ch == '"':
+                        in_string = False
+                else:
+                    if ch == '"':
+                        in_string = True
+                    elif ch == open_ch:
+                        depth += 1
+                    elif ch == close_ch:
+                        depth -= 1
+                        if depth == 0:
+                            candidate = text[start : i + 1]
+                            try:
+                                return json.loads(candidate)
+                            except (json.JSONDecodeError, TypeError):
+                                pass
 
-                        # 3b. Repair common JSON issues inside string
-                        # values: literal newlines and invalid escape
-                        # sequences (e.g. LaTeX like \frac, \cdots).
-                        repaired = _repair_json_strings(candidate)
-                        try:
-                            data = json.loads(repaired)
-                            if isinstance(data, dict):
-                                return data
-                        except (json.JSONDecodeError, TypeError):
-                            pass
+                            # 3b. Repair common JSON issues inside string
+                            # values: literal newlines and invalid escape
+                            # sequences (e.g. LaTeX like \frac, \cdots).
+                            repaired = _repair_json_strings(candidate)
+                            try:
+                                return json.loads(repaired)
+                            except (json.JSONDecodeError, TypeError):
+                                pass
 
-                        # Candidate failed — try the next '{' in the text.
-                        break
-            i += 1
+                            # Candidate failed — try the next opening char.
+                            break
+                i += 1
 
-        # Advance to the next '{' after the current start position.
-        start = text.find("{", start + 1)
+            # Advance to the next opening char after the current start position.
+            start = text.find(open_ch, start + 1)
 
+    return None
+
+
+def extract_json(text: str) -> dict[str, Any] | None:
+    """Try to extract a JSON object from *text*.
+
+    Handles common LLM output patterns:
+
+    1. Pure JSON string.
+    2. JSON wrapped in ``\\`\\`\\`json ... \\`\\`\\``` code fences.
+    3. JSON embedded in prose (first balanced ``{`` to ``}``).
+
+    Returns:
+        A parsed ``dict`` if a valid JSON object was found, otherwise ``None``.
+    """
+    result = extract_json_value(text)
+    if isinstance(result, dict):
+        return result
     return None

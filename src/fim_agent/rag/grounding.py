@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import math
+import os
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -14,6 +14,7 @@ from typing import Any
 from fim_agent.core.embedding.base import BaseEmbedding
 from fim_agent.core.model.base import BaseLLM
 from fim_agent.core.model.types import ChatMessage
+from fim_agent.core.utils import extract_json
 from fim_agent.rag.base import Document
 from fim_agent.rag.manager import KnowledgeBaseManager
 
@@ -41,11 +42,10 @@ class Citation:
 
 @dataclass
 class EvidenceUnit:
-    """A retrieved chunk with extracted citations and alignment score."""
+    """A retrieved chunk with extracted citations."""
 
     chunk: Document
     citations: list[Citation] = field(default_factory=list)
-    query_alignment: float = 0.0
     kb_id: str = ""
     rank: int = 0
 
@@ -79,15 +79,15 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     "top_k": 10,
     "min_score": 0.3,
     "conflict_threshold": 0.85,
-    "citation_mode": "auto",
+    "citation_mode": os.environ.get("CITATION_MODE", "grounding"),
 }
 
 _CITATION_SYSTEM_PROMPT = (
-    "Given a query and a document chunk, extract exact quotes from the chunk "
-    "that answer the query.\n"
-    'Return JSON array: [{"text": "exact quote", "char_offset": N}]\n'
-    "Rules: text MUST be a verbatim substring of the chunk. "
-    "Extract 1-3 quotes max. Return [] if nothing relevant."
+    "Given a query and numbered document chunks, extract exact quotes from "
+    "each chunk that answer the query.\n"
+    'Return JSON object: {"0": [{"text": "exact quote", "char_offset": N}], "1": [...], ...}\n'
+    "Rules: text MUST be a verbatim substring of its chunk. "
+    "Extract 1-3 quotes per chunk max. Use [] if nothing relevant in a chunk."
 )
 
 
@@ -95,8 +95,8 @@ class GroundingPipeline:
     """Evidence-anchored RAG pipeline.
 
     Retrieves chunks from multiple knowledge bases, extracts verbatim
-    citations, scores alignment, detects cross-source conflicts, and
-    computes an overall confidence score.
+    citations via a single batched LLM call, optionally detects cross-source
+    conflicts (multi-KB only), and computes an overall confidence score.
     """
 
     def __init__(
@@ -120,30 +120,26 @@ class GroundingPipeline:
     async def ground(
         self, query: str, kb_ids: list[str], user_id: str
     ) -> GroundedResult:
-        """Run the full grounding pipeline.
+        """Run the grounding pipeline.
 
-        Args:
-            query: The user query.
-            kb_ids: Knowledge base IDs to search.
-            user_id: Owner of the knowledge bases.
-
-        Returns:
-            A ``GroundedResult`` containing evidence, conflicts, and
-            confidence score.
+        Stages:
+          1. Multi-KB retrieval
+          2. Citation extraction (single batched LLM call)
+          3. Cross-source conflict detection (multi-KB only)
+          4. Confidence scoring
         """
         # Stage 1 — multi-KB retrieval
         evidence = await self._multi_kb_retrieve(query, kb_ids, user_id)
 
-        # Stage 2 — citation extraction
+        # Stage 2 — citation extraction (batched)
         await self._extract_citations(query, evidence)
 
-        # Stage 3 — query-chunk alignment scoring
-        await self._score_alignment(query, evidence)
+        # Stage 3 — cross-source conflict detection (multi-KB only)
+        conflicts: list[Conflict] = []
+        if len(kb_ids) > 1:
+            conflicts = await self._detect_conflicts(evidence)
 
-        # Stage 4 — cross-source conflict detection
-        conflicts = await self._detect_conflicts(evidence)
-
-        # Stage 5 — confidence scoring
+        # Stage 4 — confidence scoring
         confidence = self._compute_confidence(evidence)
 
         return GroundedResult(
@@ -204,103 +200,106 @@ class GroundingPipeline:
         return evidence
 
     # ------------------------------------------------------------------
-    # Stage 2: Citation Extraction
+    # Stage 2: Citation Extraction (batched)
     # ------------------------------------------------------------------
 
     async def _extract_citations(
         self, query: str, evidence: list[EvidenceUnit]
     ) -> None:
+        if not evidence:
+            return
+
         use_llm = (
             self._llm is not None
-            and self._config["citation_mode"] != "simple"
+            and self._config["citation_mode"] == "grounding"
         )
-        async def _extract_one(unit: EvidenceUnit) -> None:
-            kb_id = unit.kb_id
-            doc = unit.chunk
-            chunk_id = doc.metadata.get(
-                "chunk_id", f"{kb_id}_{unit.rank}"
-            )
-            document_id = doc.metadata.get("document_id", "")
-            source_name = doc.metadata.get(
-                "source", doc.metadata.get("filename", "unknown")
-            )
-            page_number = doc.metadata.get("page_number")
 
-            if use_llm:
-                citations = await self._llm_extract(
-                    query,
-                    doc.content,
-                    document_id=document_id,
-                    kb_id=kb_id,
-                    chunk_id=chunk_id,
-                    source_name=source_name,
-                    page_number=page_number,
-                )
-            else:
-                citations = await self._fallback_extract(
-                    query,
-                    doc.content,
-                    document_id=document_id,
-                    kb_id=kb_id,
-                    chunk_id=chunk_id,
-                    source_name=source_name,
-                    page_number=page_number,
-                )
-            unit.citations = citations
+        if use_llm:
+            await self._batched_llm_extract(query, evidence)
+        else:
+            await asyncio.gather(*[
+                self._fallback_extract_one(query, unit) for unit in evidence
+            ])
 
-        await asyncio.gather(*[_extract_one(u) for u in evidence])
-
-    async def _llm_extract(
-        self,
-        query: str,
-        content: str,
-        *,
-        document_id: str,
-        kb_id: str,
-        chunk_id: str,
-        source_name: str,
-        page_number: int | None,
-    ) -> list[Citation]:
+    async def _batched_llm_extract(
+        self, query: str, evidence: list[EvidenceUnit]
+    ) -> None:
+        """Extract citations from all chunks in a single LLM call."""
         assert self._llm is not None
-        user_prompt = f"Query: {query}\nChunk: {content}"
+
+        chunks_parts = []
+        for i, unit in enumerate(evidence):
+            chunks_parts.append(f"[Chunk {i}]\n{unit.chunk.content}")
+
+        user_prompt = f"Query: {query}\n\n" + "\n\n".join(chunks_parts)
+
         result = await self._llm.chat([
             ChatMessage(role="system", content=_CITATION_SYSTEM_PROMPT),
             ChatMessage(role="user", content=user_prompt),
         ])
 
         raw = result.message.content or ""
-        citations: list[Citation] = []
-        try:
-            # Extract JSON array from response (may be wrapped in markdown)
-            match = re.search(r"\[.*\]", raw, re.DOTALL)
-            if not match:
-                return citations
-            items = json.loads(match.group())
-        except (json.JSONDecodeError, TypeError):
-            logger.warning("Failed to parse LLM citation JSON: %s", raw[:200])
-            return citations
 
-        for item in items:
-            text = item.get("text", "")
-            if not text or text not in content:
-                continue
-            offset = item.get("char_offset")
-            if offset is None:
-                offset = content.find(text)
-            citations.append(
-                Citation(
-                    text=text,
-                    document_id=document_id,
-                    kb_id=kb_id,
-                    chunk_id=chunk_id,
-                    source_name=source_name,
-                    page_number=page_number,
-                    char_offset=offset,
-                    char_end=offset + len(text) if offset is not None else None,
-                )
+        parsed = extract_json(raw)
+        if parsed is None:
+            logger.warning(
+                "Failed to parse batched citation JSON: %s", raw[:200]
             )
+            return
 
-        return citations[:3]
+        for i, unit in enumerate(evidence):
+            items = parsed.get(str(i), [])
+            if not isinstance(items, list):
+                continue
+
+            content = unit.chunk.content
+            chunk_id = unit.chunk.metadata.get(
+                "chunk_id", f"{unit.kb_id}_{unit.rank}"
+            )
+            document_id = unit.chunk.metadata.get("document_id", "")
+            source_name = unit.chunk.metadata.get(
+                "source", unit.chunk.metadata.get("filename", "unknown")
+            )
+            page_number = unit.chunk.metadata.get("page_number")
+
+            citations: list[Citation] = []
+            for item in items:
+                text = item.get("text", "")
+                if not text or text not in content:
+                    continue
+                offset = item.get("char_offset")
+                if offset is None:
+                    offset = content.find(text)
+                citations.append(
+                    Citation(
+                        text=text,
+                        document_id=document_id,
+                        kb_id=unit.kb_id,
+                        chunk_id=chunk_id,
+                        source_name=source_name,
+                        page_number=page_number,
+                        char_offset=offset,
+                        char_end=offset + len(text) if offset is not None else None,
+                    )
+                )
+            unit.citations = citations[:3]
+
+    async def _fallback_extract_one(
+        self, query: str, unit: EvidenceUnit
+    ) -> None:
+        """Fallback: sentence-level extraction for a single unit."""
+        doc = unit.chunk
+        unit.citations = await self._fallback_extract(
+            query,
+            doc.content,
+            document_id=doc.metadata.get("document_id", ""),
+            kb_id=unit.kb_id,
+            chunk_id=doc.metadata.get("chunk_id", f"{unit.kb_id}_{unit.rank}"),
+            source_name=doc.metadata.get(
+                "source", doc.metadata.get("filename", "unknown")
+            ),
+            page_number=doc.metadata.get("page_number"),
+        )
 
     async def _fallback_extract(
         self,
@@ -349,26 +348,7 @@ class GroundingPipeline:
         return citations
 
     # ------------------------------------------------------------------
-    # Stage 3: Alignment Scoring
-    # ------------------------------------------------------------------
-
-    async def _score_alignment(
-        self, query: str, evidence: list[EvidenceUnit]
-    ) -> None:
-        if not evidence:
-            return
-
-        query_vec = await self._embedding.embed_query(query)
-        chunk_texts = [e.chunk.content for e in evidence]
-        chunk_vecs = await self._embedding.embed_texts(chunk_texts)
-
-        for i, unit in enumerate(evidence):
-            unit.query_alignment = self._cosine_similarity(
-                query_vec, chunk_vecs[i]
-            )
-
-    # ------------------------------------------------------------------
-    # Stage 4: Conflict Detection
+    # Stage 3: Conflict Detection (multi-KB only)
     # ------------------------------------------------------------------
 
     async def _detect_conflicts(
@@ -376,7 +356,6 @@ class GroundingPipeline:
     ) -> list[Conflict]:
         threshold = self._config["conflict_threshold"]
 
-        # Gather all citations with their parent document_id
         all_citations: list[Citation] = []
         for unit in evidence:
             all_citations.extend(unit.citations)
@@ -415,7 +394,7 @@ class GroundingPipeline:
         return conflicts
 
     # ------------------------------------------------------------------
-    # Stage 5: Confidence Scoring
+    # Stage 4: Confidence Scoring
     # ------------------------------------------------------------------
 
     def _compute_confidence(self, evidence: list[EvidenceUnit]) -> float:
@@ -424,10 +403,9 @@ class GroundingPipeline:
 
         top3 = evidence[:3]
         avg_retrieval = sum(e.chunk.score or 0.0 for e in top3) / len(top3)
-        avg_alignment = sum(e.query_alignment for e in top3) / len(top3)
         coverage = min(len(evidence) / self._config["top_k"], 1.0)
 
-        return (avg_retrieval * 0.4) + (avg_alignment * 0.4) + (coverage * 0.2)
+        return (avg_retrieval * 0.75) + (coverage * 0.25)
 
     # ------------------------------------------------------------------
     # Helpers
