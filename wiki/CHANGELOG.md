@@ -25,6 +25,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **KB Document Management in README**: Added KB Document Management to README Key Features section
 
 ### Changed
+- **Roadmap v1.1 restructured**: Renamed from "Enterprise & Scale" to "Agent as a Service" — added Agent Publishing (published pages, API endpoints, API keys, version snapshots, custom branding), 3 delivery channels (Web App / API / Embed), access control (visitor modes, rate limiting, domain/IP restrictions), and usage analytics (per-agent dashboard, conversation logs, cost attribution); existing Connector Ecosystem and Enterprise Operations items retained
 - Sidebar "New Chat" and "Search" restyled as minimal plain buttons with hover keyboard shortcut hints (⇧⌘O / ⌘K)
 - Sidebar logo size reduced from h-6 to h-5
 - Frontend i18n moved from v0.6.2 scope to v1.0 backlog; User Language Preference (backend) remains shipped
