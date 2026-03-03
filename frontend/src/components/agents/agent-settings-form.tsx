@@ -2,49 +2,41 @@
 
 import { useState, useEffect } from "react"
 import { Check, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { kbApi, connectorApi } from "@/lib/api"
-import type { ConnectorResponse } from "@/types/connector"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { agentApi, kbApi, connectorApi } from "@/lib/api"
 import type { AgentCreate, AgentResponse } from "@/types/agent"
+import type { ConnectorResponse } from "@/types/connector"
 
 const TOOL_CATEGORIES = ["computation", "web", "filesystem", "knowledge", "mcp", "connector", "general"]
 
-interface AgentFormDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  agent: AgentResponse | null
-  onSubmit: (data: AgentCreate) => Promise<void>
-  isSubmitting: boolean
+interface AgentSettingsFormProps {
+  agent: AgentResponse | null // null = create mode
+  onSaved: (agent: AgentResponse) => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
-export function AgentFormDialog({
-  open,
-  onOpenChange,
+export function AgentSettingsForm({
   agent,
-  onSubmit,
-  isSubmitting,
-}: AgentFormDialogProps) {
+  onSaved,
+  onDirtyChange,
+}: AgentSettingsFormProps) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [instructions, setInstructions] = useState("")
   const [toolCategories, setToolCategories] = useState<string[]>([])
   const [suggestedPrompts, setSuggestedPrompts] = useState("")
   const [selectedKBs, setSelectedKBs] = useState<string[]>([])
-  const [availableKBs, setAvailableKBs] = useState<{id: string; name: string; document_count: number}[]>([])
-  const [availableConnectors, setAvailableConnectors] = useState<ConnectorResponse[]>([])
   const [selectedConnectors, setSelectedConnectors] = useState<string[]>([])
   const [confidenceThreshold, setConfidenceThreshold] = useState<number | null>(null)
 
-  // Pre-fill when editing or reset when creating
+  const [availableKBs, setAvailableKBs] = useState<{ id: string; name: string; document_count: number }[]>([])
+  const [availableConnectors, setAvailableConnectors] = useState<ConnectorResponse[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Pre-fill when agent prop changes (full sync)
   useEffect(() => {
-    if (!open) return
     if (agent) {
       setName(agent.name)
       setDescription(agent.description || "")
@@ -65,10 +57,10 @@ export function AgentFormDialog({
       setSelectedConnectors([])
       setConfidenceThreshold(null)
     }
-  }, [open, agent])
+  }, [agent])
 
+  // Load available KBs/connectors on mount
   useEffect(() => {
-    if (!open) return
     kbApi
       .list(1, 100)
       .then((d) => setAvailableKBs(d.items || []))
@@ -77,7 +69,31 @@ export function AgentFormDialog({
       .list(1, 100)
       .then((d) => setAvailableConnectors(d.items || []))
       .catch(() => setAvailableConnectors([]))
-  }, [open])
+  }, [])
+
+  // Compute and notify dirty state
+  useEffect(() => {
+    if (!onDirtyChange) return
+    if (!agent) {
+      // Create mode: dirty if user typed anything
+      onDirtyChange(name.trim() !== "")
+      return
+    }
+    const dirty =
+      name !== agent.name ||
+      description !== (agent.description || "") ||
+      instructions !== (agent.instructions || "") ||
+      JSON.stringify(toolCategories) !== JSON.stringify(agent.tool_categories || []) ||
+      suggestedPrompts !== (agent.suggested_prompts?.join("\n") || "") ||
+      JSON.stringify(selectedKBs) !== JSON.stringify(agent.kb_ids || []) ||
+      JSON.stringify(selectedConnectors) !== JSON.stringify(agent.connector_ids || []) ||
+      (() => {
+        const ct = agent.grounding_config?.confidence_threshold
+        const origCt = typeof ct === "number" ? ct : null
+        return confidenceThreshold !== origCt
+      })()
+    onDirtyChange(dirty)
+  }, [agent, name, description, instructions, toolCategories, suggestedPrompts, selectedKBs, selectedConnectors, confidenceThreshold, onDirtyChange])
 
   const toggleCategory = (cat: string) => {
     setToolCategories((prev) =>
@@ -92,39 +108,51 @@ export function AgentFormDialog({
     const trimmedName = name.trim()
     if (!trimmedName) return
 
-    const prompts = suggestedPrompts
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean)
+    setIsSubmitting(true)
+    try {
+      const prompts = suggestedPrompts
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
 
-    const data: AgentCreate = {
-      name: trimmedName,
-      description: description.trim() || null,
-      instructions: instructions.trim() || null,
-      tool_categories: toolCategories,
-      ...(prompts.length > 0 && { suggested_prompts: prompts }),
-      kb_ids: selectedKBs,
-      connector_ids: selectedConnectors,
-      ...(selectedKBs.length > 0 && confidenceThreshold != null && {
-        grounding_config: { confidence_threshold: confidenceThreshold },
-      }),
+      const data: AgentCreate = {
+        name: trimmedName,
+        description: description.trim() || null,
+        instructions: instructions.trim() || null,
+        tool_categories: toolCategories,
+        ...(prompts.length > 0 && { suggested_prompts: prompts }),
+        kb_ids: selectedKBs,
+        connector_ids: selectedConnectors,
+        ...(selectedKBs.length > 0 && confidenceThreshold != null && {
+          grounding_config: { confidence_threshold: confidenceThreshold },
+        }),
+      }
+
+      let result: AgentResponse
+      if (agent) {
+        result = await agentApi.update(agent.id, data)
+      } else {
+        result = await agentApi.create(data)
+      }
+
+      onSaved(result)
+      toast.success(agent ? "Agent updated" : "Agent created")
+    } catch (err) {
+      console.error("Failed to save agent:", err)
+      const message = err instanceof Error ? err.message : "Unknown error"
+      toast.error(`Failed to save agent: ${message}`)
+    } finally {
+      setIsSubmitting(false)
     }
-
-    await onSubmit(data)
   }
 
-  const isEditing = agent !== null
+  const inputClass =
+    "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEditing ? "Edit Agent" : "Create Agent"}
-          </DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
+      <ScrollArea className="flex-1">
+        <div className="space-y-4 pl-0.5 pr-4">
           {/* Name */}
           <div className="space-y-1.5">
             <label htmlFor="agent-name" className="text-sm font-medium">
@@ -137,7 +165,7 @@ export function AgentFormDialog({
               onChange={(e) => setName(e.target.value)}
               placeholder="My Agent"
               required
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className={inputClass}
             />
           </div>
 
@@ -356,23 +384,33 @@ export function AgentFormDialog({
             </div>
           )}
 
+          {/* Suggested Prompts */}
+          <div className="space-y-1.5">
+            <label htmlFor="agent-prompts" className="text-sm font-medium">
+              Suggested Prompts
+            </label>
+            <textarea
+              id="agent-prompts"
+              value={suggestedPrompts}
+              onChange={(e) => setSuggestedPrompts(e.target.value)}
+              placeholder="One prompt per line..."
+              rows={3}
+              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+            />
+            <p className="text-xs text-muted-foreground">
+              One prompt per line. Shown as quick-start suggestions in chat.
+            </p>
+          </div>
+        </div>
+      </ScrollArea>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting || !name.trim()}>
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isEditing ? "Save Changes" : "Create Agent"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      {/* Save button outside scroll area */}
+      <div className="flex justify-end pt-4">
+        <Button type="submit" disabled={isSubmitting || !name.trim()}>
+          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+          Save
+        </Button>
+      </div>
+    </form>
   )
 }

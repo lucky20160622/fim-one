@@ -38,3 +38,14 @@ export interface AgentUpdate {
   connector_ids?: string[]
   grounding_config?: Record<string, unknown>
 }
+
+export interface AICreateAgentResult {
+  agent: AgentResponse
+  message: string
+}
+
+export interface AIRefineAgentResult {
+  agent: AgentResponse
+  modified_fields: string[]
+  message: string
+}

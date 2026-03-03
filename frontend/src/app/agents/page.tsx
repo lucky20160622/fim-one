@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Loader2 } from "lucide-react"
+import { Plus, Loader2, Bot, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -15,8 +15,7 @@ import {
 import { useAuth } from "@/contexts/auth-context"
 import { agentApi } from "@/lib/api"
 import { AgentCard } from "@/components/agents/agent-card"
-import { AgentFormDialog } from "@/components/agents/agent-form-dialog"
-import type { AgentResponse, AgentCreate } from "@/types/agent"
+import type { AgentResponse } from "@/types/agent"
 
 export default function AgentsPage() {
   const { user, isLoading: authLoading } = useAuth()
@@ -24,9 +23,6 @@ export default function AgentsPage() {
 
   const [agents, setAgents] = useState<AgentResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingAgent, setEditingAgent] = useState<AgentResponse | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [pendingPublishId, setPendingPublishId] = useState<string | null>(null)
   const [pendingUnpublishId, setPendingUnpublishId] = useState<string | null>(null)
@@ -55,30 +51,11 @@ export default function AgentsPage() {
   }, [user, loadAgents])
 
   const handleCreate = () => {
-    setEditingAgent(null)
-    setDialogOpen(true)
+    router.push("/agents/new")
   }
 
   const handleEdit = (agent: AgentResponse) => {
-    setEditingAgent(agent)
-    setDialogOpen(true)
-  }
-
-  const handleSubmit = async (data: AgentCreate) => {
-    setIsSubmitting(true)
-    try {
-      if (editingAgent) {
-        await agentApi.update(editingAgent.id, data)
-      } else {
-        await agentApi.create(data)
-      }
-      setDialogOpen(false)
-      await loadAgents()
-    } catch (err) {
-      console.error("Failed to save agent:", err)
-    } finally {
-      setIsSubmitting(false)
-    }
+    router.push(`/agents/${agent.id}`)
   }
 
   const handleDelete = (id: string) => setPendingDeleteId(id)
@@ -128,7 +105,10 @@ export default function AgentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-border/40">
         <div>
-          <h1 className="text-lg font-semibold text-foreground">Agents</h1>
+          <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Bot className="h-5 w-5" />
+            Agents
+          </h1>
           <p className="text-sm text-muted-foreground">
             Create and manage your AI agents
           </p>
@@ -176,20 +156,14 @@ export default function AgentsPage() {
         )}
       </div>
 
-      {/* Form Dialog */}
-      <AgentFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        agent={editingAgent}
-        onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
-      />
-
       {/* Delete Confirmation */}
       <Dialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null) }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete agent?</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4" />
+              Delete agent?
+            </DialogTitle>
             <DialogDescription>
               This agent will be permanently deleted. This action cannot be undone.
             </DialogDescription>

@@ -44,3 +44,22 @@ class AgentResponse(BaseModel):
     published_at: str | None
     created_at: str
     updated_at: str | None
+
+
+class AICreateAgentRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=5000)
+
+
+class AIRefineAgentRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=2000)
+
+
+class AICreateAgentResult(BaseModel):
+    agent: AgentResponse
+    message: str = ""
+
+
+class AIRefineAgentResult(BaseModel):
+    agent: AgentResponse
+    modified_fields: list[str] = []
+    message: str = ""

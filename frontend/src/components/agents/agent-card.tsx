@@ -4,6 +4,7 @@ import { Pencil, Trash2, Globe, GlobeLock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { AgentResponse } from "@/types/agent"
 
 interface AgentCardProps {
@@ -52,43 +53,55 @@ export function AgentCard({
 
       {/* Action buttons */}
       <div className="flex items-center gap-1 -ml-1">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onEdit(agent)}
-          className="text-muted-foreground hover:text-foreground"
-          title="Edit"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => isPublished ? onUnpublish(agent.id) : onPublish(agent.id)}
-          className={cn(
-            "text-muted-foreground",
-            isPublished
-              ? "hover:text-amber-600 dark:hover:text-amber-400"
-              : "hover:text-emerald-600 dark:hover:text-emerald-400"
-          )}
-          title={isPublished ? "Unpublish" : "Publish"}
-        >
-          {isPublished ? (
-            <GlobeLock className="h-3.5 w-3.5" />
-          ) : (
-            <Globe className="h-3.5 w-3.5" />
-          )}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => onEdit(agent)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={5}>Edit</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => isPublished ? onUnpublish(agent.id) : onPublish(agent.id)}
+              className={cn(
+                "text-muted-foreground",
+                isPublished
+                  ? "hover:text-amber-600 dark:hover:text-amber-400"
+                  : "hover:text-emerald-600 dark:hover:text-emerald-400"
+              )}
+            >
+              {isPublished ? (
+                <GlobeLock className="h-3.5 w-3.5" />
+              ) : (
+                <Globe className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={5}>{isPublished ? "Unpublish" : "Publish"}</TooltipContent>
+        </Tooltip>
         <div className="flex-1" />
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onDelete(agent.id)}
-          className="text-muted-foreground hover:text-destructive"
-          title="Delete"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => onDelete(agent.id)}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={5}>Delete</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   )
