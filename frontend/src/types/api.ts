@@ -71,6 +71,8 @@ export interface DagStepProgressEvent {
   reasoning?: string
   observation?: string
   error?: string
+  /** Server-side iteration elapsed (available on iteration completion). */
+  iter_elapsed?: number
   /** Per-step token usage (available on "completed" events). */
   usage?: TokenUsage
 }

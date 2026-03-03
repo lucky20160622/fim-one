@@ -23,6 +23,8 @@ export interface StepState {
     observation?: string
     error?: string
     loading?: boolean
+    timestamp?: number
+    duration?: number
   }>
 }
 
@@ -127,6 +129,7 @@ export function useDagSteps(messages: SSEMessage[], isRunning: boolean): DagStep
               observation: undefined,
               error: undefined,
               loading: true,
+              timestamp: msg.timestamp,
             })
           } else {
             const matchIdx = state.iterations.findIndex(iter =>
@@ -135,6 +138,8 @@ export function useDagSteps(messages: SSEMessage[], isRunning: boolean): DagStep
               && iter.iteration === sp.iteration
             )
             if (matchIdx !== -1) {
+              const startTs = state.iterations[matchIdx].timestamp
+              const clientDuration = startTs != null ? (msg.timestamp - startTs) / 1000 : undefined
               state.iterations[matchIdx] = {
                 type: sp.type,
                 iteration: sp.iteration,
@@ -144,6 +149,7 @@ export function useDagSteps(messages: SSEMessage[], isRunning: boolean): DagStep
                 observation: sp.observation,
                 error: sp.error,
                 loading: false,
+                duration: sp.iter_elapsed ?? clientDuration,
               }
             } else {
               state.iterations.push({

@@ -261,17 +261,27 @@ class DAGExecutor:
         """
         query = self._build_step_query(step, context)
 
+        iter_start = 0.0
+
         def _on_iteration(
             iteration: int,
             action: Action,
             observation: str | None,
             error: str | None,
         ) -> None:
+            nonlocal iter_start
             # Skip final_answer iterations — the same content is sent via
             # the "completed" event as step.result.
             if action.type == "final_answer":
                 return
-            self._notify(step.id, "iteration", {
+            is_starting = observation is None and error is None
+            now = time.time()
+            iter_elapsed: float | None = None
+            if is_starting:
+                iter_start = now
+            else:
+                iter_elapsed = round(now - iter_start, 2)
+            payload: dict[str, Any] = {
                 "iteration": iteration,
                 "type": action.type,
                 "reasoning": action.reasoning,
@@ -279,7 +289,10 @@ class DAGExecutor:
                 "tool_args": action.tool_args,
                 "observation": observation,
                 "error": error,
-            })
+            }
+            if iter_elapsed is not None:
+                payload["iter_elapsed"] = iter_elapsed
+            self._notify(step.id, "iteration", payload)
 
         agent = self._resolve_agent(step)
 
