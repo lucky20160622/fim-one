@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from fim_agent.db import get_session
 from fim_agent.web.auth import (
@@ -54,6 +55,7 @@ def _build_user_info(user: User) -> UserInfo:
         display_name=user.display_name,
         is_admin=user.is_admin,
         system_instructions=user.system_instructions,
+        preferred_language=user.preferred_language,
         oauth_provider=user.oauth_provider,
         email=user.email,
         has_password=user.password_hash is not None,
@@ -110,6 +112,12 @@ async def register(
     )
     await db.commit()
 
+    # Reload with oauth_bindings for response serialization
+    result = await db.execute(
+        select(User).options(selectinload(User.oauth_bindings)).where(User.id == user.id)
+    )
+    user = result.scalar_one()
+
     return _build_token_response(user, access, refresh)
 
 
@@ -119,9 +127,13 @@ async def login(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> TokenResponse:
     if body.email:
-        user = await db.scalar(select(User).where(User.email == body.email))
+        user = await db.scalar(
+            select(User).options(selectinload(User.oauth_bindings)).where(User.email == body.email)
+        )
     else:
-        user = await db.scalar(select(User).where(User.username == body.username))
+        user = await db.scalar(
+            select(User).options(selectinload(User.oauth_bindings)).where(User.username == body.username)
+        )
     if user is None or user.password_hash is None or not verify_password(body.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -136,6 +148,12 @@ async def login(
         days=REFRESH_TOKEN_EXPIRE_DAYS
     )
     await db.commit()
+
+    # Reload with oauth_bindings (commit expires loaded attributes)
+    result = await db.execute(
+        select(User).options(selectinload(User.oauth_bindings)).where(User.id == user.id)
+    )
+    user = result.scalar_one()
 
     return _build_token_response(user, access, refresh)
 
@@ -159,7 +177,9 @@ async def refresh_token(
             detail="Invalid token payload",
         )
 
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(
+        select(User).options(selectinload(User.oauth_bindings)).where(User.id == user_id)
+    )
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(
@@ -192,14 +212,26 @@ async def refresh_token(
     )
     await db.commit()
 
+    # Reload with oauth_bindings (commit expires loaded attributes)
+    result = await db.execute(
+        select(User).options(selectinload(User.oauth_bindings)).where(User.id == user.id)
+    )
+    user = result.scalar_one()
+
     return _build_token_response(user, access, refresh)
 
 
 @router.get("/me", response_model=ApiResponse)
 async def me(
     current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
-    return ApiResponse(data=_build_user_info(current_user).model_dump())
+    # Reload user with oauth_bindings for response serialization
+    result = await db.execute(
+        select(User).options(selectinload(User.oauth_bindings)).where(User.id == current_user.id)
+    )
+    user = result.scalar_one()
+    return ApiResponse(data=_build_user_info(user).model_dump())
 
 
 @router.patch("/profile", response_model=ApiResponse)
@@ -214,6 +246,8 @@ async def update_profile(
         user.display_name = body.display_name or None
     if body.system_instructions is not None:
         user.system_instructions = body.system_instructions or None
+    if body.preferred_language is not None:
+        user.preferred_language = body.preferred_language
     if body.email is not None:
         if not body.email or not body.email.strip():
             raise HTTPException(
@@ -231,7 +265,12 @@ async def update_profile(
             )
         user.email = body.email
     await db.commit()
-    await db.refresh(user)
+
+    # Reload with oauth_bindings for response serialization
+    result = await db.execute(
+        select(User).options(selectinload(User.oauth_bindings)).where(User.id == user.id)
+    )
+    user = result.scalar_one()
     return ApiResponse(data=_build_user_info(user).model_dump())
 
 
@@ -274,7 +313,12 @@ async def set_password(
         )
     user.password_hash = hash_password(body.new_password)
     await db.commit()
-    await db.refresh(user)
+
+    # Reload with oauth_bindings for response serialization
+    result = await db.execute(
+        select(User).options(selectinload(User.oauth_bindings)).where(User.id == user.id)
+    )
+    user = result.scalar_one()
     return ApiResponse(data=_build_user_info(user).model_dump())
 
 
@@ -326,5 +370,10 @@ async def unbind_oauth(
         user.oauth_id = None
 
     await db.commit()
-    await db.refresh(user)
+
+    # Reload with oauth_bindings for response serialization
+    result = await db.execute(
+        select(User).options(selectinload(User.oauth_bindings)).where(User.id == user.id)
+    )
+    user = result.scalar_one()
     return ApiResponse(data=_build_user_info(user).model_dump())

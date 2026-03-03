@@ -32,17 +32,20 @@ class User(UUIDPKMixin, TimestampMixin, Base):
     refresh_token: Mapped[str | None] = mapped_column(String(500), nullable=True)
     refresh_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     system_instructions: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    preferred_language: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="auto", server_default="auto"
+    )
     oauth_provider: Mapped[str | None] = mapped_column(String(20), nullable=True)
     oauth_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    conversations: Mapped[list[Conversation]] = relationship(back_populates="user", lazy="selectin")
-    agents: Mapped[list[Agent]] = relationship(back_populates="user", lazy="selectin")
+    conversations: Mapped[list[Conversation]] = relationship(back_populates="user", lazy="raise")
+    agents: Mapped[list[Agent]] = relationship(back_populates="user", lazy="raise")
     knowledge_bases: Mapped[list[KnowledgeBase]] = relationship(
-        back_populates="user", lazy="selectin"
+        back_populates="user", lazy="raise"
     )
-    model_configs: Mapped[list[ModelConfig]] = relationship(back_populates="user", lazy="selectin")
-    connectors: Mapped[list[Connector]] = relationship(back_populates="user", lazy="selectin")
+    model_configs: Mapped[list[ModelConfig]] = relationship(back_populates="user", lazy="raise")
+    connectors: Mapped[list[Connector]] = relationship(back_populates="user", lazy="raise")
     oauth_bindings: Mapped[list[UserOAuthBinding]] = relationship(
-        back_populates="user", lazy="selectin"
+        back_populates="user", lazy="raise"
     )

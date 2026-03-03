@@ -20,6 +20,7 @@ class UserInfo(BaseModel):
     display_name: str | None = None
     is_admin: bool
     system_instructions: str | None = None
+    preferred_language: str = "auto"
     oauth_provider: str | None = None
     email: str | None = None
     has_password: bool = False
@@ -55,6 +56,7 @@ class TokenResponse(BaseModel):
 class UpdateProfileRequest(BaseModel):
     display_name: str | None = Field(None, max_length=50)
     system_instructions: str | None = Field(None, max_length=2000)
+    preferred_language: str | None = Field(None, pattern=r"^(auto|en|zh)$")
     email: str | None = Field(None, max_length=255)
 
 

@@ -161,6 +161,17 @@ def extract_json_value(text: str) -> Any | None:
     return None
 
 
+def get_language_directive(preferred_language: str | None) -> str | None:
+    """Return a language directive string, or ``None`` if *auto*."""
+    if not preferred_language or preferred_language == "auto":
+        return None
+    directives = {
+        "en": "LANGUAGE OVERRIDE: You MUST respond in English regardless of the query language.",
+        "zh": "LANGUAGE OVERRIDE: 你必须使用中文回复，无论用户使用什么语言提问。",
+    }
+    return directives.get(preferred_language)
+
+
 def extract_json(text: str) -> dict[str, Any] | None:
     """Try to extract a JSON object from *text*.
 
