@@ -78,7 +78,10 @@ async def create_model_config(
     )
     db.add(cfg)
     await db.commit()
-    await db.refresh(cfg)
+    result = await db.execute(
+        select(ModelConfig).where(ModelConfig.id == cfg.id)
+    )
+    cfg = result.scalar_one()
     return ApiResponse(data=_config_to_response(cfg).model_dump())
 
 
@@ -161,7 +164,10 @@ async def update_model_config(
         setattr(cfg, field, value)
 
     await db.commit()
-    await db.refresh(cfg)
+    result = await db.execute(
+        select(ModelConfig).where(ModelConfig.id == cfg.id)
+    )
+    cfg = result.scalar_one()
     return ApiResponse(data=_config_to_response(cfg).model_dump())
 
 

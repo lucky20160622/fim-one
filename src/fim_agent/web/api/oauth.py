@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from fim_agent.db import get_session
 from fim_agent.web.auth import (
@@ -332,8 +333,12 @@ async def _handle_login(
     user.refresh_token = jwt_refresh
     user.refresh_token_expires_at = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     await db.commit()
-    # Refresh to load updated oauth_bindings relationship
-    await db.refresh(user)
+
+    # Reload with oauth_bindings for response serialization
+    result = await db.execute(
+        select(User).options(selectinload(User.oauth_bindings)).where(User.id == user.id)
+    )
+    user = result.scalar_one()
 
     # Build user info JSON for frontend (URL-encoded)
     bindings_data = [

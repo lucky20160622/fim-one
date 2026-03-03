@@ -29,4 +29,4 @@ class Message(UUIDPKMixin, Base):
         DateTime, server_default=func.now(), nullable=False
     )
 
-    conversation: Mapped[Conversation] = relationship(back_populates="messages")
+    conversation: Mapped[Conversation] = relationship(back_populates="messages", lazy="raise")

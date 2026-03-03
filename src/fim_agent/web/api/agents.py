@@ -121,7 +121,8 @@ async def create_agent(
     )
     db.add(agent)
     await db.commit()
-    await db.refresh(agent)
+    result = await db.execute(select(Agent).where(Agent.id == agent.id))
+    agent = result.scalar_one()
     return ApiResponse(data=_agent_to_response(agent).model_dump())
 
 
@@ -187,7 +188,8 @@ async def update_agent(
         setattr(agent, field, value)
 
     await db.commit()
-    await db.refresh(agent)
+    result = await db.execute(select(Agent).where(Agent.id == agent.id))
+    agent = result.scalar_one()
     return ApiResponse(data=_agent_to_response(agent).model_dump())
 
 
@@ -213,7 +215,8 @@ async def publish_agent(
     agent.status = "published"
     agent.published_at = datetime.now(UTC)
     await db.commit()
-    await db.refresh(agent)
+    result = await db.execute(select(Agent).where(Agent.id == agent.id))
+    agent = result.scalar_one()
     return ApiResponse(data=_agent_to_response(agent).model_dump())
 
 
@@ -227,5 +230,6 @@ async def unpublish_agent(
     agent.status = "draft"
     agent.published_at = None
     await db.commit()
-    await db.refresh(agent)
+    result = await db.execute(select(Agent).where(Agent.id == agent.id))
+    agent = result.scalar_one()
     return ApiResponse(data=_agent_to_response(agent).model_dump())

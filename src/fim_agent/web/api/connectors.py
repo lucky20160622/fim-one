@@ -117,7 +117,14 @@ async def create_connector(
     )
     db.add(connector)
     await db.commit()
-    await db.refresh(connector)
+
+    # Reload with actions relationship for response serialization
+    result = await db.execute(
+        select(Connector)
+        .options(selectinload(Connector.actions))
+        .where(Connector.id == connector.id)
+    )
+    connector = result.scalar_one()
     return ApiResponse(data=_connector_to_response(connector).model_dump())
 
 
@@ -176,7 +183,14 @@ async def update_connector(
         setattr(connector, field, value)
 
     await db.commit()
-    await db.refresh(connector)
+
+    # Reload with actions relationship for response serialization
+    result = await db.execute(
+        select(Connector)
+        .options(selectinload(Connector.actions))
+        .where(Connector.id == connector.id)
+    )
+    connector = result.scalar_one()
     return ApiResponse(data=_connector_to_response(connector).model_dump())
 
 
@@ -368,7 +382,10 @@ async def create_action(
     )
     db.add(action)
     await db.commit()
-    await db.refresh(action)
+    result = await db.execute(
+        select(ConnectorAction).where(ConnectorAction.id == action.id)
+    )
+    action = result.scalar_one()
     return ApiResponse(data=_action_to_response(action).model_dump())
 
 
@@ -401,7 +418,10 @@ async def update_action(
         setattr(action, field, value)
 
     await db.commit()
-    await db.refresh(action)
+    result = await db.execute(
+        select(ConnectorAction).where(ConnectorAction.id == action.id)
+    )
+    action = result.scalar_one()
     return ApiResponse(data=_action_to_response(action).model_dump())
 
 

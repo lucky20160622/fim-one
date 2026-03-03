@@ -29,10 +29,10 @@ class Conversation(UUIDPKMixin, TimestampMixin, Base):
     model_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     total_tokens: Mapped[int] = mapped_column(Integer, default=0)
 
-    user: Mapped[User] = relationship(back_populates="conversations")
-    agent: Mapped[Agent | None] = relationship(back_populates="conversations")
+    user: Mapped[User] = relationship(back_populates="conversations", lazy="raise")
+    agent: Mapped[Agent | None] = relationship(back_populates="conversations", lazy="raise")
     messages: Mapped[list[Message]] = relationship(
         back_populates="conversation",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="raise",
     )

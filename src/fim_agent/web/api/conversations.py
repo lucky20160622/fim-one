@@ -93,7 +93,10 @@ async def create_conversation(
     )
     db.add(conv)
     await db.commit()
-    await db.refresh(conv)
+    result = await db.execute(
+        select(Conversation).where(Conversation.id == conv.id)
+    )
+    conv = result.scalar_one()
     return ApiResponse(data=_conv_to_response(conv).model_dump())
 
 
@@ -152,7 +155,9 @@ async def batch_delete_conversations(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
     result = await db.execute(
-        select(Conversation).where(
+        select(Conversation)
+        .options(selectinload(Conversation.messages))
+        .where(
             Conversation.id.in_(body.ids),
             Conversation.user_id == current_user.id,
         )
@@ -225,7 +230,10 @@ async def update_conversation(
         conv.starred = body.starred
 
     await db.commit()
-    await db.refresh(conv)
+    result = await db.execute(
+        select(Conversation).where(Conversation.id == conv.id)
+    )
+    conv = result.scalar_one()
     return ApiResponse(data=_conv_to_response(conv).model_dump())
 
 
@@ -235,7 +243,21 @@ async def delete_conversation(
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
-    conv = await _get_owned_conversation(conversation_id, current_user.id, db)
+    # Load with messages for ORM cascade delete
+    result = await db.execute(
+        select(Conversation)
+        .options(selectinload(Conversation.messages))
+        .where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id,
+        )
+    )
+    conv = result.scalar_one_or_none()
+    if conv is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found",
+        )
     await db.delete(conv)
     await db.commit()
 

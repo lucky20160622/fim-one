@@ -11,6 +11,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from fim_agent.db import get_session
 from fim_agent.web.auth import get_current_user
@@ -112,7 +113,10 @@ async def create_kb(
     )
     db.add(kb)
     await db.commit()
-    await db.refresh(kb)
+    result = await db.execute(
+        select(KnowledgeBase).where(KnowledgeBase.id == kb.id)
+    )
+    kb = result.scalar_one()
     return ApiResponse(data=_kb_to_response(kb).model_dump())
 
 
@@ -168,7 +172,10 @@ async def update_kb(
     for field, value in update_data.items():
         setattr(kb, field, value)
     await db.commit()
-    await db.refresh(kb)
+    result = await db.execute(
+        select(KnowledgeBase).where(KnowledgeBase.id == kb.id)
+    )
+    kb = result.scalar_one()
     return ApiResponse(data=_kb_to_response(kb).model_dump())
 
 
@@ -178,7 +185,18 @@ async def delete_kb(
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
-    kb = await _get_owned_kb(kb_id, current_user.id, db)
+    # Load with documents for ORM cascade delete
+    result = await db.execute(
+        select(KnowledgeBase)
+        .options(selectinload(KnowledgeBase.documents))
+        .where(KnowledgeBase.id == kb_id, KnowledgeBase.user_id == current_user.id)
+    )
+    kb = result.scalar_one_or_none()
+    if kb is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Knowledge base not found",
+        )
     # Delete vectors
     try:
         manager = get_kb_manager()
@@ -270,7 +288,10 @@ async def upload_document(
     )
     db.add(doc)
     await db.commit()
-    await db.refresh(doc)
+    result = await db.execute(
+        select(KBDocument).where(KBDocument.id == doc.id)
+    )
+    doc = result.scalar_one()
 
     # Background ingest
     asyncio.create_task(
@@ -517,7 +538,10 @@ async def create_document(
     )
     db.add(doc)
     await db.commit()
-    await db.refresh(doc)
+    result = await db.execute(
+        select(KBDocument).where(KBDocument.id == doc.id)
+    )
+    doc = result.scalar_one()
 
     # Background ingest (reuse existing pipeline)
     asyncio.create_task(

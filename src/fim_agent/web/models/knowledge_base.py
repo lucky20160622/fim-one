@@ -29,11 +29,11 @@ class KnowledgeBase(UUIDPKMixin, TimestampMixin, Base):
     total_chunks: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(String(20), default="active")
 
-    user: Mapped[User] = relationship(back_populates="knowledge_bases")
+    user: Mapped[User] = relationship(back_populates="knowledge_bases", lazy="raise")
     documents: Mapped[list[KBDocument]] = relationship(
         back_populates="knowledge_base",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="raise",
     )
 
 
@@ -52,4 +52,4 @@ class KBDocument(UUIDPKMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="processing")
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    knowledge_base: Mapped[KnowledgeBase] = relationship(back_populates="documents")
+    knowledge_base: Mapped[KnowledgeBase] = relationship(back_populates="documents", lazy="raise")

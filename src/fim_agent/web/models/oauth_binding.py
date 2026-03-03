@@ -30,4 +30,4 @@ class UserOAuthBinding(UUIDPKMixin, Base):
     display_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     bound_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    user: Mapped[User] = relationship(back_populates="oauth_bindings")
+    user: Mapped[User] = relationship(back_populates="oauth_bindings", lazy="raise")

@@ -33,9 +33,9 @@ class Connector(UUIDPKMixin, TimestampMixin, Base):
     forked_from: Mapped[str | None] = mapped_column(String(36), nullable=True)
     version: Mapped[int] = mapped_column(Integer, default=1)
 
-    user: Mapped[User] = relationship(back_populates="connectors")
+    user: Mapped[User] = relationship(back_populates="connectors", lazy="raise")
     actions: Mapped[list[ConnectorAction]] = relationship(
-        back_populates="connector", cascade="all, delete-orphan", lazy="selectin"
+        back_populates="connector", cascade="all, delete-orphan", lazy="raise"
     )
 
 
@@ -54,4 +54,4 @@ class ConnectorAction(UUIDPKMixin, TimestampMixin, Base):
     response_extract: Mapped[str | None] = mapped_column(String(200), nullable=True)
     requires_confirmation: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    connector: Mapped[Connector] = relationship(back_populates="actions")
+    connector: Mapped[Connector] = relationship(back_populates="actions", lazy="raise")
