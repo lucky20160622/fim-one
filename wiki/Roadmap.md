@@ -371,26 +371,56 @@ Hub          → Central cross-system orchestration (Portal / API)
 - [x] **User Language Preference**: `preferred_language` backend setting with language directive injection across all LLM interactions
 - [ ] **Frontend i18n**: `next-intl` integration with en/zh translation files; locale driven by `preferred_language` (auto mode falls back to `navigator.language`); all UI text externalized
 
-### v1.1 -- Enterprise & Scale
+### v1.1 -- Agent as a Service
 
-> *"Enterprise-ready"*
+> *"Expose your agents to the world"*
+>
+> Everything before this version builds the internal platform — agents, connectors, knowledge bases, governance, observability. This version turns internal agents into externally accessible services. Like Dify's app publishing: create an agent → publish → anyone can use it via Web App, API, or embedded widget. Combined with enterprise operations, this makes FIM Agent both a builder platform and a distribution platform.
+
+**Agent Publishing**
+
+> *The core capability: turn any agent into an externally accessible service with one click.*
+
+- [ ] **Published Agent Page**: Publish an agent → generates a standalone URL (`/app/{slug}`) with branded chat interface (agent icon, name, description, welcome message, suggested questions); visitors interact without needing a platform account; mobile-responsive
+- [ ] **Agent API Mode**: Per-published-agent REST + SSE endpoints (`/api/apps/{slug}/chat`); independent from internal `/api/chat` — external consumers call with API key, no platform account needed; OpenAI-compatible response format option for easy integration
+- [ ] **API Key Management**: Generate/revoke API keys per published agent; each key has its own rate limit (RPM / RPD / monthly token quota); usage tracked per key; key-level analytics
+- [ ] **Publish Controls**: Publish/unpublish toggle; draft preview before going live; version snapshot — publishing locks the current agent config (model, tools, connectors, KB, prompt), further edits don't affect the live version until re-published
+- [ ] **Custom Branding**: Per-agent landing page customization — logo, color accent, welcome message, example conversations, footer links; white-label option for enterprise tier
+
+**Delivery Channels (3 modes)**
+
+> *Same agent, three ways to reach users — just like Dify.*
+
+- [ ] **Web App Mode**: Full-featured standalone chat page at `/app/{slug}` — streaming responses, tool step display, KB citations, file upload; shareable link; optional password protection
+- [ ] **API Mode (headless)**: REST + SSE for programmatic access — `POST /api/apps/{slug}/conversations` to start, SSE stream for responses; supports both streaming and blocking modes; webhook callback for async completion notification; SDKs (Python, JS/TS)
+- [ ] **Embed Mode**: Lightweight JS widget bundle (<100KB gzip) injected via `<script>` tag; configurable position (bottom-right bubble, full sidebar, inline); theme matching (inherit host page colors or use agent branding); iframe fallback for strict CSP environments; page context injection — read current URL, DOM selectors, or custom variables passed from host page
+
+**Access Control & Security**
+
+- [ ] **Visitor Modes**: Three access levels per published agent — `open` (anonymous, anyone with the link), `link-only` (shareable link with optional expiry and usage cap), `authenticated` (require login or API key)
+- [ ] **Rate Limiting**: Per-agent rate limiting — requests per minute, requests per day, monthly token budget; separate limits for Web App visitors vs API consumers; graceful 429 responses with retry-after
+- [ ] **Domain Restrictions**: Whitelist allowed origins for Embed mode; prevent unauthorized sites from embedding your agent
+- [ ] **IP Allowlist/Blocklist**: Optional per-agent IP filtering for API mode; useful for restricting access to known client IPs
+
+**Usage Analytics**
+
+- [ ] **Per-Agent Dashboard**: Call volume, token consumption (input/output), unique visitors, average response time, error rate; time-series charts (daily/weekly/monthly); breakdown by delivery channel (Web App / API / Embed)
+- [ ] **Conversation Logs**: Browse and search conversations from published agents; filter by time, visitor, satisfaction; export CSV for analysis
+- [ ] **Cost Attribution**: Token cost breakdown by agent, by API key, by time period; alert when approaching budget limits
 
 **Connector Ecosystem**
+
 - [ ] **AI Connector Generation**: Upload Swagger/OpenAPI spec → AI auto-generates complete Connector (auth, Actions, tests)
 - [ ] **Connector Marketplace**: In-platform connector market — search, install, rate
 - [ ] **Plugin System**: Pip-installable Connector packages with entry-point auto-registration
 
 **Enterprise Operations**
+
 - [ ] **Admin Dashboard**: Audit logs, Connector management, health monitoring, usage/cost analytics
 - [ ] **Scheduled Jobs**: Cron triggers, webhook triggers — run agents on schedule or in response to external events
 - [ ] **Batch Execution**: Run an agent against multiple inputs in one job (e.g., review 100 contracts, audit 50 invoices); progress tracking, partial failure handling, result aggregation
 - [ ] **Enterprise Security**: Data encryption, IP whitelisting, SOC2 audit logging
 - [ ] **PostgreSQL**: Optional for large-scale deployments
-
-**Embeddable Delivery**
-- [ ] **Embeddable Widget**: Lightweight JS bundle (<100KB), inject via `<script>` tag into host pages
-- [ ] **Page Context Injection**: Read current context from host page (contract ID, page URL, DOM selector)
-- [ ] **iframe / Standalone URL Mode**: Authenticated standalone access for embedding
 
 ---
 
