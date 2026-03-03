@@ -333,6 +333,7 @@ Hub          → Central cross-system orchestration (Portal / API)
   - Per-node configuration: tool set binding, KB scope (which knowledge bases this node can access), system prompt / instruction template, model override, token budget
   - Conditional branches: rule-based (field value matching) or LLM-evaluated (confidence-based routing)
   - Pipeline saved as versioned JSON template; one template can be bound to multiple agents
+  - **Agent is the publishing entity** — Blueprint defines *how* the agent works; Agent defines *what* external users see. Publishing (v1.1) exposes the Agent; the Blueprint is an internal execution detail invisible to end users
 
 - [ ] **Execution Model — Three Progressive Phases**:
 
@@ -384,7 +385,7 @@ Hub          → Central cross-system orchestration (Portal / API)
 - [ ] **Published Agent Page**: Publish an agent → generates a standalone URL (`/app/{slug}`) with branded chat interface (agent icon, name, description, welcome message, suggested questions); visitors interact without needing a platform account; mobile-responsive
 - [ ] **Agent API Mode**: Per-published-agent REST + SSE endpoints (`/api/apps/{slug}/chat`); independent from internal `/api/chat` — external consumers call with API key, no platform account needed; OpenAI-compatible response format option for easy integration
 - [ ] **API Key Management**: Generate/revoke API keys per published agent; each key has its own rate limit (RPM / RPD / monthly token quota); usage tracked per key; key-level analytics
-- [ ] **Publish Controls**: Publish/unpublish toggle; draft preview before going live; version snapshot — publishing locks the current agent config (model, tools, connectors, KB, prompt), further edits don't affect the live version until re-published
+- [ ] **Publish Controls**: Publish/unpublish toggle; draft preview before going live; version snapshot — publishing locks the current agent config (model, tools, connectors, KB, prompt, **and Blueprint version if bound**), further edits don't affect the live version until re-published; supports all three execution modes behind the same published interface (Blueprint static pipeline / DAG dynamic planning / ReAct single-query) — external users see only a chat box, the execution strategy is transparent
 - [ ] **Custom Branding**: Per-agent landing page customization — logo, color accent, welcome message, example conversations, footer links; white-label option for enterprise tier
 
 **Delivery Channels (3 modes)**
