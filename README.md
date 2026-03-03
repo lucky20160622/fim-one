@@ -125,6 +125,7 @@ FIM Agent doesn't do BPM/FSM — workflow logic belongs to the target system, Co
 #### RAG & Knowledge
 - **Full RAG Pipeline** — Jina embedding + LanceDB + FTS + RRF hybrid retrieval + reranker. Supports PDF, DOCX, Markdown, HTML, CSV.
 - **Grounded Generation** — Evidence-anchored RAG with inline `[N]` citations, conflict detection, and explainable confidence scores.
+- **KB Document Management** — Chunk-level CRUD, text search across chunks, failed document retry, and auto-migrating vector store schema.
 
 #### Portal & UX
 - **Real-time Streaming** — SSE with KaTeX math rendering and tool step folding.
