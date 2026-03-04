@@ -63,15 +63,18 @@ export default function SetupPage() {
 
     setSubmitting(true)
     try {
-      const body: { username: string; password: string; email?: string } = {
-        username,
-        password,
+      if (!email.trim()) {
+        setError("Email is required")
+        setSubmitting(false)
+        return
       }
-      if (email.trim()) {
-        body.email = email.trim()
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setError("Please enter a valid email address")
+        setSubmitting(false)
+        return
       }
 
-      const data = await authApi.setup(body)
+      const data = await authApi.setup({ username, password, email: email.trim() })
 
       // Store tokens (same pattern as login)
       localStorage.setItem(ACCESS_TOKEN_KEY, data.access_token)
@@ -211,9 +214,10 @@ export default function SetupPage() {
               />
               <Input
                 type="email"
-                placeholder="Email (optional)"
+                placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
                 autoComplete="email"
               />
             </div>

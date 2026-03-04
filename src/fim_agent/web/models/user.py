@@ -39,7 +39,7 @@ class User(UUIDPKMixin, TimestampMixin, Base):
     )
     oauth_provider: Mapped[str | None] = mapped_column(String(20), nullable=True)
     oauth_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
 
     conversations: Mapped[list[Conversation]] = relationship(back_populates="user", lazy="raise")
     agents: Mapped[list[Agent]] = relationship(back_populates="user", lazy="raise")

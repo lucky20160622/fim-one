@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { Globe, LogOut, Settings } from "lucide-react"
+import { ChevronsUpDown, Globe, LayoutDashboard, LogOut, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { APP_VERSION } from "@/lib/constants"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -68,9 +68,12 @@ export function UserMenu({ collapsed }: UserMenuProps) {
             </AvatarFallback>
           </Avatar>
           {!collapsed && (
-            <span className="flex-1 truncate text-left text-xs">
-              {displayLabel}
-            </span>
+            <>
+              <span className="flex-1 truncate text-left text-xs">
+                {displayLabel}
+              </span>
+              <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+            </>
           )}
         </button>
       </DropdownMenuTrigger>
@@ -84,6 +87,12 @@ export function UserMenu({ collapsed }: UserMenuProps) {
           <Settings className="h-4 w-4" />
           Settings
         </DropdownMenuItem>
+        {user.is_admin && (
+          <DropdownMenuItem onClick={() => router.push("/admin")}>
+            <LayoutDashboard className="h-4 w-4" />
+            Admin Panel
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <Globe className="h-4 w-4" />

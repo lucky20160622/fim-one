@@ -96,10 +96,15 @@ async def register(
             detail="Email already registered",
         )
 
+    # First registered user automatically becomes admin
+    user_count_result = await db.execute(select(func.count(User.id)))
+    is_first_user = user_count_result.scalar_one() == 0
+
     user = User(
         username=body.username,
         password_hash=hash_password(body.password),
         email=body.email,
+        is_admin=is_first_user,
     )
     db.add(user)
     await db.flush()
@@ -139,6 +144,12 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account disabled",
         )
 
     access = create_access_token(user.id, user.username)
@@ -186,6 +197,12 @@ async def refresh_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account disabled",
         )
 
     if user.refresh_token != body.refresh_token:
