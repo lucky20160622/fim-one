@@ -136,10 +136,11 @@ FIM Agent doesn't do BPM/FSM — workflow logic belongs to the target system, Co
 
 #### Platform & Multi-Tenant
 - **JWT Auth** — Token-based SSE auth, conversation ownership, per-user resource isolation.
-- **Agent Management** — Create, configure, and publish agents with bound models, tools, and instructions.
+- **Agent Management** — Create, configure, and publish agents with bound models, tools, and instructions. Per-agent execution mode (Standard/Planner) and temperature control.
+- **Admin Panel** — System stats dashboard (users, conversations, tokens, model usage charts), user management with search/pagination, role toggle, password reset, and account enable/disable.
+- **First-Run Setup Wizard** — On first launch, the portal guides you through creating an admin account (username, password, email). This one-time setup becomes your login credential — no config files needed.
 - **Personal Center** — Per-user global system instructions, applied across all conversations.
 - **Language Preference** — Per-user language setting (auto/en/zh) that directs all LLM responses to the chosen language.
-- **First-Run Setup Wizard** — Auto-redirects to admin account creation when the database is empty; one-time setup, then permanently hidden.
 
 #### Context & Memory
 - **LLM Compact** — Automatic LLM-powered summarization to stay within token budgets.
@@ -229,7 +230,7 @@ cd frontend && pnpm install && cd ..
 ./start.sh
 ```
 
-Open http://localhost:3000 — that's it.
+Open http://localhost:3000 — on first launch you'll be guided through creating an admin account (username, password, email). That's it — you're in.
 
 ### start.sh Commands
 

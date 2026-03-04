@@ -202,6 +202,21 @@ Hub          → Central cross-system orchestration (Portal / API)
 - [x] **STDIO Working Directory**: `working_dir` field → `StdioServerParameters.cwd`; optional input in dialog
 - [x] **ALLOW_STDIO_MCP**: Env var guard blocking STDIO subprocess servers in SaaS mode; `GET /capabilities` endpoint for frontend feature detection
 
+#### v0.6.4 — Admin Panel & UX Polish (shipped)
+
+- [x] **Admin Panel**: `/admin` page with stats dashboard (users, conversations, messages, tokens, agents, KBs, 14-day activity bar chart, model usage donut chart) and full user management (search, pagination, create, edit, reset password, toggle admin, enable/disable)
+- [x] **Role-Based Access**: `is_admin` / `is_active` on User model; first user auto-admin; disabled accounts blocked; `get_current_admin` dependency
+- [x] **Agent Execution Mode**: Per-agent `execution_mode` (react/dag) sets default mode for new conversations; Standard/Planner toggle in agent settings
+- [x] **Agent Temperature Control**: Per-agent temperature slider (0–2.0) stored in `model_config_json`
+- [x] **Drag-and-Drop Suggested Prompts**: @dnd-kit-based reordering replaces arrow buttons
+- [x] **Link Navigation**: All navigation buttons converted to `<Link>` for middle-click/Cmd+Click support
+- [x] **Toast Feedback**: Sonner toast notifications for all CRUD success/error replacing `console.error()`
+- [x] **Dirty State Protection**: MCP dialog and agent editor warn before discarding unsaved changes
+- [x] **Mode Labels**: "ReAct" → "Standard", "DAG" → "Planner" across the UI
+- [x] **Tools Page Tabs**: Built-in tools (card grid with category filters) and MCP Servers as separate tabs
+- [x] **Retry Button**: Playground shows retry for stopped/interrupted tasks
+- [x] **URL File Resolver**: Direct file download detection in KB URL import (PDF, DOCX, etc.)
+
 ---
 
 ### v0.7 -- SaaS Runtime & Provider Abstraction

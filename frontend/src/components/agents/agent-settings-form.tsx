@@ -30,12 +30,12 @@ const TOOL_CATEGORY_META: Record<string, { label: string; description: string; t
   web: {
     label: "Web",
     description: "Browse the internet and search for information",
-    tools: "Web Search, Web Fetch",
+    tools: "Web Search, Web Fetch, HTTP Request",
   },
   computation: {
     label: "Computation",
     description: "Run math calculations and execute Python code",
-    tools: "Calculator, Python Exec",
+    tools: "Calculator, Python Exec, Shell Exec",
   },
   filesystem: {
     label: "Filesystem",

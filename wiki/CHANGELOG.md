@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 ## [Unreleased]
 
 ### Added
+- **Admin Panel**: System stats dashboard (total users, conversations, messages, tokens, agents, KBs) with recharts bar chart (14-day activity) and donut chart (model usage distribution); user management with search, pagination, create user, edit profile, reset password, toggle admin role, and enable/disable account; admin-only access via `get_current_admin` dependency
+- **Role-Based Access Control**: `is_admin` and `is_active` fields on User model; first registered user auto-promoted to admin; disabled accounts blocked from login, token refresh, and API access; `get_current_admin` FastAPI dependency for admin-only endpoints
+- **Agent Execution Mode**: Per-agent `execution_mode` field (react/dag) stored in DB; sets default mode for new conversations; frontend mode toggle (Standard/Planner) with icon and description in agent settings form
+- **Agent Temperature Control**: Per-agent temperature slider in settings form (0.00–2.00 with Reset to Default); stored in `model_config_json`; frontend syncs execution mode from agent on selection
+- **Drag-and-Drop Suggested Prompts**: Suggested prompts editor rebuilt with @dnd-kit for drag-and-drop reordering (replaces arrow up/down buttons); stable IDs prevent React key issues during reorder
+- **URL File Resolver**: `resolve_url()` in url_importer detects file extensions (.pdf, .docx, .xlsx, etc.) for direct binary download vs Jina Reader for web pages; enables KB import of direct file URLs
+- **BaseLLM.model_id Property**: New property on BaseLLM (returns None); OpenAICompatibleLLM overrides to return the actual model identifier
 - **Streamable HTTP MCP Transport**: MCP servers can now use the MCP 2025-03-26 Streamable HTTP transport (`transport: "streamable_http"`); `MCPClient.connect_streamable_http()` using `mcp.client.streamable_http`; UI shows a 3rd transport option with HTTP-aware URL placeholder
 - **MCP HTTP Headers**: SSE and Streamable HTTP servers support `headers` (dict of HTTP headers, e.g. `Authorization: Bearer token`); stored as JSON column, passed at connect time; HTTP Headers key-value editor in the MCP server dialog
 - **STDIO Working Directory**: STDIO MCP servers now accept `working_dir`; passed as `cwd` to `StdioServerParameters`; optional field in dialog and schema
@@ -43,6 +50,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **First-Run Admin Setup Wizard**: When the database is empty, visitors are redirected from `/login` to `/setup` to create the initial admin account (`is_admin=True`); once created, `/setup` permanently redirects to `/login`
 
 ### Changed
+- **Navigation Links**: All navigation buttons replaced with Next.js `<Link>` components for proper middle-click/Cmd+Click new-tab behavior across agent cards, connector cards, KB cards, sidebar conversations, chats page, and all "New" buttons
+- **Mode Labels**: "ReAct" renamed to "Standard", "DAG" renamed to "Planner" across sidebar, playground mode toggle, and examples; mode toggle now shows tooltip with description
+- **Tools Page Redesign**: Split into Tabs (Built-in / MCP Servers); built-in tools section redesigned with card grid layout, per-tool icons with category colors, and category filter chips
+- **Toast Feedback**: All CRUD operations now show sonner toast notifications (success/error) replacing silent `console.error()` — affects agents, connectors, KB, chunks, actions, and MCP server dialogs
+- **Dirty State Protection**: MCP server dialog and agent editor page now warn before discarding unsaved changes (AlertDialog confirm on close/navigate); agent editor adds `beforeunload` browser warning
+- **Setup Page**: Email field now required (was optional); client-side email format validation
+- **Tool Category Tooltips**: Agent settings form shows tooltip on hover for each tool category with description and included tools list
+- **Iteration Detail Drawer**: Tab bar and stats (summary, duration) combined into a single row for cleaner layout
+- **Input/Textarea Focus**: Changed from ring-based to outline-based focus style for consistency
+- **KB Detail Labels**: "Upload" → "Add Documents", "New MD" → "Write Note"
+- **Agent Selector**: Shows agent emoji/icon instead of generic User icon; uses agent ID as value for correct selection with duplicate names
+- **Retry Button**: Playground shows a retry button for stopped/interrupted tasks (both in-session and after page refresh)
 - **Login Page Redesign**: Split layout with left brand panel (dark, mesh gradient, tagline) and right form panel (theme-aware); removed Satoshi font, kept Cabinet Grotesk
 - **Sidebar Logo Font**: Increased from `text-sm` to `text-base`
 - **Frontend API Proxy**: Migrated all frontend API calls to Next.js proxy rewrites (`getApiBaseUrl` for client-side proxy, `getApiDirectUrl` for server-side direct access); eliminates CORS issues and hides backend URL from browser
