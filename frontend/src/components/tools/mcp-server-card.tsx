@@ -25,6 +25,7 @@ interface MCPServerCardProps {
 
 export function MCPServerCard({ server, onEdit, onDelete }: MCPServerCardProps) {
   const endpoint = server.transport === "stdio" ? server.command : server.url
+  const isRemoteTransport = server.transport === "sse" || server.transport === "streamable_http"
 
   return (
     <div className="flex flex-col rounded-lg border border-border bg-card p-4 transition-colors hover:border-border/80 hover:bg-accent/5">
@@ -37,7 +38,7 @@ export function MCPServerCard({ server, onEdit, onDelete }: MCPServerCardProps) 
           variant="outline"
           className="shrink-0 text-[10px] uppercase tracking-wide"
         >
-          {server.transport}
+          {server.transport === "streamable_http" ? "HTTP" : server.transport.toUpperCase()}
         </Badge>
         <span
           className={`shrink-0 h-2 w-2 rounded-full mt-1.5 ${
@@ -52,10 +53,10 @@ export function MCPServerCard({ server, onEdit, onDelete }: MCPServerCardProps) 
         <Tooltip>
           <TooltipTrigger asChild>
             <p className="text-xs text-muted-foreground truncate mb-1">
-              {server.transport === "stdio" ? (
-                <Terminal className="inline h-3 w-3 mr-1 -mt-0.5" />
-              ) : (
+              {isRemoteTransport ? (
                 <Globe className="inline h-3 w-3 mr-1 -mt-0.5" />
+              ) : (
+                <Terminal className="inline h-3 w-3 mr-1 -mt-0.5" />
               )}
               {endpoint}
             </p>

@@ -2,11 +2,13 @@ export interface MCPServerResponse {
   id: string
   name: string
   description: string | null
-  transport: "stdio" | "sse"
+  transport: "stdio" | "sse" | "streamable_http"
   command: string | null
   args: string[] | null
   env: Record<string, string> | null
   url: string | null
+  working_dir: string | null
+  headers: Record<string, string> | null
   is_active: boolean
   tool_count: number
   created_at: string
@@ -16,21 +18,25 @@ export interface MCPServerResponse {
 export interface MCPServerCreate {
   name: string
   description?: string | null
-  transport: "stdio" | "sse"
+  transport: "stdio" | "sse" | "streamable_http"
   command?: string | null
   args?: string[] | null
   env?: Record<string, string> | null
   url?: string | null
+  working_dir?: string | null
+  headers?: Record<string, string> | null
   is_active?: boolean
 }
 
 export interface MCPServerUpdate {
   name?: string
   description?: string | null
-  transport?: "stdio" | "sse"
+  transport?: "stdio" | "sse" | "streamable_http"
   command?: string | null
   args?: string[] | null
   env?: Record<string, string> | null
   url?: string | null
+  working_dir?: string | null
+  headers?: Record<string, string> | null
   is_active?: boolean
 }

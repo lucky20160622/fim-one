@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { mcpServerApi } from "@/lib/api"
+import { toast } from "sonner"
 import type { MCPServerResponse, MCPServerCreate, MCPServerUpdate } from "@/types/mcp-server"
 
 interface MCPServerDialogProps {
@@ -33,11 +34,13 @@ export function MCPServerDialog({
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [transport, setTransport] = useState<"stdio" | "sse">("stdio")
+  const [transport, setTransport] = useState<"stdio" | "sse" | "streamable_http">("stdio")
   const [command, setCommand] = useState("")
   const [args, setArgs] = useState("")
   const [url, setUrl] = useState("")
+  const [workingDir, setWorkingDir] = useState("")
   const [envPairs, setEnvPairs] = useState<Array<{ key: string; value: string }>>([])
+  const [headerPairs, setHeaderPairs] = useState<Array<{ key: string; value: string }>>([])
   const [isActive, setIsActive] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -56,6 +59,12 @@ export function MCPServerDialog({
             ? Object.entries(server.env).map(([key, value]) => ({ key, value }))
             : []
         )
+        setWorkingDir(server.working_dir || "")
+        setHeaderPairs(
+          server.headers
+            ? Object.entries(server.headers).map(([key, value]) => ({ key, value }))
+            : []
+        )
         setIsActive(server.is_active)
       } else {
         setName("")
@@ -64,7 +73,9 @@ export function MCPServerDialog({
         setCommand("")
         setArgs("")
         setUrl("")
+        setWorkingDir("")
         setEnvPairs([])
+        setHeaderPairs([])
         setIsActive(true)
       }
     }
@@ -77,6 +88,16 @@ export function MCPServerDialog({
 
   const updateEnvPair = (index: number, field: "key" | "value", val: string) =>
     setEnvPairs((prev) =>
+      prev.map((pair, i) => (i === index ? { ...pair, [field]: val } : pair))
+    )
+
+  const addHeaderPair = () => setHeaderPairs((prev) => [...prev, { key: "", value: "" }])
+
+  const removeHeaderPair = (index: number) =>
+    setHeaderPairs((prev) => prev.filter((_, i) => i !== index))
+
+  const updateHeaderPair = (index: number, field: "key" | "value", val: string) =>
+    setHeaderPairs((prev) =>
       prev.map((pair, i) => (i === index ? { ...pair, [field]: val } : pair))
     )
 
@@ -99,6 +120,15 @@ export function MCPServerDialog({
           ? args.split(",").map((a) => a.trim()).filter(Boolean)
           : null
 
+      const headersObj =
+        (transport === "sse" || transport === "streamable_http") && headerPairs.length > 0
+          ? Object.fromEntries(
+              headerPairs
+                .filter((p) => p.key.trim())
+                .map((p) => [p.key.trim(), p.value])
+            )
+          : null
+
       if (isEdit && server) {
         const body: MCPServerUpdate = {
           name: name.trim(),
@@ -107,7 +137,9 @@ export function MCPServerDialog({
           command: transport === "stdio" ? command.trim() || null : null,
           args: transport === "stdio" ? parsedArgs : null,
           env: transport === "stdio" ? envObj : null,
-          url: transport === "sse" ? url.trim() || null : null,
+          working_dir: transport === "stdio" ? workingDir.trim() || null : null,
+          url: (transport === "sse" || transport === "streamable_http") ? url.trim() || null : null,
+          headers: headersObj,
           is_active: isActive,
         }
         const updated = await mcpServerApi.update(server.id, body)
@@ -120,15 +152,18 @@ export function MCPServerDialog({
           command: transport === "stdio" ? command.trim() || null : null,
           args: transport === "stdio" ? parsedArgs : null,
           env: transport === "stdio" ? envObj : null,
-          url: transport === "sse" ? url.trim() || null : null,
+          working_dir: transport === "stdio" ? workingDir.trim() || null : null,
+          url: (transport === "sse" || transport === "streamable_http") ? url.trim() || null : null,
+          headers: headersObj,
           is_active: isActive,
         }
         const created = await mcpServerApi.create(body)
         onSuccess(created)
       }
+      toast.success(isEdit ? "MCP server updated" : "MCP server created")
       onOpenChange(false)
-    } catch (err) {
-      console.error("Failed to save MCP server:", err)
+    } catch {
+      toast.error("Failed to save MCP server")
     } finally {
       setIsSaving(false)
     }
@@ -188,6 +223,14 @@ export function MCPServerDialog({
               >
                 SSE
               </Button>
+              <Button
+                type="button"
+                variant={transport === "streamable_http" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setTransport("streamable_http")}
+              >
+                Streamable HTTP
+              </Button>
             </div>
           </div>
 
@@ -212,6 +255,14 @@ export function MCPServerDialog({
                 <p className="text-xs text-muted-foreground">
                   Separate multiple arguments with commas
                 </p>
+              </div>
+              <div className="grid gap-1.5">
+                <label className="text-sm font-medium">Working Directory <span className="text-muted-foreground font-normal">(optional)</span></label>
+                <Input
+                  placeholder="e.g. /home/user/my-server"
+                  value={workingDir}
+                  onChange={(e) => setWorkingDir(e.target.value)}
+                />
               </div>
               <div className="grid gap-1.5">
                 <div className="flex items-center justify-between">
@@ -257,16 +308,60 @@ export function MCPServerDialog({
             </>
           )}
 
-          {/* SSE fields */}
-          {transport === "sse" && (
-            <div className="grid gap-1.5">
-              <label className="text-sm font-medium">Server URL</label>
-              <Input
-                placeholder="e.g. http://localhost:3001/sse"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-              />
-            </div>
+          {/* SSE / Streamable HTTP fields */}
+          {(transport === "sse" || transport === "streamable_http") && (
+            <>
+              <div className="grid gap-1.5">
+                <label className="text-sm font-medium">Server URL</label>
+                <Input
+                  placeholder={transport === "sse" ? "e.g. http://localhost:3001/sse" : "e.g. http://localhost:3001/mcp"}
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">HTTP Headers</label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1 text-xs"
+                    onClick={addHeaderPair}
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add
+                  </Button>
+                </div>
+                {headerPairs.map((pair, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      placeholder="Header-Name"
+                      className="flex-1 font-mono text-xs"
+                      value={pair.key}
+                      onChange={(e) => updateHeaderPair(idx, "key", e.target.value)}
+                    />
+                    <span className="text-muted-foreground text-xs">:</span>
+                    <Input
+                      placeholder="value"
+                      className="flex-1 text-xs"
+                      value={pair.value}
+                      onChange={(e) => updateHeaderPair(idx, "value", e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => removeHeaderPair(idx)}
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                <p className="text-xs text-muted-foreground">e.g. Authorization: Bearer token</p>
+              </div>
+            </>
           )}
 
           {/* Active toggle */}
