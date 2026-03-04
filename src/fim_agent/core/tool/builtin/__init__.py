@@ -26,9 +26,10 @@ from .calculator import CalculatorTool
 from .file_ops import FileOpsTool
 from .grounded_retrieve import GroundedRetrieveTool
 from .http_request import HttpRequestTool
+from .kb_retrieve import KBRetrieveTool
+from .list_knowledge_bases import ListKnowledgeBasesTool
 from .python_exec import PythonExecTool
 from .shell_exec import ShellExecTool
-from .kb_retrieve import KBRetrieveTool
 from .web_fetch import WebFetchTool
 from .web_search import WebSearchTool
 
@@ -38,6 +39,7 @@ __all__ = [
     "GroundedRetrieveTool",
     "HttpRequestTool",
     "KBRetrieveTool",
+    "ListKnowledgeBasesTool",
     "PythonExecTool",
     "ShellExecTool",
     "WebFetchTool",
