@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 ## [Unreleased]
 
 ### Added
+- **file_ops Extended Operations**: Nine new file operations added to the `file_ops` built-in tool — `append`, `delete`, `exists`, `get_info`, `read_json`, `write_json`, `read_csv`, `write_csv`, `find_replace` — bringing feature parity with competitor file tooling while retaining the single-tool dispatch architecture
+- **list_knowledge_bases Tool**: New `knowledge`-category built-in tool that lets agents discover all available knowledge bases (id, name, description, document/chunk counts) before calling `kb_retrieve`; auto-discovered via `discover_builtin_tools()`
 - **Suggested Prompts Editor**: Agent configuration form now includes a suggested prompts editor; prompts displayed as clickable cards on the playground page
 - **Streaming Loading Indicator**: Visual loading state for streaming responses in the playground
 - **New Chat Keyboard Shortcut**: ⇧⌘O (Mac) / Ctrl+Shift+O (Windows) to start a new chat from anywhere
