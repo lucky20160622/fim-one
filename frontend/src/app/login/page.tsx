@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2 } from "lucide-react"
 import { APP_NAME, getApiBaseUrl, getApiDirectUrl } from "@/lib/constants"
@@ -123,11 +122,8 @@ function LoginPageInner() {
 
   if (authLoading) {
     return (
-      <div className="relative flex h-screen items-center justify-center bg-background">
-        <div className="login-mesh-bg" aria-hidden="true">
-          <div className="mesh-orb" />
-        </div>
-        <Loader2 className="relative z-10 h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     )
   }
@@ -135,23 +131,77 @@ function LoginPageInner() {
   if (user) return null // Will redirect
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-background px-4">
-      {/* Animated mesh gradient background */}
-      <div className="login-mesh-bg" aria-hidden="true">
-        <div className="mesh-orb" />
+    <div className="flex min-h-screen">
+      {/* Left panel — brand / hero, always dark, hidden on mobile */}
+      <div className="login-brand-panel hidden lg:flex w-[45%] shrink-0 flex-col justify-between px-14 py-10 text-white">
+        {/* Mesh gradient background */}
+        <div className="login-mesh-bg" aria-hidden="true">
+          <div className="mesh-orb" />
+        </div>
+
+        {/* Top — logo */}
+        <div className="relative z-10 flex items-center gap-2.5">
+          <img
+            src="/fim-mark.svg"
+            alt="FIM"
+            className="h-6 w-auto brightness-0 invert"
+          />
+          <span
+            className="text-xl font-bold tracking-tight text-white/90"
+            style={{ fontFamily: '"Cabinet Grotesk", sans-serif' }}
+          >
+            {APP_NAME}
+          </span>
+        </div>
+
+        {/* Middle-lower — tagline */}
+        <div className="relative z-10 -mt-8">
+          <h1
+            className="text-[2.75rem] font-bold leading-[1.1] tracking-tight text-white"
+            style={{ fontFamily: '"Cabinet Grotesk", sans-serif' }}
+          >
+            AI-Powered
+            <br />
+            Connector Hub
+          </h1>
+          <p className="mt-4 text-base leading-relaxed text-white/55">
+            Connect any API.
+            <br />
+            Orchestrate with agents.
+            <br />
+            Ship faster.
+          </p>
+        </div>
+
+        {/* Bottom — copyright */}
+        <div className="relative z-10">
+          <p className="text-xs text-white/35">&copy; 2026 {APP_NAME}</p>
+        </div>
       </div>
 
-      <Card className="relative z-10 w-full max-w-sm login-card-float">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex items-center gap-2">
+      {/* Right panel — form, follows light/dark theme */}
+      <div className="flex flex-1 flex-col items-center justify-center bg-background px-6 py-12">
+        <div className="w-full max-w-sm">
+          {/* Mobile-only logo (< lg) */}
+          <div className="mb-8 flex items-center justify-center gap-2 lg:hidden">
             <img src="/fim-mark-light.svg" alt="FIM" className="h-8 w-auto dark:hidden" />
             <img src="/fim-mark.svg" alt="FIM" className="h-8 w-auto hidden dark:block" />
-            <span className="text-lg font-bold" style={{ fontFamily: '"Cabinet Grotesk", sans-serif' }}>{APP_NAME}</span>
+            <span
+              className="text-lg font-bold"
+              style={{ fontFamily: '"Cabinet Grotesk", sans-serif' }}
+            >
+              {APP_NAME}
+            </span>
           </div>
-          <CardTitle className="text-xl">Welcome</CardTitle>
-          <CardDescription>Sign in to your account or create a new one</CardDescription>
-        </CardHeader>
-        <CardContent>
+
+          {/* Heading */}
+          <div className="mb-6 text-center lg:text-left">
+            <h2 className="text-xl font-semibold tracking-tight">Welcome</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sign in to your account or create a new one
+            </p>
+          </div>
+
           {/* OAuth Error */}
           {oauthError && (
             <p className="text-sm text-destructive text-center mb-4">{oauthError}</p>
@@ -200,7 +250,7 @@ function LoginPageInner() {
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">or</span>
+                  <span className="bg-background px-2 text-muted-foreground">or</span>
                 </div>
               </div>
             </>
@@ -287,8 +337,8 @@ function LoginPageInner() {
               </form>
             </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
@@ -297,11 +347,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="relative flex h-screen items-center justify-center bg-background">
-          <div className="login-mesh-bg" aria-hidden="true">
-            <div className="mesh-orb" />
-          </div>
-          <Loader2 className="relative z-10 h-6 w-6 animate-spin text-muted-foreground" />
+        <div className="flex h-screen items-center justify-center bg-background">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       }
     >
