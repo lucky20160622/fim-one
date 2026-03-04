@@ -127,6 +127,7 @@ Hub          → Central cross-system orchestration (Portal / API)
 - [x] **Chunk-Level CRUD**: View, edit, and delete individual chunks within a knowledge base document; inline chunk editor with content preview
 - [x] **KB Detail Page**: Dedicated knowledge base detail page with document table and chunk browser; navigate from KB list to full document/chunk management
 - [x] **Markdown Document Creation**: Create markdown documents directly from the KB UI; content authored in-browser and ingested into the knowledge base
+- [x] **KB URL Import**: Import web pages into a knowledge base by URL; Jina Reader fetches clean Markdown; multiple URLs supported (one per line); per-URL success/failed result reporting; "URL Import" tab in the KB upload dialog
 
 **Conversation Management**
 - [x] **Conversation Starring & Pinning**: Star/pin important conversations for quick access; starred conversations surface to the top of the sidebar
