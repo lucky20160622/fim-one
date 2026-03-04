@@ -55,6 +55,10 @@ class OpenAICompatibleLLM(BaseLLM):
             TokenBucketRateLimiter(rate_limit_config) if rate_limit_config else None
         )
 
+    @property
+    def model_id(self) -> str:
+        return self._model
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -274,10 +278,11 @@ class OpenAICompatibleLLM(BaseLLM):
         stream: bool = False,
     ) -> dict[str, Any]:
         """Build the keyword arguments dict for the OpenAI client call."""
+        effective_temperature = temperature if temperature is not None else self._default_temperature
         kwargs: dict[str, Any] = {
             "model": self._model,
             "messages": [m.to_openai_dict() for m in messages],
-            "temperature": temperature if temperature is not None else self._default_temperature,
+            "temperature": effective_temperature,
             "max_tokens": max_tokens if max_tokens is not None else self._default_max_tokens,
             "stream": stream,
         }

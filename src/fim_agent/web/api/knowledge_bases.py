@@ -572,8 +572,8 @@ async def import_urls(
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
-    """Fetch URLs via Jina Reader, then ingest each as a Markdown document."""
-    from fim_agent.rag.url_importer import fetch_url_as_markdown, get_jina_api_key
+    """Fetch URLs via Jina Reader or direct download, then ingest each as a document."""
+    from fim_agent.rag.url_importer import resolve_url, get_jina_api_key
 
     kb = await _get_owned_kb(kb_id, current_user.id, db)
 
@@ -594,51 +594,84 @@ async def import_urls(
     upload_dir.mkdir(parents=True, exist_ok=True)
 
     for url in urls:
-        # Fetch markdown (serial — respect Jina rate limits)
+        # Resolve URL — direct file download or Jina markdown fetch
         try:
-            fetched = await fetch_url_as_markdown(url, jina_api_key)
+            fetched = await resolve_url(url, jina_api_key)
         except Exception as exc:
             logger.warning("URL fetch failed for %s: %s", url, exc)
             results.append(UrlImportResult(url=url, status="failed", error=str(exc)[:300]))
             continue
 
-        content: str = fetched["content"]
-        if not content.strip():
-            results.append(UrlImportResult(url=url, status="failed", error="Empty content returned"))
-            continue
+        if fetched["mode"] == "file":
+            ext: str = fetched["ext"]
+            base_name: str = fetched["filename"]
+            # Collision-avoidance loop for file downloads
+            counter = 0
+            while True:
+                candidate = upload_dir / (
+                    f"{Path(base_name).stem}_{counter}{ext}" if counter else base_name
+                )
+                if not candidate.exists():
+                    break
+                counter += 1
+            file_path = candidate
+            file_bytes: bytes = fetched["file_bytes"]
+            file_path.write_bytes(file_bytes)
+            file_type = ext.lstrip(".")
 
-        # Build a safe filename from the title
-        title: str = fetched["title"]
-        safe_title = "".join(c if c.isalnum() or c in " -_." else "_" for c in title)[:80].strip() or "document"
-        filename = f"{safe_title}.md"
-        # Avoid collisions
-        file_path = upload_dir / filename
-        stem, counter = safe_title, 1
-        while file_path.exists():
-            counter += 1
-            filename = f"{stem}_{counter}.md"
+            # Create DB record
+            doc = KBDocument(
+                kb_id=kb_id,
+                filename=file_path.name,
+                file_path=str(file_path),
+                file_size=len(file_bytes),
+                file_type=file_type,
+                status="processing",
+            )
+            db.add(doc)
+            await db.commit()
+            result_row = await db.execute(select(KBDocument).where(KBDocument.id == doc.id))
+            doc = result_row.scalar_one()
+
+        else:
+            # mode == "markdown"
+            content: str = fetched["content"]
+            if not content.strip():
+                results.append(UrlImportResult(url=url, status="failed", error="Empty content returned"))
+                continue
+
+            # Build a safe filename from the title
+            title: str = fetched["title"]
+            safe_title = "".join(c if c.isalnum() or c in " -_." else "_" for c in title)[:80].strip() or "document"
+            filename = f"{safe_title}.md"
+            # Avoid collisions
             file_path = upload_dir / filename
+            stem, counter = safe_title, 1
+            while file_path.exists():
+                counter += 1
+                filename = f"{stem}_{counter}.md"
+                file_path = upload_dir / filename
 
-        # Prepend source URL as metadata comment
-        md_content = f"<!-- source: {url} -->\n\n# {title}\n\n{content}"
-        content_bytes = md_content.encode("utf-8")
-        file_path.write_bytes(content_bytes)
+            # Prepend source URL as metadata comment
+            md_content = f"<!-- source: {url} -->\n\n# {title}\n\n{content}"
+            content_bytes = md_content.encode("utf-8")
+            file_path.write_bytes(content_bytes)
 
-        # Create DB record
-        doc = KBDocument(
-            kb_id=kb_id,
-            filename=filename,
-            file_path=str(file_path),
-            file_size=len(content_bytes),
-            file_type="md",
-            status="processing",
-        )
-        db.add(doc)
-        await db.commit()
-        result_row = await db.execute(select(KBDocument).where(KBDocument.id == doc.id))
-        doc = result_row.scalar_one()
+            # Create DB record
+            doc = KBDocument(
+                kb_id=kb_id,
+                filename=filename,
+                file_path=str(file_path),
+                file_size=len(content_bytes),
+                file_type="md",
+                status="processing",
+            )
+            db.add(doc)
+            await db.commit()
+            result_row = await db.execute(select(KBDocument).where(KBDocument.id == doc.id))
+            doc = result_row.scalar_one()
 
-        # Background ingest (identical to file upload)
+        # Background ingest (identical to file upload — handles PDF/DOCX/md via loader_for_extension)
         asyncio.create_task(
             _ingest_document(
                 doc_id=doc.id,

@@ -73,6 +73,11 @@ class BaseLLM(ABC):
         yield  # pragma: no cover
 
     @property
+    def model_id(self) -> str | None:
+        """Return the underlying model identifier, if known."""
+        return None
+
+    @property
     def abilities(self) -> dict[str, bool]:
         """Declare model capabilities.
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 
@@ -11,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 _JINA_READER_BASE = "https://r.jina.ai/"
 _MAX_CONCURRENT = 3
+
+_FILE_EXTENSIONS = {".pdf", ".docx", ".xlsx", ".xls", ".pptx", ".csv", ".txt", ".md", ".markdown"}
 
 
 async def fetch_url_as_markdown(url: str, jina_api_key: str) -> dict:
@@ -33,6 +37,43 @@ async def fetch_url_as_markdown(url: str, jina_api_key: str) -> dict:
             "url": url,
             "title": payload.get("title") or url,
             "content": payload.get("content", ""),
+        }
+
+
+async def resolve_url(url: str, jina_api_key: str) -> dict:
+    """Unified URL resolution entry point.
+
+    Detects whether the URL points to a direct file download or a web page:
+
+    - If the URL path ends with a known file extension (see ``_FILE_EXTENSIONS``),
+      the file bytes are downloaded directly and the result includes
+      ``{"mode": "file", "url": ..., "filename": ..., "ext": ..., "file_bytes": ...}``.
+    - Otherwise Jina Reader is used to convert the page to Markdown and the
+      result mirrors ``fetch_url_as_markdown`` with an added ``"mode": "markdown"``
+      key: ``{"mode": "markdown", "url": ..., "title": ..., "content": ...}``.
+    """
+    parsed = urlparse(url)
+    suffix = Path(parsed.path).suffix.lower()
+
+    if suffix in _FILE_EXTENSIONS:
+        filename = Path(parsed.path).name or "download"
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+        return {
+            "mode": "file",
+            "url": url,
+            "filename": filename,
+            "ext": suffix,
+            "file_bytes": resp.content,
+        }
+    else:
+        fetched = await fetch_url_as_markdown(url, jina_api_key)
+        return {
+            "mode": "markdown",
+            "url": fetched["url"],
+            "title": fetched["title"],
+            "content": fetched["content"],
         }
 
 
