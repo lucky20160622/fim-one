@@ -22,12 +22,15 @@ from fim_agent.web.schemas.knowledge_base import (
     ChunkResponse,
     ChunkUpdate,
     DocumentCreate,
+    ImportUrlsRequest,
+    ImportUrlsResponse,
     KBCreate,
     KBDocumentResponse,
     KBResponse,
     KBRetrieveRequest,
     KBRetrieveResponse,
     KBUpdate,
+    UrlImportResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -557,6 +560,102 @@ async def create_document(
     )
 
     return ApiResponse(data=_doc_to_response(doc).model_dump())
+
+
+# ── URL Import ───────────────────────────────────────────────────
+
+
+@router.post("/{kb_id}/import-urls", response_model=ApiResponse)
+async def import_urls(
+    kb_id: str,
+    body: ImportUrlsRequest,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Fetch URLs via Jina Reader, then ingest each as a Markdown document."""
+    from fim_agent.rag.url_importer import fetch_url_as_markdown, get_jina_api_key
+
+    kb = await _get_owned_kb(kb_id, current_user.id, db)
+
+    try:
+        jina_api_key = get_jina_api_key()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+
+    # Deduplicate while preserving order
+    seen: set[str] = set()
+    urls = [u for u in body.urls if u and not (u in seen or seen.add(u))]  # type: ignore[func-returns-value]
+
+    results: list[UrlImportResult] = []
+    upload_dir = _UPLOADS_DIR / kb_id
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    for url in urls:
+        # Fetch markdown (serial — respect Jina rate limits)
+        try:
+            fetched = await fetch_url_as_markdown(url, jina_api_key)
+        except Exception as exc:
+            logger.warning("URL fetch failed for %s: %s", url, exc)
+            results.append(UrlImportResult(url=url, status="failed", error=str(exc)[:300]))
+            continue
+
+        content: str = fetched["content"]
+        if not content.strip():
+            results.append(UrlImportResult(url=url, status="failed", error="Empty content returned"))
+            continue
+
+        # Build a safe filename from the title
+        title: str = fetched["title"]
+        safe_title = "".join(c if c.isalnum() or c in " -_." else "_" for c in title)[:80].strip() or "document"
+        filename = f"{safe_title}.md"
+        # Avoid collisions
+        file_path = upload_dir / filename
+        stem, counter = safe_title, 1
+        while file_path.exists():
+            counter += 1
+            filename = f"{stem}_{counter}.md"
+            file_path = upload_dir / filename
+
+        # Prepend source URL as metadata comment
+        md_content = f"<!-- source: {url} -->\n\n# {title}\n\n{content}"
+        content_bytes = md_content.encode("utf-8")
+        file_path.write_bytes(content_bytes)
+
+        # Create DB record
+        doc = KBDocument(
+            kb_id=kb_id,
+            filename=filename,
+            file_path=str(file_path),
+            file_size=len(content_bytes),
+            file_type="md",
+            status="processing",
+        )
+        db.add(doc)
+        await db.commit()
+        result_row = await db.execute(select(KBDocument).where(KBDocument.id == doc.id))
+        doc = result_row.scalar_one()
+
+        # Background ingest (identical to file upload)
+        asyncio.create_task(
+            _ingest_document(
+                doc_id=doc.id,
+                kb_id=kb_id,
+                user_id=current_user.id,
+                file_path=file_path,
+                chunk_strategy=kb.chunk_strategy,
+                chunk_size=kb.chunk_size,
+                chunk_overlap=kb.chunk_overlap,
+            )
+        )
+
+        results.append(UrlImportResult(url=url, status="success", doc_id=doc.id))
+        logger.info("URL %s queued for ingest as doc %s", url, doc.id)
+
+    response = ImportUrlsResponse(results=results)
+    return ApiResponse(data=response.model_dump())
 
 
 # ── Chunk CRUD ────────────────────────────────────────────────────

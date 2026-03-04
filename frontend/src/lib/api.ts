@@ -414,6 +414,12 @@ export const kbApi = {
       { method: "DELETE" },
     ).then(() => undefined),
 
+  importUrls: (kbId: string, urls: string[]) =>
+    apiFetch<ApiResponse<{ results: Array<{ url: string; status: string; doc_id?: string; error?: string }> }>>(
+      `/api/knowledge-bases/${kbId}/import-urls`,
+      { method: "POST", body: JSON.stringify({ urls }) },
+    ).then((r) => r.data),
+
   // Retrieval
   retrieve: (kbId: string, query: string, topK = 5) =>
     apiFetch<ApiResponse<KBRetrieveResult[]>>(

@@ -75,3 +75,18 @@ class ChunkUpdate(BaseModel):
 class DocumentCreate(BaseModel):
     filename: str = Field(min_length=1, max_length=200, pattern=r"^[\w\-. ]+\.md$")
     content: str = Field(min_length=1)
+
+
+class ImportUrlsRequest(BaseModel):
+    urls: list[str] = Field(min_length=1, max_length=20)
+
+
+class UrlImportResult(BaseModel):
+    url: str
+    status: Literal["success", "failed"]
+    doc_id: str | None = None
+    error: str | None = None
+
+
+class ImportUrlsResponse(BaseModel):
+    results: list[UrlImportResult]
