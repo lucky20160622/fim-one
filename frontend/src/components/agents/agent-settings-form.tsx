@@ -1,17 +1,58 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bot, Check, Loader2 } from "lucide-react"
+import { Bot, Check, Loader2, Zap, GitBranch } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { EmojiPickerPopover } from "@/components/ui/emoji-picker-popover"
 import { SuggestedPromptsEditor } from "@/components/agents/suggested-prompts-editor"
 import { agentApi, kbApi, connectorApi } from "@/lib/api"
 import type { AgentCreate, AgentResponse } from "@/types/agent"
 import type { ConnectorResponse } from "@/types/connector"
+import { cn } from "@/lib/utils"
 
-const TOOL_CATEGORIES = ["computation", "web", "filesystem", "knowledge", "mcp", "connector", "general"]
+// Ordered: general first → common tools → advanced/specialized
+const TOOL_CATEGORIES = ["general", "web", "computation", "filesystem", "knowledge", "connector", "mcp"] as const
+
+const TOOL_CATEGORY_META: Record<string, { label: string; description: string; tools: string }> = {
+  connector: {
+    label: "Connector",
+    description: "Access external API actions bound to this agent",
+    tools: "Custom HTTP connectors, CRM, Slack, and more",
+  },
+  knowledge: {
+    label: "Knowledge",
+    description: "Query knowledge bases for grounded answers with citations",
+    tools: "KB Retrieve, Grounded Retrieve, KB List",
+  },
+  web: {
+    label: "Web",
+    description: "Browse the internet and search for information",
+    tools: "Web Search, Web Fetch",
+  },
+  computation: {
+    label: "Computation",
+    description: "Run math calculations and execute Python code",
+    tools: "Calculator, Python Exec",
+  },
+  filesystem: {
+    label: "Filesystem",
+    description: "Read, write, and manage local files",
+    tools: "File Read, File Write, File List, and more",
+  },
+  mcp: {
+    label: "MCP",
+    description: "Tools provided by external MCP servers",
+    tools: "Configured via MCP_SERVERS in environment",
+  },
+  general: {
+    label: "General",
+    description: "Miscellaneous and uncategorized built-in tools",
+    tools: "Utility tools without a specific category",
+  },
+}
 
 interface AgentSettingsFormProps {
   agent: AgentResponse | null // null = create mode
@@ -32,7 +73,9 @@ export function AgentSettingsForm({
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([])
   const [selectedKBs, setSelectedKBs] = useState<string[]>([])
   const [selectedConnectors, setSelectedConnectors] = useState<string[]>([])
+  const [executionMode, setExecutionMode] = useState<"react" | "dag">("react")
   const [confidenceThreshold, setConfidenceThreshold] = useState<number | null>(null)
+  const [temperature, setTemperature] = useState<number | null>(null)
 
   const [availableKBs, setAvailableKBs] = useState<{ id: string; name: string; document_count: number }[]>([])
   const [availableConnectors, setAvailableConnectors] = useState<ConnectorResponse[]>([])
@@ -49,18 +92,23 @@ export function AgentSettingsForm({
       setSuggestedPrompts(agent.suggested_prompts || [])
       setSelectedKBs(agent.kb_ids || [])
       setSelectedConnectors(agent.connector_ids || [])
+      setExecutionMode(agent.execution_mode || "react")
       const ct = agent.grounding_config?.confidence_threshold
       setConfidenceThreshold(typeof ct === "number" ? ct : null)
+      const rawTemp = agent.model_config_json?.temperature
+      setTemperature(typeof rawTemp === "number" ? rawTemp : null)
     } else {
       setName("")
       setIcon(null)
       setDescription("")
       setInstructions("")
+      setExecutionMode("react")
       setToolCategories([])
       setSuggestedPrompts([])
       setSelectedKBs([])
       setSelectedConnectors([])
       setConfidenceThreshold(null)
+      setTemperature(null)
     }
   }, [agent])
 
@@ -93,13 +141,15 @@ export function AgentSettingsForm({
       JSON.stringify(suggestedPrompts) !== JSON.stringify(agent.suggested_prompts || []) ||
       JSON.stringify(selectedKBs) !== JSON.stringify(agent.kb_ids || []) ||
       JSON.stringify(selectedConnectors) !== JSON.stringify(agent.connector_ids || []) ||
+      executionMode !== (agent.execution_mode || "react") ||
       (() => {
         const ct = agent.grounding_config?.confidence_threshold
         const origCt = typeof ct === "number" ? ct : null
         return confidenceThreshold !== origCt
-      })()
+      })() ||
+      temperature !== (agent.model_config_json?.temperature ?? null)
     onDirtyChange(dirty)
-  }, [agent, name, icon, description, instructions, toolCategories, suggestedPrompts, selectedKBs, selectedConnectors, confidenceThreshold, onDirtyChange])
+  }, [agent, name, icon, description, instructions, executionMode, toolCategories, suggestedPrompts, selectedKBs, selectedConnectors, confidenceThreshold, temperature, onDirtyChange])
 
   const toggleCategory = (cat: string) => {
     setToolCategories((prev) =>
@@ -119,11 +169,23 @@ export function AgentSettingsForm({
       const prompts = suggestedPrompts
         .filter((s) => s.trim())
 
+      // Build model_config_json: merge temperature into existing config, or strip it if null
+      const baseModelConfig = agent?.model_config_json ? { ...agent.model_config_json } : {}
+      let modelConfigJson: Record<string, unknown> | undefined
+      if (temperature != null) {
+        modelConfigJson = { ...baseModelConfig, temperature }
+      } else {
+        const { temperature: _omit, ...rest } = baseModelConfig as Record<string, unknown>
+        void _omit
+        modelConfigJson = Object.keys(rest).length > 0 ? rest : undefined
+      }
+
       const data: AgentCreate = {
         name: trimmedName,
         icon: icon || null,
         description: description.trim() || null,
         instructions: instructions.trim() || null,
+        execution_mode: executionMode,
         tool_categories: toolCategories,
         ...(prompts.length > 0 && { suggested_prompts: prompts }),
         kb_ids: selectedKBs,
@@ -131,6 +193,7 @@ export function AgentSettingsForm({
         ...(selectedKBs.length > 0 && confidenceThreshold != null && {
           grounding_config: { confidence_threshold: confidenceThreshold },
         }),
+        ...(modelConfigJson !== undefined && { model_config_json: modelConfigJson }),
       }
 
       let result: AgentResponse
@@ -196,6 +259,87 @@ export function AgentSettingsForm({
             />
           </div>
 
+          {/* Execution Mode */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Execution Mode</label>
+            <p className="text-xs text-muted-foreground">
+              Sets the default mode for new conversations. You can still switch modes anytime during a chat.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setExecutionMode("react")}
+                className={cn(
+                  "flex flex-col items-start gap-0.5 rounded-md border p-3 text-left text-sm transition-colors",
+                  executionMode === "react"
+                    ? "border-primary bg-primary/5"
+                    : "border-input hover:border-muted-foreground/50"
+                )}
+              >
+                <div className="flex items-center gap-1.5 font-medium">
+                  <Zap className="h-3.5 w-3.5" />
+                  Standard (ReAct)
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  Quick response, flexible handling
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setExecutionMode("dag")}
+                className={cn(
+                  "flex flex-col items-start gap-0.5 rounded-md border p-3 text-left text-sm transition-colors",
+                  executionMode === "dag"
+                    ? "border-primary bg-primary/5"
+                    : "border-input hover:border-muted-foreground/50"
+                )}
+              >
+                <div className="flex items-center gap-1.5 font-medium">
+                  <GitBranch className="h-3.5 w-3.5" />
+                  Planner (DAG)
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  Systematic breakdown, step by step
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Temperature */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">Temperature</label>
+              <span className="text-xs text-muted-foreground font-mono">
+                {temperature != null ? temperature.toFixed(2) : "Default"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Controls randomness. Lower = focused, higher = creative. Leave as Default to use the server setting.
+            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={0}
+                max={200}
+                step={5}
+                value={temperature != null ? Math.round(temperature * 100) : 70}
+                onChange={(e) => {
+                  setTemperature(parseInt(e.target.value) / 100)
+                }}
+                className="flex-1 h-1.5 accent-primary"
+              />
+              {temperature != null && (
+                <button
+                  type="button"
+                  onClick={() => setTemperature(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Instructions */}
           <div className="space-y-1.5">
             <label htmlFor="agent-instructions" className="text-sm font-medium">
@@ -214,22 +358,35 @@ export function AgentSettingsForm({
           {/* Tool Categories */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Tool Categories</label>
-            <div className="flex flex-wrap gap-2">
-              {TOOL_CATEGORIES.map((cat) => (
-                <label
-                  key={cat}
-                  className="flex items-center gap-1.5 text-sm cursor-pointer select-none"
-                >
-                  <input
-                    type="checkbox"
-                    checked={toolCategories.includes(cat)}
-                    onChange={() => toggleCategory(cat)}
-                    className="h-3.5 w-3.5 rounded border-input accent-primary"
-                  />
-                  <span className="text-muted-foreground">{cat}</span>
-                </label>
-              ))}
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Hover over a category to see what tools it includes.
+            </p>
+            <TooltipProvider>
+              <div className="flex flex-wrap gap-2">
+                {TOOL_CATEGORIES.map((cat) => {
+                  const meta = TOOL_CATEGORY_META[cat]
+                  return (
+                    <Tooltip key={cat}>
+                      <TooltipTrigger asChild>
+                        <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={toolCategories.includes(cat)}
+                            onChange={() => toggleCategory(cat)}
+                            className="h-3.5 w-3.5 rounded border-input accent-primary"
+                          />
+                          <span className="text-muted-foreground">{meta.label}</span>
+                        </label>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[200px] text-center">
+                        <p className="font-medium mb-0.5">{meta.description}</p>
+                        <p className="text-[11px] opacity-75">{meta.tools}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )
+                })}
+              </div>
+            </TooltipProvider>
           </div>
 
           {/* Knowledge Bases */}
@@ -401,13 +558,13 @@ export function AgentSettingsForm({
             <label className="text-sm font-medium">
               Suggested Prompts
             </label>
+            <p className="text-xs text-muted-foreground">
+              Shown as quick-start suggestions in chat.
+            </p>
             <SuggestedPromptsEditor
               value={suggestedPrompts}
               onChange={setSuggestedPrompts}
             />
-            <p className="text-xs text-muted-foreground">
-              Shown as quick-start suggestions in chat.
-            </p>
           </div>
         </div>
       </ScrollArea>

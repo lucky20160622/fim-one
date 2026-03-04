@@ -10,6 +10,7 @@ export interface AgentResponse {
   kb_ids: string[] | null
   connector_ids: string[] | null
   grounding_config: Record<string, unknown> | null
+  execution_mode: "react" | "dag"
   status: string
   published_at: string | null
   created_at: string
@@ -27,6 +28,7 @@ export interface AgentCreate {
   kb_ids?: string[]
   connector_ids?: string[]
   grounding_config?: Record<string, unknown>
+  execution_mode?: "react" | "dag"
 }
 
 export interface AgentUpdate {
@@ -40,6 +42,7 @@ export interface AgentUpdate {
   kb_ids?: string[]
   connector_ids?: string[]
   grounding_config?: Record<string, unknown>
+  execution_mode?: "react" | "dag"
 }
 
 export interface AICreateAgentResult {

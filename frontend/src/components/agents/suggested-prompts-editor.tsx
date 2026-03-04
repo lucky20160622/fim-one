@@ -1,6 +1,22 @@
 "use client"
 
-import { ArrowUp, ArrowDown, X, Plus } from "lucide-react"
+import { useRef, useState, useEffect } from "react"
+import { X, Plus, GripVertical } from "lucide-react"
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 interface SuggestedPromptsEditorProps {
   value: string[]
@@ -10,10 +26,87 @@ interface SuggestedPromptsEditorProps {
 const inputClass =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 
+interface SortableItemProps {
+  id: string
+  prompt: string
+  onUpdate: (text: string) => void
+  onRemove: () => void
+}
+
+function SortableItem({ id, prompt, onUpdate, onRemove }: SortableItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-1">
+      <button
+        type="button"
+        className="flex-shrink-0 h-7 w-6 flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-grab active:cursor-grabbing"
+        aria-label="Drag to reorder"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+
+      <input
+        type="text"
+        value={prompt}
+        onChange={(e) => onUpdate(e.target.value)}
+        placeholder="Enter a suggested prompt..."
+        className={inputClass}
+      />
+
+      <button
+        type="button"
+        onClick={onRemove}
+        className="h-7 w-7 flex-shrink-0 flex items-center justify-center rounded-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+        aria-label="Remove prompt"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
+}
+
 export function SuggestedPromptsEditor({
   value,
   onChange,
 }: SuggestedPromptsEditorProps) {
+  const sensors = useSensors(useSensor(PointerSensor))
+
+  // Stable IDs: each item gets a unique ID on creation, independent of its index
+  const counterRef = useRef(0)
+  const genId = () => `p-${++counterRef.current}`
+  const [ids, setIds] = useState<string[]>(() => value.map(() => genId()))
+
+  // Sync ids when value is loaded externally (e.g. async API response)
+  useEffect(() => {
+    setIds((prev) => {
+      if (prev.length === value.length) return prev
+      if (value.length > prev.length) {
+        return [...prev, ...Array.from({ length: value.length - prev.length }, () => genId())]
+      }
+      return prev.slice(0, value.length)
+    })
+  }, [value.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = ids.indexOf(active.id as string)
+      const newIndex = ids.indexOf(over.id as string)
+      setIds(arrayMove(ids, oldIndex, newIndex))
+      onChange(arrayMove(value, oldIndex, newIndex))
+    }
+  }
+
   const updateItem = (index: number, text: string) => {
     const next = [...value]
     next[index] = text
@@ -21,67 +114,30 @@ export function SuggestedPromptsEditor({
   }
 
   const removeItem = (index: number) => {
+    setIds(ids.filter((_, i) => i !== index))
     onChange(value.filter((_, i) => i !== index))
   }
 
-  const moveItem = (index: number, direction: -1 | 1) => {
-    const target = index + direction
-    if (target < 0 || target >= value.length) return
-    const next = [...value]
-    ;[next[index], next[target]] = [next[target], next[index]]
-    onChange(next)
-  }
-
   const addItem = () => {
+    setIds([...ids, genId()])
     onChange([...value, ""])
   }
 
   return (
     <div className="space-y-2">
-      {value.map((prompt, index) => (
-        <div key={index} className="flex items-center gap-1">
-          {/* Reorder buttons */}
-          <div className="flex flex-col">
-            <button
-              type="button"
-              onClick={() => moveItem(index, -1)}
-              disabled={index === 0}
-              className="h-4 w-7 flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-0 disabled:pointer-events-none transition-colors"
-              aria-label="Move up"
-            >
-              <ArrowUp className="h-3 w-3" />
-            </button>
-            <button
-              type="button"
-              onClick={() => moveItem(index, 1)}
-              disabled={index === value.length - 1}
-              className="h-4 w-7 flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-0 disabled:pointer-events-none transition-colors"
-              aria-label="Move down"
-            >
-              <ArrowDown className="h-3 w-3" />
-            </button>
-          </div>
-
-          {/* Text input */}
-          <input
-            type="text"
-            value={prompt}
-            onChange={(e) => updateItem(index, e.target.value)}
-            placeholder="Enter a suggested prompt..."
-            className={inputClass}
-          />
-
-          {/* Delete button */}
-          <button
-            type="button"
-            onClick={() => removeItem(index)}
-            className="h-7 w-7 flex-shrink-0 flex items-center justify-center rounded-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-            aria-label="Remove prompt"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      ))}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          {ids.map((id, index) => (
+            <SortableItem
+              key={id}
+              id={id}
+              prompt={value[index] ?? ""}
+              onUpdate={(text) => updateItem(index, text)}
+              onRemove={() => removeItem(index)}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
 
       <button
         type="button"
