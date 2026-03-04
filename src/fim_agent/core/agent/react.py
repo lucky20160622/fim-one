@@ -297,7 +297,7 @@ class ReActAgent:
             # Drain BEFORE checking final_answer so injections are never lost.
             # (In JSON mode there is no tool_use/tool_result pairing constraint,
             # so it is safe to insert a user message here.)
-            injected_msgs = interrupt_queue.drain() if interrupt_queue is not None else []
+            injected_msgs = (await interrupt_queue.drain()) if interrupt_queue is not None else []
             self._emit_and_append_injections(
                 injected_msgs, messages, iteration, on_iteration,
             )
@@ -428,7 +428,7 @@ class ReActAgent:
                 messages.extend(tool_results)
 
                 # Now safe to drain — tool_use/tool_result pairing is intact.
-                injected_msgs = interrupt_queue.drain() if interrupt_queue is not None else []
+                injected_msgs = (await interrupt_queue.drain()) if interrupt_queue is not None else []
                 self._emit_and_append_injections(
                     injected_msgs, messages, iteration, on_iteration,
                 )
@@ -436,7 +436,7 @@ class ReActAgent:
 
             # -- Final answer path (no tool calls) --
             # Drain before returning so injections are never lost.
-            injected_msgs = interrupt_queue.drain() if interrupt_queue is not None else []
+            injected_msgs = (await interrupt_queue.drain()) if interrupt_queue is not None else []
             self._emit_and_append_injections(
                 injected_msgs, messages, iteration, on_iteration,
             )
