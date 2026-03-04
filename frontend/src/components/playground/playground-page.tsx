@@ -15,7 +15,7 @@ import { useLocalStorage } from "@/hooks/use-local-storage"
 import { useAuth } from "@/contexts/auth-context"
 import { useConversation } from "@/contexts/conversation-context"
 import { agentApi, fileApi, chatApi } from "@/lib/api"
-import { getApiBaseUrl, ACCESS_TOKEN_KEY } from "@/lib/constants"
+import { getApiBaseUrl, getApiDirectUrl, ACCESS_TOKEN_KEY } from "@/lib/constants"
 import { cn, formatFileSize, isImageFile } from "@/lib/utils"
 import {
   DropdownMenu,
@@ -254,7 +254,9 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
       }
 
       const endpoint = mode === "react" ? "react" : "dag"
-      let url = `${getApiBaseUrl()}/api/${endpoint}?q=${encodeURIComponent(trimmed)}&conversation_id=${convId}`
+      // SSE EventSource connects directly to backend, bypassing Next.js
+      // rewrite proxy which buffers streaming responses.
+      let url = `${getApiDirectUrl()}/api/${endpoint}?q=${encodeURIComponent(trimmed)}&conversation_id=${convId}`
       const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY)
       if (accessToken) {
         url += `&token=${encodeURIComponent(accessToken)}`
