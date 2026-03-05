@@ -118,13 +118,18 @@ async def get_current_user(
     # Check if this token was issued before a force-logout event
     if user.tokens_invalidated_at is not None:
         iat = payload.get("iat")
-        if iat is not None:
-            token_issued = datetime.fromtimestamp(iat, tz=UTC) if isinstance(iat, (int, float)) else iat
-            if token_issued <= user.tokens_invalidated_at.replace(tzinfo=UTC):
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Session invalidated",
-                )
+        if iat is None:
+            # Token predates the iat claim — can't verify it post-dates invalidation, reject it
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session invalidated",
+            )
+        token_issued = datetime.fromtimestamp(iat, tz=UTC) if isinstance(iat, (int, float)) else iat
+        if token_issued <= user.tokens_invalidated_at.replace(tzinfo=UTC):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session invalidated",
+            )
     return user
 
 
