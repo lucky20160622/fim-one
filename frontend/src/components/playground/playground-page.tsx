@@ -6,6 +6,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Send, Loader2, PanelRightOpen, PanelRightClose, ArrowDown, Square, Zap, GitBranch, Bot, Paperclip, X, Plus, ChevronsUpDown, Check, Undo2, RotateCcw, User } from "lucide-react"
+import Lightbox from "yet-another-react-lightbox"
+import "yet-another-react-lightbox/styles.css"
+import LightboxZoom from "yet-another-react-lightbox/plugins/zoom"
+import LightboxDownload from "yet-another-react-lightbox/plugins/download"
 import { toast } from "sonner"
 import { useSSE } from "@/hooks/use-sse"
 import { useDagSteps } from "@/hooks/use-dag-steps"
@@ -418,11 +422,24 @@ function ImageThumbnail({ fileId, filename }: { fileId: string; filename: string
       </button>
       {expanded && (
         <Dialog open={expanded} onOpenChange={setExpanded}>
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle>{filename}</DialogTitle>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col gap-3">
+            <DialogHeader className="shrink-0">
+              <DialogTitle className="flex items-center gap-2 pr-6">
+                <span className="truncate">{filename}</span>
+                <a
+                  href={blobUrl}
+                  download={filename}
+                  className="ml-auto shrink-0 inline-flex items-center gap-1.5 rounded-md border border-border/60 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download
+                </a>
+              </DialogTitle>
             </DialogHeader>
-            <img src={blobUrl} alt={filename} className="w-full rounded" />
+            <div className="overflow-auto min-h-0 flex-1">
+              <img src={blobUrl} alt={filename} className="w-full h-auto rounded object-contain" />
+            </div>
           </DialogContent>
         </Dialog>
       )}
@@ -641,9 +658,13 @@ function PlaygroundContent({
   }, [])
 
   const handleSuggestionSelect = useCallback((q: string) => {
+    // Clear any attached files/images so they don't show up as "still attached"
+    // on the follow-up turn. The suggestion never sends them to the backend anyway.
+    setAttachedFiles([])
+    setPendingImages([])
     onRunWithQuery(q)
     requestAnimationFrame(() => scrollViewportToBottom())
-  }, [onRunWithQuery, scrollViewportToBottom])
+  }, [onRunWithQuery, scrollViewportToBottom, setAttachedFiles, setPendingImages])
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
