@@ -948,6 +948,7 @@ async def react_endpoint(
                     conversation_id,
                     exc_info=True,
                 )
+                await db_session.close()
                 db_session = None
 
         # Register interrupt queue for mid-stream injection.
@@ -1165,15 +1166,17 @@ async def react_endpoint(
                     done_payload["usage"]["fast_llm_tokens"] = fast_summary.total_tokens
                 if db_session and conversation_id:
                     try:
+                        from sqlalchemy import update as _sa_update, func as _sa_func
                         from fim_agent.web.models import Conversation
-                        stmt = sa_select(Conversation).where(
-                            Conversation.id == conversation_id
+                        await db_session.execute(
+                            _sa_update(Conversation)
+                            .where(Conversation.id == conversation_id)
+                            .values(
+                                total_tokens=_sa_func.coalesce(Conversation.total_tokens, 0) + fast_summary.total_tokens,
+                                fast_llm_tokens=_sa_func.coalesce(Conversation.fast_llm_tokens, 0) + fast_summary.total_tokens,
+                            )
                         )
-                        conv = (await db_session.execute(stmt)).scalar_one_or_none()
-                        if conv:
-                            conv.total_tokens = (conv.total_tokens or 0) + fast_summary.total_tokens
-                            conv.fast_llm_tokens = (conv.fast_llm_tokens or 0) + fast_summary.total_tokens
-                            await db_session.commit()
+                        await db_session.commit()
                     except Exception:
                         logger.warning("Failed to persist fast LLM tokens", exc_info=True)
 
@@ -1318,12 +1321,15 @@ async def dag_endpoint(
                     conversation_id,
                     exc_info=True,
                 )
+                await db_session.close()
                 db_session = None
 
         # Register interrupt queue for mid-stream injection.
         dag_interrupt_queue: InterruptQueue | None = None
         if conversation_id:
             dag_interrupt_queue = register_interrupt_queue(conversation_id)
+
+        fast_usage_tracker = UsageTracker()
 
         # -- Load conversation context for multi-turn DAG planning ----------
         # When images are attached, annotate the query so the text-only
@@ -1374,6 +1380,8 @@ async def dag_endpoint(
                                 ),
                                 ChatMessage(role="user", content=context_str),
                             ])
+                            if summary_result.usage:
+                                await fast_usage_tracker.record(summary_result.usage)
                             summary = (
                                 summary_result.message.content or ""
                             ).strip()
@@ -1407,7 +1415,6 @@ async def dag_endpoint(
                 logger.warning("SSE progress queue full, dropping event")
 
         try:
-            fast_usage_tracker = UsageTracker()
             plan: ExecutionPlan | None = None
             analysis: AnalysisResult | None = None
             cumulative_usage: UsageSummary | None = None
@@ -1502,7 +1509,6 @@ async def dag_endpoint(
                     tools=tools,
                     extra_instructions=extra_instructions,
                     max_iterations=dag_step_max_iters,
-                    memory=dag_memory,
                     context_guard=dag_context_guard,
                 )
                 registry = get_model_registry()
@@ -1801,17 +1807,17 @@ async def dag_endpoint(
                     dag_done_payload["usage"]["fast_llm_tokens"] = fast_summary.total_tokens
                 if db_session and conversation_id:
                     try:
-                        from fim_agent.web.models import (
-                            Conversation as ConvModel,
+                        from sqlalchemy import update as _sa_update, func as _sa_func
+                        from fim_agent.web.models import Conversation as ConvModel
+                        await db_session.execute(
+                            _sa_update(ConvModel)
+                            .where(ConvModel.id == conversation_id)
+                            .values(
+                                total_tokens=_sa_func.coalesce(ConvModel.total_tokens, 0) + fast_summary.total_tokens,
+                                fast_llm_tokens=_sa_func.coalesce(ConvModel.fast_llm_tokens, 0) + fast_summary.total_tokens,
+                            )
                         )
-                        stmt = sa_select(ConvModel).where(
-                            ConvModel.id == conversation_id
-                        )
-                        conv = (await db_session.execute(stmt)).scalar_one_or_none()
-                        if conv:
-                            conv.total_tokens = (conv.total_tokens or 0) + fast_summary.total_tokens
-                            conv.fast_llm_tokens = (conv.fast_llm_tokens or 0) + fast_summary.total_tokens
-                            await db_session.commit()
+                        await db_session.commit()
                     except Exception:
                         logger.warning("Failed to persist fast LLM tokens", exc_info=True)
 
