@@ -454,9 +454,9 @@ def get_reranker() -> BaseReranker | None:
         from fim_agent.core.reranker.openai import OpenAIReranker
         return OpenAIReranker(model=model)
 
-    # Default: Jina
+    # Default: Jina — skip silently if no key available
     jina_key = os.environ.get("JINA_API_KEY", "")
-    if not jina_key and not provider:
+    if not jina_key:
         return None
     model = os.environ.get("RERANKER_MODEL", "jina-reranker-v2-base-multilingual")
     from fim_agent.core.reranker.jina import JinaReranker
