@@ -7,6 +7,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 ## [Unreleased]
 
 ### Added
+- **Admin/Settings: invite code inactive filter**: Revoked and exhausted invite codes are hidden by default; an "N inactive" toggle button reveals them. Exhausted codes (use_count ≥ max_uses) now show an "Exhausted" badge distinct from "Revoked".
+
+### Fixed
+- **API/chat: DB session leak on setup failure**: Both `react_endpoint` and `dag_endpoint` now call `db_session.close()` before nulling the reference when the setup block raises, preventing connection pool exhaustion.
+- **API/chat: atomic token tracking**: Fast-LLM token persistence replaced SELECT+modify with a single SQL `UPDATE … SET total_tokens = COALESCE(total_tokens,0)+N` to avoid read-modify-write races under concurrent requests.
+- **API/chat: fast_usage_tracker scope in DAG endpoint**: Moved initialization before the try block so the variable is always defined when the done payload is assembled; also tracks usage from the conversation summarization phase.
+- **Conversation context: stale 404 sidebar entry**: When `selectConversation` gets a 404 (conversation deleted by admin), the entry is now removed from the local sidebar list instead of leaving an unloadable ghost item.
+
+### Changed
+- **Admin: uniform page headers**: All admin sections (Overview, Users, Conversations, Connectors, MCP Servers, Storage, Audit Log, Settings) now open with a consistent `<h2>` title + subtitle description block. Section-level icon decorators removed; action buttons (Create User, Add Global Server) moved into the header row.
+- **Login/Setup: frosted-glass right panel**: Page root uses `oklch(0.13 0.008 55)` background so the dark brand panel extends across the full viewport; the form panel uses `bg-background/88 + backdrop-blur-sm` for a subtle frosted-glass effect.
+
+### Added
 - **EmailSendTool recipient allowlist**: `SMTP_ALLOWED_DOMAINS` and `SMTP_ALLOWED_ADDRESSES` env vars restrict which addresses the `email_send` tool may send to; any blocked recipient returns `[Error]` without sending; both vars optional — leave unset for no restriction (not recommended for shared mailboxes)
 - **Admin: token quota per user**: `token_quota` field on `User` model; admins can cap monthly token usage per account via `PUT /api/admin/users/{id}/quota`
 - **Admin: global MCP servers**: `is_global` flag on `MCPServer` makes a server available to all users; `user_id` is now nullable for admin-managed global servers; DB migration handles column addition and table recreation for SQLite NOT NULL constraint
