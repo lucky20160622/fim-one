@@ -28,6 +28,11 @@ class GroundedRetrieveTool(BaseTool):
         self._confidence_threshold = confidence_threshold
         self._source_offset: int = 0
         self._offset_lock: asyncio.Lock = asyncio.Lock()
+        self._usage_tracker: Any = None
+
+    def set_usage_tracker(self, tracker: Any) -> None:
+        """Attach a UsageTracker for recording fast LLM token consumption."""
+        self._usage_tracker = tracker
 
     @property
     def name(self) -> str:
@@ -101,6 +106,7 @@ class GroundedRetrieveTool(BaseTool):
                 embedding=embedding,
                 llm=fast_llm,
                 config=config,
+                usage_tracker=self._usage_tracker,
             )
             result = await pipeline.ground(query, kb_ids, user_id)
 

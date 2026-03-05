@@ -9,7 +9,7 @@ import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fim_agent.core.embedding.base import BaseEmbedding
 from fim_agent.core.model.base import BaseLLM
@@ -17,6 +17,9 @@ from fim_agent.core.model.types import ChatMessage
 from fim_agent.core.utils import extract_json
 from fim_agent.rag.base import Document
 from fim_agent.rag.manager import KnowledgeBaseManager
+
+if TYPE_CHECKING:
+    from fim_agent.core.model.usage import UsageTracker
 
 logger = logging.getLogger(__name__)
 
@@ -106,12 +109,14 @@ class GroundingPipeline:
         llm: BaseLLM | None = None,
         config: dict[str, Any] | None = None,
         on_evidence: Callable[[EvidenceUnit], None] | None = None,
+        usage_tracker: UsageTracker | None = None,
     ) -> None:
         self._kb_manager = kb_manager
         self._embedding = embedding
         self._llm = llm
         self._config = {**_DEFAULT_CONFIG, **(config or {})}
         self._on_evidence = on_evidence
+        self._usage_tracker = usage_tracker
 
     # ------------------------------------------------------------------
     # Public API
@@ -239,6 +244,8 @@ class GroundingPipeline:
         ])
 
         raw = result.message.content or ""
+        if self._usage_tracker and result.usage:
+            await self._usage_tracker.record(result.usage)
 
         parsed = extract_json(raw)
         if parsed is None:
