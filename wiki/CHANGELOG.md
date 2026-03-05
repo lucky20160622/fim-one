@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 ## [Unreleased]
 
 ### Added
+- **Environment Variables Wiki**: Extracted all env var documentation from README into `wiki/Environment-Variables.md` with full coverage across 8 sections (LLM, agent execution, web tools, RAG, code execution, image generation, connectors, platform, OAuth); README now links to the wiki page
+
 - **Disable Public Registration**: Admins can toggle public self-registration on/off from Admin Panel → Settings tab; setting persists in a new `system_settings` DB table; `POST /api/auth/register` enforces the setting (first user bootstrap always allowed); login page hides the Register tab when disabled; OAuth callback also blocked from creating new accounts; public `GET /api/auth/registration-status` endpoint for frontend
 - **Admin Panel — Audit Log**: New `audit_logs` DB table + `AuditLog` model; `write_audit()` helper records every key admin action (user create/delete/enable/disable/grant-admin/revoke-admin/reset-password, settings update, force logout); new Audit Log tab with color-coded action badges, target label, detail column, pagination, and refresh
 - **Admin Panel — User Deletion**: `DELETE /api/admin/users/{id}` hard-deletes a user; Users table has new Delete User option with destructive confirmation dialog
