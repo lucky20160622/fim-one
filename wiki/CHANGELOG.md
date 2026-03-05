@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 ## [Unreleased]
 
 ### Added
+- **Write-First Script Execution**: All sandbox backends now write code to a named file in `exec_dir/` before executing — `script_{uuid8}.py` / `.js`; `SandboxResult` carries `script_path`; `python_exec` and `node_exec` tools prepend `[Script: <name>]` so agents can reference the file with `file_ops` and re-run it; Docker backend mounts exec_dir as `/workspace` and executes the file (no more stdin pipe); Local Node switches from `node -e` to `node file.js`
+
 - **Docker Sandbox Backend**: `CODE_EXEC_BACKEND=docker` routes `python_exec`, `node_exec`, and `shell_exec` through Docker containers with `--network=none`, `--memory=256m`, `--cpus=0.5` for OS-level isolation; volume-mounts an exec_dir per run; `DOCKER_PYTHON_IMAGE`, `DOCKER_NODE_IMAGE`, `DOCKER_SHELL_IMAGE` env vars to override default images
 - **`node_exec` Tool**: JavaScript/Node.js code execution; local mode runs `node -e`; Docker mode uses `node:20-slim` container; category `computation`, auto-discovered via `discover_builtin_tools()`
 - **Pluggable `SandboxBackend` Protocol**: `core/tool/sandbox/` module — `SandboxResult`, `SandboxBackend` Protocol, `LocalBackend`, `DockerBackend` implementations; `get_sandbox_backend()` factory reads `CODE_EXEC_BACKEND` env var; `python_exec` and `shell_exec` delegate to the selected backend; 18 new tests
