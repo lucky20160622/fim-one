@@ -1,0 +1,335 @@
+"""Local (in-process / subprocess) sandbox backend.
+
+Python code runs in the same process via ``exec()`` with a restricted
+namespace.  Shell commands run via ``asyncio.create_subprocess_shell``.
+JavaScript runs via ``node -e`` if Node.js is available on PATH.
+
+Security model: blocklists + restricted builtins (Python only).
+For proper OS-level isolation use :class:`DockerBackend` instead.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import importlib.abc
+import importlib.machinery
+import io
+import logging
+import os
+import sys
+import traceback
+from pathlib import Path
+from typing import Any
+
+from .protocol import SandboxResult
+
+logger = logging.getLogger(__name__)
+
+# -----------------------------------------------------------------------
+# Python sandbox helpers (local mode only — Docker mode doesn't need these)
+# -----------------------------------------------------------------------
+
+# Whitelisted builtins exposed to executed code.
+_SAFE_BUILTINS: dict[str, Any] = {
+    name: __builtins__[name] if isinstance(__builtins__, dict) else getattr(__builtins__, name)
+    for name in (
+        "print", "len", "range", "enumerate", "zip", "map", "filter",
+        "sorted", "reversed", "list", "dict", "set", "tuple", "frozenset",
+        "str", "int", "float", "bool", "complex", "bytes", "bytearray",
+        "memoryview", "abs", "round", "min", "max", "sum", "any", "all",
+        "isinstance", "issubclass", "type", "hasattr", "getattr", "setattr",
+        "delattr", "repr", "format", "iter", "next", "slice",
+        "chr", "ord", "hex", "oct", "bin", "pow", "divmod",
+        "hash", "id", "callable", "vars", "dir", "help", "input",
+        "open", "__import__",
+        # Needed for common patterns: exceptions, None/True/False, etc.
+        "None", "True", "False",
+        "Exception", "BaseException", "ValueError", "TypeError",
+        "KeyError", "IndexError", "AttributeError", "RuntimeError",
+        "StopIteration", "StopAsyncIteration", "ArithmeticError",
+        "ZeroDivisionError", "OverflowError", "FloatingPointError",
+        "LookupError", "FileNotFoundError", "FileExistsError",
+        "PermissionError", "OSError", "IOError", "EOFError",
+        "ImportError", "ModuleNotFoundError", "NameError",
+        "UnboundLocalError", "NotImplementedError", "RecursionError",
+        "UnicodeError", "UnicodeDecodeError", "UnicodeEncodeError",
+        # Comprehension / generator support
+        "property", "staticmethod", "classmethod", "super",
+        "object", "enumerate",
+        # String / number helpers the agent uses
+        "ascii", "breakpoint",
+        # Internal helpers required by the interpreter for class/with/etc.
+        "__build_class__", "__name__",
+    )
+    if (isinstance(__builtins__, dict) and name in __builtins__)
+    or (not isinstance(__builtins__, dict) and hasattr(__builtins__, name))
+}
+
+# Modules that should never be importable from user code (local mode only).
+_BLOCKED_MODULES: frozenset[str] = frozenset({
+    "subprocess",
+    "shutil",
+    "ctypes",
+    "multiprocessing",
+    "signal",
+    "resource",
+})
+
+
+class _BlockedImportFinder(importlib.abc.MetaPathFinder):
+    """A sys.meta_path finder that raises ImportError for blocked modules."""
+
+    def find_module(self, fullname: str, path: Any = None) -> None:
+        top_level = fullname.split(".")[0]
+        if top_level in _BLOCKED_MODULES:
+            raise ImportError(f"Import of '{fullname}' is blocked in the sandbox.")
+        return None
+
+    def find_spec(self, fullname: str, path: Any, target: Any = None) -> None:
+        top_level = fullname.split(".")[0]
+        if top_level in _BLOCKED_MODULES:
+            raise ImportError(f"Import of '{fullname}' is blocked in the sandbox.")
+        return None
+
+
+# -----------------------------------------------------------------------
+# LocalBackend
+# -----------------------------------------------------------------------
+
+
+class LocalBackend:
+    """Sandbox backend that runs code locally without OS-level isolation.
+
+    Python:     in-process ``exec()`` with restricted builtins + import blocklist
+    JavaScript: spawns ``node -e <code>`` (requires Node.js on PATH)
+    Shell:      spawns ``asyncio.create_subprocess_shell``
+    """
+
+    async def run_code(
+        self,
+        code: str,
+        *,
+        language: str,
+        exec_dir: Path,
+        timeout: int,
+    ) -> SandboxResult:
+        if language == "python":
+            return await self._run_python(code, exec_dir=exec_dir, timeout=timeout)
+        elif language == "javascript":
+            return await self._run_node(code, exec_dir=exec_dir, timeout=timeout)
+        else:
+            return SandboxResult(
+                stdout="",
+                stderr="",
+                exit_code=-1,
+                error=f"Unsupported language '{language}' in local backend.",
+            )
+
+    async def run_shell(
+        self,
+        command: str,
+        *,
+        sandbox_dir: Path,
+        timeout: int,
+    ) -> SandboxResult:
+        sandbox_dir.mkdir(parents=True, exist_ok=True)
+
+        # Build a restricted env (local mode only — docker has its own isolation)
+        env = _build_safe_env(str(sandbox_dir))
+
+        try:
+            proc = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(sandbox_dir),
+                env=env,
+            )
+            try:
+                stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                    proc.communicate(), timeout=timeout
+                )
+            except TimeoutError:
+                try:
+                    proc.kill()
+                except ProcessLookupError:
+                    pass
+                await proc.wait()
+                return SandboxResult(
+                    stdout="",
+                    stderr="",
+                    exit_code=124,
+                    timed_out=True,
+                )
+        except OSError as exc:
+            return SandboxResult(
+                stdout="", stderr="", exit_code=-1, error=str(exc)
+            )
+
+        return SandboxResult(
+            stdout=stdout_bytes.decode("utf-8", errors="replace"),
+            stderr=stderr_bytes.decode("utf-8", errors="replace"),
+            exit_code=proc.returncode or 0,
+        )
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    async def _run_python(
+        self, code: str, *, exec_dir: Path, timeout: int
+    ) -> SandboxResult:
+        """Run Python code in-process with restricted sandbox."""
+        try:
+            output: str = await asyncio.wait_for(
+                asyncio.to_thread(self._execute_python_sync, code, exec_dir),
+                timeout=timeout,
+            )
+        except TimeoutError:
+            return SandboxResult(
+                stdout="", stderr="", exit_code=124, timed_out=True
+            )
+
+        # _execute_python_sync returns either stdout or a traceback string
+        # (stderr is mixed into stdout for legacy compat; exit_code derived)
+        exit_code = 0 if not output.startswith("Traceback") else 1
+        return SandboxResult(stdout=output, stderr="", exit_code=exit_code)
+
+    def _execute_python_sync(self, code: str, exec_dir: Path) -> str:
+        """Synchronous in-process Python execution (called from thread pool)."""
+        # Pre-configure matplotlib CJK fonts if available.
+        try:
+            import matplotlib
+            matplotlib.rcParams["font.sans-serif"] = [
+                "PingFang SC", "STHeiti", "SimHei", "Helvetica",
+            ]
+            matplotlib.rcParams["axes.unicode_minus"] = False
+        except ImportError:
+            pass
+
+        exec_dir.mkdir(parents=True, exist_ok=True)
+
+        stdout_capture = io.StringIO()
+        stderr_capture = io.StringIO()
+        namespace: dict[str, Any] = {"__builtins__": _SAFE_BUILTINS}
+
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        old_cwd = os.getcwd()
+
+        import_blocker = _BlockedImportFinder()
+        sys.meta_path.insert(0, import_blocker)
+
+        _saved_modules: dict[str, Any] = {}
+        for mod_name in list(sys.modules):
+            top = mod_name.split(".")[0]
+            if top in _BLOCKED_MODULES:
+                _saved_modules[mod_name] = sys.modules.pop(mod_name)
+
+        try:
+            os.chdir(str(exec_dir))
+            sys.stdout = stdout_capture
+            sys.stderr = stderr_capture
+            exec(code, namespace)
+        except Exception:
+            return traceback.format_exc()
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+            os.chdir(old_cwd)
+            sys.modules.update(_saved_modules)
+            try:
+                sys.meta_path.remove(import_blocker)
+            except ValueError:
+                pass
+
+        output = stdout_capture.getvalue()
+        stderr_text = stderr_capture.getvalue()
+        if stderr_text:
+            output = output + "[stderr]\n" + stderr_text
+        return output
+
+    async def _run_node(
+        self, code: str, *, exec_dir: Path, timeout: int
+    ) -> SandboxResult:
+        """Run JavaScript code via ``node -e``."""
+        exec_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "node", "-e", code,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(exec_dir),
+            )
+            try:
+                stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                    proc.communicate(), timeout=timeout
+                )
+            except TimeoutError:
+                try:
+                    proc.kill()
+                except ProcessLookupError:
+                    pass
+                await proc.wait()
+                return SandboxResult(
+                    stdout="", stderr="", exit_code=124, timed_out=True
+                )
+        except FileNotFoundError:
+            return SandboxResult(
+                stdout="",
+                stderr="",
+                exit_code=-1,
+                error=(
+                    "Node.js is not installed or not on PATH. "
+                    "To run JavaScript, set CODE_EXEC_BACKEND=docker."
+                ),
+            )
+
+        return SandboxResult(
+            stdout=stdout_bytes.decode("utf-8", errors="replace"),
+            stderr=stderr_bytes.decode("utf-8", errors="replace"),
+            exit_code=proc.returncode or 0,
+        )
+
+
+# -----------------------------------------------------------------------
+# Local-mode env helper (not used by DockerBackend)
+# -----------------------------------------------------------------------
+
+import re as _re
+
+_SENSITIVE_ENV_PATTERNS: tuple[_re.Pattern[str], ...] = (
+    _re.compile(r"^AWS_", _re.IGNORECASE),
+    _re.compile(r"^OPENAI_", _re.IGNORECASE),
+    _re.compile(r"^ANTHROPIC_", _re.IGNORECASE),
+    _re.compile(r"^AZURE_", _re.IGNORECASE),
+    _re.compile(r"^GOOGLE_", _re.IGNORECASE),
+    _re.compile(r"^JINA_", _re.IGNORECASE),
+    _re.compile(r"_KEY$", _re.IGNORECASE),
+    _re.compile(r"_SECRET$", _re.IGNORECASE),
+    _re.compile(r"_TOKEN$", _re.IGNORECASE),
+    _re.compile(r"_PASSWORD$", _re.IGNORECASE),
+    _re.compile(r"^DATABASE_URL$", _re.IGNORECASE),
+    _re.compile(r"^REDIS_URL$", _re.IGNORECASE),
+    _re.compile(r"^MONGO_URL$", _re.IGNORECASE),
+    _re.compile(r"^DSN$", _re.IGNORECASE),
+)
+
+_SAFE_PATH = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+
+def _build_safe_env(sandbox_dir: str) -> dict[str, str]:
+    """Build a restricted environment dict for the child process."""
+    env: dict[str, str] = {}
+    for key, value in os.environ.items():
+        if not any(pat.search(key) for pat in _SENSITIVE_ENV_PATTERNS):
+            env[key] = value
+
+    env["HOME"] = sandbox_dir
+    env["PATH"] = _SAFE_PATH
+    env["TMPDIR"] = sandbox_dir
+    for key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
+                "AWS_SESSION_TOKEN", "OPENAI_API_KEY",
+                "ANTHROPIC_API_KEY", "DATABASE_URL"):
+        env.pop(key, None)
+    return env

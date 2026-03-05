@@ -1,4 +1,4 @@
-"""Built-in tool for executing Python code in a sandboxed namespace."""
+"""Built-in tool for executing JavaScript (Node.js) code in a sandbox."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from ..sandbox import get_sandbox_backend
 
 _DEFAULT_TIMEOUT_SECONDS: int = 120
 
-# Default directory for code execution outputs (plots, data files, etc.)
+# Default directory for code execution outputs.
 _DEFAULT_EXEC_DIR = Path(__file__).resolve().parents[4] / "tmp" / "default" / "exec"
 
 # Maximum captured output size (bytes) before truncation.
@@ -30,15 +30,16 @@ def _truncate_output(text: str) -> str:
     )
 
 
-class PythonExecTool(BaseTool):
-    """Execute Python code and capture its printed output.
+class NodeExecTool(BaseTool):
+    """Execute JavaScript (Node.js) code and capture its output.
 
-    The code runs inside the configured sandbox backend (local or docker).
-    Standard output is captured so that anything written via ``print()`` is
-    returned as the tool result.
+    Local mode:  requires Node.js on PATH (``node -e <code>``).
+                 If Node.js is not installed, returns a helpful error message.
+    Docker mode: runs in ``node:20-slim`` container with full isolation.
+                 Switch via ``CODE_EXEC_BACKEND=docker``.
 
-    A configurable timeout (default 120 s) guards against runaway
-    execution.
+    Files written to the execution directory are accessible to FileOpsTool
+    via the shared per-conversation workspace.
     """
 
     def __init__(
@@ -50,17 +51,13 @@ class PythonExecTool(BaseTool):
         self._timeout = timeout
         self._exec_dir = exec_dir or _DEFAULT_EXEC_DIR
 
-    # ------------------------------------------------------------------
-    # Tool protocol properties
-    # ------------------------------------------------------------------
-
     @property
     def name(self) -> str:
-        return "python_exec"
+        return "node_exec"
 
     @property
     def display_name(self) -> str:
-        return "Python"
+        return "JavaScript"
 
     @property
     def category(self) -> str:
@@ -69,12 +66,14 @@ class PythonExecTool(BaseTool):
     @property
     def description(self) -> str:
         return (
-            "Execute Python code and return the output. "
-            "Use print() to produce output. "
-            "Only standard-library modules are guaranteed to be available. "
-            "Do NOT attempt to install packages (pip install / uv add) — "
-            "it will likely fail or timeout. If a library is unavailable, "
-            "fall back to a standard-library-only solution."
+            "Execute JavaScript (Node.js) code and return the output. "
+            "Use console.log() to produce output. "
+            "Only Node.js built-in modules are guaranteed to be available. "
+            "Do NOT attempt to install packages (npm install) — "
+            "it will likely fail or timeout. "
+            "In local mode, Node.js must be installed on the host. "
+            "Switch to docker mode (CODE_EXEC_BACKEND=docker) for a fully "
+            "isolated Node.js environment."
         )
 
     @property
@@ -84,43 +83,27 @@ class PythonExecTool(BaseTool):
             "properties": {
                 "code": {
                     "type": "string",
-                    "description": "Python code to execute.",
+                    "description": "JavaScript code to execute.",
                 },
             },
             "required": ["code"],
         }
 
-    # ------------------------------------------------------------------
-    # Execution
-    # ------------------------------------------------------------------
-
     async def run(self, **kwargs: Any) -> str:
-        """Execute the provided Python *code* and return captured stdout.
-
-        Args:
-            **kwargs: Must contain ``code`` (str).
-
-        Returns:
-            The captured standard output, or an error/timeout message on failure.
-        """
         code: str = kwargs.get("code", "")
         if not code.strip():
             return ""
 
-        # Lazily create exec directory on first use.
-        self._exec_dir.mkdir(parents=True, exist_ok=True)
-
         backend = get_sandbox_backend()
         result = await backend.run_code(
             code,
-            language="python",
+            language="javascript",
             exec_dir=self._exec_dir,
             timeout=self._timeout,
         )
 
         if result.timed_out:
             return f"[Timeout] Execution exceeded {self._timeout} seconds."
-
         if result.error:
             return f"[Error] {result.error}"
 

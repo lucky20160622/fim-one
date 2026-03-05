@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import re
@@ -10,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from ..base import BaseTool
+from ..sandbox import get_sandbox_backend
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ _MAX_TIMEOUT_SECONDS: int = 120
 _MAX_OUTPUT_BYTES: int = 100 * 1024  # 100 KB
 
 # Default sandbox workspace lives under the project-level tmp/ directory.
-_DEFAULT_SANDBOX_DIR = Path(__file__).resolve().parents[4] / "tmp" / "sandbox"
+_DEFAULT_SANDBOX_DIR = Path(__file__).resolve().parents[4] / "tmp" / "default" / "sandbox"
 
 # -----------------------------------------------------------------------
 # Security: command blocklist patterns
@@ -214,11 +214,10 @@ def _validate_working_dir(working_dir: str, sandbox_dir: Path) -> str | None:
 class ShellExecTool(BaseTool):
     """Execute shell commands in a sandboxed environment.
 
-    Commands run via ``asyncio.create_subprocess_shell`` with a restricted
-    environment: sensitive environment variables are scrubbed, PATH is
-    limited to standard system directories, and a blocklist prevents
-    dangerous operations such as privilege escalation, package installation,
-    and writes to system paths.
+    Commands are dispatched to the configured sandbox backend (local or
+    docker), selected via the ``CODE_EXEC_BACKEND`` environment variable.
+    A blocklist prevents dangerous operations such as privilege escalation,
+    package installation, and writes to system paths.
     """
 
     def __init__(
@@ -329,50 +328,26 @@ class ShellExecTool(BaseTool):
         else:
             cwd = str(sandbox)
 
-        # 4. Build restricted environment.
-        env = _build_safe_env(cwd)
+        # 4. Dispatch to the configured sandbox backend.
+        backend = get_sandbox_backend()
+        result = await backend.run_shell(command, sandbox_dir=Path(cwd), timeout=timeout)
 
-        # 5. Execute the command.
-        try:
-            proc = await asyncio.create_subprocess_shell(
-                command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
-                env=env,
-            )
-            try:
-                stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                    proc.communicate(),
-                    timeout=timeout,
-                )
-            except TimeoutError:
-                # Kill the timed-out process.
-                try:
-                    proc.kill()
-                except ProcessLookupError:
-                    pass
-                await proc.wait()
-                return f"[Timeout] Command timed out after {timeout}s"
+        # 5. Format and return output.
+        if result.timed_out:
+            return f"[Timeout] Command timed out after {timeout}s"
 
-        except OSError as exc:
-            return f"[Error] Failed to execute command: {exc}"
+        if result.error:
+            return f"[Error] Failed to execute command: {result.error}"
 
-        # 6. Decode output.
-        stdout_text = stdout_bytes.decode("utf-8", errors="replace")
-        stderr_text = stderr_bytes.decode("utf-8", errors="replace")
-        exit_code = proc.returncode
+        parts: list[str] = [f"Exit Code: {result.exit_code}"]
 
-        # 7. Format and truncate output.
-        parts: list[str] = [f"Exit Code: {exit_code}"]
-
-        if stdout_text:
-            parts.append(f"\nstdout:\n{stdout_text}")
+        if result.stdout:
+            parts.append(f"\nstdout:\n{result.stdout}")
         else:
             parts.append("\nstdout:\n(empty)")
 
-        if stderr_text:
-            parts.append(f"\nstderr:\n{stderr_text}")
+        if result.stderr:
+            parts.append(f"\nstderr:\n{result.stderr}")
 
-        result = "\n".join(parts)
-        return _truncate_output(result)
+        output = "\n".join(parts)
+        return _truncate_output(output)

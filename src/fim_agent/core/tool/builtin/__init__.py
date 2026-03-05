@@ -29,6 +29,7 @@ from .grounded_retrieve import GroundedRetrieveTool
 from .http_request import HttpRequestTool
 from .kb_retrieve import KBRetrieveTool
 from .kb_list import KBListTool
+from .node_exec import NodeExecTool
 from .python_exec import PythonExecTool
 from .shell_exec import ShellExecTool
 from .web_fetch import WebFetchTool
@@ -42,6 +43,7 @@ __all__ = [
     "HttpRequestTool",
     "KBRetrieveTool",
     "KBListTool",
+    "NodeExecTool",
     "PythonExecTool",
     "ShellExecTool",
     "WebFetchTool",
@@ -50,8 +52,11 @@ __all__ = [
 ]
 
 # Mapping from tool class to the keyword argument name for sandbox paths.
+# NodeExecTool shares the same exec_dir as PythonExecTool so both tools'
+# output files are accessible from the same per-conversation directory.
 _SANDBOX_KWARGS: dict[type, str] = {
     FileOpsTool: "workspace_dir",
+    NodeExecTool: "exec_dir",
     ShellExecTool: "sandbox_dir",
     PythonExecTool: "exec_dir",
 }
@@ -73,13 +78,12 @@ def discover_builtin_tools(
     and returns a fresh instance of each.
 
     When *sandbox_root* is provided (a per-conversation directory), sandboxed
-    tools (``FileOpsTool``, ``ShellExecTool``, ``PythonExecTool``) receive
-    their respective sub-directory under that root::
+    tools receive their respective sub-directory under that root::
 
         sandbox_root/
         ├── workspace/   → FileOpsTool(workspace_dir=...)
         ├── sandbox/     → ShellExecTool(sandbox_dir=...)
-        └── exec/        → PythonExecTool(exec_dir=...)
+        └── exec/        → PythonExecTool(exec_dir=...) + NodeExecTool(exec_dir=...)
 
     Tools that do not accept a sandbox parameter are instantiated with their
     zero-arg constructor as before.
