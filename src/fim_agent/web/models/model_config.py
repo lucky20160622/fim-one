@@ -26,6 +26,7 @@ class ModelConfig(UUIDPKMixin, TimestampMixin, Base):
     temperature: Mapped[float | None] = mapped_column(Float, nullable=True)
     max_output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     context_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    role: Mapped[str | None] = mapped_column(String(20), nullable=True)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 

@@ -18,6 +18,7 @@ class ModelConfigCreate(BaseModel):
     max_output_tokens: int | None = None
     context_size: int | None = None
     is_default: bool = False
+    role: Literal["general", "fast"] | None = None
 
 
 class ModelConfigUpdate(BaseModel):
@@ -32,6 +33,7 @@ class ModelConfigUpdate(BaseModel):
     context_size: int | None = None
     is_default: bool | None = None
     is_active: bool | None = None
+    role: str | None = None
 
 
 class ModelConfigResponse(BaseModel):
@@ -44,6 +46,7 @@ class ModelConfigResponse(BaseModel):
     temperature: float | None
     max_output_tokens: int | None
     context_size: int | None
+    role: str | None
     is_default: bool
     is_active: bool
     created_at: str
