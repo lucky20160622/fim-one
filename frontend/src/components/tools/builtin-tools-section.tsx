@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import {
-  Clock,
+  Zap,
   Code2,
   Globe,
   FolderOpen,
@@ -27,7 +27,7 @@ import type { ToolMeta } from "@/hooks/use-tool-catalog"
 /* ------------------------------------------------------------------ */
 
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  general: Clock,
+  general: Zap,
   computation: Code2,
   web: Globe,
   filesystem: FolderOpen,
@@ -38,7 +38,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  general: "text-muted-foreground",
+  general: "text-yellow-500",
   computation: "text-blue-500",
   web: "text-green-500",
   filesystem: "text-orange-500",

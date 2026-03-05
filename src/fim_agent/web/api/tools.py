@@ -18,5 +18,7 @@ async def get_tool_catalog() -> dict:
     for t in tools:
         registry.register(t)
     catalog = registry.to_catalog()
-    categories = sorted({t["category"] for t in catalog})
+    all_cats = {t["category"] for t in catalog}
+    # "general" always first, then the rest alphabetically
+    categories = (["general"] if "general" in all_cats else []) + sorted(all_cats - {"general"})
     return {"tools": catalog, "categories": categories}

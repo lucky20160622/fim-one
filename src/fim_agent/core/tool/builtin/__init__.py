@@ -24,30 +24,38 @@ logger = logging.getLogger(__name__)
 # Explicit re-exports (for convenience — callers can still import directly)
 from .calculator import CalculatorTool
 from .datetime_tool import DateTimeTool
+from .email_send import EmailSendTool
 from .file_ops import FileOpsTool
 from .generate_image import GenerateImageTool
 from .grounded_retrieve import GroundedRetrieveTool
 from .http_request import HttpRequestTool
+from .json_transform import JsonTransformTool
 from .kb_retrieve import KBRetrieveTool
 from .kb_list import KBListTool
 from .node_exec import NodeExecTool
 from .python_exec import PythonExecTool
 from .shell_exec import ShellExecTool
+from .template_render import TemplateRenderTool
+from .text_utils import TextUtilsTool
 from .web_fetch import WebFetchTool
 from .web_search import WebSearchTool
 
 __all__ = [
     "CalculatorTool",
     "DateTimeTool",
+    "EmailSendTool",
     "FileOpsTool",
     "GenerateImageTool",
     "GroundedRetrieveTool",
     "HttpRequestTool",
+    "JsonTransformTool",
     "KBRetrieveTool",
     "KBListTool",
     "NodeExecTool",
     "PythonExecTool",
     "ShellExecTool",
+    "TemplateRenderTool",
+    "TextUtilsTool",
     "WebFetchTool",
     "WebSearchTool",
     "discover_builtin_tools",
@@ -74,6 +82,7 @@ _UPLOADS_KWARGS: dict[type, str] = {
 # They are registered manually when the appropriate config is available.
 _SKIP_AUTO_DISCOVER: set[type] = {
     GroundedRetrieveTool,  # requires kb_ids — registered by _resolve_tools()
+    EmailSendTool,         # requires SMTP_HOST/SMTP_USER/SMTP_PASS — registered below
 }
 
 
@@ -165,4 +174,10 @@ def discover_builtin_tools(
                         obj.__name__,
                         exc_info=True,
                     )
+    # Conditionally register tools that require external configuration.
+    # Insert at position 0 so they appear first within their category in the UI.
+    import os
+    if os.getenv("SMTP_HOST") and os.getenv("SMTP_USER") and os.getenv("SMTP_PASS"):
+        tools.insert(0, EmailSendTool())
+
     return tools

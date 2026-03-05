@@ -1,0 +1,107 @@
+"""Built-in tool for Jinja2 template rendering."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from typing import Any
+
+from ..base import BaseTool
+
+try:
+    from jinja2 import Environment, StrictUndefined, TemplateError
+
+    _JINJA2_AVAILABLE = True
+except ImportError:
+    _JINJA2_AVAILABLE = False
+
+
+class TemplateRenderTool(BaseTool):
+    """Render Jinja2 templates with a provided context of variables."""
+
+    @property
+    def name(self) -> str:
+        return "template_render"
+
+    @property
+    def display_name(self) -> str:
+        return "Template Render"
+
+    @property
+    def category(self) -> str:
+        return "general"
+
+    @property
+    def description(self) -> str:
+        if _JINJA2_AVAILABLE:
+            return (
+                "Render a Jinja2 template with provided context variables. "
+                "Supports {{ variable }}, {% if %}...{% endif %}, "
+                "{% for item in list %}...{% endfor %}, and Jinja2 filters ({{ text | upper }}). "
+                "Parameters: template (Jinja2 template string), "
+                "context (a JSON object whose keys become template variables)."
+            )
+        return (
+            "Render a template with $variable substitution (Python string.Template). "
+            "Use $key or ${key} syntax. "
+            "Parameters: template (template string), "
+            "context (a JSON object whose keys become template variables)."
+        )
+
+    @property
+    def parameters_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "template": {
+                    "type": "string",
+                    "description": "The Jinja2 template string (or $variable template if Jinja2 unavailable).",
+                },
+                "context": {
+                    "type": "string",
+                    "description": (
+                        "A JSON object of variables to inject into the template. "
+                        'Example: {"name": "Alice", "order_id": "ORD-123"}'
+                    ),
+                },
+            },
+            "required": ["template"],
+        }
+
+    async def run(self, **kwargs: Any) -> str:
+        return await asyncio.to_thread(self._run_sync, **kwargs)
+
+    def _run_sync(self, **kwargs: Any) -> str:
+        template_str: str = kwargs.get("template", "")
+        raw_context: str = kwargs.get("context", "{}") or "{}"
+
+        if not template_str:
+            return "[Error] 'template' is required."
+
+        try:
+            ctx = json.loads(raw_context)
+        except json.JSONDecodeError as e:
+            return f"[Error] 'context' is not valid JSON: {e}"
+        if not isinstance(ctx, dict):
+            return "[Error] 'context' must be a JSON object."
+
+        if _JINJA2_AVAILABLE:
+            return self._render_jinja2(template_str, ctx)
+        return self._render_stdlib(template_str, ctx)
+
+    def _render_jinja2(self, template_str: str, ctx: dict) -> str:
+        try:
+            env = Environment(undefined=StrictUndefined, autoescape=False)
+            return env.from_string(template_str).render(**ctx)
+        except TemplateError as exc:
+            return f"[Error] Template error: {exc}"
+        except Exception as exc:
+            return f"[Error] {type(exc).__name__}: {exc}"
+
+    def _render_stdlib(self, template_str: str, ctx: dict) -> str:
+        from string import Template
+
+        try:
+            return Template(template_str).safe_substitute(ctx)
+        except Exception as exc:
+            return f"[Error] {type(exc).__name__}: {exc}"
