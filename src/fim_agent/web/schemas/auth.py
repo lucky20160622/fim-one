@@ -35,6 +35,7 @@ class RegisterRequest(BaseModel):
     username: str = Field(min_length=2, max_length=50)
     password: str = Field(min_length=6, max_length=100)
     email: str = Field(..., max_length=255)
+    invite_code: str | None = None
 
     @field_validator("email")
     @classmethod

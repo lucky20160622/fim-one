@@ -1009,3 +1009,571 @@ async def list_audit_log(
         size=size,
         pages=math.ceil(total / size) if total > 0 else 1,
     )
+
+
+# ---------------------------------------------------------------------------
+# Feature 6 — Force logout single user
+# ---------------------------------------------------------------------------
+
+
+@router.post("/users/{user_id}/force-logout")
+async def force_logout_user(
+    user_id: str,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """Invalidate a single user's session. Requires admin privileges."""
+    if user_id == current_user.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot force logout yourself")
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    user.refresh_token = None
+    user.refresh_token_expires_at = None
+    user.tokens_invalidated_at = datetime.now(timezone.utc)
+    await db.commit()
+    await write_audit(
+        db, current_user, "user.force_logout",
+        target_type="user", target_id=user_id, target_label=user.username,
+    )
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Feature 1 — Token quota
+# ---------------------------------------------------------------------------
+
+
+@router.patch("/users/{user_id}/quota")
+async def set_user_quota(
+    user_id: str,
+    body: SetQuotaRequest,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """Set monthly token quota for a user. Requires admin privileges."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    user.token_quota = body.token_quota
+    await db.commit()
+    await write_audit(
+        db, current_user, "user.set_quota",
+        target_type="user", target_id=user_id, target_label=user.username,
+        detail=f"quota={body.token_quota}",
+    )
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Feature 2 — API health / integration status
+# ---------------------------------------------------------------------------
+
+
+@router.get("/system/health", response_model=list[IntegrationHealth])
+async def get_system_health(
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+):
+    """Return configuration status for key integrations. Requires admin privileges."""
+    checks: list[IntegrationHealth] = []
+
+    llm_model = os.environ.get("LLM_MODEL", "")
+    llm_key = os.environ.get("LLM_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "")
+    checks.append(IntegrationHealth(
+        key="llm", label="Main LLM",
+        configured=bool(llm_model and llm_key),
+        detail=llm_model if llm_model else None,
+    ))
+
+    fast_model = os.environ.get("FAST_LLM_MODEL", "")
+    checks.append(IntegrationHealth(
+        key="fast_llm", label="Fast LLM",
+        configured=bool(fast_model),
+        detail=fast_model if fast_model else None,
+    ))
+
+    emb_model = os.environ.get("EMBEDDING_MODEL", "")
+    checks.append(IntegrationHealth(
+        key="embedding", label="Embedding",
+        configured=bool(emb_model),
+        detail=emb_model if emb_model else None,
+    ))
+
+    reranker = os.environ.get("RERANKER_PROVIDER", "")
+    checks.append(IntegrationHealth(
+        key="reranker", label="Reranker",
+        configured=bool(reranker),
+        detail=reranker if reranker else None,
+    ))
+
+    search_provider = os.environ.get("WEB_SEARCH_PROVIDER", "jina")
+    search_key = (
+        os.environ.get("JINA_API_KEY", "")
+        or os.environ.get("TAVILY_API_KEY", "")
+        or os.environ.get("BRAVE_API_KEY", "")
+    )
+    checks.append(IntegrationHealth(
+        key="web_search", label="Web Search",
+        configured=True,
+        detail=f"{search_provider} (default)" if not search_key else search_provider,
+    ))
+
+    fetch_provider = os.environ.get("WEB_FETCH_PROVIDER", "jina")
+    checks.append(IntegrationHealth(
+        key="web_fetch", label="Web Fetch",
+        configured=True,
+        detail=fetch_provider,
+    ))
+
+    image_key = os.environ.get("IMAGE_GEN_API_KEY", "")
+    checks.append(IntegrationHealth(
+        key="image_gen", label="Image Generation",
+        configured=bool(image_key),
+        detail=None,
+    ))
+
+    return checks
+
+
+# ---------------------------------------------------------------------------
+# Feature 3 — Conversation moderation
+# ---------------------------------------------------------------------------
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_uploads_base = Path(os.environ.get("UPLOADS_DIR", "uploads"))
+_UPLOADS_CONVERSATIONS_DIR = (
+    _uploads_base if _uploads_base.is_absolute() else _PROJECT_ROOT / _uploads_base
+) / "conversations"
+_CONVERSATIONS_DIR = _PROJECT_ROOT / "tmp" / "conversations"
+
+
+@router.get("/conversations", response_model=PaginatedResponse)
+async def list_all_conversations(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    user_id: str | None = Query(None),
+    q: str | None = Query(None),
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """List all conversations with optional user/search filter. Requires admin privileges."""
+    stmt = (
+        select(Conversation, User)
+        .join(User, User.id == Conversation.user_id)
+    )
+    if user_id:
+        stmt = stmt.where(Conversation.user_id == user_id)
+    if q:
+        like = f"%{q}%"
+        stmt = stmt.where(or_(Conversation.title.ilike(like), User.username.ilike(like)))
+
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total = (await db.execute(count_stmt)).scalar_one()
+
+    rows = (await db.execute(
+        stmt.order_by(Conversation.created_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+    )).all()
+
+    # Bulk message counts
+    conv_ids = [row[0].id for row in rows]
+    msg_counts: dict[str, int] = {}
+    if conv_ids:
+        msg_count_rows = await db.execute(
+            select(Message.conversation_id, func.count())
+            .where(Message.conversation_id.in_(conv_ids))
+            .group_by(Message.conversation_id)
+        )
+        msg_counts = dict(msg_count_rows.all())
+
+    items = [
+        AdminConversationInfo(
+            id=conv.id,
+            title=conv.title,
+            mode=conv.mode,
+            model_name=conv.model_name,
+            total_tokens=conv.total_tokens,
+            message_count=msg_counts.get(conv.id, 0),
+            user_id=user.id,
+            username=user.username,
+            created_at=conv.created_at.isoformat() if conv.created_at else "",
+        ).model_dump()
+        for conv, user in rows
+    ]
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=math.ceil(total / size) if total > 0 else 1,
+    )
+
+
+@router.delete("/conversations/{conv_id}", status_code=204)
+async def admin_delete_conversation(
+    conv_id: str,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """Delete any conversation by ID. Requires admin privileges."""
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(Conversation).options(selectinload(Conversation.messages)).where(Conversation.id == conv_id)
+    )
+    conv = result.scalar_one_or_none()
+    if conv is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Conversation not found")
+
+    await db.delete(conv)
+    await db.commit()
+
+    # Clean up file system
+    sandbox_dir = _CONVERSATIONS_DIR / conv_id
+    if sandbox_dir.exists():
+        shutil.rmtree(sandbox_dir, ignore_errors=True)
+    uploads_dir = _UPLOADS_CONVERSATIONS_DIR / conv_id
+    if uploads_dir.exists():
+        shutil.rmtree(uploads_dir, ignore_errors=True)
+
+    await write_audit(
+        db, current_user, "conversation.delete",
+        target_type="conversation", target_id=conv_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Feature 4 — Invite codes
+# ---------------------------------------------------------------------------
+
+
+@router.get("/invite-codes", response_model=list[InviteCodeInfo])
+async def list_invite_codes(
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """List all invite codes. Requires admin privileges."""
+    result = await db.execute(select(InviteCode).order_by(InviteCode.created_at.desc()))
+    codes = result.scalars().all()
+    return [
+        InviteCodeInfo(
+            id=c.id, code=c.code, note=c.note,
+            max_uses=c.max_uses, use_count=c.use_count,
+            expires_at=c.expires_at.isoformat() if c.expires_at else None,
+            is_active=c.is_active,
+            created_at=c.created_at.isoformat() if c.created_at else "",
+        )
+        for c in codes
+    ]
+
+
+@router.post("/invite-codes", response_model=InviteCodeInfo, status_code=201)
+async def create_invite_code(
+    body: CreateInviteCodeRequest,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """Create a new invite code. Requires admin privileges."""
+    code_str = "".join(
+        secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8)
+    )
+    code = InviteCode(
+        code=code_str,
+        created_by_id=current_user.id,
+        note=body.note,
+        max_uses=body.max_uses,
+        expires_at=body.expires_at,
+    )
+    db.add(code)
+    await db.commit()
+    await db.refresh(code)
+    await write_audit(
+        db, current_user, "invite_code.create",
+        detail=f"code={code_str}",
+    )
+    return InviteCodeInfo(
+        id=code.id, code=code.code, note=code.note,
+        max_uses=code.max_uses, use_count=code.use_count,
+        expires_at=code.expires_at.isoformat() if code.expires_at else None,
+        is_active=code.is_active,
+        created_at=code.created_at.isoformat() if code.created_at else "",
+    )
+
+
+@router.delete("/invite-codes/{code_id}", status_code=204)
+async def revoke_invite_code(
+    code_id: str,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """Revoke (deactivate) an invite code. Requires admin privileges."""
+    result = await db.execute(select(InviteCode).where(InviteCode.id == code_id))
+    code = result.scalar_one_or_none()
+    if code is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Invite code not found")
+    code.is_active = False
+    await db.commit()
+    await write_audit(
+        db, current_user, "invite_code.revoke",
+        detail=f"code_id={code_id}",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Feature 5 — Storage management
+# ---------------------------------------------------------------------------
+
+
+@router.get("/storage", response_model=StorageStatsResponse)
+async def get_storage_stats(
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """Return per-user file storage statistics. Requires admin privileges."""
+    import os as _os
+
+    uploads_dir = Path("uploads")
+    user_stats: dict[str, dict] = {}
+
+    if uploads_dir.exists():
+        for item in uploads_dir.iterdir():
+            if item.is_dir() and item.name.startswith("user_"):
+                uid = item.name[5:]  # strip "user_"
+                total_bytes = 0
+                file_count = 0
+                for dirpath, _, filenames in _os.walk(item):
+                    for fn in filenames:
+                        fp = Path(dirpath) / fn
+                        try:
+                            total_bytes += fp.stat().st_size
+                            file_count += 1
+                        except OSError:
+                            pass
+                user_stats[uid] = {"file_count": file_count, "total_bytes": total_bytes}
+
+    # Resolve usernames
+    if user_stats:
+        user_rows = await db.execute(
+            select(User.id, User.username).where(User.id.in_(list(user_stats.keys())))
+        )
+        username_map = dict(user_rows.all())
+    else:
+        username_map = {}
+
+    users = [
+        UserStorageStat(
+            user_id=uid,
+            username=username_map.get(uid, "unknown"),
+            file_count=stats["file_count"],
+            total_bytes=stats["total_bytes"],
+        )
+        for uid, stats in sorted(user_stats.items(), key=lambda x: -x[1]["total_bytes"])
+    ]
+    total_bytes = sum(s.total_bytes for s in users)
+    return StorageStatsResponse(total_bytes=total_bytes, users=users)
+
+
+@router.delete("/storage/user/{user_id}", status_code=204)
+async def clear_user_storage(
+    user_id: str,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """Delete all uploaded files for a user. Requires admin privileges."""
+    user_dir = Path("uploads") / f"user_{user_id}"
+    if user_dir.exists():
+        shutil.rmtree(user_dir)
+    await write_audit(
+        db, current_user, "storage.clear_user",
+        target_type="user", target_id=user_id,
+    )
+
+
+@router.delete("/storage/orphaned", status_code=204)
+async def clean_orphaned_storage(
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """Remove conversation upload directories for deleted conversations. Requires admin privileges."""
+    conv_uploads = _UPLOADS_CONVERSATIONS_DIR
+    if not conv_uploads.exists():
+        return
+
+    result = await db.execute(select(Conversation.id))
+    existing_ids = {row[0] for row in result.fetchall()}
+
+    deleted_count = 0
+    for item in conv_uploads.iterdir():
+        if item.is_dir() and item.name not in existing_ids:
+            shutil.rmtree(item)
+            deleted_count += 1
+
+    await write_audit(
+        db, current_user, "storage.cleanup_orphaned",
+        detail=f"deleted {deleted_count} orphaned dirs",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Feature 7 — Global MCP servers
+# ---------------------------------------------------------------------------
+
+
+def _mcp_to_admin_info(s: MCPServerModel) -> AdminMCPServerInfo:
+    return AdminMCPServerInfo(
+        id=s.id, name=s.name, description=s.description,
+        transport=s.transport, command=s.command, args=s.args,
+        url=s.url, is_active=s.is_active, is_global=s.is_global,
+        tool_count=s.tool_count,
+        created_at=s.created_at.isoformat() if s.created_at else "",
+    )
+
+
+@router.get("/mcp-servers", response_model=list[AdminMCPServerInfo])
+async def list_global_mcp_servers(
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """List all global MCP servers. Requires admin privileges."""
+    result = await db.execute(
+        select(MCPServerModel).where(MCPServerModel.is_global == True)  # noqa: E712
+    )
+    servers = result.scalars().all()
+    return [_mcp_to_admin_info(s) for s in servers]
+
+
+@router.post("/mcp-servers", response_model=AdminMCPServerInfo, status_code=201)
+async def create_global_mcp_server(
+    body: MCPServerCreate,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """Create a global MCP server. Requires admin privileges."""
+    server = MCPServerModel(
+        user_id=None,
+        is_global=True,
+        name=body.name,
+        description=body.description,
+        transport=body.transport,
+        command=body.command,
+        args=body.args,
+        env=body.env,
+        url=body.url,
+        working_dir=body.working_dir,
+        headers=body.headers,
+    )
+    db.add(server)
+    await db.commit()
+    await db.refresh(server)
+    await write_audit(
+        db, current_user, "mcp_server.create_global",
+        target_type="mcp_server", target_id=server.id, target_label=server.name,
+    )
+    return _mcp_to_admin_info(server)
+
+
+@router.put("/mcp-servers/{server_id}", response_model=AdminMCPServerInfo)
+async def update_global_mcp_server(
+    server_id: str,
+    body: MCPServerUpdate,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """Update a global MCP server. Requires admin privileges."""
+    result = await db.execute(
+        select(MCPServerModel).where(
+            MCPServerModel.id == server_id,
+            MCPServerModel.is_global == True,  # noqa: E712
+        )
+    )
+    server = result.scalar_one_or_none()
+    if server is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Global MCP server not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(server, field, value)
+    await db.commit()
+    await db.refresh(server)
+    return _mcp_to_admin_info(server)
+
+
+@router.delete("/mcp-servers/{server_id}", status_code=204)
+async def delete_global_mcp_server(
+    server_id: str,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """Delete a global MCP server. Requires admin privileges."""
+    result = await db.execute(
+        select(MCPServerModel).where(
+            MCPServerModel.id == server_id,
+            MCPServerModel.is_global == True,  # noqa: E712
+        )
+    )
+    server = result.scalar_one_or_none()
+    if server is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Global MCP server not found")
+    await db.delete(server)
+    await db.commit()
+    await write_audit(
+        db, current_user, "mcp_server.delete_global",
+        target_type="mcp_server", target_id=server_id, target_label=server.name,
+    )
+
+
+@router.post("/mcp-servers/{server_id}/test")
+async def test_global_mcp_server(
+    server_id: str,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """Test a global MCP server connection. Requires admin privileges."""
+    result = await db.execute(
+        select(MCPServerModel).where(
+            MCPServerModel.id == server_id,
+            MCPServerModel.is_global == True,  # noqa: E712
+        )
+    )
+    server = result.scalar_one_or_none()
+    if server is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Global MCP server not found")
+
+    try:
+        from fim_agent.core.mcp import MCPClient
+    except ImportError:
+        return {"ok": False, "error": "mcp package not installed"}
+
+    client = MCPClient()
+    try:
+        if server.transport == "stdio":
+            tools = await client.connect_stdio(
+                name=server.name,
+                command=server.command or "",
+                args=server.args or [],
+                env=server.env,
+                working_dir=server.working_dir,
+            )
+        elif server.transport == "sse":
+            tools = await client.connect_sse(
+                name=server.name,
+                url=server.url or "",
+                headers=server.headers,
+            )
+        else:
+            tools = await client.connect_streamable_http(
+                name=server.name,
+                url=server.url or "",
+                headers=server.headers,
+            )
+
+        count = len(tools)
+        server.tool_count = count
+        await db.commit()
+        tool_names = [t.name for t in tools]
+        return {"ok": True, "tool_count": count, "tools": tool_names}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+    finally:
+        await client.disconnect_all()

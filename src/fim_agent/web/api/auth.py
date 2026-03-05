@@ -16,6 +16,7 @@ from fim_agent.web.api.admin import (
     SETTING_REGISTRATION_ENABLED,
     get_setting,
 )
+from fim_agent.web.models.invite_code import InviteCode
 from fim_agent.web.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     REFRESH_TOKEN_EXPIRE_DAYS,
@@ -98,12 +99,49 @@ async def register(
     user_count_check = await db.execute(select(func.count(User.id)))
     is_first_user_check = user_count_check.scalar_one() == 0
     if not is_first_user_check:
-        reg_value = await get_setting(db, SETTING_REGISTRATION_ENABLED, default="true")
-        if reg_value.lower() == "false":
+        # Try new registration_mode first, fall back to legacy registration_enabled
+        reg_mode = await get_setting(db, "registration_mode", "")
+        if not reg_mode:
+            reg_enabled = await get_setting(db, SETTING_REGISTRATION_ENABLED, default="true")
+            reg_mode = "open" if reg_enabled.lower() != "false" else "disabled"
+
+        if reg_mode == "disabled":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Public registration is disabled",
+                detail="Registration is disabled",
             )
+        elif reg_mode == "invite":
+            if not body.invite_code:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invite code required",
+                )
+            from datetime import timezone as _tz
+
+            code_result = await db.execute(
+                select(InviteCode).where(
+                    InviteCode.code == body.invite_code,
+                    InviteCode.is_active == True,  # noqa: E712
+                )
+            )
+            invite = code_result.scalar_one_or_none()
+            if invite is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid invite code",
+                )
+            if invite.expires_at and invite.expires_at.replace(tzinfo=_tz.utc) < datetime.now(_tz.utc):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invite code has expired",
+                )
+            if invite.use_count >= invite.max_uses:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invite code has been fully used",
+                )
+            invite.use_count += 1
+            await db.flush()
 
     result = await db.execute(select(User).where(User.username == body.username))
     if result.scalar_one_or_none() is not None:

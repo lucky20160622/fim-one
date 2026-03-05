@@ -28,7 +28,7 @@ import uuid
 from collections.abc import AsyncGenerator
 from contextlib import suppress
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -321,6 +321,43 @@ async def _validate_conversation_ownership(
             raise HTTPException(status_code=404, detail="Conversation not found")
 
 
+async def _check_token_quota(user_id: str) -> None:
+    """Raise 429 if the user has exceeded their monthly token quota."""
+    from fim_agent.db import create_session
+    from fim_agent.web.api.admin import get_setting
+    from fim_agent.web.models import Conversation, User
+
+    async with create_session() as session:
+        result = await session.execute(
+            sa_select(User.token_quota).where(User.id == user_id)
+        )
+        user_quota = result.scalar_one_or_none()
+
+        if user_quota is None:
+            default_str = await get_setting(session, "default_token_quota", "0")
+            user_quota = int(default_str) if default_str.isdigit() else 0
+
+        if user_quota and user_quota > 0:
+            from sqlalchemy import func as _func
+
+            first_of_month = datetime(
+                date.today().year, date.today().month, 1, tzinfo=timezone.utc
+            )
+            monthly_result = await session.execute(
+                sa_select(_func.coalesce(_func.sum(Conversation.total_tokens), 0))
+                .where(
+                    Conversation.user_id == user_id,
+                    Conversation.created_at >= first_of_month,
+                )
+            )
+            monthly_tokens = monthly_result.scalar_one()
+            if monthly_tokens >= user_quota:
+                raise HTTPException(
+                    status_code=429,
+                    detail="Monthly token quota exceeded",
+                )
+
+
 async def _resolve_agent_config(
     agent_id: str | None,
     conversation_id: str | None,
@@ -552,24 +589,26 @@ async def _resolve_tools(
     # Load user-defined MCP servers — only fetch configs here; actual connection
     # happens inside the SSE generator (same coroutine) to avoid the anyio
     # cancel-scope cross-task RuntimeError on disconnect_all().
-    if user_id:
-        try:
-            from fim_agent.db import create_session as _create_session
-            from fim_agent.web.models.mcp_server import MCPServer as _MCPServerModel
-            from sqlalchemy import true as _true
+    try:
+        from fim_agent.db import create_session as _create_session
+        from fim_agent.web.models.mcp_server import MCPServer as _MCPServerModel
+        from sqlalchemy import or_ as _or_, true as _true
 
-            async with _create_session() as _mcp_db:
-                _stmt = sa_select(_MCPServerModel).where(
-                    _MCPServerModel.user_id == user_id,
-                    _MCPServerModel.is_active == _true(),
-                )
-                _result = await _mcp_db.execute(_stmt)
-                _user_servers = _result.scalars().all()
+        async with _create_session() as _mcp_db:
+            _conditions = [_MCPServerModel.is_global == _true()]
+            if user_id:
+                _conditions.append(_MCPServerModel.user_id == user_id)
+            _stmt = sa_select(_MCPServerModel).where(
+                _or_(*_conditions),
+                _MCPServerModel.is_active == _true(),
+            )
+            _result = await _mcp_db.execute(_stmt)
+            _user_servers = _result.scalars().all()
 
-            if _user_servers:
-                tools._pending_mcp_servers = list(_user_servers)  # type: ignore[attr-defined]
-        except Exception:
-            logger.warning("Failed to load user MCP server configs", exc_info=True)
+        if _user_servers:
+            tools._pending_mcp_servers = list(_user_servers)  # type: ignore[attr-defined]
+    except Exception:
+        logger.warning("Failed to load MCP server configs", exc_info=True)
 
     return tools
 
@@ -829,6 +868,8 @@ async def react_endpoint(
     current_user_id, user_system_instructions, preferred_language = await _resolve_user(token)
     if conversation_id and current_user_id:
         await _validate_conversation_ownership(conversation_id, current_user_id)
+    if current_user_id:
+        await _check_token_quota(current_user_id)
 
     agent_cfg = await _resolve_agent_config(agent_id, conversation_id, user_id=current_user_id)
     from fim_agent.db import create_session as _create_session
@@ -1195,6 +1236,8 @@ async def dag_endpoint(
     current_user_id, user_system_instructions, preferred_language = await _resolve_user(token)
     if conversation_id and current_user_id:
         await _validate_conversation_ownership(conversation_id, current_user_id)
+    if current_user_id:
+        await _check_token_quota(current_user_id)
 
     agent_cfg = await _resolve_agent_config(agent_id, conversation_id, user_id=current_user_id)
     from fim_agent.db import create_session as _create_session
