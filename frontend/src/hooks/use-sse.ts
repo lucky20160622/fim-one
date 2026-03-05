@@ -11,68 +11,123 @@ export interface SSEMessage {
 export function useSSE() {
   const [messages, setMessages] = useState<SSEMessage[]>([])
   const [isRunning, setIsRunning] = useState(false)
-  const sourceRef = useRef<EventSource | null>(null)
+  const [isError, setIsError] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
 
-  const start = useCallback((url: string) => {
-    // Close any existing connection
-    if (sourceRef.current) {
-      sourceRef.current.close()
-      sourceRef.current = null
+  const start = useCallback((url: string, onError?: (msg: string) => void) => {
+    // Abort any existing stream
+    if (abortRef.current) {
+      abortRef.current.abort()
+      abortRef.current = null
     }
 
     setMessages([])
     setIsRunning(true)
+    setIsError(false)
 
-    const es = new EventSource(url)
-    sourceRef.current = es
+    const controller = new AbortController()
+    abortRef.current = controller
 
-    const handleEvent = (eventType: string) => (e: MessageEvent) => {
+    ;(async () => {
       try {
-        const data: unknown = JSON.parse(e.data)
-        setMessages((prev) => [...prev, { event: eventType, data, timestamp: Date.now() }])
+        const res = await fetch(url, { signal: controller.signal })
 
-        if (eventType === "done") {
-          es.close()
-          sourceRef.current = null
+        if (!res.ok) {
+          // Read error body before closing
+          const body = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }))
+          const detail: string =
+            typeof body?.detail === "string"
+              ? body.detail
+              : `Request failed (${res.status})`
+          setIsError(true)
+          onError?.(detail)
+          setIsRunning(false)
+          abortRef.current = null
+          return
+        }
+
+        if (!res.body) {
+          setIsError(true)
+          onError?.("No response body")
+          setIsRunning(false)
+          abortRef.current = null
+          return
+        }
+
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+        let currentEvent = "message"
+        let currentData = ""
+
+        const dispatch = (eventType: string, rawData: string) => {
+          try {
+            const data: unknown = JSON.parse(rawData)
+            setMessages((prev) => [...prev, { event: eventType, data, timestamp: Date.now() }])
+            if (eventType === "done") {
+              controller.abort()
+              abortRef.current = null
+              setIsRunning(false)
+            }
+          } catch {
+            // Ignore unparseable keepalives
+          }
+        }
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split("\n")
+          buffer = lines.pop() ?? "" // keep incomplete last line
+
+          for (const line of lines) {
+            if (line.startsWith("event:")) {
+              currentEvent = line.slice(6).trim()
+            } else if (line.startsWith("data:")) {
+              currentData = line.slice(5).trim()
+            } else if (line === "") {
+              // Empty line = end of event
+              if (currentData) {
+                dispatch(currentEvent, currentData)
+              }
+              currentEvent = "message"
+              currentData = ""
+            }
+          }
+        }
+      } catch (err: unknown) {
+        if ((err as { name?: string })?.name === "AbortError") return
+        setIsError(true)
+        onError?.((err as Error)?.message ?? "Stream error")
+      } finally {
+        if (abortRef.current === controller) {
+          abortRef.current = null
           setIsRunning(false)
         }
-      } catch {
-        // Ignore unparseable data (keepalives, etc.)
       }
-    }
-
-    es.addEventListener("step", handleEvent("step"))
-    es.addEventListener("step_progress", handleEvent("step_progress"))
-    es.addEventListener("phase", handleEvent("phase"))
-    es.addEventListener("compact", handleEvent("compact"))
-    es.addEventListener("evidence", handleEvent("evidence"))
-    es.addEventListener("inject", handleEvent("inject"))
-    es.addEventListener("done", handleEvent("done"))
-
-    es.onerror = () => {
-      es.close()
-      sourceRef.current = null
-      setIsRunning(false)
-    }
+    })()
   }, [])
 
   const abort = useCallback(() => {
-    if (sourceRef.current) {
-      sourceRef.current.close()
-      sourceRef.current = null
+    if (abortRef.current) {
+      abortRef.current.abort()
+      abortRef.current = null
     }
     setIsRunning(false)
     // Messages are intentionally kept so the user can see partial results
   }, [])
 
   const reset = useCallback(() => {
-    if (sourceRef.current) {
-      sourceRef.current.close()
-      sourceRef.current = null
+    if (abortRef.current) {
+      abortRef.current.abort()
+      abortRef.current = null
     }
     setMessages([])
     setIsRunning(false)
+    setIsError(false)
   }, [])
 
-  return { messages, isRunning, start, reset, abort }
+  return { messages, isRunning, isError, start, reset, abort }
 }

@@ -85,7 +85,7 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
   const [sourceMode, setSourceMode] = useState<AgentMode | null>(null)
   const [pendingQuery, setPendingQuery] = useState<string | null>(null)
   const [pendingMode, setPendingMode] = useState<AgentMode | null>(null)
-  const { messages, isRunning, start, reset, abort } = useSSE()
+  const { messages, isRunning, isError, start, reset, abort } = useSSE()
   const [injectedMessages, setInjectedMessages] = useState<{id?: string; content: string; ts: number}[]>([])
   const failedInjectRef = useRef<string | null>(null)
 
@@ -279,7 +279,7 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
         url += `&image_ids=${encodeURIComponent(imageIds.join(","))}`
       }
       setSourceMode(mode)
-      start(url)
+      start(url, (errMsg) => toast.error(errMsg))
     },
     [isRunning, mode, start, activeId, createConversation, selectConversation, selectedAgent, setInjectedMessages],
   )
@@ -318,6 +318,7 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
         language={language}
         messages={messages}
         isRunning={isRunning}
+        isError={isError}
         activeConversation={activeConversation}
         selectedAgent={selectedAgent}
         injectedMessages={injectedMessages}
@@ -500,6 +501,7 @@ interface PlaygroundContentProps {
   language: Language
   messages: ReturnType<typeof useSSE>["messages"]
   isRunning: boolean
+  isError: boolean
   activeConversation: ReturnType<typeof useConversation>["activeConversation"]
   selectedAgent: AgentResponse | null
   injectedMessages: {id?: string; content: string; ts: number}[]
@@ -523,6 +525,7 @@ function PlaygroundContent({
   language,
   messages,
   isRunning,
+  isError,
   activeConversation,
   selectedAgent,
   injectedMessages,
@@ -872,11 +875,13 @@ function PlaygroundContent({
     }
   })()
 
-  // True when a task was submitted but aborted before completing (current session)
-  const wasStopped = !isRunning && !!pendingQuery && hasLiveMessages && (
-    mode === "dag"
-      ? !dagData.doneEvent
-      : !reactItems.some(i => i.event === "done")
+  // True when a task was submitted but aborted/errored before completing (current session)
+  const wasStopped = !isRunning && !!pendingQuery && (
+    isError || (hasLiveMessages && (
+      mode === "dag"
+        ? !dagData.doneEvent
+        : !reactItems.some(i => i.event === "done")
+    ))
   )
 
   // After page refresh: last message is a user message with no assistant reply → was stopped
