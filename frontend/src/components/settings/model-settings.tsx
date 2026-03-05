@@ -226,8 +226,8 @@ function ProviderDialog({ open, onOpenChange, editing, onSaved }: ProviderDialog
   }
 
   const handleSubmit = async () => {
-    if (!name.trim() || !provider.trim() || !modelName.trim()) {
-      toast.error("Name, Provider, and Model Name are required")
+    if (!name.trim() || !modelName.trim() || (!editing && !apiKey.trim())) {
+      toast.error(!name.trim() || !modelName.trim() ? "Name and Model Name are required" : "API Key is required")
       return
     }
     setSaving(true)
@@ -279,8 +279,15 @@ function ProviderDialog({ open, onOpenChange, editing, onSaved }: ProviderDialog
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Compatibility notice */}
+            <div className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+              Only <strong>OpenAI-compatible</strong> APIs are supported. For Anthropic or other providers, use their OpenAI-compatible endpoint and API key.
+            </div>
+
             <div className="space-y-1.5">
-              <Label htmlFor="mc-name">Name</Label>
+              <Label htmlFor="mc-name">
+                Name <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="mc-name"
                 placeholder="e.g. Claude Haiku"
@@ -289,25 +296,20 @@ function ProviderDialog({ open, onOpenChange, editing, onSaved }: ProviderDialog
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="mc-provider">Provider</Label>
+              <Label htmlFor="mc-model-name">
+                Model Name <span className="text-destructive">*</span>
+              </Label>
               <Input
-                id="mc-provider"
-                placeholder="e.g. anthropic, openai, deepseek"
-                value={provider}
-                onChange={(e) => setProvider(e.target.value)}
+                id="mc-model-name"
+                placeholder="e.g. gpt-4o, claude-sonnet-4-6"
+                value={modelName}
+                onChange={(e) => setModelName(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="mc-base-url">Base URL</Label>
-              <Input
-                id="mc-base-url"
-                placeholder="https://api.openai.com/v1"
-                value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="mc-api-key">API Key</Label>
+              <Label htmlFor="mc-api-key">
+                API Key <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="mc-api-key"
                 type="password"
@@ -318,22 +320,40 @@ function ProviderDialog({ open, onOpenChange, editing, onSaved }: ProviderDialog
               />
               {editing && (
                 <p className="text-xs text-muted-foreground">
-                  Key is stored securely. Leave blank to keep the existing key.
+                  Leave blank to keep the existing key.
                 </p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="mc-model-name">Model Name</Label>
+              <Label htmlFor="mc-base-url">
+                Base URL{" "}
+                <span className="text-xs font-normal text-muted-foreground">(optional, defaults to OpenAI)</span>
+              </Label>
               <Input
-                id="mc-model-name"
-                placeholder="e.g. gpt-4o, claude-sonnet-4-6"
-                value={modelName}
-                onChange={(e) => setModelName(e.target.value)}
+                id="mc-base-url"
+                placeholder="https://api.openai.com/v1"
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="mc-provider">
+                Provider Tag{" "}
+                <span className="text-xs font-normal text-muted-foreground">(optional, for display only)</span>
+              </Label>
+              <Input
+                id="mc-provider"
+                placeholder="e.g. anthropic, openai, deepseek"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="mc-max-output">Max Output Tokens</Label>
+                <Label htmlFor="mc-max-output">
+                  Max Output Tokens{" "}
+                  <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                </Label>
                 <Input
                   id="mc-max-output"
                   type="number"
@@ -343,7 +363,10 @@ function ProviderDialog({ open, onOpenChange, editing, onSaved }: ProviderDialog
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="mc-context">Context Size</Label>
+                <Label htmlFor="mc-context">
+                  Context Size{" "}
+                  <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+                </Label>
                 <Input
                   id="mc-context"
                   type="number"
@@ -356,8 +379,10 @@ function ProviderDialog({ open, onOpenChange, editing, onSaved }: ProviderDialog
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="mc-temperature">
-                  Temperature
-                  {temperature !== null ? ` (${temperature.toFixed(1)})` : " (default)"}
+                  Temperature{" "}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {temperature !== null ? `(${temperature.toFixed(1)})` : "(optional)"}
+                  </span>
                 </Label>
                 <Button
                   type="button"

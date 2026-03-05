@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 class ModelConfigCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
-    provider: str
+    provider: str = ""
     model_name: str
     base_url: str | None = None
     api_key: str | None = None
