@@ -612,7 +612,7 @@ export function AdminUsers() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete user "{deleteTarget?.username}"?</AlertDialogTitle>
+            <AlertDialogTitle>Delete user &quot;{deleteTarget?.username}&quot;?</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete the account and all associated data. This action cannot be undone.
             </AlertDialogDescription>

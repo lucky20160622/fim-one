@@ -193,7 +193,6 @@ export function AgentSettingsForm({
 
       // Build model_config_json: merge temperature + model_config_id into existing config
       const baseModelConfig = agent?.model_config_json ? { ...agent.model_config_json } : {}
-      let modelConfigJson: Record<string, unknown> | undefined
       const merged: Record<string, unknown> = { ...baseModelConfig }
       if (temperature != null) {
         merged.temperature = temperature
@@ -205,7 +204,7 @@ export function AgentSettingsForm({
       } else {
         delete merged.model_config_id
       }
-      modelConfigJson = Object.keys(merged).length > 0 ? merged : undefined
+      const modelConfigJson = Object.keys(merged).length > 0 ? merged : undefined
 
       // Build sandbox_config: only include fields that have been set
       const sandboxCfg: SandboxConfig = {}
