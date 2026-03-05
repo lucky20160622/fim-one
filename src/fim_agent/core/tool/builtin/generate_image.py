@@ -39,7 +39,9 @@ class GenerateImageTool(BaseTool):
     def description(self) -> str:
         return (
             "Generate an image from a text description using Google Imagen. "
-            "Returns a markdown image link that renders inline in the chat. "
+            "The tool returns a markdown image snippet `![Generated Image](url)`. "
+            "You MUST copy this exact markdown snippet verbatim into your reply "
+            "so the image renders inline — do NOT describe the image with text instead. "
             "Supports aspect ratios: 1:1 (default), 16:9, 9:16, 4:3, 3:4."
         )
 
