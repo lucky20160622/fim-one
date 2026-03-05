@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
 from fim_agent.core.tool.base import BaseTool
@@ -15,6 +16,12 @@ class GenerateImageTool(BaseTool):
     The generated image is saved to the uploads directory and the agent
     receives a markdown image link it can embed in its reply.
     """
+
+    def __init__(self, output_dir: Path | None = None) -> None:
+        # Default to uploads/generated when no conversation context is provided
+        # (e.g. tool catalog listing). Per-conversation callers inject the
+        # scoped path so images are isolated and cleaned up with the conversation.
+        self._output_dir = output_dir or (Path("uploads") / "generated")
 
     @property
     def name(self) -> str:
@@ -68,16 +75,12 @@ class GenerateImageTool(BaseTool):
         if not available:
             return f"Error: {reason}"
 
-        # Resolve uploads output directory
-        uploads_dir = os.environ.get("UPLOADS_DIR", "./uploads")
-        output_dir = os.path.join(uploads_dir, "generated")
-
         from fim_agent.core.image_gen.google import GoogleImageGen
 
         gen = GoogleImageGen()
         try:
             result = await gen.generate(
-                prompt, aspect_ratio=aspect_ratio, output_dir=output_dir
+                prompt, aspect_ratio=aspect_ratio, output_dir=str(self._output_dir)
             )
         except Exception as exc:
             return f"Image generation failed: {exc}"

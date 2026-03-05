@@ -30,6 +30,10 @@ router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _CONVERSATIONS_DIR = _PROJECT_ROOT / "tmp" / "conversations"
+_uploads_base = Path(os.environ.get("UPLOADS_DIR", "uploads"))
+_UPLOADS_CONVERSATIONS_DIR = (
+    _uploads_base if _uploads_base.is_absolute() else _PROJECT_ROOT / _uploads_base
+) / "conversations"
 _logger = logging.getLogger(__name__)
 
 
@@ -183,6 +187,10 @@ async def batch_delete_conversations(
         if sandbox_dir.exists():
             shutil.rmtree(sandbox_dir, ignore_errors=True)
             _logger.info("Removed sandbox dir for conversation %s", conv.id)
+        uploads_dir = _UPLOADS_CONVERSATIONS_DIR / conv.id
+        if uploads_dir.exists():
+            shutil.rmtree(uploads_dir, ignore_errors=True)
+            _logger.info("Removed uploads dir for conversation %s", conv.id)
         count += 1
     await db.commit()
     return ApiResponse(data={"deleted": count})
@@ -279,5 +287,11 @@ async def delete_conversation(
     if sandbox_dir.exists():
         shutil.rmtree(sandbox_dir, ignore_errors=True)
         _logger.info("Removed sandbox dir for conversation %s", conversation_id)
+
+    # Clean up per-conversation uploads directory (generated images, etc.).
+    uploads_dir = _UPLOADS_CONVERSATIONS_DIR / conversation_id
+    if uploads_dir.exists():
+        shutil.rmtree(uploads_dir, ignore_errors=True)
+        _logger.info("Removed uploads dir for conversation %s", conversation_id)
 
     return ApiResponse(data={"deleted": conversation_id})

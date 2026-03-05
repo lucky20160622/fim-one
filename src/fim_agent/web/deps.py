@@ -192,6 +192,7 @@ def get_tools(
     *,
     sandbox_root: Path | None = None,
     sandbox_config: dict | None = None,
+    uploads_root: Path | None = None,
 ) -> ToolRegistry:
     """Create a :class:`ToolRegistry` pre-loaded with all discovered built-in tools.
 
@@ -205,9 +206,17 @@ def get_tools(
 
     When *sandbox_config* is provided (from an agent's ``sandbox_config``
     column), per-agent resource limits are applied to exec tools.
+
+    When *uploads_root* is provided, media tools (generate_image) write
+    output to a per-conversation subdirectory so files are isolated and
+    cleaned up when the conversation is deleted.
     """
     registry = ToolRegistry()
-    for tool in discover_builtin_tools(sandbox_root=sandbox_root, sandbox_config=sandbox_config):
+    for tool in discover_builtin_tools(
+        sandbox_root=sandbox_root,
+        sandbox_config=sandbox_config,
+        uploads_root=uploads_root,
+    ):
         registry.register(tool)
     logger.info("Registered %d built-in tools: %s", len(registry), registry)
     return registry

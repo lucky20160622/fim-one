@@ -63,6 +63,13 @@ _SANDBOX_KWARGS: dict[type, str] = {
     PythonExecTool: "exec_dir",
 }
 
+# Mapping from tool class to the keyword argument name for uploads paths.
+# When uploads_root is provided, these tools receive a per-conversation
+# output directory so their files are isolated and cleaned up with the conversation.
+_UPLOADS_KWARGS: dict[type, str] = {
+    GenerateImageTool: "output_dir",
+}
+
 # Tools that require explicit configuration and should NOT be auto-discovered.
 # They are registered manually when the appropriate config is available.
 _SKIP_AUTO_DISCOVER: set[type] = {
@@ -77,6 +84,7 @@ def discover_builtin_tools(
     *,
     sandbox_root: Path | None = None,
     sandbox_config: dict | None = None,
+    uploads_root: Path | None = None,
 ) -> list[Tool]:
     """Auto-discover and instantiate all built-in tools.
 
@@ -139,6 +147,9 @@ def discover_builtin_tools(
                     kwarg_name = _SANDBOX_KWARGS.get(obj)
                     if kwarg_name and kwarg_name in sandbox_paths:
                         kwargs[kwarg_name] = sandbox_paths[kwarg_name]
+                    uploads_kwarg = _UPLOADS_KWARGS.get(obj)
+                    if uploads_kwarg and uploads_root is not None:
+                        kwargs[uploads_kwarg] = uploads_root
                     if obj in _SANDBOX_EXEC_TOOLS:
                         if _memory is not None:
                             kwargs["memory"] = _memory

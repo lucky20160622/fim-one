@@ -16,8 +16,6 @@ from .base import BaseImageGen, ImageResult
 # Gemini API base URL
 _GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
-# Uploads sub-directory served at /uploads
-_URL_PREFIX = "/uploads/generated"
 
 
 class GoogleImageGen(BaseImageGen):
@@ -99,9 +97,12 @@ class GoogleImageGen(BaseImageGen):
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_bytes(image_bytes)
 
+        # Build a server-relative URL from the output_dir so it works regardless
+        # of whether images go to uploads/generated or uploads/conversations/{id}.
+        url_path = Path(output_dir).as_posix()
         return ImageResult(
             file_path=str(out_path),
-            url=f"{_URL_PREFIX}/{filename}",
+            url=f"/{url_path}/{filename}",
             prompt=prompt,
             model=self._model,
         )

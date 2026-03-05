@@ -429,7 +429,17 @@ async def _resolve_tools(
     """Build tool registry, optionally scoped to a per-conversation sandbox."""
     sandbox_root = _conversation_sandbox_root(conversation_id)
     sandbox_config = agent_cfg.get("sandbox_config") if agent_cfg else None
-    tools = get_tools(sandbox_root=sandbox_root, sandbox_config=sandbox_config)
+    # Per-conversation uploads dir so generated images are isolated and
+    # cleaned up when the conversation is deleted.
+    uploads_root: Path | None = None
+    if conversation_id:
+        uploads_base = Path(os.environ.get("UPLOADS_DIR", "uploads"))
+        uploads_root = uploads_base / "conversations" / conversation_id
+    tools = get_tools(
+        sandbox_root=sandbox_root,
+        sandbox_config=sandbox_config,
+        uploads_root=uploads_root,
+    )
     if agent_cfg:
         cats = agent_cfg.get("tool_categories") or []
         tools = tools.filter_by_category(*cats)

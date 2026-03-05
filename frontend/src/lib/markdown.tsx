@@ -168,6 +168,15 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
           hr(props) {
             return <hr className="my-4 border-border" {...props} />
           },
+          img({ src, alt }) {
+            return (
+              <img
+                src={src ?? ""}
+                alt={alt ?? ""}
+                className="max-w-full rounded-lg my-2 block"
+              />
+            )
+          },
           a({ children, ...props }) {
             return (
               <a target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:text-primary/80" {...props}>
