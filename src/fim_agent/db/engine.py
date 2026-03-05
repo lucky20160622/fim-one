@@ -95,6 +95,7 @@ async def init_db() -> None:
             await _migrate_user_is_active(conn)
             await _migrate_user_email_required(conn)
             await _migrate_mcp_server_columns(conn)
+            await _backfill_conversation_model_name(conn)
 
     logger.info("Database initialized successfully")
 
@@ -296,6 +297,52 @@ async def _migrate_user_email_required(conn) -> None:
             {"email": placeholder, "id": user_id},
         )
     logger.info("Email backfill complete")
+
+
+async def _backfill_conversation_model_name(conn) -> None:
+    """Backfill NULL model_name on conversations from their agent's model config.
+
+    Covers historical conversations created before eager model_name resolution
+    was added to the create_conversation endpoint.
+    """
+    result = await conn.execute(
+        text(
+            "SELECT COUNT(*) FROM conversations "
+            "WHERE model_name IS NULL AND agent_id IS NOT NULL"
+        )
+    )
+    count = result.scalar()
+    if not count:
+        return
+
+    logger.info("Backfilling model_name for %d conversations", count)
+    # Try agent model_config_json first
+    await conn.execute(
+        text(
+            "UPDATE conversations SET model_name = ("
+            "  SELECT json_extract(agents.model_config_json, '$.model_name')"
+            "  FROM agents WHERE agents.id = conversations.agent_id"
+            ") WHERE model_name IS NULL AND agent_id IS NOT NULL"
+        )
+    )
+    # For any still NULL (agent had no model_name key), try $.model
+    await conn.execute(
+        text(
+            "UPDATE conversations SET model_name = ("
+            "  SELECT json_extract(agents.model_config_json, '$.model')"
+            "  FROM agents WHERE agents.id = conversations.agent_id"
+            ") WHERE model_name IS NULL AND agent_id IS NOT NULL"
+        )
+    )
+    # Final fallback: LLM_MODEL env var
+    import os
+    llm_model = os.environ.get("LLM_MODEL", "")
+    if llm_model:
+        await conn.execute(
+            text("UPDATE conversations SET model_name = :model WHERE model_name IS NULL"),
+            {"model": llm_model},
+        )
+    logger.info("Conversation model_name backfill complete")
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
