@@ -215,7 +215,7 @@ function StepCard({ step, duration, displayIteration }: { step: ReactStepEvent; 
 
 function DoneCard({ done, items, onSuggestionSelect }: { done: ReactDoneEvent; items?: StepItem[]; onSuggestionSelect?: (query: string) => void }) {
   return (
-    <Card className="border-green-500/20 py-4">
+    <Card className="py-4">
       <CardHeader className="pb-0">
         <div className="flex items-center gap-2">
           <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-500/10">

@@ -450,6 +450,9 @@ pre code.hljs {
 .dark .hljs-params {
   color: #abb2bf;
 }
+.dark .hljs-subst {
+  color: #abb2bf;
+}
 
 /* ReactFlow overrides */
 .react-flow {
