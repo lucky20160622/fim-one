@@ -16,6 +16,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **OpenAIReranker**: New `core/reranker/openai.py` — bi-encoder cosine similarity using any OpenAI-compatible embedding endpoint; fallback when cross-encoder rerankers are unavailable; selectable via `RERANKER_PROVIDER=openai`
 
 ### Changed
+- **env file structure**: Reorganized `example.env` and `.env` into logical sections (LLM → Web Tools → RAG → Code Execution → Connectors → Platform → OAuth); provider selectors now appear before their API keys; replaced version-tagged headers (`v0.4`, `v0.5`) with clean `──` section separators
 - **WebSearchTool / WebFetchTool**: Refactored to delegate to `get_web_searcher()` / `get_web_fetcher()` factories; identical public interface — zero breaking changes
 - **get_reranker()**: Widened return type to `BaseReranker | None`; supports `RERANKER_PROVIDER` env var for selecting jina / cohere / openai backends
 
