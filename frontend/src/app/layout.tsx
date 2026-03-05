@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
+import localFont from "next/font/local"
 import "./globals.css"
 import { APP_NAME } from "@/lib/constants"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -18,6 +19,13 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 })
 
+const cabinetGrotesk = localFont({
+  src: "../../public/fonts/CabinetGrotesk-Bold.woff2",
+  variable: "--font-cabinet",
+  weight: "700",
+  display: "swap",
+})
+
 export const metadata: Metadata = {
   title: APP_NAME,
   description: "Intelligent agent framework with fill-in-the-middle capabilities",
@@ -30,7 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${jetbrainsMono.variable} ${cabinetGrotesk.variable} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <AuthProvider>
             <TooltipProvider>

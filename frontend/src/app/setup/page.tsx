@@ -122,7 +122,7 @@ export default function SetupPage() {
           />
           <span
             className="text-xl font-bold tracking-tight text-white/90"
-            style={{ fontFamily: '"Cabinet Grotesk", sans-serif' }}
+            style={{ fontFamily: 'var(--font-cabinet), sans-serif' }}
           >
             {APP_NAME}
           </span>
@@ -132,7 +132,7 @@ export default function SetupPage() {
         <div className="relative z-10 -mt-8">
           <h1
             className="text-[2.75rem] font-bold leading-[1.1] tracking-tight text-white"
-            style={{ fontFamily: '"Cabinet Grotesk", sans-serif' }}
+            style={{ fontFamily: 'var(--font-cabinet), sans-serif' }}
           >
             AI-Powered
             <br />
@@ -162,7 +162,7 @@ export default function SetupPage() {
             <img src="/fim-mark.svg" alt="FIM" className="h-8 w-auto hidden dark:block" />
             <span
               className="text-lg font-bold"
-              style={{ fontFamily: '"Cabinet Grotesk", sans-serif' }}
+              style={{ fontFamily: 'var(--font-cabinet), sans-serif' }}
             >
               {APP_NAME}
             </span>
