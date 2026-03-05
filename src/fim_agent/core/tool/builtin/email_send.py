@@ -72,6 +72,53 @@ class EmailSendTool(BaseTool):
             "required": ["to", "subject", "body"],
         }
 
+    # ---------------------------------------------------------------------------
+    # Allowlist helpers
+    # ---------------------------------------------------------------------------
+
+    @staticmethod
+    def _allowed_domains() -> list[str] | None:
+        """Return lower-cased allowed domains from env, or None if unrestricted."""
+        raw = os.getenv("SMTP_ALLOWED_DOMAINS", "").strip()
+        if not raw:
+            return None
+        return [d.strip().lower() for d in raw.split(",") if d.strip()]
+
+    @staticmethod
+    def _allowed_addresses() -> list[str] | None:
+        """Return lower-cased allowed exact addresses from env, or None if unrestricted."""
+        raw = os.getenv("SMTP_ALLOWED_ADDRESSES", "").strip()
+        if not raw:
+            return None
+        return [a.strip().lower() for a in raw.split(",") if a.strip()]
+
+    def _check_recipients(self, *addr_strings: str) -> str | None:
+        """Return an error message if any address violates the allowlist, else None."""
+        domains = self._allowed_domains()
+        addresses = self._allowed_addresses()
+        if domains is None and addresses is None:
+            return None  # no restrictions configured
+
+        all_addrs: list[str] = []
+        for s in addr_strings:
+            if s:
+                all_addrs.extend(a.strip().lower() for a in s.split(",") if a.strip())
+
+        blocked: list[str] = []
+        for addr in all_addrs:
+            addr_domain = addr.split("@")[-1] if "@" in addr else ""
+            ok_domain = domains is not None and addr_domain in domains
+            ok_address = addresses is not None and addr in addresses
+            if not (ok_domain or ok_address):
+                blocked.append(addr)
+
+        if blocked:
+            return (
+                f"[Error] Recipient(s) not in allowlist: {', '.join(blocked)}. "
+                "Configure SMTP_ALLOWED_DOMAINS or SMTP_ALLOWED_ADDRESSES to permit them."
+            )
+        return None
+
     async def run(self, **kwargs: Any) -> str:
         to: str = kwargs.get("to", "").strip()
         subject: str = kwargs.get("subject", "").strip()
@@ -86,6 +133,10 @@ class EmailSendTool(BaseTool):
             return "[Error] 'subject' is required."
         if not body:
             return "[Error] 'body' is required."
+
+        err = self._check_recipients(to, cc, bcc)
+        if err:
+            return err
 
         return await asyncio.to_thread(self._send, to, subject, body, is_html, cc, bcc)
 
