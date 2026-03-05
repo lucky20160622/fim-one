@@ -59,6 +59,10 @@ class OpenAICompatibleLLM(BaseLLM):
     def model_id(self) -> str:
         return self._model
 
+    @property
+    def api_key(self) -> str:
+        return self._client.api_key
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
