@@ -41,7 +41,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fim_agent.core.agent import ReActAgent
 from fim_agent.core.model import BaseLLM
 from fim_agent.core.model.types import ChatMessage
-from fim_agent.core.model.usage import UsageSummary
+from fim_agent.core.model.usage import UsageSummary, UsageTracker
 from fim_agent.core.planner import (
     AnalysisResult,
     DAGExecutor,
@@ -198,6 +198,7 @@ async def _generate_suggestions(
     *,
     count: int = 3,
     preferred_language: str | None = None,
+    usage_tracker: "UsageTracker | None" = None,
 ) -> list[str]:
     """Generate follow-up question suggestions based on query and answer.
 
@@ -237,6 +238,8 @@ async def _generate_suggestions(
         ])
 
         raw = (result.message.content or "").strip()
+        if usage_tracker and result.usage:
+            await usage_tracker.record(result.usage)
 
         suggestions = extract_json_value(raw)
         if isinstance(suggestions, list) and all(isinstance(s, str) for s in suggestions):
@@ -897,6 +900,7 @@ async def react_endpoint(
                     logger.warning("SSE progress queue full, dropping event")
 
         try:
+            fast_usage_tracker = UsageTracker()
             memory = None
             if conversation_id:
                 from fim_agent.core.memory import DbMemory
@@ -904,11 +908,19 @@ async def react_endpoint(
                     conversation_id=conversation_id,
                     compact_llm=get_fast_llm(),
                     user_id=current_user_id,
+                    usage_tracker=fast_usage_tracker,
                 )
             context_guard = ContextGuard(
                 compact_llm=get_fast_llm(),
                 default_budget=get_context_budget(),
+                usage_tracker=fast_usage_tracker,
             )
+
+            # Inject fast usage tracker into grounded retrieve tool
+            from fim_agent.core.tool.builtin.grounded_retrieve import GroundedRetrieveTool
+            for tool in tools._tools.values():
+                if isinstance(tool, GroundedRetrieveTool):
+                    tool.set_usage_tracker(fast_usage_tracker)
 
             agent = ReActAgent(
                 llm=llm,
@@ -1033,9 +1045,29 @@ async def react_endpoint(
             # ephemeral: generate AFTER persist, inject BEFORE yield
             suggestions = await _generate_suggestions(
                 get_fast_llm(), q, result.answer, preferred_language=preferred_language,
+                usage_tracker=fast_usage_tracker,
             )
             if suggestions:
                 done_payload["suggestions"] = suggestions
+
+            # Capture fast LLM token usage (after all fast calls including suggestions)
+            fast_summary = fast_usage_tracker.get_summary()
+            if fast_summary.total_tokens > 0:
+                if "usage" in done_payload:
+                    done_payload["usage"]["fast_llm_tokens"] = fast_summary.total_tokens
+                if db_session and conversation_id:
+                    try:
+                        from fim_agent.web.models import Conversation
+                        stmt = sa_select(Conversation).where(
+                            Conversation.id == conversation_id
+                        )
+                        conv = (await db_session.execute(stmt)).scalar_one_or_none()
+                        if conv:
+                            conv.total_tokens = (conv.total_tokens or 0) + fast_summary.total_tokens
+                            conv.fast_llm_tokens = (conv.fast_llm_tokens or 0) + fast_summary.total_tokens
+                            await db_session.commit()
+                    except Exception:
+                        logger.warning("Failed to persist fast LLM tokens", exc_info=True)
 
             yield _sse("done", done_payload)
         except Exception as exc:
@@ -1192,6 +1224,7 @@ async def dag_endpoint(
                     conversation_id=conversation_id,
                     compact_llm=fast_llm,
                     user_id=current_user_id,
+                    usage_tracker=fast_usage_tracker,
                 )
                 history = await dag_memory.get_messages()
                 if history:
@@ -1255,6 +1288,7 @@ async def dag_endpoint(
                 logger.warning("SSE progress queue full, dropping event")
 
         try:
+            fast_usage_tracker = UsageTracker()
             plan: ExecutionPlan | None = None
             analysis: AnalysisResult | None = None
             cumulative_usage: UsageSummary | None = None
@@ -1335,7 +1369,14 @@ async def dag_endpoint(
                 dag_context_guard = ContextGuard(
                     compact_llm=fast_llm,
                     default_budget=get_fast_context_budget(),
+                    usage_tracker=fast_usage_tracker,
                 )
+
+                # Inject fast usage tracker into grounded retrieve tool
+                from fim_agent.core.tool.builtin.grounded_retrieve import GroundedRetrieveTool
+                for tool in tools._tools.values():
+                    if isinstance(tool, GroundedRetrieveTool):
+                        tool.set_usage_tracker(fast_usage_tracker)
 
                 agent = ReActAgent(
                     llm=fast_llm,
@@ -1629,9 +1670,31 @@ async def dag_endpoint(
             # ephemeral: generate AFTER persist, inject BEFORE yield
             dag_suggestions = await _generate_suggestions(
                 fast_llm, q, answer, preferred_language=preferred_language,
+                usage_tracker=fast_usage_tracker,
             )
             if dag_suggestions:
                 dag_done_payload["suggestions"] = dag_suggestions
+
+            # Capture fast LLM token usage (after all fast calls including suggestions)
+            fast_summary = fast_usage_tracker.get_summary()
+            if fast_summary.total_tokens > 0:
+                if "usage" in dag_done_payload:
+                    dag_done_payload["usage"]["fast_llm_tokens"] = fast_summary.total_tokens
+                if db_session and conversation_id:
+                    try:
+                        from fim_agent.web.models import (
+                            Conversation as ConvModel,
+                        )
+                        stmt = sa_select(ConvModel).where(
+                            ConvModel.id == conversation_id
+                        )
+                        conv = (await db_session.execute(stmt)).scalar_one_or_none()
+                        if conv:
+                            conv.total_tokens = (conv.total_tokens or 0) + fast_summary.total_tokens
+                            conv.fast_llm_tokens = (conv.fast_llm_tokens or 0) + fast_summary.total_tokens
+                            await db_session.commit()
+                    except Exception:
+                        logger.warning("Failed to persist fast LLM tokens", exc_info=True)
 
             yield _sse("done", dag_done_payload)
         except Exception as exc:
