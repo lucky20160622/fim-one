@@ -530,6 +530,29 @@ export const chatApi = {
     }),
 }
 
+// --- Admin Stats Types ---
+interface ConnectorCallStat {
+  connector_id: string
+  connector_name: string
+  call_count: number
+}
+
+interface ConnectorActionStat {
+  action_name: string
+  connector_name: string
+  call_count: number
+}
+
+export interface ConnectorStats {
+  total_calls: number
+  today_calls: number
+  success_rate: number
+  avg_response_time_ms: number
+  top_connectors: ConnectorCallStat[]
+  top_actions: ConnectorActionStat[]
+  recent_days: { date: string; count: number }[]
+}
+
 // --- Admin API ---
 export const adminApi = {
   listUsers: (page = 1, size = 20, q?: string) => {
@@ -567,6 +590,9 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify({ new_password: newPassword }),
     }),
+
+  connectorStats: () =>
+    apiFetch<ConnectorStats>("/api/admin/connector-stats"),
 }
 
 // --- MCP Server API ---
@@ -593,4 +619,13 @@ export const mcpServerApi = {
 
   delete: (id: string) =>
     apiFetch<ApiResponse<void>>(`/api/mcp-servers/${id}`, { method: "DELETE" }),
+
+  toggleActive: (id: string, isActive: boolean) =>
+    apiFetch<ApiResponse<MCPServerResponse>>(`/api/mcp-servers/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ is_active: isActive }),
+    }).then((r) => r.data),
+
+  capabilities: () =>
+    apiFetch<{ allow_stdio: boolean }>("/api/mcp-servers/capabilities"),
 }

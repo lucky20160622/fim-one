@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Users, MessageSquare, Zap, Bot, Database, BookOpen } from "lucide-react"
+import { Users, MessageSquare, Zap, Bot, Database, BookOpen, FileText, Hash, Plug } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { apiFetch } from "@/lib/api"
 import {
@@ -25,6 +25,11 @@ interface AdminStats {
   total_tokens: number
   total_agents: number
   total_kbs: number
+  total_documents: number
+  total_chunks: number
+  total_connectors: number
+  today_conversations: number
+  tokens_by_agent: { agent_id: string; name: string; total_tokens: number }[]
   conversations_by_model: { model: string; count: number }[]
   top_agents: { agent_id: string; name: string; count: number }[]
   recent_days: { date: string; count: number }[]
@@ -66,10 +71,12 @@ function StatCard({
   icon: Icon,
   label,
   value,
+  secondary,
 }: {
   icon: React.ElementType
   label: string
   value: string | number
+  secondary?: string
 }) {
   return (
     <div className="rounded-lg border border-border bg-card p-4 space-y-2">
@@ -78,6 +85,7 @@ function StatCard({
         <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
       </div>
       <p className="text-2xl font-semibold text-foreground">{value}</p>
+      {secondary && <p className="text-xs text-muted-foreground">{secondary}</p>}
     </div>
   )
 }
@@ -146,17 +154,25 @@ export function AdminOverview() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+          <div className="grid grid-cols-3 gap-4">
+            {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <StatCard icon={Users} label="Total Users" value={stats?.total_users ?? 0} />
-            <StatCard icon={MessageSquare} label="Conversations" value={stats?.total_conversations ?? 0} />
+            <StatCard
+              icon={MessageSquare}
+              label="Conversations"
+              value={stats?.total_conversations ?? 0}
+              secondary={stats?.today_conversations ? `${stats.today_conversations} today` : undefined}
+            />
             <StatCard icon={Database} label="Messages" value={(stats?.total_messages ?? 0).toLocaleString()} />
             <StatCard icon={Zap} label="Total Tokens" value={formatTokens(stats?.total_tokens ?? 0)} />
             <StatCard icon={Bot} label="Agents" value={stats?.total_agents ?? 0} />
             <StatCard icon={BookOpen} label="Knowledge Bases" value={stats?.total_kbs ?? 0} />
+            <StatCard icon={FileText} label="Documents" value={(stats?.total_documents ?? 0).toLocaleString()} />
+            <StatCard icon={Hash} label="Chunks" value={(stats?.total_chunks ?? 0).toLocaleString()} />
+            <StatCard icon={Plug} label="Connectors" value={stats?.total_connectors ?? 0} />
           </div>
         )}
       </div>
@@ -268,6 +284,43 @@ export function AdminOverview() {
                   wrapperStyle={{ fontSize: "12px", color: "hsl(var(--muted-foreground))" }}
                 />
               </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* Section 5 -- Tokens by Agent */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-base font-medium">Tokens by Agent</h3>
+          <p className="text-sm text-muted-foreground">Top agents by total token consumption.</p>
+        </div>
+
+        {isLoading ? (
+          <div className="h-[200px] rounded bg-muted animate-pulse" />
+        ) : !stats?.tokens_by_agent?.length ? (
+          <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+            No token usage data yet.
+          </div>
+        ) : (
+          <div style={{ height: Math.max(180, stats.tokens_by_agent.length * 36) }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={stats.tokens_by_agent.map((a) => ({
+                  name: a.name,
+                  tokens: a.total_tokens,
+                }))}
+                layout="vertical"
+                margin={{ top: 4, right: 4, left: 0, bottom: 4 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                <XAxis type="number" tick={TICK_STYLE} tickLine={false} axisLine={false} allowDecimals={false} />
+                <YAxis type="category" dataKey="name" width={120} tick={TICK_STYLE} tickLine={false} axisLine={false} />
+                <Tooltip content={<BarTooltip />} cursor={{ fill: "hsl(var(--muted))" }} />
+                <Bar dataKey="tokens" name="Tokens" fill={CHART_COLORS[2]} radius={[0, 4, 4, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         )}

@@ -2,15 +2,17 @@
 
 import { useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { LayoutDashboard, Users } from "lucide-react"
+import { LayoutDashboard, Plug, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { AdminOverview } from "@/components/admin/admin-overview"
 import { AdminUsers } from "@/components/admin/admin-users"
+import { AdminConnectors } from "@/components/admin/admin-connectors"
 
 const TABS = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "users", label: "Users", icon: Users },
+  { key: "connectors", label: "Connectors", icon: Plug },
 ] as const
 
 type TabKey = (typeof TABS)[number]["key"]
@@ -79,6 +81,7 @@ function AdminPanelContent() {
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === "overview" && <AdminOverview />}
           {activeTab === "users" && <AdminUsers />}
+          {activeTab === "connectors" && <AdminConnectors />}
         </div>
       </div>
     </div>
