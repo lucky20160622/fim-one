@@ -1,32 +1,32 @@
-"""Built-in tool for fetching and reading web page content via Jina Reader."""
+"""Built-in tool for fetching web page content.
+
+Delegates to the configured BaseWebFetch backend (Jina or plain httpx).
+Backend selection is controlled by the WEB_FETCH_PROVIDER environment variable.
+"""
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import httpx
 
+from fim_agent.core.web.fetch import get_web_fetcher
+
 from ..base import BaseTool
 
-_DEFAULT_TIMEOUT_SECONDS: int = 30
-_JINA_READER_URL = "https://r.jina.ai/"
+_DEFAULT_TIMEOUT: int = 30
+_MAX_CHARS: int = 20_000
 
 
 class WebFetchTool(BaseTool):
-    """Fetch a URL and return its content as clean Markdown.
+    """Fetch a URL and return its content as clean Markdown or plain text.
 
-    Uses `Jina Reader <https://r.jina.ai>`_ to convert HTML pages into
-    readable Markdown text.  An optional ``JINA_API_KEY`` environment
-    variable enables higher rate limits.
+    Supports Jina Reader (clean Markdown output) and plain httpx (text extraction).
+    Backend is selected via the WEB_FETCH_PROVIDER environment variable.
     """
 
-    def __init__(self, *, timeout: int = _DEFAULT_TIMEOUT_SECONDS) -> None:
+    def __init__(self, *, timeout: int = _DEFAULT_TIMEOUT) -> None:
         self._timeout = timeout
-
-    # ------------------------------------------------------------------
-    # Tool protocol
-    # ------------------------------------------------------------------
 
     @property
     def name(self) -> str:
@@ -57,28 +57,14 @@ class WebFetchTool(BaseTool):
             "required": ["url"],
         }
 
-    # ------------------------------------------------------------------
-    # Execution
-    # ------------------------------------------------------------------
-
     async def run(self, **kwargs: Any) -> str:
         url: str = kwargs.get("url", "").strip()
         if not url:
             return "[Error] No URL provided."
 
-        jina_url = f"{_JINA_READER_URL}{url}"
-        headers: dict[str, str] = {
-            "Accept": "text/markdown",
-        }
-        api_key = os.environ.get("JINA_API_KEY", "")
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-
+        fetcher = get_web_fetcher(timeout=self._timeout)
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                resp = await client.get(jina_url, headers=headers)
-                resp.raise_for_status()
-                content = resp.text
+            content = await fetcher.fetch(url)
         except httpx.TimeoutException:
             return f"[Timeout] Request exceeded {self._timeout} seconds."
         except httpx.HTTPStatusError as exc:
@@ -86,9 +72,6 @@ class WebFetchTool(BaseTool):
         except httpx.RequestError as exc:
             return f"[Error] {exc}"
 
-        # Truncate very long pages to stay within LLM context limits.
-        max_chars = 20_000
-        if len(content) > max_chars:
-            content = content[:max_chars] + f"\n\n[Truncated — {len(content)} chars total]"
-
+        if len(content) > _MAX_CHARS:
+            content = content[:_MAX_CHARS] + f"\n\n[Truncated — {len(content)} chars total]"
         return content

@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING
 from fim_agent.core.embedding.openai_compatible import OpenAICompatibleEmbedding
 from fim_agent.core.model import OpenAICompatibleLLM
 from fim_agent.core.model.registry import ModelRegistry
-from fim_agent.core.reranker.jina import JinaReranker
+from fim_agent.core.reranker.base import BaseReranker
 from fim_agent.core.tool import ToolRegistry
 from fim_agent.core.tool.builtin import discover_builtin_tools
 from fim_agent.db import get_session
@@ -259,12 +259,33 @@ def get_embedding() -> OpenAICompatibleEmbedding:
     )
 
 
-def get_reranker() -> JinaReranker | None:
-    """Create a Jina reranker if an API key is available."""
+def get_reranker() -> BaseReranker | None:
+    """Create a reranker from environment config.
+
+    Respects RERANKER_PROVIDER env var (jina / cohere / openai).
+    Falls back to auto-detecting from available API keys.
+    """
+    provider = os.environ.get("RERANKER_PROVIDER", "").lower()
+
+    if provider == "cohere" or (not provider and os.environ.get("COHERE_API_KEY")):
+        cohere_key = os.environ.get("COHERE_API_KEY", "")
+        if not cohere_key:
+            return None
+        model = os.environ.get("COHERE_RERANKER_MODEL", "rerank-multilingual-v3.0")
+        from fim_agent.core.reranker.cohere import CohereReranker
+        return CohereReranker(api_key=cohere_key, model=model)
+
+    if provider == "openai":
+        model = os.environ.get("RERANKER_MODEL", "text-embedding-3-small")
+        from fim_agent.core.reranker.openai import OpenAIReranker
+        return OpenAIReranker(model=model)
+
+    # Default: Jina
     jina_key = os.environ.get("JINA_API_KEY", "")
-    if not jina_key:
+    if not jina_key and not provider:
         return None
     model = os.environ.get("RERANKER_MODEL", "jina-reranker-v2-base-multilingual")
+    from fim_agent.core.reranker.jina import JinaReranker
     return JinaReranker(api_key=jina_key, model=model)
 
 

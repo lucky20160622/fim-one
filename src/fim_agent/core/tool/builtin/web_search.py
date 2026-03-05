@@ -1,32 +1,31 @@
-"""Built-in tool for searching the web via Jina Search."""
+"""Built-in tool for searching the web.
+
+Delegates to the configured BaseWebSearch backend (Jina, Tavily, or Brave).
+Backend selection is controlled by the WEB_SEARCH_PROVIDER environment variable.
+"""
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import httpx
 
+from fim_agent.core.web.search import format_results, get_web_searcher
+
 from ..base import BaseTool
 
-_DEFAULT_TIMEOUT_SECONDS: int = 30
-_JINA_SEARCH_URL = "https://s.jina.ai/"
+_DEFAULT_TIMEOUT: int = 30
 
 
 class WebSearchTool(BaseTool):
     """Search the web and return results as Markdown.
 
-    Uses `Jina Search <https://s.jina.ai>`_ to perform web searches and
-    return relevant results.  An optional ``JINA_API_KEY`` environment
-    variable enables higher rate limits and better quality.
+    Supports multiple backends: Jina (default, no key needed), Tavily, and Brave.
+    Backend is selected via the WEB_SEARCH_PROVIDER environment variable.
     """
 
-    def __init__(self, *, timeout: int = _DEFAULT_TIMEOUT_SECONDS) -> None:
+    def __init__(self, *, timeout: int = _DEFAULT_TIMEOUT) -> None:
         self._timeout = timeout
-
-    # ------------------------------------------------------------------
-    # Tool protocol
-    # ------------------------------------------------------------------
 
     @property
     def name(self) -> str:
@@ -57,28 +56,14 @@ class WebSearchTool(BaseTool):
             "required": ["query"],
         }
 
-    # ------------------------------------------------------------------
-    # Execution
-    # ------------------------------------------------------------------
-
     async def run(self, **kwargs: Any) -> str:
         query: str = kwargs.get("query", "").strip()
         if not query:
             return "[Error] No query provided."
 
-        jina_url = f"{_JINA_SEARCH_URL}{query}"
-        headers: dict[str, str] = {
-            "Accept": "text/markdown",
-        }
-        api_key = os.environ.get("JINA_API_KEY", "")
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-
+        searcher = get_web_searcher(timeout=self._timeout)
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                resp = await client.get(jina_url, headers=headers)
-                resp.raise_for_status()
-                content = resp.text
+            results = await searcher.search(query, num_results=10)
         except httpx.TimeoutException:
             return f"[Timeout] Search exceeded {self._timeout} seconds."
         except httpx.HTTPStatusError as exc:
@@ -86,9 +71,4 @@ class WebSearchTool(BaseTool):
         except httpx.RequestError as exc:
             return f"[Error] {exc}"
 
-        # Truncate very long results.
-        max_chars = 15_000
-        if len(content) > max_chars:
-            content = content[:max_chars] + f"\n\n[Truncated — {len(content)} chars total]"
-
-        return content
+        return format_results(results)
