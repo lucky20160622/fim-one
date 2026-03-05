@@ -45,8 +45,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **Sidebar mode icon always visible**: DAG/ReAct mode icons now only appear on row hover; added Zap icon for ReAct conversations
 - **Reranker silent crash when Jina key absent**: `get_reranker()` now returns `None` when `RERANKER_PROVIDER=jina` is set but `JINA_API_KEY` is missing; reranking is silently skipped rather than creating a broken reranker that fails at call time
 - **Playground history user icon**: History turns now show user initials (first char of display_name / username) instead of a generic User icon
+- **Conversation sidebar stale active highlight**: Active conversation highlight now clears when navigating away from `/`; previously the item stayed highlighted on all sub-pages
+- **Admin delete-user dialog JSX quote**: Replaced raw `"` quotes in `AlertDialogTitle` with `&quot;` entities to fix JSX escape lint error
 
 ### Changed
+- **Image preview lightbox**: Replaced `yet-another-react-lightbox` (and its zoom/download plugins) with a native `Dialog`-based preview in both the playground attachment thumbnails and the markdown renderer; images in chat messages now support click-to-expand with a download/open-in-tab overlay icon; unified UX across all image surfaces
 - **env file structure**: Reorganized `example.env` and `.env` into logical sections (LLM → Web Tools → RAG → Code Execution → Connectors → Platform → OAuth); provider selectors now appear before their API keys; replaced version-tagged headers (`v0.4`, `v0.5`) with clean `──` section separators
 - **WebSearchTool / WebFetchTool**: Refactored to delegate to `get_web_searcher()` / `get_web_fetcher()` factories; identical public interface — zero breaking changes
 - **get_reranker()**: Widened return type to `BaseReranker | None`; supports `RERANKER_PROVIDER` env var for selecting jina / cohere / openai backends
