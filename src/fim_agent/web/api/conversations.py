@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import math
 import shutil
 from pathlib import Path
@@ -14,7 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from fim_agent.db import get_session
 from fim_agent.web.auth import get_current_user
-from fim_agent.web.models import Conversation, Message, User
+from fim_agent.web.models import Agent, Conversation, Message, User
 from fim_agent.web.schemas.common import ApiResponse, PaginatedResponse
 from fim_agent.web.schemas.conversation import (
     BatchDeleteRequest,
@@ -84,12 +85,24 @@ async def create_conversation(
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
+    # Resolve model_name: body > agent config > env fallback
+    model_name = body.model_name
+    if not model_name and body.agent_id:
+        result = await db.execute(
+            select(Agent.model_config_json).where(Agent.id == body.agent_id)
+        )
+        model_cfg = result.scalar_one_or_none()
+        if model_cfg and isinstance(model_cfg, dict):
+            model_name = model_cfg.get("model_name") or model_cfg.get("model")
+    if not model_name:
+        model_name = os.environ.get("LLM_MODEL", "") or None
+
     conv = Conversation(
         user_id=current_user.id,
         title=body.title,
         mode=body.mode,
         agent_id=body.agent_id,
-        model_name=body.model_name,
+        model_name=model_name,
     )
     db.add(conv)
     await db.commit()
