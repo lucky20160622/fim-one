@@ -146,6 +146,10 @@ class PythonExecTool(BaseTool):
         return "python_exec"
 
     @property
+    def display_name(self) -> str:
+        return "Python"
+
+    @property
     def category(self) -> str:
         return "computation"
 

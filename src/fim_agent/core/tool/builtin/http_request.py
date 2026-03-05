@@ -111,6 +111,10 @@ class HttpRequestTool(BaseTool):
         return "http_request"
 
     @property
+    def display_name(self) -> str:
+        return "HTTP Request"
+
+    @property
     def category(self) -> str:
         return "web"
 

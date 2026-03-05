@@ -24,6 +24,10 @@ class KBListTool(BaseTool):
         return "kb_list"
 
     @property
+    def display_name(self) -> str:
+        return "KB List"
+
+    @property
     def description(self) -> str:
         return (
             "List all knowledge bases available to you. "

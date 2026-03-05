@@ -43,6 +43,7 @@ from .api.mcp_servers import router as mcp_servers_router
 from .api.files import router as files_router
 from .api.knowledge_bases import router as kb_router
 from .api.models import router as models_router
+from .api.tools import router as tools_router
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +125,7 @@ def create_app() -> FastAPI:
     app.include_router(files_router)
     app.include_router(kb_router)
     app.include_router(models_router)
+    app.include_router(tools_router)
 
     # -- Static uploads -----------------------------------------------------
     uploads_dir = Path("uploads")

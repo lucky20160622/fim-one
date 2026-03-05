@@ -39,6 +39,10 @@ class GroundedRetrieveTool(BaseTool):
         return "grounded_retrieve"
 
     @property
+    def display_name(self) -> str:
+        return "Grounded Retrieve"
+
+    @property
     def description(self) -> str:
         return (
             "Evidence-grounded retrieval with claim-level citations, "

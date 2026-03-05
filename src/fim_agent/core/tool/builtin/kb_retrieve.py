@@ -24,6 +24,10 @@ class KBRetrieveTool(BaseTool):
         return "kb_retrieve"
 
     @property
+    def display_name(self) -> str:
+        return "KB Retrieve"
+
+    @property
     def description(self) -> str:
         return (
             "Search a knowledge base for documents relevant to a query. "

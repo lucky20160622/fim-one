@@ -44,6 +44,10 @@ class FileOpsTool(BaseTool):
         return "file_ops"
 
     @property
+    def display_name(self) -> str:
+        return "File Operations"
+
+    @property
     def category(self) -> str:
         return "filesystem"
 
