@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 
 // ─── Role Slot Card ───────────────────────────────────────────────────────────
@@ -181,7 +180,6 @@ function ProviderDialog({ open, onOpenChange, editing, onSaved }: ProviderDialog
   const [baseUrl, setBaseUrl] = useState("")
   const [apiKey, setApiKey] = useState("")
   const [modelName, setModelName] = useState("")
-  const [role, setRole] = useState<"general" | "fast" | "none">("none")
   const [maxOutputTokens, setMaxOutputTokens] = useState("")
   const [contextSize, setContextSize] = useState("")
   const [temperature, setTemperature] = useState<number | null>(null)
@@ -196,7 +194,6 @@ function ProviderDialog({ open, onOpenChange, editing, onSaved }: ProviderDialog
       setBaseUrl(editing.base_url ?? "")
       setApiKey("") // never pre-fill api key
       setModelName(editing.model_name)
-      setRole((editing.role as "general" | "fast") ?? "none")
       setMaxOutputTokens(editing.max_output_tokens?.toString() ?? "")
       setContextSize(editing.context_size?.toString() ?? "")
       setTemperature(editing.temperature)
@@ -206,7 +203,6 @@ function ProviderDialog({ open, onOpenChange, editing, onSaved }: ProviderDialog
       setBaseUrl("")
       setApiKey("")
       setModelName("")
-      setRole("none")
       setMaxOutputTokens("")
       setContextSize("")
       setTemperature(null)
@@ -236,7 +232,6 @@ function ProviderDialog({ open, onOpenChange, editing, onSaved }: ProviderDialog
     }
     setSaving(true)
     try {
-      const resolvedRole = role === "none" ? null : role
       const body: ModelConfigCreate = {
         name: name.trim(),
         provider: provider.trim(),
@@ -244,7 +239,6 @@ function ProviderDialog({ open, onOpenChange, editing, onSaved }: ProviderDialog
         base_url: baseUrl.trim() || null,
         api_key: apiKey.trim() || null,
         category: "llm",
-        role: resolvedRole,
         temperature,
         max_output_tokens: maxOutputTokens ? parseInt(maxOutputTokens) : null,
         context_size: contextSize ? parseInt(contextSize) : null,
@@ -336,22 +330,6 @@ function ProviderDialog({ open, onOpenChange, editing, onSaved }: ProviderDialog
                 value={modelName}
                 onChange={(e) => setModelName(e.target.value)}
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="mc-role">Role</Label>
-              <Select
-                value={role}
-                onValueChange={(v) => setRole(v as "general" | "fast" | "none")}
-              >
-                <SelectTrigger id="mc-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No role (provider only)</SelectItem>
-                  <SelectItem value="general">General — reasoning &amp; planning</SelectItem>
-                  <SelectItem value="fast">Fast — DAG step execution</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
