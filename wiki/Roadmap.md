@@ -249,9 +249,9 @@ Hub          → Central cross-system orchestration (Portal / API)
 - [x] **Multi-Language Execution**: `node_exec` tool adds JavaScript/Node.js execution (local: `node -e`; Docker: `node:20-slim`); Python and shell already covered; TypeScript planned
 
 **Service Provider Abstraction**
-- [ ] **Web Search Adapter**: `BaseWebSearch` protocol with pluggable implementations — Jina Search (default, free tier), Tavily, Google Custom Search, Brave Search; configured via `SEARCH_PROVIDER` + provider-specific env vars; graceful fallback chain
-- [ ] **Web Fetch Adapter**: `BaseWebFetch` protocol — Jina Reader (default), self-hosted httpx + html2text fallback; configured via `FETCH_PROVIDER` env var
-- [ ] **Reranker Providers**: Add Cohere Reranker and OpenAI-compatible reranker implementations alongside existing Jina; configured via `RERANKER_PROVIDER` env var; `BaseReranker` interface already exists, only new implementations needed
+- [x] **Web Search Adapter**: `BaseWebSearch` protocol with pluggable implementations — Jina Search (default, free tier), Tavily, Brave Search; configured via `WEB_SEARCH_PROVIDER` env var; graceful fallback chain
+- [x] **Web Fetch Adapter**: `BaseWebFetch` protocol — Jina Reader (default), self-hosted httpx + html2text fallback; configured via `WEB_FETCH_PROVIDER` env var
+- [x] **Reranker Providers**: Add Cohere Reranker and OpenAI-compatible reranker implementations alongside existing Jina; configured via `RERANKER_PROVIDER` env var; `BaseReranker` interface already exists, only new implementations needed
 
 ### v0.8 -- Organization, Connector Distribution & OAuth
 
