@@ -34,6 +34,7 @@ class Agent(UUIDPKMixin, TimestampMixin, Base):
     kb_ids: Any = Column(JSON, nullable=True)
     connector_ids: Any = Column(JSON, nullable=True)
     grounding_config: Any = Column(JSON, nullable=True)
+    sandbox_config: Any = Column(JSON, nullable=True)
 
     user: Mapped[User] = relationship(back_populates="agents", lazy="raise")
     conversations: Mapped[list[Conversation]] = relationship(

@@ -68,9 +68,13 @@ _SKIP_AUTO_DISCOVER: set[type] = {
 }
 
 
+_SANDBOX_EXEC_TOOLS: set[type] = {PythonExecTool, NodeExecTool, ShellExecTool}
+
+
 def discover_builtin_tools(
     *,
     sandbox_root: Path | None = None,
+    sandbox_config: dict | None = None,
 ) -> list[Tool]:
     """Auto-discover and instantiate all built-in tools.
 
@@ -85,11 +89,21 @@ def discover_builtin_tools(
         ├── sandbox/     → ShellExecTool(sandbox_dir=...)
         └── exec/        → PythonExecTool(exec_dir=...) + NodeExecTool(exec_dir=...)
 
+    When *sandbox_config* is provided (from the agent's ``sandbox_config``
+    JSON column), resource limits are passed to exec tools::
+
+        {"memory": "512m", "cpu": 1.0, "timeout": 60}
+
     Tools that do not accept a sandbox parameter are instantiated with their
     zero-arg constructor as before.
 
     Tools that fail to import or instantiate are logged and skipped.
     """
+    # Extract per-agent resource overrides from sandbox_config.
+    _memory: str | None = sandbox_config.get("memory") if sandbox_config else None
+    _cpu: float | None = sandbox_config.get("cpu") if sandbox_config else None
+    _timeout_override: int | None = sandbox_config.get("timeout") if sandbox_config else None
+
     # Pre-compute per-tool sandbox paths when a root is provided.
     sandbox_paths: dict[str, Path] = {}
     if sandbox_root is not None:
@@ -119,12 +133,18 @@ def discover_builtin_tools(
                 and obj not in _SKIP_AUTO_DISCOVER
             ):
                 try:
-                    # Pass sandbox path to tools that support it.
+                    kwargs: dict = {}
                     kwarg_name = _SANDBOX_KWARGS.get(obj)
                     if kwarg_name and kwarg_name in sandbox_paths:
-                        tools.append(obj(**{kwarg_name: sandbox_paths[kwarg_name]}))
-                    else:
-                        tools.append(obj())
+                        kwargs[kwarg_name] = sandbox_paths[kwarg_name]
+                    if obj in _SANDBOX_EXEC_TOOLS:
+                        if _memory is not None:
+                            kwargs["memory"] = _memory
+                        if _cpu is not None:
+                            kwargs["cpu"] = _cpu
+                        if _timeout_override is not None:
+                            kwargs["timeout"] = _timeout_override
+                    tools.append(obj(**kwargs))
                 except Exception:
                     logger.warning(
                         "Failed to instantiate tool %s.%s",

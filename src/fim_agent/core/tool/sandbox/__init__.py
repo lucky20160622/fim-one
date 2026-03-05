@@ -55,6 +55,8 @@ def get_sandbox_backend() -> SandboxBackend:
                 python_image=os.environ.get("DOCKER_PYTHON_IMAGE", "python:3.11-slim"),
                 node_image=os.environ.get("DOCKER_NODE_IMAGE", "node:20-slim"),
                 shell_image=os.environ.get("DOCKER_SHELL_IMAGE", "python:3.11-slim"),
+                default_memory=os.environ.get("DOCKER_MEMORY", "256m"),
+                default_cpu=float(os.environ.get("DOCKER_CPUS", "0.5")),
             )
             logger.info("Sandbox backend: docker (python=%s, node=%s, shell=%s)",
                         os.environ.get("DOCKER_PYTHON_IMAGE", "python:3.11-slim"),

@@ -225,9 +225,13 @@ class ShellExecTool(BaseTool):
         *,
         timeout: int = _DEFAULT_TIMEOUT_SECONDS,
         sandbox_dir: Path | None = None,
+        memory: str | None = None,
+        cpu: float | None = None,
     ) -> None:
         self._timeout = timeout
         self._sandbox_dir = sandbox_dir or _DEFAULT_SANDBOX_DIR
+        self._memory = memory
+        self._cpu = cpu
 
     # ------------------------------------------------------------------
     # Tool protocol properties
@@ -330,7 +334,13 @@ class ShellExecTool(BaseTool):
 
         # 4. Dispatch to the configured sandbox backend.
         backend = get_sandbox_backend()
-        result = await backend.run_shell(command, sandbox_dir=Path(cwd), timeout=timeout)
+        result = await backend.run_shell(
+            command,
+            sandbox_dir=Path(cwd),
+            timeout=timeout,
+            memory=self._memory,
+            cpu=self._cpu,
+        )
 
         # 5. Format and return output.
         if result.timed_out:

@@ -13,6 +13,8 @@ Environment variables (all optional):
   DOCKER_PYTHON_IMAGE  — Python image (default: python:3.11-slim)
   DOCKER_NODE_IMAGE    — Node.js image (default: node:20-slim)
   DOCKER_SHELL_IMAGE   — Shell image   (default: python:3.11-slim)
+  DOCKER_MEMORY        — Default RAM cap per container (default: 256m)
+  DOCKER_CPUS          — Default CPU quota per container (default: 0.5)
 """
 
 from __future__ import annotations
@@ -58,12 +60,16 @@ class DockerBackend:
         python_image: str = _DEFAULT_PYTHON_IMAGE,
         node_image: str = _DEFAULT_NODE_IMAGE,
         shell_image: str = _DEFAULT_SHELL_IMAGE,
+        default_memory: str = "256m",
+        default_cpu: float = 0.5,
     ) -> None:
         self._images = {
             "python": python_image,
             "javascript": node_image,
         }
         self._shell_image = shell_image
+        self._default_memory = default_memory
+        self._default_cpu = default_cpu
         # Entrypoints per language (image is per-instance, not global)
         self._entrypoints: dict[str, list[str]] = {
             "python": ["python"],
@@ -77,6 +83,8 @@ class DockerBackend:
         language: str,
         exec_dir: Path,
         timeout: int,
+        memory: str | None = None,
+        cpu: float | None = None,
     ) -> SandboxResult:
         image = self._images.get(language)
         if image is None:
@@ -95,20 +103,22 @@ class DockerBackend:
 
         entrypoint = self._entrypoints[language]
         container_name = f"fim-sandbox-{uuid.uuid4().hex[:8]}"
+        mem_limit = memory or self._default_memory
+        cpu_limit = cpu or self._default_cpu
 
         cmd = [
             "docker", "run", "--rm",
             "--name", container_name,
             "--network=none",
-            "--memory=256m", "--cpus=0.5",
+            f"--memory={mem_limit}", f"--cpus={cpu_limit}",
             "-v", f"{exec_dir}:/workspace",
             "-w", "/workspace",
             image, *entrypoint, f"/workspace/{script_name}",
         ]
 
         logger.debug(
-            "docker run_code: container=%s image=%s language=%s exec_dir=%s script=%s timeout=%ds",
-            container_name, image, language, exec_dir, script_name, timeout,
+            "docker run_code: container=%s image=%s language=%s exec_dir=%s script=%s timeout=%ds memory=%s cpus=%s",
+            container_name, image, language, exec_dir, script_name, timeout, mem_limit, cpu_limit,
         )
         result = await self._run_container(cmd, stdin_data="", timeout=timeout,
                                            container_name=container_name)
@@ -121,23 +131,27 @@ class DockerBackend:
         *,
         sandbox_dir: Path,
         timeout: int,
+        memory: str | None = None,
+        cpu: float | None = None,
     ) -> SandboxResult:
         sandbox_dir.mkdir(parents=True, exist_ok=True)
         container_name = f"fim-sandbox-{uuid.uuid4().hex[:8]}"
+        mem_limit = memory or self._default_memory
+        cpu_limit = cpu or self._default_cpu
 
         # Shell execution allows network access (curl, wget, etc.)
         cmd = [
             "docker", "run", "--rm", "-i",
             "--name", container_name,
-            "--memory=256m", "--cpus=0.5",
+            f"--memory={mem_limit}", f"--cpus={cpu_limit}",
             "-v", f"{sandbox_dir}:/workspace",
             "-w", "/workspace",
             self._shell_image, "/bin/sh",
         ]
 
         logger.debug(
-            "docker run_shell: container=%s image=%s sandbox_dir=%s timeout=%ds",
-            container_name, self._shell_image, sandbox_dir, timeout,
+            "docker run_shell: container=%s image=%s sandbox_dir=%s timeout=%ds memory=%s cpus=%s",
+            container_name, self._shell_image, sandbox_dir, timeout, mem_limit, cpu_limit,
         )
         return await self._run_container(cmd, stdin_data=command, timeout=timeout,
                                          container_name=container_name)
@@ -198,7 +212,7 @@ class DockerBackend:
         # Detect OOM kill
         error: str | None = None
         if exit_code == 137:
-            error = "Container killed (OOM): memory limit exceeded (256m)."
+            error = "Container killed (OOM): memory limit exceeded."
             logger.warning("Docker container OOM killed. cmd=%s", cmd[3:6])
 
         # Detect missing image (first-run scenario)

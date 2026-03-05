@@ -115,6 +115,8 @@ class LocalBackend:
         language: str,
         exec_dir: Path,
         timeout: int,
+        memory: str | None = None,
+        cpu: float | None = None,
     ) -> SandboxResult:
         if language == "python":
             return await self._run_python(code, exec_dir=exec_dir, timeout=timeout)
@@ -134,6 +136,8 @@ class LocalBackend:
         *,
         sandbox_dir: Path,
         timeout: int,
+        memory: str | None = None,
+        cpu: float | None = None,
     ) -> SandboxResult:
         sandbox_dir.mkdir(parents=True, exist_ok=True)
         logger.debug("local run_shell: sandbox_dir=%s timeout=%ds", sandbox_dir, timeout)

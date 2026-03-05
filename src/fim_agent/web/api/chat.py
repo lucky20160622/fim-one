@@ -364,6 +364,7 @@ async def _resolve_agent_config(
             "kb_ids": agent.kb_ids,
             "connector_ids": agent.connector_ids,
             "grounding_config": agent.grounding_config,
+            "sandbox_config": agent.sandbox_config,
         }
 
 
@@ -398,7 +399,8 @@ async def _resolve_tools(
 ) -> ToolRegistry:
     """Build tool registry, optionally scoped to a per-conversation sandbox."""
     sandbox_root = _conversation_sandbox_root(conversation_id)
-    tools = get_tools(sandbox_root=sandbox_root)
+    sandbox_config = agent_cfg.get("sandbox_config") if agent_cfg else None
+    tools = get_tools(sandbox_root=sandbox_root, sandbox_config=sandbox_config)
     if agent_cfg:
         cats = agent_cfg.get("tool_categories") or []
         tools = tools.filter_by_category(*cats)

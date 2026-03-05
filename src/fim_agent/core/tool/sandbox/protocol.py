@@ -42,6 +42,8 @@ class SandboxBackend(Protocol):
         language: str,
         exec_dir: Path,
         timeout: int,
+        memory: str | None = None,
+        cpu: float | None = None,
     ) -> SandboxResult:
         """Execute *code* in the given *language*.
 
@@ -52,6 +54,8 @@ class SandboxBackend(Protocol):
                       or used as cwd (local).  Files written here are
                       accessible to other tools via FileOpsTool.
             timeout: Execution timeout in seconds.
+            memory: Docker memory limit (e.g. ``"256m"``). Docker only.
+            cpu: Docker CPU quota (e.g. ``0.5``). Docker only.
 
         Returns:
             :class:`SandboxResult` with captured stdout/stderr and exit code.
@@ -64,6 +68,8 @@ class SandboxBackend(Protocol):
         *,
         sandbox_dir: Path,
         timeout: int,
+        memory: str | None = None,
+        cpu: float | None = None,
     ) -> SandboxResult:
         """Execute a *command* string in a shell.
 
@@ -71,6 +77,8 @@ class SandboxBackend(Protocol):
             command: Shell command to run.
             sandbox_dir: Working directory for the command.
             timeout: Execution timeout in seconds.
+            memory: Docker memory limit (e.g. ``"256m"``). Docker only.
+            cpu: Docker CPU quota (e.g. ``0.5``). Docker only.
 
         Returns:
             :class:`SandboxResult` with captured stdout/stderr and exit code.

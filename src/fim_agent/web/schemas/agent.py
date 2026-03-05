@@ -18,6 +18,7 @@ class AgentCreate(BaseModel):
     kb_ids: list[str] | None = None
     connector_ids: list[str] | None = None
     grounding_config: dict | None = None
+    sandbox_config: dict | None = None
     execution_mode: Literal["react", "dag"] = "react"
 
 
@@ -32,6 +33,7 @@ class AgentUpdate(BaseModel):
     kb_ids: list[str] | None = None
     connector_ids: list[str] | None = None
     grounding_config: dict | None = None
+    sandbox_config: dict | None = None
     execution_mode: Literal["react", "dag"] | None = None
 
 
@@ -47,6 +49,7 @@ class AgentResponse(BaseModel):
     kb_ids: list[str] | None
     connector_ids: list[str] | None
     grounding_config: dict | None
+    sandbox_config: dict | None
     execution_mode: str
     status: str
     published_at: str | None

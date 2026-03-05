@@ -186,7 +186,11 @@ def get_model_registry() -> ModelRegistry:
     return registry
 
 
-def get_tools(*, sandbox_root: Path | None = None) -> ToolRegistry:
+def get_tools(
+    *,
+    sandbox_root: Path | None = None,
+    sandbox_config: dict | None = None,
+) -> ToolRegistry:
     """Create a :class:`ToolRegistry` pre-loaded with all discovered built-in tools.
 
     Tools are auto-discovered from the ``fim_agent.core.tool.builtin`` package.
@@ -196,9 +200,12 @@ def get_tools(*, sandbox_root: Path | None = None) -> ToolRegistry:
     When *sandbox_root* is provided, sandboxed tools (file_ops, shell_exec,
     python_exec) are configured with per-conversation subdirectories under
     that root.
+
+    When *sandbox_config* is provided (from an agent's ``sandbox_config``
+    column), per-agent resource limits are applied to exec tools.
     """
     registry = ToolRegistry()
-    for tool in discover_builtin_tools(sandbox_root=sandbox_root):
+    for tool in discover_builtin_tools(sandbox_root=sandbox_root, sandbox_config=sandbox_config):
         registry.register(tool)
     logger.info("Registered %d built-in tools: %s", len(registry), registry)
     return registry

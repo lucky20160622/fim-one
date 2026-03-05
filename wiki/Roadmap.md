@@ -244,7 +244,7 @@ Hub          → Central cross-system orchestration (Portal / API)
 
 **Sandbox Execution Backend**
 - [x] **Code Execution Sandbox**: Pluggable `SandboxBackend` Protocol with `LocalBackend` (in-process, zero dependencies) and `DockerBackend` (OS-level isolation via Docker containers — `--network=none`, `--memory=256m`, `--cpus=0.5`); configured via `CODE_EXEC_BACKEND=local|docker`; `DOCKER_PYTHON_IMAGE`, `DOCKER_NODE_IMAGE`, `DOCKER_SHELL_IMAGE` to override default images
-- [ ] **Sandbox Lifecycle Management**: Sandbox pooling and reuse within a conversation session; idle timeout and cleanup; resource limits (CPU, memory, execution time) configurable per agent
+- [x] **Sandbox Lifecycle Management**: Resource limits (CPU, memory, execution timeout) configurable per agent via `sandbox_config` JSON on Agent model; global defaults via `DOCKER_MEMORY`, `DOCKER_CPUS`, `SANDBOX_TIMEOUT` env vars; per-agent overrides flow through `discover_builtin_tools(sandbox_config=...)` → exec tools → `DockerBackend`; `LocalBackend` ignores limits (in-process). Container pooling/reuse deferred to future.
 - [x] **Shell Exec Sandboxing**: `shell_exec` routes through the sandbox backend; Docker mode executes shell commands inside an isolated container, not on the host
 - [x] **Multi-Language Execution**: `node_exec` tool adds JavaScript/Node.js execution (local: `node -e`; Docker: `node:20-slim`); Python and shell already covered; TypeScript planned
 

@@ -9,7 +9,7 @@ from typing import Any
 from ..base import BaseTool
 from ..sandbox import get_sandbox_backend
 
-_DEFAULT_TIMEOUT_SECONDS: int = 120
+_DEFAULT_TIMEOUT_SECONDS: int = int(os.environ.get("SANDBOX_TIMEOUT", "120"))
 
 # Default directory for code execution outputs (plots, data files, etc.)
 _DEFAULT_EXEC_DIR = Path(__file__).resolve().parents[4] / "tmp" / "default" / "exec"
@@ -46,9 +46,13 @@ class PythonExecTool(BaseTool):
         *,
         timeout: int = _DEFAULT_TIMEOUT_SECONDS,
         exec_dir: Path | None = None,
+        memory: str | None = None,
+        cpu: float | None = None,
     ) -> None:
         self._timeout = timeout
         self._exec_dir = exec_dir or _DEFAULT_EXEC_DIR
+        self._memory = memory
+        self._cpu = cpu
 
     # ------------------------------------------------------------------
     # Tool protocol properties
@@ -116,6 +120,8 @@ class PythonExecTool(BaseTool):
             language="python",
             exec_dir=self._exec_dir,
             timeout=self._timeout,
+            memory=self._memory,
+            cpu=self._cpu,
         )
 
         if result.timed_out:

@@ -33,6 +33,7 @@ def _agent_to_response(agent: Agent) -> AgentResponse:
         kb_ids=agent.kb_ids,
         connector_ids=agent.connector_ids,
         grounding_config=agent.grounding_config,
+        sandbox_config=agent.sandbox_config,
         execution_mode=agent.execution_mode,
         status=agent.status,
         published_at=(
@@ -120,6 +121,7 @@ async def create_agent(
         kb_ids=body.kb_ids,
         connector_ids=body.connector_ids,
         grounding_config=body.grounding_config,
+        sandbox_config=body.sandbox_config,
         execution_mode=body.execution_mode,
         status="draft",
     )
