@@ -127,7 +127,7 @@ export default function ToolsPage() {
               <Server className="h-4 w-4" />
               MCP Servers
             </h2>
-            <Button size="sm" className="gap-1.5" onClick={handleAdd}>
+            <Button size="sm" className="gap-1.5" onClick={() => handleAdd()}>
               <Plus className="h-4 w-4" />
               Add Server
             </Button>
@@ -147,7 +147,7 @@ export default function ToolsPage() {
                   variant="outline"
                   size="sm"
                   className="mt-4 gap-1.5"
-                  onClick={handleAdd}
+                  onClick={() => handleAdd()}
                 >
                   <Plus className="h-4 w-4" />
                   Add Server

@@ -47,12 +47,16 @@ const CATEGORY_COLORS: Record<string, string> = {
 /* ------------------------------------------------------------------ */
 
 function ToolCard({ tool }: { tool: ToolMeta }) {
+  const [expanded, setExpanded] = useState(false)
   const Icon = CATEGORY_ICONS[tool.category] ?? Wrench
   const iconColor = CATEGORY_COLORS[tool.category] ?? "text-muted-foreground"
   const categoryLabel = tool.category.charAt(0).toUpperCase() + tool.category.slice(1)
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-2 transition-colors hover:border-border/80 hover:bg-accent/5">
+    <div
+      className="rounded-lg border border-border bg-card p-4 flex flex-col gap-2 transition-colors hover:border-border/80 hover:bg-accent/5 cursor-pointer"
+      onClick={() => setExpanded((v) => !v)}
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Icon className={`h-4 w-4 shrink-0 ${iconColor}`} />
@@ -65,7 +69,7 @@ function ToolCard({ tool }: { tool: ToolMeta }) {
           {categoryLabel}
         </Badge>
       </div>
-      <p className="text-xs text-muted-foreground leading-relaxed">
+      <p className={`text-xs text-muted-foreground leading-relaxed ${expanded ? "" : "line-clamp-2"}`}>
         {tool.description}
       </p>
     </div>
@@ -83,6 +87,7 @@ function ConnectorLinkCard() {
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <Plug className="h-4 w-4 shrink-0 text-cyan-500" />
+            <span className="text-sm font-medium shrink-0">Connector</span>
             <Badge variant="secondary" className="shrink-0 text-xs font-mono">
               connector
             </Badge>
@@ -94,7 +99,7 @@ function ConnectorLinkCard() {
             <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
           </div>
         </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
           Custom HTTP API actions bound to this agent. Managed on the Connectors page.
         </p>
       </div>
@@ -109,6 +114,7 @@ function MCPLinkCard({ onSwitch }: { onSwitch: () => void }) {
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <Server className="h-4 w-4 shrink-0 text-indigo-500" />
+            <span className="text-sm font-medium shrink-0">MCP Servers</span>
             <Badge variant="secondary" className="shrink-0 text-xs font-mono">
               mcp
             </Badge>
@@ -120,7 +126,7 @@ function MCPLinkCard({ onSwitch }: { onSwitch: () => void }) {
             <ArrowRight className="h-3 w-3 text-muted-foreground/50" />
           </div>
         </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
           Tools provided by external MCP servers. Configure them in the MCP Servers tab.
         </p>
       </div>
