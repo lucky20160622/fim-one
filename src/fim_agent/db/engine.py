@@ -96,6 +96,7 @@ async def init_db() -> None:
             await _migrate_user_email_required(conn)
             await _migrate_mcp_server_columns(conn)
             await _backfill_conversation_model_name(conn)
+            await _migrate_conversation_fast_llm_tokens(conn)
 
     logger.info("Database initialized successfully")
 
@@ -343,6 +344,17 @@ async def _backfill_conversation_model_name(conn) -> None:
             {"model": llm_model},
         )
     logger.info("Conversation model_name backfill complete")
+
+
+async def _migrate_conversation_fast_llm_tokens(conn) -> None:
+    """Add fast_llm_tokens column to conversations table if it doesn't exist."""
+    result = await conn.execute(text("PRAGMA table_info(conversations)"))
+    existing_columns = {row[1] for row in result.fetchall()}
+    if "fast_llm_tokens" not in existing_columns:
+        logger.info("Adding column conversations.fast_llm_tokens")
+        await conn.execute(
+            text("ALTER TABLE conversations ADD COLUMN fast_llm_tokens INTEGER NOT NULL DEFAULT 0")
+        )
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

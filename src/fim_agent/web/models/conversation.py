@@ -28,6 +28,7 @@ class Conversation(UUIDPKMixin, TimestampMixin, Base):
     starred: Mapped[bool] = mapped_column(Boolean, default=False)
     model_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     total_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    fast_llm_tokens: Mapped[int] = mapped_column(Integer, default=0)
 
     user: Mapped[User] = relationship(back_populates="conversations", lazy="raise")
     agent: Mapped[Agent | None] = relationship(back_populates="conversations", lazy="raise")
