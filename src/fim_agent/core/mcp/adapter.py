@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Coroutine
 from typing import Any
 
 from fim_agent.core.tool.base import BaseTool
+
+
+def _sanitize_tool_name(name: str) -> str:
+    """Replace characters invalid for Bedrock/OpenAI tool names with underscores.
+
+    Allowed pattern: ``^[a-zA-Z0-9_-]{1,128}``
+    """
+    return re.sub(r"[^a-zA-Z0-9_-]", "_", name)[:128]
 
 
 class MCPToolAdapter(BaseTool):
@@ -33,7 +42,8 @@ class MCPToolAdapter(BaseTool):
         tool_def: dict[str, Any],
         call_fn: Callable[..., Coroutine[Any, Any, Any]],
     ) -> None:
-        self._name = f"{server_name}__{tool_def['name']}"
+        self._server_name = server_name  # original, for display_name
+        self._name = _sanitize_tool_name(f"{server_name}__{tool_def['name']}")
         self._description = tool_def.get("description", "")
         self._schema: dict[str, Any] = tool_def.get(
             "inputSchema", {"type": "object", "properties": {}}
@@ -51,9 +61,8 @@ class MCPToolAdapter(BaseTool):
 
     @property
     def display_name(self) -> str:
-        server = self._name.split("__")[0].replace("_", " ").title()
         action = self._original_name.replace("_", " ").title()
-        return f"{server}: {action}"
+        return f"{self._server_name}: {action}"
 
     @property
     def category(self) -> str:
