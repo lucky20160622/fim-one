@@ -15,6 +15,8 @@ class ModelConfigCreate(BaseModel):
     api_key: str | None = None
     category: Literal["llm", "embedding", "vision"] = "llm"
     temperature: float | None = None
+    max_output_tokens: int | None = None
+    context_size: int | None = None
     is_default: bool = False
 
 
@@ -26,6 +28,8 @@ class ModelConfigUpdate(BaseModel):
     api_key: str | None = None
     category: str | None = None
     temperature: float | None = None
+    max_output_tokens: int | None = None
+    context_size: int | None = None
     is_default: bool | None = None
     is_active: bool | None = None
 
@@ -38,6 +42,8 @@ class ModelConfigResponse(BaseModel):
     base_url: str | None
     category: str
     temperature: float | None
+    max_output_tokens: int | None
+    context_size: int | None
     is_default: bool
     is_active: bool
     created_at: str

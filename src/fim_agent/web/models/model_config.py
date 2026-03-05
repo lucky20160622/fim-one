@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Float, ForeignKey, String
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from fim_agent.db.base import Base, TimestampMixin, UUIDPKMixin
@@ -24,6 +24,8 @@ class ModelConfig(UUIDPKMixin, TimestampMixin, Base):
     api_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     category: Mapped[str] = mapped_column(String(20), default="llm")
     temperature: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    context_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
