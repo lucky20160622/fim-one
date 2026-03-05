@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import math
+import os
 import re
+from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -185,7 +187,19 @@ async def get_stats(
     total_kbs: int = total_kbs_result.scalar_one()
 
     # Conversations by model (top 10, ordered by count desc)
-    # NULL model_name is grouped as "Unknown"
+    # Group by LLM role: "LLM (model)" / "Fast LLM (model)" for known models
+    llm_model = os.environ.get("LLM_MODEL", "")
+    fast_llm_model = os.environ.get("FAST_LLM_MODEL", "")
+
+    def _model_label(raw: str) -> str:
+        if raw == "Unknown":
+            return raw
+        if llm_model and raw == llm_model:
+            return f"LLM ({raw})"
+        if fast_llm_model and raw == fast_llm_model:
+            return f"Fast LLM ({raw})"
+        return raw
+
     model_rows = await db.execute(
         select(
             func.coalesce(Conversation.model_name, "Unknown").label("model"),
@@ -193,10 +207,14 @@ async def get_stats(
         )
         .group_by(func.coalesce(Conversation.model_name, "Unknown"))
         .order_by(func.count().desc())
-        .limit(10)
+        .limit(20)
     )
+    label_counts: Counter[str] = Counter()
+    for r in model_rows.all():
+        label_counts[_model_label(r[0])] += r[1]
     conversations_by_model = [
-        ModelStat(model=r[0], count=r[1]) for r in model_rows.all()
+        ModelStat(model=label, count=count)
+        for label, count in label_counts.most_common(10)
     ]
 
     # Top agents by conversation count (top 5), joined to get agent name

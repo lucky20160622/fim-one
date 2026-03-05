@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Phone, PhoneCall, CheckCircle, Clock, Plug } from "lucide-react"
+import { Activity, ArrowUpRight, CheckCircle, Clock, Plug } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { adminApi } from "@/lib/api"
 import type { ConnectorStats } from "@/lib/api"
@@ -23,7 +23,7 @@ const CHART_COLORS = [
   "hsl(245, 75%, 65%)",
 ]
 
-const TICK_STYLE = { fill: "hsl(var(--muted-foreground))", fontSize: 11 } as const
+const TICK_STYLE = { fill: "currentColor", fontSize: 11 } as const
 
 function BarTooltip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number }[]; label?: string }) {
   if (!active || !payload?.length) return null
@@ -121,8 +121,8 @@ export function AdminConnectors() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4">
-            <StatCard icon={Phone} label="Total Calls" value={(stats?.total_calls ?? 0).toLocaleString()} />
-            <StatCard icon={PhoneCall} label="Today's Calls" value={(stats?.today_calls ?? 0).toLocaleString()} />
+            <StatCard icon={Activity} label="Total Calls" value={(stats?.total_calls ?? 0).toLocaleString()} />
+            <StatCard icon={ArrowUpRight} label="Today's Calls" value={(stats?.today_calls ?? 0).toLocaleString()} />
             <StatCard
               icon={CheckCircle}
               label="Success Rate"
@@ -153,13 +153,13 @@ export function AdminConnectors() {
             No connector usage data yet.
           </div>
         ) : (
-          <div style={{ height: Math.max(180, topConnectors.length * 36) }}>
+          <div className="text-muted-foreground" style={{ height: Math.max(180, topConnectors.length * 36) }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topConnectors} layout="vertical" margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
                 <XAxis type="number" tick={TICK_STYLE} tickLine={false} axisLine={false} allowDecimals={false} />
                 <YAxis type="category" dataKey="name" width={120} tick={TICK_STYLE} tickLine={false} axisLine={false} />
-                <Tooltip content={<BarTooltip />} cursor={{ fill: "hsl(var(--muted))" }} />
+                <Tooltip content={<BarTooltip />} cursor={{ fill: "rgba(128,128,128,0.1)" }} />
                 <Bar dataKey="calls" name="Calls" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -223,13 +223,13 @@ export function AdminConnectors() {
             No recent activity yet.
           </div>
         ) : (
-          <div className="h-[180px]">
+          <div className="h-[180px] text-muted-foreground">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={recentDays} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis dataKey="label" tick={TICK_STYLE} tickLine={false} axisLine={false} />
                 <YAxis width={28} tick={TICK_STYLE} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip content={<BarTooltip />} cursor={{ fill: "hsl(var(--muted))" }} />
+                <Tooltip content={<BarTooltip />} cursor={{ fill: "rgba(128,128,128,0.1)" }} />
                 <Bar dataKey="count" name="Calls" fill={CHART_COLORS[3]} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

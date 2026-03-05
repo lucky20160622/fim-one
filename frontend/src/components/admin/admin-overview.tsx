@@ -65,7 +65,7 @@ function PieTooltip({ active, payload }: { active?: boolean; payload?: { name: s
   )
 }
 
-const TICK_STYLE = { fill: "hsl(var(--muted-foreground))", fontSize: 11 } as const
+const TICK_STYLE = { fill: "currentColor", fontSize: 11 } as const
 
 function StatCard({
   icon: Icon,
@@ -193,13 +193,13 @@ export function AdminOverview() {
             No recent activity yet.
           </div>
         ) : (
-          <div className="h-[180px]">
+          <div className="h-[180px] text-muted-foreground">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={recentDays} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis dataKey="label" tick={TICK_STYLE} tickLine={false} axisLine={false} />
                 <YAxis width={28} tick={TICK_STYLE} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip content={<BarTooltip />} cursor={{ fill: "hsl(var(--muted))" }} />
+                <Tooltip content={<BarTooltip />} cursor={{ fill: "rgba(128,128,128,0.1)" }} />
                 <Bar dataKey="count" name="Conversations" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -281,7 +281,8 @@ export function AdminOverview() {
                 <Legend
                   iconType="circle"
                   iconSize={8}
-                  wrapperStyle={{ fontSize: "12px", color: "hsl(var(--muted-foreground))" }}
+                  wrapperStyle={{ fontSize: "12px" }}
+                  className="text-muted-foreground"
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -305,7 +306,7 @@ export function AdminOverview() {
             No token usage data yet.
           </div>
         ) : (
-          <div style={{ height: Math.max(180, stats.tokens_by_agent.length * 36) }}>
+          <div className="text-muted-foreground" style={{ height: Math.max(180, stats.tokens_by_agent.length * 36) }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={stats.tokens_by_agent.map((a) => ({
@@ -315,10 +316,10 @@ export function AdminOverview() {
                 layout="vertical"
                 margin={{ top: 4, right: 4, left: 0, bottom: 4 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
                 <XAxis type="number" tick={TICK_STYLE} tickLine={false} axisLine={false} allowDecimals={false} />
                 <YAxis type="category" dataKey="name" width={120} tick={TICK_STYLE} tickLine={false} axisLine={false} />
-                <Tooltip content={<BarTooltip />} cursor={{ fill: "hsl(var(--muted))" }} />
+                <Tooltip content={<BarTooltip />} cursor={{ fill: "rgba(128,128,128,0.1)" }} />
                 <Bar dataKey="tokens" name="Tokens" fill={CHART_COLORS[2]} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
