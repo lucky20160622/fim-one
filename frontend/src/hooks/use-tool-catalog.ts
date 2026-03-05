@@ -6,6 +6,8 @@ export interface ToolMeta {
   display_name: string
   category: string
   description: string
+  available?: boolean
+  unavailable_reason?: string
 }
 
 export interface ToolCatalog {

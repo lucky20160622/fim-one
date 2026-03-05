@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 ## [Unreleased]
 
 ### Added
+- **Image Generation Tool** (`generate_image`): Built-in tool powered by Google Imagen 3 via the Gemini API; returns a markdown image link that renders inline in chat; requires `IMAGE_GEN_API_KEY` (Google AI Studio key); `IMAGE_GEN_MODEL` defaults to `gemini-3.1-flash-image-preview`; supports aspect ratios 1:1 / 16:9 / 9:16 / 4:3 / 3:4
+- **Tool Availability System**: `BaseTool.availability()` hook lets any tool declare itself unavailable with a user-facing reason (e.g. missing API key); `ToolRegistry.to_catalog()` now includes `available` + `unavailable_reason` fields; `to_openai_tools()` automatically excludes unavailable tools so the LLM never attempts to call an unconfigured tool
+- **Tool Catalog Grayed-Out State**: Unavailable tools appear in the Built-in Tools page with a lock icon and reduced opacity; the card body shows the configuration hint instead of the description; available tools are unaffected
+- **`media` Tool Category**: New category for media-generation tools with a pink Image icon in the catalog
+- **Uploads Dir Always Mounted**: `app.py` now pre-creates the uploads directory at startup and always mounts `/uploads` as a static route, fixing potential 404s for tools that write to `uploads/` on first use
+
 - **System Model Config Management**: Admin configures LLM providers in Settings → Models tab; `ModelConfig` extended with `max_output_tokens`, `context_size`, and `role` (`"general" | "fast" | null`) fields; migrations `e5g7h9i1j234` and `f6h8j0k2l345`
 - **Role-Based LLM Slots**: Settings → Models shows two pinned slot cards (General / Fast); assigning a provider to a role sets `user_id=NULL` (system-level) and single-active constraint via `_unset_role()`
 - **Full LLM Priority Chain**: General slot — `get_effective_llm()`: DB `role=general` → ENV; Fast slot — `get_effective_fast_llm()`: DB `role=fast` → DB `role=general` → ENV; agent pinned config (`model_config_id`) takes highest priority; all wired in both ReAct and DAG endpoints

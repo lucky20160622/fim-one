@@ -9,12 +9,14 @@ import {
   Globe,
   FolderOpen,
   BookOpen,
+  Image,
   Plug,
   Server,
   Wrench,
   ArrowRight,
   Loader2,
   AlertCircle,
+  Lock,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { useToolCatalog } from "@/hooks/use-tool-catalog"
@@ -30,6 +32,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   web: Globe,
   filesystem: FolderOpen,
   knowledge: BookOpen,
+  media: Image,
   connector: Plug,
   mcp: Server,
 }
@@ -40,6 +43,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   web: "text-green-500",
   filesystem: "text-orange-500",
   knowledge: "text-purple-500",
+  media: "text-pink-500",
 }
 
 /* ------------------------------------------------------------------ */
@@ -49,28 +53,47 @@ const CATEGORY_COLORS: Record<string, string> = {
 function ToolCard({ tool }: { tool: ToolMeta }) {
   const [expanded, setExpanded] = useState(false)
   const Icon = CATEGORY_ICONS[tool.category] ?? Wrench
-  const iconColor = CATEGORY_COLORS[tool.category] ?? "text-muted-foreground"
   const categoryLabel = tool.category.charAt(0).toUpperCase() + tool.category.slice(1)
+  const unavailable = tool.available === false
+
+  const iconColor = unavailable
+    ? "text-muted-foreground/40"
+    : (CATEGORY_COLORS[tool.category] ?? "text-muted-foreground")
 
   return (
     <div
-      className="rounded-lg border border-border bg-card p-4 flex flex-col gap-2 transition-colors hover:border-border/80 hover:bg-accent/5 cursor-pointer"
-      onClick={() => setExpanded((v) => !v)}
+      className={`rounded-lg border bg-card p-4 flex flex-col gap-2 transition-colors ${
+        unavailable
+          ? "border-border/50 opacity-60 cursor-default"
+          : "border-border hover:border-border/80 hover:bg-accent/5 cursor-pointer"
+      }`}
+      onClick={() => !unavailable && setExpanded((v) => !v)}
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Icon className={`h-4 w-4 shrink-0 ${iconColor}`} />
-          <span className="text-sm font-medium shrink-0">{tool.display_name}</span>
+          <span className={`text-sm font-medium shrink-0 ${unavailable ? "text-muted-foreground" : ""}`}>
+            {tool.display_name}
+          </span>
           <Badge variant="secondary" className="shrink-0 text-xs font-mono">
             {tool.name}
           </Badge>
         </div>
-        <Badge variant="outline" className="shrink-0 text-xs text-muted-foreground">
-          {categoryLabel}
-        </Badge>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {unavailable && (
+            <div title={tool.unavailable_reason ?? "Not configured"}>
+              <Lock className="h-3 w-3 text-muted-foreground/50" />
+            </div>
+          )}
+          <Badge variant="outline" className="text-xs text-muted-foreground">
+            {categoryLabel}
+          </Badge>
+        </div>
       </div>
-      <p className={`text-xs text-muted-foreground leading-relaxed ${expanded ? "" : "line-clamp-2"}`}>
-        {tool.description}
+      <p className={`text-xs leading-relaxed ${unavailable ? "text-muted-foreground/60" : "text-muted-foreground"} ${expanded ? "" : "line-clamp-2"}`}>
+        {unavailable && tool.unavailable_reason
+          ? tool.unavailable_reason
+          : tool.description}
       </p>
     </div>
   )

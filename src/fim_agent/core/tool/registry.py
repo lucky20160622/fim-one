@@ -89,17 +89,22 @@ class ToolRegistry:
                 filtered.register(tool)
         return filtered
 
-    def to_catalog(self) -> list[dict[str, str]]:
+    def to_catalog(self) -> list[dict[str, Any]]:
         """Return metadata for all registered tools (for frontend display)."""
-        return [
-            {
+        result = []
+        for t in self._tools.values():
+            available, reason = t.availability() if hasattr(t, "availability") else (True, None)
+            entry: dict[str, Any] = {
                 "name": t.name,
                 "display_name": t.display_name,
                 "category": t.category,
                 "description": t.description,
+                "available": available,
             }
-            for t in self._tools.values()
-        ]
+            if reason:
+                entry["unavailable_reason"] = reason
+            result.append(entry)
+        return result
 
     # ------------------------------------------------------------------
     # Serialisation helpers
@@ -118,9 +123,11 @@ class ToolRegistry:
             A list of dicts conforming to the OpenAI ``tools`` parameter
             schema used in chat completion requests.
         """
-        tools = self._tools.values()
+        tools = list(self._tools.values())
         if categories is not None:
             tools = [t for t in tools if t.category in categories]
+        # Exclude tools that are not available (e.g. missing API key config)
+        tools = [t for t in tools if not hasattr(t, "availability") or t.availability()[0]]
         return [
             {
                 "type": "function",

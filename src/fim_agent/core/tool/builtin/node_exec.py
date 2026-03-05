@@ -67,6 +67,19 @@ class NodeExecTool(BaseTool):
     def category(self) -> str:
         return "computation"
 
+    def availability(self) -> tuple[bool, str | None]:
+        # Docker backend pulls its own Node image — always available.
+        if os.environ.get("CODE_EXEC_BACKEND", "local").lower() == "docker":
+            return True, None
+        import shutil
+        if shutil.which("node") is None:
+            return (
+                False,
+                "Node.js is not installed on this server. "
+                "Install Node.js or set CODE_EXEC_BACKEND=docker.",
+            )
+        return True, None
+
     @property
     def description(self) -> str:
         return (

@@ -63,6 +63,14 @@ class BaseTool:
     def parameters_schema(self) -> dict[str, Any]:
         return {"type": "object", "properties": {}, "required": []}
 
+    def availability(self) -> tuple[bool, str | None]:
+        """Return (is_available, reason_if_not).
+
+        Override in tools that require external configuration (API keys, etc.)
+        to surface a meaningful message in the tool catalog UI.
+        """
+        return True, None
+
     @abstractmethod
     async def run(self, **kwargs: Any) -> str:
         ...

@@ -128,13 +128,13 @@ def create_app() -> FastAPI:
     app.include_router(tools_router)
 
     # -- Static uploads -----------------------------------------------------
-    uploads_dir = Path("uploads")
-    if uploads_dir.is_dir():
-        app.mount(
-            "/uploads",
-            StaticFiles(directory=str(uploads_dir)),
-            name="uploads",
-        )
+    uploads_dir = Path(os.environ.get("UPLOADS_DIR", "uploads"))
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    app.mount(
+        "/uploads",
+        StaticFiles(directory=str(uploads_dir)),
+        name="uploads",
+    )
 
     logger.info("FIM Agent API application created")
     return app

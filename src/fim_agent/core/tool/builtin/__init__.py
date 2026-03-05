@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 from .calculator import CalculatorTool
 from .datetime_tool import DateTimeTool
 from .file_ops import FileOpsTool
+from .generate_image import GenerateImageTool
 from .grounded_retrieve import GroundedRetrieveTool
 from .http_request import HttpRequestTool
 from .kb_retrieve import KBRetrieveTool
@@ -39,6 +40,7 @@ __all__ = [
     "CalculatorTool",
     "DateTimeTool",
     "FileOpsTool",
+    "GenerateImageTool",
     "GroundedRetrieveTool",
     "HttpRequestTool",
     "KBRetrieveTool",
