@@ -33,7 +33,7 @@ import type {
   AIActionResult,
   AICreateConnectorResult,
 } from "@/types/connector"
-import type { AdminUser } from "@/types/admin"
+import type { AdminUser, AdminConversation, StorageStats, InviteCode, AdminMCPServer, IntegrationHealth } from "@/types/admin"
 import type { MCPServerResponse, MCPServerCreate, MCPServerUpdate } from "@/types/mcp-server"
 import type { ModelConfigResponse, ModelConfigCreate, ModelConfigUpdate } from "@/types/model_config"
 
@@ -616,6 +616,70 @@ export const adminApi = {
 
   connectorStats: () =>
     apiFetch<ConnectorStats>("/api/admin/connector-stats"),
+
+  // Feature 6 -- per-user force logout
+  forceLogoutUser: (userId: string) =>
+    apiFetch<{ ok: boolean }>(`/api/admin/users/${userId}/force-logout`, { method: 'POST' }),
+
+  // Feature 2 -- API health
+  getSystemHealth: () =>
+    apiFetch<IntegrationHealth[]>('/api/admin/system/health'),
+
+  // Feature 1 -- token quota
+  setUserQuota: (userId: string, quota: number | null) =>
+    apiFetch<{ ok: boolean }>(`/api/admin/users/${userId}/quota`, {
+      method: 'PATCH',
+      body: JSON.stringify({ token_quota: quota }),
+    }),
+
+  // Feature 3 -- conversation moderation
+  listAllConversations: (params?: { page?: number; size?: number; user_id?: string; q?: string }) => {
+    const sp = new URLSearchParams()
+    if (params?.page) sp.set('page', String(params.page))
+    if (params?.size) sp.set('size', String(params.size))
+    if (params?.user_id) sp.set('user_id', params.user_id)
+    if (params?.q) sp.set('q', params.q)
+    return apiFetch<{ items: AdminConversation[]; total: number; page: number; size: number }>(`/api/admin/conversations?${sp}`)
+  },
+  adminDeleteConversation: (convId: string) =>
+    apiFetch(`/api/admin/conversations/${convId}`, { method: 'DELETE' }),
+
+  // Feature 5 -- storage
+  getStorageStats: () =>
+    apiFetch<StorageStats>('/api/admin/storage'),
+  clearUserStorage: (userId: string) =>
+    apiFetch(`/api/admin/storage/user/${userId}`, { method: 'DELETE' }),
+  cleanOrphanedStorage: () =>
+    apiFetch<{ ok: boolean }>('/api/admin/storage/orphaned', { method: 'DELETE' }),
+
+  // Feature 7 -- global MCP servers
+  listGlobalMcpServers: () =>
+    apiFetch<AdminMCPServer[]>('/api/admin/mcp-servers'),
+  createGlobalMcpServer: (data: MCPServerCreate) =>
+    apiFetch<AdminMCPServer>('/api/admin/mcp-servers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateGlobalMcpServer: (id: string, data: MCPServerUpdate) =>
+    apiFetch<AdminMCPServer>(`/api/admin/mcp-servers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteGlobalMcpServer: (id: string) =>
+    apiFetch(`/api/admin/mcp-servers/${id}`, { method: 'DELETE' }),
+  testGlobalMcpServer: (id: string) =>
+    apiFetch<{ ok: boolean; tool_count?: number; error?: string }>(`/api/admin/mcp-servers/${id}/test`, { method: 'POST' }),
+
+  // Feature 4 -- invite codes
+  listInviteCodes: () =>
+    apiFetch<InviteCode[]>('/api/admin/invite-codes'),
+  createInviteCode: (data: { note?: string; max_uses?: number; expires_at?: string }) =>
+    apiFetch<InviteCode>('/api/admin/invite-codes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  revokeInviteCode: (id: string) =>
+    apiFetch(`/api/admin/invite-codes/${id}`, { method: 'DELETE' }),
 }
 
 // --- MCP Server API ---

@@ -2,7 +2,7 @@
 
 import { useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { LayoutDashboard, Plug, Settings, Shield, Users } from "lucide-react"
+import { LayoutDashboard, Plug, Settings, Shield, Users, MessageSquare, HardDrive, Server } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { AdminOverview } from "@/components/admin/admin-overview"
@@ -10,11 +10,17 @@ import { AdminSettings } from "@/components/admin/admin-settings"
 import { AdminUsers } from "@/components/admin/admin-users"
 import { AdminConnectors } from "@/components/admin/admin-connectors"
 import { AdminAudit } from "@/components/admin/admin-audit"
+import { AdminConversations } from "@/components/admin/admin-conversations"
+import { AdminStorage } from "@/components/admin/admin-storage"
+import { AdminMcpServers } from "@/components/admin/admin-mcp-servers"
 
 const TABS = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "users", label: "Users", icon: Users },
+  { key: "conversations", label: "Conversations", icon: MessageSquare },
   { key: "connectors", label: "Connectors", icon: Plug },
+  { key: "storage", label: "Storage", icon: HardDrive },
+  { key: "mcp", label: "MCP Servers", icon: Server },
   { key: "audit", label: "Audit Log", icon: Shield },
   { key: "settings", label: "Settings", icon: Settings },
 ] as const
@@ -85,7 +91,10 @@ function AdminPanelContent() {
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === "overview" && <AdminOverview />}
           {activeTab === "users" && <AdminUsers />}
+          {activeTab === "conversations" && <AdminConversations />}
           {activeTab === "connectors" && <AdminConnectors />}
+          {activeTab === "storage" && <AdminStorage />}
+          {activeTab === "mcp" && <AdminMcpServers />}
           {activeTab === "audit" && <AdminAudit />}
           {activeTab === "settings" && <AdminSettings />}
         </div>

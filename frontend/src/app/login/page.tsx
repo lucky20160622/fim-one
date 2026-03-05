@@ -26,6 +26,7 @@ function LoginPageInner() {
   const [regEmail, setRegEmail] = useState("")
   const [regPassword, setRegPassword] = useState("")
   const [regConfirm, setRegConfirm] = useState("")
+  const [regInviteCode, setRegInviteCode] = useState("")
   const [regError, setRegError] = useState("")
   const [regLoading, setRegLoading] = useState(false)
 
@@ -148,6 +149,7 @@ function LoginPageInner() {
         username: regUsername,
         password: regPassword,
         email: regEmail,
+        invite_code: regInviteCode.trim() || undefined,
       })
       router.replace("/")
     } catch (err) {
@@ -362,6 +364,12 @@ function LoginPageInner() {
                     onChange={(e) => setRegConfirm(e.target.value)}
                     required
                     autoComplete="new-password"
+                  />
+                  <Input
+                    placeholder="Invite code (if required)"
+                    value={regInviteCode}
+                    onChange={(e) => setRegInviteCode(e.target.value)}
+                    autoComplete="off"
                   />
                 </div>
                 {regError && (

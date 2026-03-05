@@ -1,0 +1,174 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { HardDrive, Trash2, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { adminApi } from "@/lib/api"
+import type { UserStorageStat } from "@/types/admin"
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
+
+export function AdminStorage() {
+  const [stats, setStats] = useState<{ total_bytes: number; users: UserStorageStat[] } | null>(null)
+  const [clearTarget, setClearTarget] = useState<UserStorageStat | null>(null)
+  const [showOrphanConfirm, setShowOrphanConfirm] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  const errMsg = (err: unknown) =>
+    err instanceof Error ? err.message : "Operation failed"
+
+  const load = async () => {
+    setIsLoading(true)
+    try {
+      const data = await adminApi.getStorageStats()
+      setStats(data)
+    } catch (err) {
+      toast.error(errMsg(err))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [])
+
+  const handleClearUser = async () => {
+    if (!clearTarget) return
+    try {
+      await adminApi.clearUserStorage(clearTarget.user_id)
+      toast.success(`Cleared storage for ${clearTarget.username}`)
+      setClearTarget(null)
+      load()
+    } catch (err) {
+      toast.error(errMsg(err))
+    }
+  }
+
+  const handleCleanOrphaned = async () => {
+    try {
+      await adminApi.cleanOrphanedStorage()
+      toast.success("Orphaned files cleaned")
+      setShowOrphanConfirm(false)
+      load()
+    } catch (err) {
+      toast.error(errMsg(err))
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <HardDrive className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">
+            Total: {stats ? formatBytes(stats.total_bytes) : "--"}
+          </span>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive border-destructive/30 hover:bg-destructive/5"
+          onClick={() => setShowOrphanConfirm(true)}
+        >
+          Clean Orphaned Files
+        </Button>
+      </div>
+
+      {!stats?.users.length ? (
+        <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+          No user uploads found.
+        </div>
+      ) : (
+        <div className="rounded-md border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40">
+                <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">User</th>
+                <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Files</th>
+                <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">Size</th>
+                <th className="px-4 py-2.5 w-10" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {stats.users.map((u) => (
+                <tr key={u.user_id} className="hover:bg-muted/20 transition-colors">
+                  <td className="px-4 py-3 font-medium text-foreground">{u.username}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{u.file_count}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{formatBytes(u.total_bytes)}</td>
+                  <td className="px-4 py-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-destructive"
+                      onClick={() => setClearTarget(u)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Clear user storage */}
+      <AlertDialog open={!!clearTarget} onOpenChange={(open) => !open && setClearTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear user storage?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all {clearTarget ? formatBytes(clearTarget.total_bytes) : ""} of files uploaded by {clearTarget?.username}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleClearUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Clear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clean orphaned */}
+      <AlertDialog open={showOrphanConfirm} onOpenChange={setShowOrphanConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clean orphaned files?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete upload directories for conversations that no longer exist in the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCleanOrphaned}>Clean</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}

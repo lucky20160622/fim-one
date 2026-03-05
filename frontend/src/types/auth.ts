@@ -45,6 +45,7 @@ export interface RegisterRequest {
   username: string
   password: string
   email: string
+  invite_code?: string
 }
 
 export interface SetupRequest {

@@ -14,6 +14,8 @@ import {
   UserCheck,
   UserX,
   Trash2,
+  LogOut,
+  Gauge,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,6 +45,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Label } from "@/components/ui/label"
 import { adminApi } from "@/lib/api"
 import { useAuth } from "@/contexts/auth-context"
 import type { AdminUser } from "@/types/admin"
@@ -68,6 +71,8 @@ export function AdminUsers() {
   const [adminToggleTarget, setAdminToggleTarget] = useState<AdminUser | null>(null)
   const [activeToggleTarget, setActiveToggleTarget] = useState<AdminUser | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null)
+  const [quotaTarget, setQuotaTarget] = useState<AdminUser | null>(null)
+  const [quotaValue, setQuotaValue] = useState("")
 
   // --- Form fields ---
   const [createUsername, setCreateUsername] = useState("")
@@ -218,6 +223,39 @@ export function AdminUsers() {
     }
   }
 
+  // --- Force logout single user ---
+  const handleForceLogout = async (u: AdminUser) => {
+    try {
+      await adminApi.forceLogoutUser(u.id)
+      toast.success("User logged out")
+      await loadUsers()
+    } catch (err: unknown) {
+      toast.error(errMsg(err))
+    }
+  }
+
+  // --- Set quota ---
+  const openQuota = (u: AdminUser) => {
+    setQuotaTarget(u)
+    setQuotaValue(u.token_quota !== null ? String(u.token_quota) : "")
+  }
+
+  const handleSetQuota = async () => {
+    if (!quotaTarget) return
+    setIsMutating(true)
+    try {
+      const parsed = quotaValue.trim() === "" || quotaValue.trim() === "0" ? null : parseInt(quotaValue, 10)
+      await adminApi.setUserQuota(quotaTarget.id, parsed)
+      toast.success("Token quota updated")
+      setQuotaTarget(null)
+      await loadUsers()
+    } catch (err: unknown) {
+      toast.error(errMsg(err))
+    } finally {
+      setIsMutating(false)
+    }
+  }
+
   // --- Toggle active ---
   const handleToggleActive = async () => {
     if (!activeToggleTarget) return
@@ -278,6 +316,9 @@ export function AdminUsers() {
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
                   Status
                 </th>
+                <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
+                  Usage / Quota
+                </th>
                 <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">
                   Actions
                 </th>
@@ -289,12 +330,19 @@ export function AdminUsers() {
                 return (
                   <tr key={u.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3 font-medium text-foreground">
-                      {u.username}
-                      {isSelf && (
-                        <span className="ml-1.5 text-xs text-muted-foreground">
-                          (you)
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {u.username}
+                        {isSelf && (
+                          <span className="text-xs text-muted-foreground">
+                            (you)
+                          </span>
+                        )}
+                        {u.has_active_session && (
+                          <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20 text-[10px] px-1.5 py-0">
+                            Online
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {u.email ?? <span className="text-muted-foreground/50">--</span>}
@@ -317,6 +365,16 @@ export function AdminUsers() {
                         </Badge>
                       )}
                     </td>
+                    <td className="px-4 py-3 text-sm">
+                      <div className="space-y-0.5">
+                        {u.monthly_tokens > 0 && (
+                          <p className="text-muted-foreground text-xs">{u.monthly_tokens.toLocaleString()} tokens</p>
+                        )}
+                        <p className="text-xs text-muted-foreground/70">
+                          {u.token_quota !== null ? `Quota: ${u.token_quota.toLocaleString()}` : "Unlimited"}
+                        </p>
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -329,12 +387,22 @@ export function AdminUsers() {
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openQuota(u)}>
+                            <Gauge className="mr-2 h-4 w-4" />
+                            Set Quota
+                          </DropdownMenuItem>
                           {!isSelf && (
                             <>
                               <DropdownMenuItem onClick={() => openResetPassword(u)}>
                                 <KeyRound className="mr-2 h-4 w-4" />
                                 Reset Password
                               </DropdownMenuItem>
+                              {u.has_active_session && (
+                                <DropdownMenuItem onClick={() => handleForceLogout(u)}>
+                                  <LogOut className="mr-2 h-4 w-4" />
+                                  Force Logout
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => setAdminToggleTarget(u)}>
                                 {u.is_admin ? (
@@ -630,6 +698,45 @@ export function AdminUsers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* --- Set Quota Dialog --- */}
+      <Dialog
+        open={quotaTarget !== null}
+        onOpenChange={(open) => { if (!open) setQuotaTarget(null) }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set Token Quota</DialogTitle>
+            <DialogDescription>
+              Set a monthly token quota for {quotaTarget?.username}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Monthly Token Quota</Label>
+              <Input
+                type="number"
+                min={0}
+                value={quotaValue}
+                onChange={(e) => setQuotaValue(e.target.value)}
+                placeholder="0 = unlimited"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter 0 or leave empty for unlimited usage.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuotaTarget(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSetQuota} disabled={isMutating}>
+              {isMutating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
