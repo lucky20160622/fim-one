@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from fim_agent.db import get_session
 from fim_agent.web.auth import get_current_admin, hash_password
-from fim_agent.web.models import Agent, Conversation, KnowledgeBase, Message, User
+from fim_agent.web.models import Agent, Connector, ConnectorCallLog, Conversation, KnowledgeBase, Message, User
 from fim_agent.web.schemas.common import PaginatedResponse
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -40,6 +40,34 @@ class DayStat(BaseModel):
     count: int
 
 
+class ConnectorCallStat(BaseModel):
+    connector_id: str
+    connector_name: str
+    call_count: int
+
+
+class ConnectorActionStat(BaseModel):
+    action_name: str
+    connector_name: str
+    call_count: int
+
+
+class ConnectorStatsResponse(BaseModel):
+    total_calls: int
+    today_calls: int
+    success_rate: float
+    avg_response_time_ms: float
+    top_connectors: list[ConnectorCallStat]
+    top_actions: list[ConnectorActionStat]
+    recent_days: list[DayStat]
+
+
+class AgentTokenStat(BaseModel):
+    agent_id: str
+    name: str
+    total_tokens: int
+
+
 class StatsResponse(BaseModel):
     total_users: int
     total_conversations: int
@@ -47,6 +75,11 @@ class StatsResponse(BaseModel):
     total_tokens: int
     total_agents: int
     total_kbs: int
+    total_documents: int = 0
+    total_chunks: int = 0
+    total_connectors: int = 0
+    today_conversations: int = 0
+    tokens_by_agent: list[AgentTokenStat] = []
     conversations_by_model: list[ModelStat]
     top_agents: list[AgentStat]
     recent_days: list[DayStat]
@@ -196,6 +229,50 @@ async def get_stats(
     )
     recent_days = [DayStat(date=str(r[0]), count=r[1]) for r in day_rows.all()]
 
+    # KB documents & chunks
+    kb_agg_result = await db.execute(
+        select(
+            func.coalesce(func.sum(KnowledgeBase.document_count), 0),
+            func.coalesce(func.sum(KnowledgeBase.total_chunks), 0),
+        ).select_from(KnowledgeBase)
+    )
+    kb_row = kb_agg_result.one()
+    total_documents: int = kb_row[0]
+    total_chunks: int = kb_row[1]
+
+    # Total connectors
+    total_connectors_result = await db.execute(
+        select(func.count()).select_from(Connector)
+    )
+    total_connectors: int = total_connectors_result.scalar_one()
+
+    # Today's conversations
+    today = datetime.now(timezone.utc).date()
+    today_conv_result = await db.execute(
+        select(func.count()).select_from(Conversation).where(
+            func.date(Conversation.created_at) == today
+        )
+    )
+    today_conversations: int = today_conv_result.scalar_one()
+
+    # Tokens by agent (top 10)
+    tokens_by_agent_rows = await db.execute(
+        select(
+            Conversation.agent_id,
+            Agent.name,
+            func.sum(Conversation.total_tokens).label("total"),
+        )
+        .join(Agent, Agent.id == Conversation.agent_id)
+        .where(Conversation.agent_id.isnot(None))
+        .group_by(Conversation.agent_id, Agent.name)
+        .order_by(func.sum(Conversation.total_tokens).desc())
+        .limit(10)
+    )
+    tokens_by_agent = [
+        AgentTokenStat(agent_id=r[0], name=r[1], total_tokens=r[2])
+        for r in tokens_by_agent_rows.all()
+    ]
+
     return StatsResponse(
         total_users=total_users,
         total_conversations=total_conversations,
@@ -203,8 +280,110 @@ async def get_stats(
         total_tokens=total_tokens,
         total_agents=total_agents,
         total_kbs=total_kbs,
+        total_documents=total_documents,
+        total_chunks=total_chunks,
+        total_connectors=total_connectors,
+        today_conversations=today_conversations,
+        tokens_by_agent=tokens_by_agent,
         conversations_by_model=conversations_by_model,
         top_agents=top_agents,
+        recent_days=recent_days,
+    )
+
+
+@router.get("/connector-stats", response_model=ConnectorStatsResponse)
+async def get_connector_stats(
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ConnectorStatsResponse:
+    """Return connector call statistics. Requires admin privileges."""
+    # Total calls
+    total_result = await db.execute(
+        select(func.count()).select_from(ConnectorCallLog)
+    )
+    total_calls: int = total_result.scalar_one()
+
+    # Today's calls
+    today = datetime.now(timezone.utc).date()
+    today_result = await db.execute(
+        select(func.count()).select_from(ConnectorCallLog).where(
+            func.date(ConnectorCallLog.created_at) == today
+        )
+    )
+    today_calls: int = today_result.scalar_one()
+
+    # Success rate
+    if total_calls > 0:
+        success_result = await db.execute(
+            select(func.count()).select_from(ConnectorCallLog).where(
+                ConnectorCallLog.success == True  # noqa: E712
+            )
+        )
+        success_count: int = success_result.scalar_one()
+        success_rate = success_count / total_calls
+    else:
+        success_rate = 0.0
+
+    # Average response time
+    avg_result = await db.execute(
+        select(func.avg(ConnectorCallLog.response_time_ms)).where(
+            ConnectorCallLog.response_time_ms.isnot(None)
+        )
+    )
+    avg_response_time_ms = avg_result.scalar_one() or 0.0
+
+    # Top connectors (top 10)
+    top_conn_rows = await db.execute(
+        select(
+            ConnectorCallLog.connector_id,
+            ConnectorCallLog.connector_name,
+            func.count().label("cnt"),
+        )
+        .group_by(ConnectorCallLog.connector_id, ConnectorCallLog.connector_name)
+        .order_by(func.count().desc())
+        .limit(10)
+    )
+    top_connectors = [
+        ConnectorCallStat(connector_id=r[0], connector_name=r[1], call_count=r[2])
+        for r in top_conn_rows.all()
+    ]
+
+    # Top actions (top 10)
+    top_action_rows = await db.execute(
+        select(
+            ConnectorCallLog.action_name,
+            ConnectorCallLog.connector_name,
+            func.count().label("cnt"),
+        )
+        .group_by(ConnectorCallLog.action_name, ConnectorCallLog.connector_name)
+        .order_by(func.count().desc())
+        .limit(10)
+    )
+    top_actions = [
+        ConnectorActionStat(action_name=r[0], connector_name=r[1], call_count=r[2])
+        for r in top_action_rows.all()
+    ]
+
+    # 14-day daily trend
+    cutoff = datetime.now(timezone.utc) - timedelta(days=14)
+    day_rows = await db.execute(
+        select(
+            func.date(ConnectorCallLog.created_at).label("day"),
+            func.count().label("cnt"),
+        )
+        .where(ConnectorCallLog.created_at >= cutoff)
+        .group_by(func.date(ConnectorCallLog.created_at))
+        .order_by(func.date(ConnectorCallLog.created_at))
+    )
+    recent_days = [DayStat(date=str(r[0]), count=r[1]) for r in day_rows.all()]
+
+    return ConnectorStatsResponse(
+        total_calls=total_calls,
+        today_calls=today_calls,
+        success_rate=round(success_rate, 4),
+        avg_response_time_ms=round(avg_response_time_ms, 1),
+        top_connectors=top_connectors,
+        top_actions=top_actions,
         recent_days=recent_days,
     )
 
