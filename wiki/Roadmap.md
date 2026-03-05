@@ -217,6 +217,15 @@ Hub          → Central cross-system orchestration (Portal / API)
 - [x] **Retry Button**: Playground shows retry for stopped/interrupted tasks
 - [x] **URL File Resolver**: Direct file download detection in KB URL import (PDF, DOCX, etc.)
 
+#### v0.6.5 — Admin Panel v2: Connector Stats & Overview Enhancement (shipped)
+
+- [x] **Connector Call Logging**: `connector_call_logs` table tracks every connector HTTP call (connector/action IDs, agent/conversation context, method, status, latency, sizes); callback pattern in ConnectorToolAdapter with automatic logging in chat endpoints
+- [x] **Connector Stats API**: `GET /api/admin/connector-stats` endpoint — per-connector call counts, success rates, average latency, last-called timestamps
+- [x] **Enhanced Admin Stats**: Overview stats endpoint extended with KB doc/chunk counts, connector count, today's conversations, and tokens-by-agent breakdown
+- [x] **Admin Connectors Tab**: New tab in admin panel showing connector call metrics table (total calls, success rate, avg latency, last called)
+- [x] **Tokens by Agent Chart**: Per-agent token consumption bar chart in admin overview dashboard
+- [x] **Eager model_name Resolution**: Conversation `model_name` resolved at creation time (fixes "Unknown" in admin stats)
+
 ---
 
 ### v0.7 -- SaaS Runtime & Provider Abstraction

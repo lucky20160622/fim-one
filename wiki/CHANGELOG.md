@@ -48,6 +48,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **Iteration Duration Tracking**: Server-side per-iteration elapsed timing (`iter_elapsed`) in DAG executor; frontend displays duration on completed iterations with client-side fallback
 - **Elapsed Timer for Running Steps**: Real-time running clock on active DAG step cards
 - **First-Run Admin Setup Wizard**: When the database is empty, visitors are redirected from `/login` to `/setup` to create the initial admin account (`is_admin=True`); once created, `/setup` permanently redirects to `/login`
+- **Connector Call Logging**: `connector_call_logs` table (ORM + Alembic migration) tracks every connector HTTP call — connector/action IDs, agent/conversation context, HTTP method/status, latency, request/response size; callback pattern in `ConnectorToolAdapter` with automatic logging in chat endpoints
+- **Connector Stats API**: `GET /api/admin/connector-stats` endpoint returns per-connector call counts, success rates, average latency, and last-called timestamps for admin monitoring
+- **Enhanced Admin Overview Stats**: Admin stats endpoint now includes KB document/chunk counts, total connector count, today's conversation count, and tokens-by-agent breakdown for the recharts dashboard
+- **Admin Connectors Tab**: New "Connectors" tab in the admin panel showing connector call metrics (total calls, success rate, avg latency, last called) alongside the existing Overview and Users tabs
+- **Tokens by Agent Chart**: Admin overview dashboard displays a tokens-by-agent bar chart for per-agent token consumption visibility
 
 ### Changed
 - **Navigation Links**: All navigation buttons replaced with Next.js `<Link>` components for proper middle-click/Cmd+Click new-tab behavior across agent cards, connector cards, KB cards, sidebar conversations, chats page, and all "New" buttons
@@ -98,6 +103,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - Evidence-utils citation regex matching for grounded retrieval
 - Grounded retrieve tool fallback format when no evidence found
 - Failed inject content now restored to input box with toast warning instead of being lost
+- **Conversation model_name**: `model_name` now resolved eagerly at conversation creation time, eliminating "Unknown" entries in admin stats
 
 ## [0.6.1] — Connector Entity & Manual Builder
 

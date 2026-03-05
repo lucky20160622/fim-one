@@ -7,10 +7,11 @@
 [![GitHub stars](https://img.shields.io/github/stars/fim-ai/fim-agent?style=social)](https://github.com/fim-ai/fim-agent/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/fim-ai/fim-agent?style=social)](https://github.com/fim-ai/fim-agent/network)
 [![GitHub issues](https://img.shields.io/github/issues/fim-ai/fim-agent)](https://github.com/fim-ai/fim-agent/issues)
+[![Follow on X](https://img.shields.io/twitter/follow/FIM_TECH?style=social)](https://x.com/FIM_TECH)
 
 **AI-Powered Connector Hub — embed into one system as a Copilot, or connect them all as a Hub.**
 
-🌐 [Website](https://agent.fim.ai/) · 📖 [Wiki](https://github.com/fim-ai/fim-agent/wiki) · 📋 [Changelog](https://github.com/fim-ai/fim-agent/wiki/CHANGELOG) · 🐛 [Report Bug](https://github.com/fim-ai/fim-agent/issues)
+🌐 [Website](https://agent.fim.ai/) · 📖 [Wiki](https://github.com/fim-ai/fim-agent/wiki) · 📋 [Changelog](https://github.com/fim-ai/fim-agent/wiki/CHANGELOG) · 🐛 [Report Bug](https://github.com/fim-ai/fim-agent/issues) · 🐦 [Twitter](https://x.com/FIM_TECH)
 
 </div>
 
@@ -138,7 +139,7 @@ FIM Agent doesn't do BPM/FSM — workflow logic belongs to the target system, Co
 #### Platform & Multi-Tenant
 - **JWT Auth** — Token-based SSE auth, conversation ownership, per-user resource isolation.
 - **Agent Management** — Create, configure, and publish agents with bound models, tools, and instructions. Per-agent execution mode (Standard/Planner) and temperature control.
-- **Admin Panel** — System stats dashboard (users, conversations, tokens, model usage charts), user management with search/pagination, role toggle, password reset, and account enable/disable.
+- **Admin Panel** — System stats dashboard (users, conversations, tokens, model usage charts, tokens-by-agent breakdown), connector call metrics (success rate, latency, call counts), user management with search/pagination, role toggle, password reset, and account enable/disable.
 - **First-Run Setup Wizard** — On first launch, the portal guides you through creating an admin account (username, password, email). This one-time setup becomes your login credential — no config files needed.
 - **Personal Center** — Per-user global system instructions, applied across all conversations.
 - **Language Preference** — Per-user language setting (auto/en/zh) that directs all LLM responses to the chosen language.
@@ -346,6 +347,6 @@ See [LICENSE](LICENSE) for full terms.
 
 <div align="center">
 
-🌐 [Website](https://agent.fim.ai/) · 📖 [Wiki](https://github.com/fim-ai/fim-agent/wiki) · 📋 [Changelog](https://github.com/fim-ai/fim-agent/wiki/CHANGELOG) · 🐛 [Report Bug](https://github.com/fim-ai/fim-agent/issues) · 💡 [Request Feature](https://github.com/fim-ai/fim-agent/issues)
+🌐 [Website](https://agent.fim.ai/) · 📖 [Wiki](https://github.com/fim-ai/fim-agent/wiki) · 📋 [Changelog](https://github.com/fim-ai/fim-agent/wiki/CHANGELOG) · 🐛 [Report Bug](https://github.com/fim-ai/fim-agent/issues) · 💡 [Request Feature](https://github.com/fim-ai/fim-agent/issues) · 🐦 [Twitter](https://x.com/FIM_TECH)
 
 </div>
