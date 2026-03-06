@@ -7,9 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 ## [Unreleased]
 
 ### Added
-- **i18n: playground namespace**: Migrated all user-facing hardcoded strings in 9 playground components to `next-intl` with `playground.json` translation files (en/zh); covers chat UI, examples, execution output, evidence panel, references, and sidebar
-- **i18n: connectors namespace** — migrated all hardcoded English strings in the Connectors area (list page, editor page, connector card, settings form, action manager, AI action panel) to next-intl with full English and Chinese translations
-- **i18n: Settings namespace** — All hardcoded English strings in the Settings area (General, Models, Account, Appearance tabs) migrated to next-intl with `settings.json` message files for English and Chinese (Simplified)
+- **i18n: full frontend internationalization** — migrated 500+ hardcoded English strings across 76 files to `next-intl` with cookie-based locale switching (en/zh). 11 namespaces: common, auth, layout, playground, admin, agents, connectors, kb, settings, tools, dag. Language selector in user menu sets `NEXT_LOCALE` cookie + reloads. No URL routing changes — locale stored in cookie, read server-side via `getRequestConfig` with `fs.readdirSync` auto-discovery of namespace JSON files.
 - **Admin/Settings: invite code inactive filter**: Revoked and exhausted invite codes are hidden by default; an "N inactive" toggle button reveals them. Exhausted codes (use_count ≥ max_uses) now show an "Exhausted" badge distinct from "Revoked".
 
 ### Fixed
