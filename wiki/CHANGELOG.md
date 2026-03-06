@@ -10,6 +10,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **Admin/Settings: invite code inactive filter**: Revoked and exhausted invite codes are hidden by default; an "N inactive" toggle button reveals them. Exhausted codes (use_count ≥ max_uses) now show an "Exhausted" badge distinct from "Revoked".
 
 ### Fixed
+- **Replace deprecated `datetime.utcnow()`** with `datetime.now(UTC)` across auth and OAuth endpoints (S-9)
+- **Add host-execution warning to ShellExecTool**: logs a startup warning when using the local sandbox backend without OS-level isolation (S-8)
 - **OAuth callback redirect** now passes tokens via URL fragment instead of query params, preventing leakage in server logs and browser history (S-7)
 - **OAuth bind flow** now uses one-time ticket instead of raw JWT in URL; new `POST /api/auth/oauth/bind-ticket` endpoint (S-6)
 - **API/chat: DB session leak on setup failure**: Both `react_endpoint` and `dag_endpoint` now call `db_session.close()` before nulling the reference when the setup block raises, preventing connection pool exhaustion.
@@ -18,8 +20,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **Conversation context: stale 404 sidebar entry**: When `selectConversation` gets a 404 (conversation deleted by admin), the entry is now removed from the local sidebar list instead of leaving an unloadable ghost item.
 
 ### Changed
+- **Maintenance mode check cached with 30s TTL** to reduce DB load on every request (P-1)
 - **Admin: uniform page headers**: All admin sections (Overview, Users, Conversations, Connectors, MCP Servers, Storage, Audit Log, Settings) now open with a consistent `<h2>` title + subtitle description block. Section-level icon decorators removed; action buttons (Create User, Add Global Server) moved into the header row.
 - **Login/Setup: frosted-glass right panel**: Page root uses `oklch(0.13 0.008 55)` background so the dark brand panel extends across the full viewport; the form panel uses `bg-background/88 + backdrop-blur-sm` for a subtle frosted-glass effect.
+
+### Removed
+- **Dead `get_user_id()` stub** in `deps.py` — always returned `"default"`, superseded by JWT auth (Q-1)
 
 ### Added
 - **EmailSendTool recipient allowlist**: `SMTP_ALLOWED_DOMAINS` and `SMTP_ALLOWED_ADDRESSES` env vars restrict which addresses the `email_send` tool may send to; any blocked recipient returns `[Error]` without sending; both vars optional — leave unset for no restriction (not recommended for shared mailboxes)
