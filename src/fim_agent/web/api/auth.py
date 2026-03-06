@@ -292,7 +292,7 @@ async def refresh_token(
 
     if (
         user.refresh_token_expires_at is not None
-        and user.refresh_token_expires_at < datetime.now(UTC)
+        and user.refresh_token_expires_at.replace(tzinfo=UTC) < datetime.now(UTC)
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
