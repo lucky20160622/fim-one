@@ -47,6 +47,7 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --animate-caret-blink: caret-blink 1.25s ease-out infinite;
 }
 
 :root {
@@ -141,6 +142,18 @@
   [role="region"][tabindex] {
     cursor: auto;
   }
+
+}
+
+/* Override browser / password-manager autofill background
+   Must be outside @layer to beat UA !important on :-webkit-autofill */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 9999px var(--background) inset !important;
+  -webkit-text-fill-color: var(--foreground) !important;
+  caret-color: var(--foreground);
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 /* Login mesh gradient animation */
@@ -452,6 +465,36 @@ pre code.hljs {
 }
 .dark .hljs-subst {
   color: #abb2bf;
+}
+
+/* Navigation progress bar */
+@keyframes nav-bar-grow {
+  from { width: 0%; }
+  to { width: 82%; }
+}
+
+@keyframes nav-bar-finish {
+  0%   { width: 100%; opacity: 1; }
+  50%  { width: 100%; opacity: 1; }
+  100% { width: 100%; opacity: 0; }
+}
+
+@keyframes caret-blink {
+  0%, 70%, 100% { opacity: 1; }
+  20%, 50%      { opacity: 0; }
+}
+
+.nav-bar-loading {
+  height: 2px;
+  background: var(--primary);
+  animation: nav-bar-grow 8s cubic-bezier(0.1, 0.9, 0.3, 1) forwards;
+}
+
+.nav-bar-done {
+  height: 2px;
+  width: 100%;
+  background: var(--primary);
+  animation: nav-bar-finish 500ms ease-out forwards;
 }
 
 /* ReactFlow overrides */

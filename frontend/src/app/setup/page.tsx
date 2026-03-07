@@ -17,7 +17,6 @@ export default function SetupPage() {
   const [checking, setChecking] = useState(true)
 
   // Form state
-  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [email, setEmail] = useState("")
@@ -76,15 +75,15 @@ export default function SetupPage() {
         return
       }
 
-      const data = await authApi.setup({ username, password, email: email.trim() })
+      const data = await authApi.setup({ email: email.trim(), password })
 
       // Store tokens (same pattern as login)
       localStorage.setItem(ACCESS_TOKEN_KEY, data.access_token)
       localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token)
       localStorage.setItem(USER_KEY, JSON.stringify(data.user))
 
-      // Full page navigation to ensure auth context reloads
-      window.location.href = "/"
+      // Full page navigation to onboarding (ensure auth context reloads)
+      window.location.href = "/onboarding"
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
         // System already initialized — someone else set it up
@@ -187,13 +186,13 @@ export default function SetupPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Input
-                placeholder={t("usernamePlaceholder")}
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                placeholder={t("emailPlaceholder")}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                minLength={2}
                 autoFocus
-                autoComplete="username"
+                autoComplete="email"
               />
               <Input
                 type="password"
@@ -211,14 +210,6 @@ export default function SetupPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 autoComplete="new-password"
-              />
-              <Input
-                type="email"
-                placeholder={t("emailPlaceholder")}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
               />
             </div>
             {error && (

@@ -16,10 +16,12 @@ specifiers:
   clsx: ^2.1.1
   cmdk: ^1.1.1
   dagre: ^0.8.5
+  date-fns: ^4.1.0
   eslint: ^9
   eslint-config-next: '15'
   frimousse: ^0.3.0
   highlight.js: ^11.11.1
+  input-otp: ^1.4.2
   katex: ^0.16.33
   lucide-react: ^0.575.0
   motion: ^12.35.0
@@ -28,6 +30,7 @@ specifiers:
   next-themes: ^0.4.6
   radix-ui: ^1.4.3
   react: ^18
+  react-day-picker: ^9.14.0
   react-dom: ^18
   react-markdown: ^10.1.0
   recharts: ^3.7.0
@@ -51,8 +54,10 @@ dependencies:
   clsx: 2.1.1
   cmdk: 1.1.1_a9933653a6ee863f81cb88f8604aea5b
   dagre: 0.8.5
+  date-fns: 4.1.0
   frimousse: 0.3.0_react@18.3.1+typescript@5.9.3
   highlight.js: 11.11.1
+  input-otp: 1.4.2_react-dom@18.3.1+react@18.3.1
   katex: 0.16.33
   lucide-react: 0.575.0_react@18.3.1
   motion: 12.35.0_react-dom@18.3.1+react@18.3.1
@@ -61,6 +66,7 @@ dependencies:
   next-themes: 0.4.6_react-dom@18.3.1+react@18.3.1
   radix-ui: 1.4.3_a9933653a6ee863f81cb88f8604aea5b
   react: 18.3.1
+  react-day-picker: 9.14.0_react@18.3.1
   react-dom: 18.3.1_react@18.3.1
   react-markdown: 10.1.0_51138f14b38d93b7070bf9e55fa8ad95
   recharts: 3.7.0_95cf71520f32bee5ede2baa0d40faed2
@@ -389,6 +395,10 @@ packages:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
     dev: true
+
+  /@date-fns/tz/1.4.1:
+    resolution: {integrity: sha512-P5LUNhtbj6YfI3iJjw5EL9eUAG6OitD0W3fWQcpQjDRc/QIsL0tRNuO1PcDvPccWL1fSTXXdE1ds+l95DV/OFA==}
+    dev: false
 
   /@dnd-kit/accessibility/3.1.1_react@18.3.1:
     resolution: {integrity: sha512-2P+YgaXF+gRsIihwwY1gCsQSYnu9Zyj2py8kY5fFvUM1qm2WA2u639R6YNVfU4GWr+ZM5mqEsfHZZLoRONbemw==}
@@ -2782,6 +2792,11 @@ packages:
       '@swc/counter': 0.1.3
     dev: false
 
+  /@tabby_ai/hijri-converter/1.0.5:
+    resolution: {integrity: sha512-r5bClKrcIusDoo049dSL8CawnHR6mRdDwhlQuIgZRNty68q0x8k3Lf1BtPAMxRf/GgnHBnIO4ujd3+GQdLWzxQ==}
+    engines: {node: '>=16.0.0'}
+    dev: false
+
   /@tailwindcss/node/4.2.1:
     resolution: {integrity: sha512-jlx6sLk4EOwO6hHe1oCGm1Q4AN/s0rSrTTPBGPM0/RQ6Uylwq17FuU8IeJJKEjtc6K6O07zsvP+gDO6MMWo7pg==}
     dependencies:
@@ -4097,6 +4112,14 @@ packages:
       is-data-view: 1.0.2
     dev: true
 
+  /date-fns-jalali/4.1.0-0:
+    resolution: {integrity: sha512-hTIP/z+t+qKwBDcmmsnmjWTduxCg+5KfdqWQvb2X/8C9+knYY6epN/pfxdDuyVlSVeFz0sM5eEfwIUQ70U4ckg==}
+    dev: false
+
+  /date-fns/4.1.0:
+    resolution: {integrity: sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==}
+    dev: false
+
   /debug/3.2.7:
     resolution: {integrity: sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==}
     dependencies:
@@ -5402,6 +5425,16 @@ packages:
 
   /inline-style-parser/0.2.7:
     resolution: {integrity: sha512-Nb2ctOyNR8DqQoR0OwRG95uNWIC0C1lCgf5Naz5H6Ji72KZ8OcFZLz2P5sNgwlyoJ8Yif11oMuYs5pBQa86csA==}
+    dev: false
+
+  /input-otp/1.4.2_react-dom@18.3.1+react@18.3.1:
+    resolution: {integrity: sha512-l3jWwYNvrEa6NTCt7BECfCm48GvwuZzkoeG3gBL2w4CHeOXW3eKFmf9UNYkNfYc3mxMrthMnxjIE07MT0zLBQA==}
+    peerDependencies:
+      react: ^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc
+      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc
+    dependencies:
+      react: 18.3.1
+      react-dom: 18.3.1_react@18.3.1
     dev: false
 
   /internal-slot/1.1.0:
@@ -7241,6 +7274,19 @@ packages:
       iconv-lite: 0.7.2
       unpipe: 1.0.0
     dev: true
+
+  /react-day-picker/9.14.0_react@18.3.1:
+    resolution: {integrity: sha512-tBaoDWjPwe0M5pGrum4H0SR6Lyk+BO9oHnp9JbKpGKW2mlraNPgP9BMfsg5pWpwrssARmeqk7YBl2oXutZTaHA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      react: '>=16.8.0'
+    dependencies:
+      '@date-fns/tz': 1.4.1
+      '@tabby_ai/hijri-converter': 1.0.5
+      date-fns: 4.1.0
+      date-fns-jalali: 4.1.0-0
+      react: 18.3.1
+    dev: false
 
   /react-dom/18.3.1_react@18.3.1:
     resolution: {integrity: sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw==}

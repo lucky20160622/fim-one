@@ -1,9 +1,11 @@
 "use client"
 
 import { useTranslations } from "next-intl"
-import { User, Bot, Clock, RefreshCw, BarChart3, CheckCircle2, Target } from "lucide-react"
+import { Bot, Clock, RefreshCw, BarChart3, CheckCircle2, Target } from "lucide-react"
 import { MarkdownContent } from "@/lib/markdown"
 import { fmtDuration } from "@/lib/utils"
+import { useAuth } from "@/contexts/auth-context"
+import { UserAvatar } from "@/components/shared/user-avatar"
 import type { MessageResponse } from "@/types/conversation"
 
 interface HistoryMessagesProps {
@@ -11,6 +13,7 @@ interface HistoryMessagesProps {
 }
 
 export function HistoryMessages({ messages }: HistoryMessagesProps) {
+  const { user } = useAuth()
   if (messages.length === 0) return null
 
   return (
@@ -18,7 +21,7 @@ export function HistoryMessages({ messages }: HistoryMessagesProps) {
       {messages.map((msg) => (
         <div key={msg.id}>
           {msg.role === "user" ? (
-            <UserMessage content={msg.content} />
+            <UserMessage content={msg.content} avatar={user?.avatar} userId={user?.id} displayName={user?.display_name || user?.email} />
           ) : (
             <AssistantMessage content={msg.content} metadata={msg.metadata} />
           )}
@@ -28,12 +31,11 @@ export function HistoryMessages({ messages }: HistoryMessagesProps) {
   )
 }
 
-function UserMessage({ content }: { content: string | null }) {
+function UserMessage({ content, avatar, userId, displayName }: { content: string | null; avatar?: string | null; userId?: string; displayName?: string | null }) {
+  const fallback = (displayName || "U").charAt(0).toUpperCase()
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-        <User className="h-3.5 w-3.5 text-primary" />
-      </div>
+      <UserAvatar avatar={avatar} userId={userId} fallback={fallback} className="h-7 w-7" iconClassName="h-3.5 w-3.5" />
       <div className="flex-1">
         <p className="text-sm text-foreground">{content}</p>
       </div>

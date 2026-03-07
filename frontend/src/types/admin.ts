@@ -1,6 +1,6 @@
 export interface AdminUser {
   id: string
-  username: string
+  username: string | null
   display_name: string | null
   email: string | null
   is_admin: boolean
@@ -26,13 +26,22 @@ export interface AdminConversation {
   total_tokens: number
   message_count: number
   user_id: string
-  username: string
+  username: string | null
+  email?: string | null
+  created_at: string
+}
+
+export interface AdminMessage {
+  id: string
+  role: string
+  content: string | null
   created_at: string
 }
 
 export interface UserStorageStat {
   user_id: string
-  username: string
+  username: string | null
+  email?: string | null
   file_count: number
   total_bytes: number
 }
@@ -66,3 +75,36 @@ export interface AdminMCPServer {
   tool_count: number
   created_at: string
 }
+
+export interface EnvFallbackInfo {
+  llm_model: string
+  llm_base_url: string
+  llm_temperature: number
+  llm_context_size: number
+  llm_max_output_tokens: number
+  fast_llm_model: string
+  fast_llm_context_size: number
+  fast_llm_max_output_tokens: number
+  has_api_key: boolean
+}
+
+export interface AdminModelsResponse {
+  models: import("@/types/model_config").ModelConfigResponse[]
+  env_fallback: EnvFallbackInfo
+}
+
+export interface AdminModelCreate {
+  name: string
+  provider: string
+  model_name: string
+  base_url?: string | null
+  api_key?: string | null
+  category?: string
+  temperature?: number | null
+  max_output_tokens?: number | null
+  context_size?: number | null
+  role?: string | null
+  is_active?: boolean
+}
+
+export type AdminModelUpdate = Partial<AdminModelCreate>

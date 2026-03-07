@@ -43,6 +43,10 @@
   "dagModeDescription": "Systematic breakdown, step by step",
 
   "model": "Model",
+  "generalModel": "General Model",
+  "generalModelDesc": "Used for reasoning, planning, and analysis.",
+  "fastModel": "Fast Model",
+  "fastModelDesc": "Used for DAG step execution and summaries.",
   "useSystemDefault": "Use system default",
 
   "temperature": "Temperature",
@@ -54,6 +58,8 @@
   "memory": "Memory",
   "cpu": "CPU",
   "timeoutSeconds": "Timeout (s)",
+  "defaultMemory": "Default ({value})",
+  "defaultCpu": "Default ({value})",
 
   "toolCategories": "Tool Categories",
   "toolCategoriesHint": "Hover over a category to see what tools it includes.",

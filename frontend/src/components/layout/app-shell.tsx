@@ -22,6 +22,7 @@ import { ConversationProvider, useConversation } from "@/contexts/conversation-c
 import { ConversationSidebar } from "@/components/layout/conversation-sidebar"
 import { ChatSearchDialog } from "@/components/layout/chat-search-dialog"
 import { UserMenu } from "@/components/layout/user-menu"
+import { NavigationProgress } from "@/components/layout/navigation-progress"
 
 /** Wraps children in a right-side tooltip when the sidebar is collapsed. */
 function SidebarTooltip({
@@ -115,7 +116,9 @@ function SidebarNewChat({ collapsed }: { collapsed: boolean }) {
         onClick={() => setSearchOpen(true)}
         className="group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
       >
-        <Search className="h-4 w-4" />
+        <span className="flex h-5 w-5 items-center justify-center">
+          <Search className="h-4 w-4" />
+        </span>
         <span>{tc("search")}</span>
         <kbd className="ml-auto text-xs text-muted-foreground/40 font-normal tracking-[0.1em] opacity-0 group-hover:opacity-100 transition-opacity" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>{isMac ? "⌘K" : "Ctrl+K"}</kbd>
       </button>
@@ -276,7 +279,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (isMaintenance) return <MaintenanceOverlay />
 
   // Public pages: no sidebar, full-width content
-  if (pathname === "/login" || pathname === "/auth/callback" || pathname === "/setup") {
+  if (pathname === "/login" || pathname === "/auth/callback" || pathname === "/setup" || pathname === "/onboarding") {
     return <main className="h-screen bg-background">{children}</main>
   }
 
@@ -288,6 +291,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Authenticated: full layout with conversation sidebar
   return (
     <ConversationProvider>
+      <NavigationProgress />
       <TooltipProvider delayDuration={300}>
       <div className="flex h-screen overflow-hidden bg-background">
         {/* Sidebar */}

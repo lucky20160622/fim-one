@@ -17,12 +17,13 @@ import {
   REFRESH_TOKEN_KEY,
   USER_KEY,
 } from "@/lib/constants"
-import type { UserInfo, LoginRequest, RegisterRequest } from "@/types/auth"
+import type { UserInfo, LoginRequest, LoginWithCodeRequest, RegisterRequest } from "@/types/auth"
 
 interface AuthContextValue {
   user: UserInfo | null
   isLoading: boolean
   login: (body: LoginRequest) => Promise<void>
+  loginWithCode: (body: LoginWithCodeRequest) => Promise<void>
   register: (body: RegisterRequest) => Promise<void>
   logout: () => void
   updateUser: (partial: Partial<UserInfo>) => void
@@ -128,6 +129,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [saveTokens, syncLocaleCookie, scheduleRefresh],
   )
 
+  const loginWithCode = useCallback(
+    async (body: LoginWithCodeRequest) => {
+      const data = await authApi.loginWithCode(body)
+      saveTokens(data.access_token, data.refresh_token, data.user)
+      syncLocaleCookie(data.user.preferred_language)
+      scheduleRefresh(data.expires_in)
+    },
+    [saveTokens, syncLocaleCookie, scheduleRefresh],
+  )
+
   const register = useCallback(
     async (body: RegisterRequest) => {
       const data = await authApi.register(body)
@@ -156,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [clearAuth, router])
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginWithCode, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

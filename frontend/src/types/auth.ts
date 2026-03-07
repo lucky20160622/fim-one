@@ -7,8 +7,9 @@ export interface OAuthBindingInfo {
 
 export interface UserInfo {
   id: string
-  username: string
+  username: string | null
   display_name: string | null
+  avatar: string | null
   is_admin: boolean
   system_instructions?: string | null
   preferred_language?: "auto" | "en" | "zh"
@@ -16,6 +17,7 @@ export interface UserInfo {
   email?: string | null
   has_password?: boolean
   oauth_bindings?: OAuthBindingInfo[]
+  onboarding_completed: boolean
 }
 
 export interface ChangePasswordRequest {
@@ -36,20 +38,23 @@ export interface TokenResponse {
 }
 
 export interface LoginRequest {
-  username?: string
-  email?: string
+  email: string
   password: string
+}
+
+export interface LoginWithCodeRequest {
+  email: string
+  code: string
 }
 
 export interface RegisterRequest {
-  username: string
   password: string
   email: string
   invite_code?: string
+  verification_code?: string
 }
 
 export interface SetupRequest {
-  username: string
+  email: string
   password: string
-  email?: string
 }

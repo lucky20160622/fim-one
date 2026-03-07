@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useTranslations } from "next-intl"
+import { useTranslations, useMessages } from "next-intl"
 import { Badge } from "@/components/ui/badge"
 import {
   Zap,
@@ -51,10 +51,17 @@ const CATEGORY_COLORS: Record<string, string> = {
 /*  ToolCard                                                            */
 /* ------------------------------------------------------------------ */
 
-function ToolCard({ tool, notConfiguredLabel }: { tool: ToolMeta; notConfiguredLabel: string }) {
+interface ToolCardProps {
+  tool: ToolMeta
+  notConfiguredLabel: string
+  toolName: string
+  toolDesc: string
+  categoryLabel: string
+}
+
+function ToolCard({ tool, notConfiguredLabel, toolName, toolDesc, categoryLabel }: ToolCardProps) {
   const [expanded, setExpanded] = useState(false)
   const Icon = CATEGORY_ICONS[tool.category] ?? Wrench
-  const categoryLabel = tool.category.charAt(0).toUpperCase() + tool.category.slice(1)
   const unavailable = tool.available === false
 
   const iconColor = unavailable
@@ -74,7 +81,7 @@ function ToolCard({ tool, notConfiguredLabel }: { tool: ToolMeta; notConfiguredL
         <div className="flex items-center gap-2 min-w-0">
           <Icon className={`h-4 w-4 shrink-0 ${iconColor}`} />
           <span className={`text-sm font-medium shrink-0 ${unavailable ? "text-muted-foreground" : ""}`}>
-            {tool.display_name}
+            {toolName}
           </span>
           <Badge variant="secondary" className="shrink-0 text-xs font-mono">
             {tool.name}
@@ -94,7 +101,7 @@ function ToolCard({ tool, notConfiguredLabel }: { tool: ToolMeta; notConfiguredL
       <p className={`text-xs leading-relaxed ${unavailable ? "text-muted-foreground/60" : "text-muted-foreground"} ${expanded ? "" : "line-clamp-2"}`}>
         {unavailable && tool.unavailable_reason
           ? tool.unavailable_reason
-          : tool.description}
+          : toolDesc}
       </p>
     </div>
   )
@@ -168,43 +175,60 @@ interface BuiltinToolsSectionProps {
 
 export function BuiltinToolsSection({ onSwitchToMCP }: BuiltinToolsSectionProps) {
   const t = useTranslations("tools")
+  const messages = useMessages()
   const { data: catalog, isLoading, error } = useToolCatalog()
-  const [activeCategory, setActiveCategory] = useState<string>("All")
+  const [activeCategory, setActiveCategory] = useState<string>("all")
 
-  // Derive categories from catalog, with "All" prepended, and Connector/MCP appended
+  // Safe lookup for builtin tool name/desc translations
+  const builtinTranslations = ((messages["tools"] as Record<string, unknown>)?.["builtin"] ?? {}) as Record<
+    string,
+    { name?: string; desc?: string }
+  >
+  const getToolName = (tool: ToolMeta) => builtinTranslations[tool.name]?.name ?? tool.display_name
+  const getToolDesc = (tool: ToolMeta) => builtinTranslations[tool.name]?.desc ?? tool.description
+
+  // Category label helper — falls back to title-cased key if translation missing
+  const getCategoryLabel = (key: string) => {
+    try {
+      return t(`categories.${key}` as Parameters<typeof t>[0])
+    } catch {
+      return key.charAt(0).toUpperCase() + key.slice(1)
+    }
+  }
+
+  // Derive categories from catalog; exclude connector/mcp (they have dedicated link cards)
   const apiCategories = catalog?.categories ?? []
-  // Exclude connector and mcp from tool categories (they have dedicated link cards)
   const toolCategories = apiCategories.filter((c) => c !== "connector" && c !== "mcp")
-  const categories = ["All", ...toolCategories.map((c) => c.charAt(0).toUpperCase() + c.slice(1)), "Connector", "MCP"]
+  const categoryKeys = ["all", ...toolCategories, "connector", "mcp"]
 
-  // Filter tools from catalog (exclude connector/mcp tools — those come from link cards)
+  // Filter tools from catalog (exclude connector/mcp tools)
   const allTools = catalog?.tools.filter((t) => t.category !== "connector" && t.category !== "mcp") ?? []
 
-  const showConnector = activeCategory === "All" || activeCategory === "Connector"
-  const showMCP = activeCategory === "All" || activeCategory === "MCP"
+  const showConnector = activeCategory === "all" || activeCategory === "connector"
+  const showMCP = activeCategory === "all" || activeCategory === "mcp"
 
   const filteredTools =
-    activeCategory === "All"
+    activeCategory === "all"
       ? allTools
-      : activeCategory === "Connector" || activeCategory === "MCP"
+      : activeCategory === "connector" || activeCategory === "mcp"
         ? []
-        : allTools.filter((t) => t.category === activeCategory.toLowerCase())
+        : allTools.filter((tool) => tool.category === activeCategory)
 
   return (
     <div className="flex flex-col gap-4">
       {/* Category filter chips */}
       <div className="flex items-center gap-1.5 flex-wrap">
-        {categories.map((cat) => (
+        {categoryKeys.map((key) => (
           <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
+            key={key}
+            onClick={() => setActiveCategory(key)}
             className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-              activeCategory === cat
+              activeCategory === key
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:text-foreground"
             }`}
           >
-            {cat}
+            {getCategoryLabel(key)}
           </button>
         ))}
       </div>
@@ -229,7 +253,14 @@ export function BuiltinToolsSection({ onSwitchToMCP }: BuiltinToolsSectionProps)
       {!isLoading && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filteredTools.map((tool) => (
-            <ToolCard key={tool.name} tool={tool} notConfiguredLabel={t("notConfigured")} />
+            <ToolCard
+              key={tool.name}
+              tool={tool}
+              notConfiguredLabel={t("notConfigured")}
+              toolName={getToolName(tool)}
+              toolDesc={getToolDesc(tool)}
+              categoryLabel={getCategoryLabel(tool.category)}
+            />
           ))}
           {showConnector && <ConnectorLinkCard label={t("connectorLabel")} description={t("connectorDescription")} />}
           {showMCP && <MCPLinkCard onSwitch={onSwitchToMCP} label={t("mcpServersLinkLabel")} description={t("mcpServersLinkDescription")} />}

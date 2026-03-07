@@ -1,22 +1,36 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
+import { Pencil, Sparkles } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
+import { UserAvatar } from "@/components/shared/user-avatar"
+import { AvatarPickerDialog } from "@/components/settings/avatar-picker-dialog"
 import { useAuth } from "@/contexts/auth-context"
 import { authApi } from "@/lib/api"
 import { toast } from "sonner"
 
 const MAX_INSTRUCTIONS_LENGTH = 2000
 const MAX_DISPLAY_NAME_LENGTH = 50
+const MAX_USERNAME_LENGTH = 50
+const MIN_USERNAME_LENGTH = 2
 
 export function GeneralSettings() {
   const { user, updateUser } = useAuth()
   const t = useTranslations("settings.general")
   const tc = useTranslations("common")
+  const router = useRouter()
+
+  // --- Avatar ---
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
+
+  // --- Username ---
+  const [username, setUsername] = useState("")
+  const [savingUsername, setSavingUsername] = useState(false)
 
   // --- Profile ---
   const [displayName, setDisplayName] = useState("")
@@ -28,16 +42,51 @@ export function GeneralSettings() {
 
   useEffect(() => {
     if (user) {
+      setUsername(user.username || "")
       setDisplayName(user.display_name || "")
       setInstructions(user.system_instructions || "")
     }
   }, [user])
 
+  const displayLabel = user?.display_name || user?.username || ""
+  const initial = (displayLabel || "U").charAt(0).toUpperCase()
+
+  // Username validation
+  const isUsernameDirty = username !== (user?.username || "")
+  const isUsernameOverLimit = username.length > MAX_USERNAME_LENGTH
+  const isUsernameTooShort = username.length > 0 && username.length < MIN_USERNAME_LENGTH
+
+  // Display name validation
   const isDisplayNameDirty = displayName !== (user?.display_name || "")
   const isDisplayNameOverLimit = displayName.length > MAX_DISPLAY_NAME_LENGTH
 
+  // Instructions validation
   const isInstructionsDirty = instructions !== (user?.system_instructions || "")
   const isInstructionsOverLimit = instructions.length > MAX_INSTRUCTIONS_LENGTH
+
+  const handleSaveUsername = async () => {
+    if (!isUsernameDirty || isUsernameOverLimit || isUsernameTooShort) return
+    setSavingUsername(true)
+    try {
+      const updated = await authApi.updateProfile({
+        username: username.trim(),
+      })
+      updateUser(updated)
+      toast.success(t("usernameSaved"))
+    } catch (err: unknown) {
+      const msg =
+        (err as { message?: string })?.message ||
+        (err as { error?: string })?.error ||
+        ""
+      if (msg.includes("username_taken")) {
+        toast.error(t("usernameTaken"))
+      } else {
+        toast.error(t("usernameSaveFailed"))
+      }
+    } finally {
+      setSavingUsername(false)
+    }
+  }
 
   const handleSaveProfile = async () => {
     if (!isDisplayNameDirty || isDisplayNameOverLimit) return
@@ -48,7 +97,7 @@ export function GeneralSettings() {
       })
       updateUser(updated)
       toast.success(t("profileSaved"))
-    } catch (err) {
+    } catch {
       toast.error(t("profileSaveFailed"))
     } finally {
       setSavingProfile(false)
@@ -64,7 +113,7 @@ export function GeneralSettings() {
       })
       updateUser(updated)
       toast.success(t("instructionsSaved"))
-    } catch (err) {
+    } catch {
       toast.error(t("instructionsSaveFailed"))
     } finally {
       setSavingInstructions(false)
@@ -83,11 +132,69 @@ export function GeneralSettings() {
         </div>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">{t("usernameLabel")}</label>
-            <p className="text-sm text-foreground">{user?.username}</p>
+          {/* Avatar */}
+          <div className="flex items-center gap-4">
+            <div className="relative group">
+              <UserAvatar
+                avatar={user?.avatar ?? null}
+                fallback={initial}
+                userId={user?.id}
+                className="h-16 w-16"
+                iconClassName="h-8 w-8"
+              />
+              <button
+                onClick={() => setAvatarDialogOpen(true)}
+                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 group-hover:bg-black/40 transition-colors cursor-pointer"
+              >
+                <Pencil className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            </div>
+            <div>
+              <p className="text-sm font-medium">{t("avatarTitle")}</p>
+              <p className="text-xs text-muted-foreground">
+                {t("avatarDescription")}
+              </p>
+            </div>
           </div>
 
+          {/* Username */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">{t("usernameLabel")}</label>
+            <Input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder={t("usernamePlaceholder")}
+              maxLength={MAX_USERNAME_LENGTH + 10}
+              className="max-w-sm"
+            />
+            <div className="flex items-center justify-between max-w-sm">
+              <span
+                className={`text-xs ${
+                  isUsernameOverLimit || isUsernameTooShort
+                    ? "text-destructive"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {isUsernameTooShort
+                  ? t("usernameMinLength")
+                  : `${username.length} / ${MAX_USERNAME_LENGTH}`}
+              </span>
+              <Button
+                size="sm"
+                onClick={handleSaveUsername}
+                disabled={
+                  !isUsernameDirty ||
+                  isUsernameOverLimit ||
+                  isUsernameTooShort ||
+                  savingUsername
+                }
+              >
+                {savingUsername ? tc("saving") : tc("save")}
+              </Button>
+            </div>
+          </div>
+
+          {/* Display Name */}
           <div className="space-y-2">
             <label className="text-sm font-medium">{t("displayNameLabel")}</label>
             <Input
@@ -166,6 +273,38 @@ export function GeneralSettings() {
           </div>
         </div>
       </div>
+
+      <Separator />
+
+      {/* Personalization Section */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-base font-medium">{t("personalizationTitle")}</h3>
+          <p className="text-sm text-muted-foreground">
+            {t("personalizationDescription")}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={async () => {
+            try {
+              const updated = await authApi.updateProfile({ onboarding_completed: false })
+              updateUser(updated)
+              router.push("/onboarding?from=settings")
+            } catch {
+              toast.error(t("personalizationFailed"))
+            }
+          }}
+        >
+          <Sparkles className="mr-2 h-4 w-4" />
+          {t("redoOnboarding")}
+        </Button>
+      </div>
+
+      <AvatarPickerDialog
+        open={avatarDialogOpen}
+        onOpenChange={setAvatarDialogOpen}
+      />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 import { Loader2, ShieldOff, ShieldCheck, Megaphone, Wrench, LogOut, AlertTriangle, Zap, Plus, Ticket, Copy, X, Eye } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -43,6 +43,7 @@ import type { InviteCode } from "@/types/admin"
 interface SystemSettings {
   registration_enabled: boolean
   registration_mode: string
+  email_verification_enabled: boolean
   maintenance_mode: boolean
   announcement_enabled: boolean
   announcement_text: string
@@ -53,6 +54,7 @@ export function AdminSettings() {
   const t = useTranslations("admin.settings")
   const tc = useTranslations("common")
   const tError = useTranslations("errors")
+  const locale = useLocale()
   const [settings, setSettings] = useState<SystemSettings | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -170,6 +172,27 @@ export function AdminSettings() {
                 : t("registrationDisabledDesc")}
             </p>
           </div>
+          {registrationMode === "open" && (
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <div>
+                <Label htmlFor="email-verification-toggle" className="text-sm font-medium cursor-pointer">
+                  {t("emailVerificationToggle")}
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t("emailVerificationDesc")}
+                </p>
+              </div>
+              <Switch
+                id="email-verification-toggle"
+                checked={settings?.email_verification_enabled ?? false}
+                onCheckedChange={async (v) => {
+                  await patch({ email_verification_enabled: v })
+                  toast.success(v ? t("emailVerificationEnabled") : t("emailVerificationDisabled"))
+                }}
+                disabled={isSaving}
+              />
+            </div>
+          )}
           {registrationMode === "invite" && <InviteCodeManager />}
         </div>
       </SettingSection>
@@ -349,6 +372,7 @@ function InviteCodeManager() {
   const t = useTranslations("admin.settings")
   const tc = useTranslations("common")
   const tError = useTranslations("errors")
+  const locale = useLocale()
   const [codes, setCodes] = useState<InviteCode[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
@@ -468,7 +492,7 @@ function InviteCodeManager() {
                 </Badge>
                 {c.expires_at && (
                   <span className="text-xs text-muted-foreground">
-                    {t("expiresLabel", { date: new Date(c.expires_at).toLocaleDateString() })}
+                    {t("expiresLabel", { date: new Date(c.expires_at).toLocaleDateString(locale) })}
                   </span>
                 )}
                 {!c.is_active ? (

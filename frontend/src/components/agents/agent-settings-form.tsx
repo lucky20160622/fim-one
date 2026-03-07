@@ -61,6 +61,7 @@ export function AgentSettingsForm({
   const [sandboxCpu, setSandboxCpu] = useState<string>("")
   const [sandboxTimeout, setSandboxTimeout] = useState<string>("")
   const [selectedModelConfigId, setSelectedModelConfigId] = useState<string>("")
+  const [selectedFastModelConfigId, setSelectedFastModelConfigId] = useState<string>("")
   const [systemModels, setSystemModels] = useState<ModelConfigResponse[]>([])
 
   const [availableKBs, setAvailableKBs] = useState<{ id: string; name: string; document_count: number }[]>([])
@@ -88,6 +89,7 @@ export function AgentSettingsForm({
       setSandboxCpu(agent.sandbox_config?.cpu != null ? String(agent.sandbox_config.cpu) : "")
       setSandboxTimeout(agent.sandbox_config?.timeout != null ? String(agent.sandbox_config.timeout) : "")
       setSelectedModelConfigId((agent.model_config_json?.model_config_id as string) ?? "")
+      setSelectedFastModelConfigId((agent.model_config_json?.fast_model_config_id as string) ?? "")
     } else {
       setName("")
       setIcon(null)
@@ -104,6 +106,7 @@ export function AgentSettingsForm({
       setSandboxCpu("")
       setSandboxTimeout("")
       setSelectedModelConfigId("")
+      setSelectedFastModelConfigId("")
     }
   }, [agent])
 
@@ -147,9 +150,10 @@ export function AgentSettingsForm({
       sandboxMemory !== (agent.sandbox_config?.memory ?? "") ||
       sandboxCpu !== (agent.sandbox_config?.cpu != null ? String(agent.sandbox_config.cpu) : "") ||
       sandboxTimeout !== (agent.sandbox_config?.timeout != null ? String(agent.sandbox_config.timeout) : "") ||
-      selectedModelConfigId !== ((agent.model_config_json?.model_config_id as string) ?? "")
+      selectedModelConfigId !== ((agent.model_config_json?.model_config_id as string) ?? "") ||
+      selectedFastModelConfigId !== ((agent.model_config_json?.fast_model_config_id as string) ?? "")
     onDirtyChange(dirty)
-  }, [agent, name, icon, description, instructions, executionMode, toolCategories, suggestedPrompts, selectedKBs, selectedConnectors, confidenceThreshold, temperature, sandboxMemory, sandboxCpu, sandboxTimeout, selectedModelConfigId, onDirtyChange])
+  }, [agent, name, icon, description, instructions, executionMode, toolCategories, suggestedPrompts, selectedKBs, selectedConnectors, confidenceThreshold, temperature, sandboxMemory, sandboxCpu, sandboxTimeout, selectedModelConfigId, selectedFastModelConfigId, onDirtyChange])
 
   const toggleCategory = (cat: string) => {
     setToolCategories((prev) =>
@@ -181,6 +185,11 @@ export function AgentSettingsForm({
         merged.model_config_id = selectedModelConfigId
       } else {
         delete merged.model_config_id
+      }
+      if (selectedFastModelConfigId) {
+        merged.fast_model_config_id = selectedFastModelConfigId
+      } else {
+        delete merged.fast_model_config_id
       }
       const modelConfigJson = Object.keys(merged).length > 0 ? merged : undefined
 
@@ -316,7 +325,12 @@ export function AgentSettingsForm({
           {/* Model */}
           {systemModels.length > 0 && (
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">{t("model")}</label>
+              <label className="text-sm font-medium">
+                {executionMode === "dag" ? t("generalModel") : t("model")}
+              </label>
+              {executionMode === "dag" && (
+                <p className="text-xs text-muted-foreground">{t("generalModelDesc")}</p>
+              )}
               <Select
                 value={selectedModelConfigId}
                 onValueChange={(v) => setSelectedModelConfigId(v === "__default__" ? "" : v)}
@@ -327,11 +341,33 @@ export function AgentSettingsForm({
                 <SelectContent>
                   <SelectItem value="__default__">
                     {t("useSystemDefault")}
-                    {systemModels.find((m) => m.is_default) && (
-                      <span className="text-muted-foreground ml-1">
-                        ({systemModels.find((m) => m.is_default)!.name})
-                      </span>
-                    )}
+                  </SelectItem>
+                  {systemModels.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                      <span className="text-muted-foreground ml-1 text-xs">({m.model_name})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Fast Model — only for DAG mode */}
+          {systemModels.length > 0 && executionMode === "dag" && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">{t("fastModel")}</label>
+              <p className="text-xs text-muted-foreground">{t("fastModelDesc")}</p>
+              <Select
+                value={selectedFastModelConfigId}
+                onValueChange={(v) => setSelectedFastModelConfigId(v === "__default__" ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("useSystemDefault")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">
+                    {t("useSystemDefault")}
                   </SelectItem>
                   {systemModels.map((m) => (
                     <SelectItem key={m.id} value={m.id}>
@@ -396,7 +432,7 @@ export function AgentSettingsForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__default__">Default (256m)</SelectItem>
+                    <SelectItem value="__default__">{t("defaultMemory", { value: "256m" })}</SelectItem>
                     <SelectItem value="128m">128m</SelectItem>
                     <SelectItem value="256m">256m</SelectItem>
                     <SelectItem value="512m">512m</SelectItem>
@@ -414,7 +450,7 @@ export function AgentSettingsForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__default__">Default (0.5)</SelectItem>
+                    <SelectItem value="__default__">{t("defaultCpu", { value: "0.5" })}</SelectItem>
                     <SelectItem value="0.25">0.25</SelectItem>
                     <SelectItem value="0.5">0.5</SelectItem>
                     <SelectItem value="1">1.0</SelectItem>

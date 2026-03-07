@@ -54,7 +54,7 @@ export function AdminStorage() {
     if (!clearTarget) return
     try {
       await adminApi.clearUserStorage(clearTarget.user_id)
-      toast.success(t("clearedStorage", { username: clearTarget.username }))
+      toast.success(t("clearedStorage", { username: clearTarget.username || clearTarget.email || "" }))
       setClearTarget(null)
       load()
     } catch (err) {
@@ -119,7 +119,7 @@ export function AdminStorage() {
             <tbody className="divide-y divide-border">
               {stats.users.map((u) => (
                 <tr key={u.user_id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{u.username}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">{u.username || u.email}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{u.file_count}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatBytes(u.total_bytes)}</td>
                   <td className="px-4 py-3">
@@ -145,7 +145,7 @@ export function AdminStorage() {
           <AlertDialogHeader>
             <AlertDialogTitle>{t("clearTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("clearDesc", { size: clearTarget ? formatBytes(clearTarget.total_bytes) : "", username: clearTarget?.username ?? "" })}
+              {t("clearDesc", { size: clearTarget ? formatBytes(clearTarget.total_bytes) : "", username: clearTarget?.username || clearTarget?.email || "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

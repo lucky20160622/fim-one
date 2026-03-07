@@ -43,6 +43,10 @@
   "dagModeDescription": "系统分解，逐步执行",
 
   "model": "模型",
+  "generalModel": "通用模型",
+  "generalModelDesc": "用于推理、规划和分析。",
+  "fastModel": "快速模型",
+  "fastModelDesc": "用于 DAG 步骤执行和摘要压缩。",
   "useSystemDefault": "使用系统默认",
 
   "temperature": "温度",
@@ -54,6 +58,8 @@
   "memory": "内存",
   "cpu": "CPU",
   "timeoutSeconds": "超时 (秒)",
+  "defaultMemory": "默认 ({value})",
+  "defaultCpu": "默认 ({value})",
 
   "toolCategories": "工具类别",
   "toolCategoriesHint": "将鼠标悬停在类别上查看包含的工具。",

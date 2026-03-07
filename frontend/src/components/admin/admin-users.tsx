@@ -213,7 +213,7 @@ export function AdminUsers() {
     setIsMutating(true)
     try {
       await adminApi.deleteUser(deleteTarget.id)
-      toast.success(t("userDeleted", { username: deleteTarget.username }))
+      toast.success(t("userDeleted", { username: deleteTarget.username || deleteTarget.email || "" }))
       setDeleteTarget(null)
       await loadUsers()
     } catch (err: unknown) {
@@ -339,7 +339,7 @@ export function AdminUsers() {
                   <tr key={u.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3 font-medium text-foreground">
                       <div className="flex items-center gap-1.5">
-                        {u.username}
+                        {u.username || u.email}
                         {isSelf && (
                           <span className="text-xs text-muted-foreground">
                             {t("you")}
@@ -440,7 +440,7 @@ export function AdminUsers() {
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
+                                variant="destructive"
                                 onClick={() => setDeleteTarget(u)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
@@ -557,7 +557,7 @@ export function AdminUsers() {
           <DialogHeader>
             <DialogTitle>{t("editTitle")}</DialogTitle>
             <DialogDescription>
-              {t("editDesc", { username: editTarget?.username ?? "" })}
+              {t("editDesc", { username: editTarget?.username || editTarget?.email || "" })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -600,7 +600,7 @@ export function AdminUsers() {
           <DialogHeader>
             <DialogTitle>{t("resetPassword")}</DialogTitle>
             <DialogDescription>
-              {t("resetPasswordDesc", { username: resetTarget?.username ?? "" })}
+              {t("resetPasswordDesc", { username: resetTarget?.username || resetTarget?.email || "" })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -641,8 +641,8 @@ export function AdminUsers() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {adminToggleTarget?.is_admin
-                ? t("revokeAdminDesc", { username: adminToggleTarget.username })
-                : t("grantAdminDesc", { username: adminToggleTarget?.username ?? "" })}
+                ? t("revokeAdminDesc", { username: adminToggleTarget.username || adminToggleTarget.email || "" })
+                : t("grantAdminDesc", { username: adminToggleTarget?.username || adminToggleTarget?.email || "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -667,8 +667,8 @@ export function AdminUsers() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {activeToggleTarget?.is_active
-                ? t("disableAccountDesc", { username: activeToggleTarget.username })
-                : t("enableAccountDesc", { username: activeToggleTarget?.username ?? "" })}
+                ? t("disableAccountDesc", { username: activeToggleTarget.username || activeToggleTarget.email || "" })
+                : t("enableAccountDesc", { username: activeToggleTarget?.username || activeToggleTarget?.email || "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -688,7 +688,7 @@ export function AdminUsers() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("deleteUserTitle", { username: deleteTarget?.username ?? "" })}</AlertDialogTitle>
+            <AlertDialogTitle>{t("deleteUserTitle", { username: deleteTarget?.username || deleteTarget?.email || "" })}</AlertDialogTitle>
             <AlertDialogDescription>
               {t("deleteUserDesc")}
             </AlertDialogDescription>
@@ -716,7 +716,7 @@ export function AdminUsers() {
           <DialogHeader>
             <DialogTitle>{t("setQuotaTitle")}</DialogTitle>
             <DialogDescription>
-              {t("setQuotaDesc", { username: quotaTarget?.username ?? "" })}
+              {t("setQuotaDesc", { username: quotaTarget?.username || quotaTarget?.email || "" })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">

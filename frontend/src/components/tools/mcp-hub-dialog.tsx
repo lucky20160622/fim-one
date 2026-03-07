@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { useTranslations } from "next-intl"
+import { useTranslations, useMessages } from "next-intl"
 import { Search, Key, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -230,8 +230,18 @@ interface MCPHubDialogProps {
 
 export function MCPHubDialog({ open, onOpenChange, onInstallLocal }: MCPHubDialogProps) {
   const t = useTranslations("tools")
+  const messages = useMessages()
   const [query, setQuery] = useState("")
   const [activeCategory, setActiveCategory] = useState("All")
+
+  // Safe translation helpers using raw messages to avoid throwing on missing keys
+  const mcpHub = ((messages["tools"] as Record<string, unknown>)?.["mcpHub"] ?? {}) as {
+    categories?: Record<string, string>
+    servers?: Record<string, { desc?: string; config?: string }>
+  }
+  const getCategoryLabel = (cat: string) => mcpHub.categories?.[cat] ?? cat
+  const getServerDesc = (server: CuratedServer) => mcpHub.servers?.[server.name]?.desc ?? server.description
+  const getServerConfig = (server: CuratedServer) => mcpHub.servers?.[server.name]?.config ?? server.requiresConfig
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
@@ -248,7 +258,7 @@ export function MCPHubDialog({ open, onOpenChange, onInstallLocal }: MCPHubDialo
   const handleConfigure = (server: CuratedServer) => {
     onInstallLocal({
       name: server.name,
-      description: server.description,
+      description: getServerDesc(server),
       transport: "stdio",
       command: server.command,
       args: server.args,
@@ -283,7 +293,7 @@ export function MCPHubDialog({ open, onOpenChange, onInstallLocal }: MCPHubDialo
                     : "bg-transparent text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground"
                 }`}
               >
-                {cat}
+                {getCategoryLabel(cat)}
               </button>
             ))}
           </div>
@@ -302,6 +312,9 @@ export function MCPHubDialog({ open, onOpenChange, onInstallLocal }: MCPHubDialo
                   server={server}
                   onConfigure={() => handleConfigure(server)}
                   configureLabel={t("configure")}
+                  categoryLabel={getCategoryLabel(server.category)}
+                  desc={getServerDesc(server)}
+                  configHint={getServerConfig(server)}
                 />
               ))}
             </div>
@@ -316,7 +329,16 @@ export function MCPHubDialog({ open, onOpenChange, onInstallLocal }: MCPHubDialo
 // Card
 // ---------------------------------------------------------------------------
 
-function CatalogCard({ server, onConfigure, configureLabel }: { server: CuratedServer; onConfigure: () => void; configureLabel: string }) {
+interface CatalogCardProps {
+  server: CuratedServer
+  onConfigure: () => void
+  configureLabel: string
+  categoryLabel: string
+  desc: string
+  configHint?: string
+}
+
+function CatalogCard({ server, onConfigure, configureLabel, categoryLabel, desc, configHint }: CatalogCardProps) {
   return (
     <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-3 hover:border-border/80 transition-colors">
       {/* Avatar */}
@@ -331,15 +353,15 @@ function CatalogCard({ server, onConfigure, configureLabel }: { server: CuratedS
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-sm font-medium text-foreground">{server.name}</span>
           <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 shrink-0 ${CATEGORY_STYLES[server.category] ?? "bg-muted text-muted-foreground ring-border"}`}>
-            {server.category}
+            {categoryLabel}
           </span>
         </div>
         <p className="text-xs font-mono text-muted-foreground truncate mt-0.5">{server.package}</p>
-        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{server.description}</p>
-        {server.requiresConfig && (
+        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{desc}</p>
+        {configHint && (
           <p className="flex items-center gap-1 text-[10px] text-amber-600/80 mt-1.5">
             <Key className="h-2.5 w-2.5 shrink-0" />
-            {server.requiresConfig}
+            {configHint}
           </p>
         )}
       </div>

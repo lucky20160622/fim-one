@@ -1,12 +1,19 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { useTranslations } from "next-intl"
-import { Trash2, Search, Loader2 } from "lucide-react"
+import { useTranslations, useLocale } from "next-intl"
+import { Trash2, Search, Loader2, Eye } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,16 +24,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { adminApi } from "@/lib/api"
 import { getErrorMessage } from "@/lib/error-utils"
-import type { AdminConversation } from "@/types/admin"
+import type { AdminConversation, AdminMessage } from "@/types/admin"
 
 const PAGE_SIZE = 20
+
+const ROLE_BADGE_VARIANT: Record<string, string> = {
+  user: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  assistant: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+  system: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  tool: "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
+}
 
 export function AdminConversations() {
   const t = useTranslations("admin.conversations")
   const tc = useTranslations("common")
   const tError = useTranslations("errors")
+  const locale = useLocale()
   const [conversations, setConversations] = useState<AdminConversation[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -34,6 +50,11 @@ export function AdminConversations() {
   const [isLoading, setIsLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState<AdminConversation | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // View dialog state
+  const [viewTarget, setViewTarget] = useState<AdminConversation | null>(null)
+  const [messages, setMessages] = useState<AdminMessage[]>([])
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
 
   const loadConversations = useCallback(async () => {
     setIsLoading(true)
@@ -68,6 +89,27 @@ export function AdminConversations() {
     } catch (err) {
       toast.error(getErrorMessage(err, tError))
     }
+  }
+
+  const handleView = async (conv: AdminConversation) => {
+    setViewTarget(conv)
+    setMessages([])
+    setIsLoadingMessages(true)
+    try {
+      const msgs = await adminApi.getConversationMessages(conv.id)
+      setMessages(msgs)
+    } catch (err) {
+      toast.error(getErrorMessage(err, tError))
+    } finally {
+      setIsLoadingMessages(false)
+    }
+  }
+
+  const getRoleBadgeLabel = (role: string): string => {
+    const key = `messageRole.${role}` as const
+    // next-intl returns the key if not found, so fall back to raw role
+    const label = t(key)
+    return label === key ? role : label
   }
 
   const pages = Math.ceil(total / PAGE_SIZE)
@@ -114,13 +156,13 @@ export function AdminConversations() {
                 <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">{t("tokensColumn")}</th>
                 <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">{t("msgsColumn")}</th>
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("dateColumn")}</th>
-                <th className="px-4 py-2.5 w-10" />
+                <th className="px-4 py-2.5 w-20" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {conversations.map((conv) => (
                 <tr key={conv.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{conv.username}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">{conv.username || conv.email || "--"}</td>
                   <td className="px-4 py-3 max-w-[200px] truncate text-muted-foreground">
                     {conv.title ?? t("untitled")}
                   </td>
@@ -131,17 +173,28 @@ export function AdminConversations() {
                   <td className="px-4 py-3 text-right tabular-nums">{conv.total_tokens.toLocaleString()}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{conv.message_count}</td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
-                    {new Date(conv.created_at).toLocaleDateString()}
+                    {new Date(conv.created_at).toLocaleDateString(locale)}
                   </td>
                   <td className="px-4 py-3">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-destructive"
-                      onClick={() => setDeleteTarget(conv)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleView(conv)}
+                        title={t("view")}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-destructive"
+                        onClick={() => setDeleteTarget(conv)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -178,13 +231,61 @@ export function AdminConversations() {
         </div>
       )}
 
+      {/* View Messages Sheet (right drawer) */}
+      <Sheet open={!!viewTarget} onOpenChange={(open) => !open && setViewTarget(null)}>
+        <SheetContent side="right" className="sm:max-w-2xl w-full flex flex-col p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-border/40 shrink-0">
+            <SheetTitle>{t("viewTitle")}</SheetTitle>
+            <SheetDescription>
+              {t("viewSubtitle", {
+                title: viewTarget?.title ?? t("untitled"),
+                username: viewTarget?.username || viewTarget?.email || "--",
+              })}
+            </SheetDescription>
+          </SheetHeader>
+
+          {isLoadingMessages ? (
+            <div className="flex items-center justify-center flex-1">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+              <span className="text-sm text-muted-foreground">{t("loadingMessages")}</span>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+              {t("noMessages")}
+            </div>
+          ) : (
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="space-y-4 px-6 py-4">
+                {messages.map((msg) => (
+                  <div key={msg.id} className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${ROLE_BADGE_VARIANT[msg.role] ?? ROLE_BADGE_VARIANT.system}`}
+                      >
+                        {getRoleBadgeLabel(msg.role)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(msg.created_at).toLocaleString(locale)}
+                      </span>
+                    </div>
+                    <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm whitespace-pre-wrap break-words">
+                      {msg.content || <span className="italic text-muted-foreground/50">--</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </SheetContent>
+      </Sheet>
+
       {/* Delete AlertDialog */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("deleteDesc", { title: deleteTarget?.title ?? t("untitled"), username: deleteTarget?.username ?? "" })}
+              {t("deleteDesc", { title: deleteTarget?.title ?? t("untitled"), username: deleteTarget?.username || deleteTarget?.email || "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

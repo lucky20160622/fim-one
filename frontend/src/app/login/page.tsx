@@ -29,7 +29,6 @@ function LoginPageInner() {
   // Login form state
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
-  const [loginError, setLoginError] = useState("")
   const [loginLoading, setLoginLoading] = useState(false)
 
   // OTP login state
@@ -44,7 +43,7 @@ function LoginPageInner() {
 
   // Forgot password state
   const [forgotMode, setForgotMode] = useState(false)
-  const [forgotStep, setForgotStep] = useState<"email" | "code">("email")
+  const [forgotStep, setForgotStep] = useState<"email" | "code" | "password">("email")
   const [forgotEmail, setForgotEmail] = useState("")
   const [forgotCode, setForgotCode] = useState("")
   const [forgotNewPassword, setForgotNewPassword] = useState("")
@@ -52,13 +51,14 @@ function LoginPageInner() {
   const [forgotSending, setForgotSending] = useState(false)
   const [forgotSubmitting, setForgotSubmitting] = useState(false)
   const [forgotResendCountdown, setForgotResendCountdown] = useState(0)
+  const [forgotResetToken, setForgotResetToken] = useState("")
+  const [forgotVerifying, setForgotVerifying] = useState(false)
 
   // Register form state
   const [regEmail, setRegEmail] = useState("")
   const [regPassword, setRegPassword] = useState("")
   const [regConfirm, setRegConfirm] = useState("")
   const [regInviteCode, setRegInviteCode] = useState("")
-  const [regError, setRegError] = useState("")
   const [regLoading, setRegLoading] = useState(false)
 
   // Email verification state
@@ -77,7 +77,6 @@ function LoginPageInner() {
 
   // OAuth state
   const [oauthProviders, setOauthProviders] = useState<string[]>([])
-  const [oauthError, setOauthError] = useState("")
 
   // Redirect if already logged in (also fires after login/register when user state updates)
   useEffect(() => {
@@ -134,11 +133,11 @@ function LoginPageInner() {
     const error = searchParams.get("error")
     if (error) {
       if (error === "oauth_failed") {
-        setOauthError(t("oauthFailed"))
+        toast.error(t("oauthFailed"))
       } else if (error === "registration_disabled") {
-        setOauthError(t("oauthRegistrationDisabled"))
+        toast.error(t("oauthRegistrationDisabled"))
       } else {
-        setOauthError(error)
+        toast.error(error)
       }
     }
   }, [searchParams, t])
@@ -182,13 +181,12 @@ function LoginPageInner() {
   }, [forgotResendCountdown])
 
   const handleSendCode = async () => {
-    setRegError("")
     if (!regEmail.trim()) {
-      setRegError(t("emailRequired"))
+      toast.error(t("emailRequired"))
       return
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail)) {
-      setRegError(t("emailInvalid"))
+      toast.error(t("emailInvalid"))
       return
     }
     setSendingCode(true)
@@ -206,13 +204,12 @@ function LoginPageInner() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoginError("")
     setLoginLoading(true)
     try {
       await login({ email: loginEmail, password: loginPassword })
       // Redirect is handled by the useEffect that watches user state
     } catch (err) {
-      setLoginError(err instanceof Error ? err.message : t("loginFailed"))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setLoginLoading(false)
     }
@@ -249,7 +246,6 @@ function LoginPageInner() {
 
   // Accept optional codeOverride for auto-submit from OTP onComplete
   const doRegister = useCallback(async (codeOverride?: string) => {
-    setRegError("")
     setRegLoading(true)
     try {
       await register({
@@ -284,14 +280,31 @@ function LoginPageInner() {
     }
   }
 
+  const doVerifyForgotCode = useCallback(async (codeOverride?: string) => {
+    setForgotVerifying(true)
+    try {
+      const result = await authApi.verifyForgotCode({
+        email: forgotEmail,
+        code: codeOverride || forgotCode,
+      })
+      setForgotResetToken(result.data.reset_token)
+      setForgotStep("password")
+    } catch (err) {
+      toast.error(getErrorMessage(err, tError))
+      setForgotCode("")
+    } finally {
+      setForgotVerifying(false)
+    }
+  }, [forgotEmail, forgotCode, tError])
+
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (forgotCode.length < 6 || forgotNewPassword.length < 8 || forgotNewPassword !== forgotConfirmPassword) return
+    if (forgotNewPassword.length < 8 || forgotNewPassword !== forgotConfirmPassword) return
     setForgotSubmitting(true)
     try {
       await authApi.forgotPassword({
         email: forgotEmail,
-        code: forgotCode,
+        reset_token: forgotResetToken,
         new_password: forgotNewPassword,
       })
       toast.success(t("passwordResetSuccess"))
@@ -302,12 +315,9 @@ function LoginPageInner() {
       setForgotNewPassword("")
       setForgotConfirmPassword("")
       setForgotEmail("")
+      setForgotResetToken("")
     } catch (err) {
       toast.error(getErrorMessage(err, tError))
-      const apiErr = err as import("@/lib/api").ApiError
-      if (apiErr.errorCode === "verification_code_invalid" || apiErr.errorCode === "verification_code_expired" || apiErr.errorCode === "verification_code_too_many_attempts") {
-        setForgotCode("")
-      }
     } finally {
       setForgotSubmitting(false)
     }
@@ -320,27 +330,27 @@ function LoginPageInner() {
     setForgotCode("")
     setForgotNewPassword("")
     setForgotConfirmPassword("")
+    setForgotResetToken("")
   }
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    setRegError("")
 
     // Validate fields
     if (!regEmail.trim()) {
-      setRegError(t("emailRequired"))
+      toast.error(t("emailRequired"))
       return
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail)) {
-      setRegError(t("emailInvalid"))
+      toast.error(t("emailInvalid"))
       return
     }
     if (regPassword !== regConfirm) {
-      setRegError(t("passwordsDoNotMatch"))
+      toast.error(t("passwordsDoNotMatch"))
       return
     }
     if (regPassword.length < 6) {
-      setRegError(t("passwordMinLength"))
+      toast.error(t("passwordMinLength"))
       return
     }
 
@@ -448,11 +458,6 @@ function LoginPageInner() {
             </p>
           </div>
 
-          {/* OAuth Error */}
-          {oauthError && (
-            <p className="text-sm text-destructive text-center mb-4">{oauthError}</p>
-          )}
-
           {/* OAuth Buttons — only in open registration mode; invite/disabled hides them to prevent bypassing invite codes */}
           {oauthProviders.length > 0 && registrationMode === "open" && (
             <>
@@ -547,8 +552,8 @@ function LoginPageInner() {
                       </button>
                     </div>
                   </div>
-                ) : (
-                  <form onSubmit={handleForgotPasswordSubmit} className="space-y-4 pt-4">
+                ) : forgotStep === "code" ? (
+                  <div className="space-y-4 pt-4">
                     <p className="text-sm text-muted-foreground">
                       {t("resetCodeSent", { email: forgotEmail })}
                     </p>
@@ -557,6 +562,8 @@ function LoginPageInner() {
                         maxLength={6}
                         value={forgotCode}
                         onChange={setForgotCode}
+                        onComplete={(code) => doVerifyForgotCode(code)}
+                        disabled={forgotVerifying}
                         autoFocus
                       >
                         <InputOTPGroup>
@@ -572,38 +579,12 @@ function LoginPageInner() {
                         </InputOTPGroup>
                       </InputOTP>
                     </div>
-                    <div className="space-y-2">
-                      <Input
-                        type="password"
-                        placeholder={t("newPasswordPlaceholder")}
-                        value={forgotNewPassword}
-                        onChange={(e) => setForgotNewPassword(e.target.value)}
-                        autoComplete="new-password"
-                      />
-                      <Input
-                        type="password"
-                        placeholder={t("confirmNewPasswordPlaceholder")}
-                        value={forgotConfirmPassword}
-                        onChange={(e) => setForgotConfirmPassword(e.target.value)}
-                        autoComplete="new-password"
-                      />
-                    </div>
-                    {forgotConfirmPassword.length > 0 && forgotNewPassword !== forgotConfirmPassword && (
-                      <p className="text-sm text-destructive">{t("passwordsMustMatch")}</p>
+                    {forgotVerifying && (
+                      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        {t("verifying")}
+                      </div>
                     )}
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={
-                        forgotSubmitting ||
-                        forgotCode.length < 6 ||
-                        forgotNewPassword.length < 8 ||
-                        forgotNewPassword !== forgotConfirmPassword
-                      }
-                    >
-                      {forgotSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {forgotSubmitting ? t("resettingPassword") : t("resetPassword")}
-                    </Button>
                     <div className="flex items-center justify-between">
                       <button
                         type="button"
@@ -623,6 +604,53 @@ function LoginPageInner() {
                           : forgotResendCountdown > 0
                             ? t("resendCodeIn", { seconds: forgotResendCountdown })
                             : t("resendCode")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleForgotPasswordSubmit} className="space-y-4 pt-4">
+                    <p className="text-sm text-muted-foreground">
+                      {t("codeVerifiedSetPassword")}
+                    </p>
+                    <div className="space-y-2">
+                      <Input
+                        type="password"
+                        placeholder={t("newPasswordPlaceholder")}
+                        value={forgotNewPassword}
+                        onChange={(e) => setForgotNewPassword(e.target.value)}
+                        autoComplete="new-password"
+                        autoFocus
+                      />
+                      <Input
+                        type="password"
+                        placeholder={t("confirmNewPasswordPlaceholder")}
+                        value={forgotConfirmPassword}
+                        onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                        autoComplete="new-password"
+                      />
+                    </div>
+                    {forgotConfirmPassword.length > 0 && forgotNewPassword !== forgotConfirmPassword && (
+                      <p className="text-sm text-destructive">{t("passwordsMustMatch")}</p>
+                    )}
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={
+                        forgotSubmitting ||
+                        forgotNewPassword.length < 8 ||
+                        forgotNewPassword !== forgotConfirmPassword
+                      }
+                    >
+                      {forgotSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {forgotSubmitting ? t("resettingPassword") : t("resetPassword")}
+                    </Button>
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={handleCancelForgot}
+                      >
+                        {t("backToLogin")}
                       </button>
                     </div>
                   </form>
@@ -649,9 +677,6 @@ function LoginPageInner() {
                       autoComplete="current-password"
                     />
                   </div>
-                  {loginError && (
-                    <p className="text-sm text-destructive">{loginError}</p>
-                  )}
                   <Button type="submit" className="w-full" disabled={loginLoading}>
                     {loginLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {t("signIn")}
@@ -838,9 +863,6 @@ function LoginPageInner() {
                         />
                       )}
                     </div>
-                    {regError && (
-                      <p className="text-sm text-destructive">{regError}</p>
-                    )}
                     <Button type="submit" className="w-full" disabled={regLoading || sendingCode}>
                       {(regLoading || sendingCode) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       {emailVerificationEnabled && !sendingCode ? t("verifyEmail") : sendingCode ? t("sendingCode") : t("createAccount")}
@@ -887,7 +909,6 @@ function LoginPageInner() {
                           onClick={() => {
                             setVerificationStep(false)
                             setVerificationCode("")
-                            setRegError("")
                           }}
                         >
                           {t("changeEmail")}

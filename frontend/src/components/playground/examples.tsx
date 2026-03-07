@@ -2,16 +2,12 @@
 
 import { useCallback, useMemo } from "react"
 import { useTranslations } from "next-intl"
-import { Button } from "@/components/ui/button"
 import { Globe, Code, Sparkles, GitBranch, ArrowRight } from "lucide-react"
 
 type AgentMode = "react" | "dag"
-type Language = "en" | "zh"
 
 interface ExamplesProps {
   mode: AgentMode
-  language: Language
-  onLanguageChange: (lang: Language) => void
   onSelect: (query: string) => void
   disabled?: boolean
   agentPrompts?: string[] | null
@@ -45,156 +41,6 @@ const CATEGORY_META: Record<
   },
 }
 
-const EXAMPLES: Record<AgentMode, Record<Language, ExampleItem[]>> = {
-  react: {
-    en: [
-      {
-        text: "What are the top 5 stories on Hacker News right now? Fetch the page and give me a one-line summary of each",
-        category: "web",
-      },
-      {
-        text: "Search for the latest SpaceX launch, find the mission details, and calculate how many launches they've done this year",
-        category: "web",
-      },
-      {
-        text: "Look up the current population of the world's 5 largest cities, then calculate what % of the global population they hold",
-        category: "web",
-      },
-      {
-        text: "Simulate the Monty Hall problem 10,000 times -- should you switch doors? Show the win rates",
-        category: "code",
-      },
-      {
-        text: "Generate a random 15x15 maze and solve it with BFS, show the maze and solution path as ASCII art",
-        category: "code",
-      },
-      {
-        text: "Simulate a Rock-Paper-Scissors tournament: 8 AI strategies compete in elimination rounds -- who wins?",
-        category: "code",
-      },
-      {
-        text: "Fetch the Wikipedia page for 'Collatz conjecture', extract the formula, then test it on all numbers from 1 to 10,000 -- which starting number produces the longest chain?",
-        category: "hybrid",
-      },
-      {
-        text: "Search for today's weather in Tokyo, then write a Python program to convert and display the temperatures in Celsius, Fahrenheit, and Kelvin",
-        category: "hybrid",
-      },
-    ],
-    zh: [
-      {
-        text: "现在 Hacker News 上最火的 5 篇文章是什么？抓取页面并给出每篇的一句话摘要",
-        category: "web",
-      },
-      {
-        text: "搜索 SpaceX 最近一次发射的任务详情，算一算他们今年总共发射了多少次",
-        category: "web",
-      },
-      {
-        text: "查一下世界上人口最多的 5 个城市现在各有多少人，算出它们占全球总人口的百分比",
-        category: "web",
-      },
-      {
-        text: "模拟蒙提霍尔问题 10,000 次——应该换门吗？展示胜率统计",
-        category: "code",
-      },
-      {
-        text: "随机生成一个 15x15 迷宫并用 BFS 求解，用 ASCII 字符画展示迷宫和路径",
-        category: "code",
-      },
-      {
-        text: "石头剪刀布锦标赛：8 种 AI 策略淘汰赛，谁能笑到最后？",
-        category: "code",
-      },
-      {
-        text: "抓取维基百科'考拉兹猜想'页面，提取公式，然后对 1~10,000 所有数字测试——哪个起始数字产生的链最长？",
-        category: "hybrid",
-      },
-      {
-        text: "搜索东京今天的天气，然后写 Python 程序把温度转换成摄氏、华氏和开尔文分别展示",
-        category: "hybrid",
-      },
-    ],
-  },
-  dag: {
-    en: [
-      {
-        text: "Search for Python, Rust, and Go on the TIOBE index in parallel, then synthesize a report comparing their popularity trends and job market outlook",
-        category: "web",
-      },
-      {
-        text: "Fetch the Hacker News front page, find the top 5 stories, then fetch and summarize each article in parallel",
-        category: "web",
-      },
-      {
-        text: "Fetch the Hacker News front page, Reddit r/programming hot posts, and GitHub trending repos in parallel, then produce a unified 'Tech Pulse' briefing",
-        category: "web",
-      },
-      {
-        text: "Search for reviews of ChatGPT, Claude, and Gemini in parallel, then create a comparison table rating each on speed, accuracy, and creativity",
-        category: "web",
-      },
-      {
-        text: "Fetch the Wikipedia pages for Earth, Mars, and Jupiter in parallel, extract key stats (mass, radius, distance from Sun), then calculate how much you'd weigh on each planet",
-        category: "hybrid",
-      },
-      {
-        text: "Search for the current price of Bitcoin, Ethereum, and Solana in parallel, then calculate their 24h changes and generate an investment risk comparison",
-        category: "hybrid",
-      },
-      {
-        text: "Fetch 3 different news articles about AI regulation in parallel, summarize each, then write Python code to find common themes using word frequency analysis",
-        category: "hybrid",
-      },
-      {
-        text: "Search for the population of New York, London, and Tokyo in parallel, then simulate a random 'city growth race' over 50 years and report who wins",
-        category: "hybrid",
-      },
-      {
-        text: "Generate a random 20x20 maze, then solve it using BFS and DFS in parallel, compare which explored fewer cells and visualize both paths in ASCII",
-        category: "code",
-      },
-    ],
-    zh: [
-      {
-        text: "并行搜索 Python、Rust、Go 在 TIOBE 指数上的排名，然后综合一份报告对比它们的流行趋势和就业前景",
-        category: "web",
-      },
-      {
-        text: "抓取 Hacker News 首页，找出最火的 5 篇文章，然后并行抓取每篇文章并生成一句话摘要",
-        category: "web",
-      },
-      {
-        text: "并行抓取 Hacker News 首页、Reddit r/programming 热帖和 GitHub Trending 仓库，生成一份统一的'技术脉搏'简报",
-        category: "web",
-      },
-      {
-        text: "并行搜索 ChatGPT、Claude 和 Gemini 的评测，然后生成对比表格，从速度、准确性、创造力三个维度打分",
-        category: "web",
-      },
-      {
-        text: "并行抓取维基百科上地球、火星和木星的页面，提取关键数据（质量、半径、距太阳距离），然后算出你在每个星球上的体重",
-        category: "hybrid",
-      },
-      {
-        text: "并行搜索 Bitcoin、Ethereum 和 Solana 的当前价格，计算 24 小时涨跌幅，生成投资风险对比分析",
-        category: "hybrid",
-      },
-      {
-        text: "并行抓取 3 篇关于 AI 监管的新闻文章，分别摘要，然后用 Python 词频分析找出共同主题",
-        category: "hybrid",
-      },
-      {
-        text: "并行搜索纽约、伦敦、东京的人口数据，然后模拟一个 50 年的'城市增长竞赛'，看谁先到 2000 万",
-        category: "hybrid",
-      },
-      {
-        text: "随机生成 20x20 迷宫，然后用 BFS 和 DFS 并行求解，对比哪个探索的格子更少，用 ASCII 画出两条路径",
-        category: "code",
-      },
-    ],
-  },
-}
 
 /** Pick a stable pseudo-random subset: hash by mode+lang to get a consistent selection per session */
 function pickExamples(items: ExampleItem[], count: number): ExampleItem[] {
@@ -240,8 +86,6 @@ const DISPLAY_COUNT = 6
 
 export function Examples({
   mode,
-  language,
-  onLanguageChange,
   onSelect,
   disabled,
   agentPrompts,
@@ -249,7 +93,7 @@ export function Examples({
   agentIcon,
 }: ExamplesProps) {
   const t = useTranslations("playground")
-  const allExamples = EXAMPLES[mode][language]
+  const allExamples = t.raw(`examples.${mode}`) as ExampleItem[]
   const examples = useMemo(
     () => pickExamples(allExamples, DISPLAY_COUNT),
     [allExamples]
@@ -320,24 +164,6 @@ export function Examples({
             {mode === "react" ? t("reactSubtitle") : t("dagSubtitle")}
           </p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5">
-          <Button
-            variant={language === "en" ? "secondary" : "ghost"}
-            size="xs"
-            onClick={() => onLanguageChange("en")}
-            className="text-xs rounded-md"
-          >
-            EN
-          </Button>
-          <Button
-            variant={language === "zh" ? "secondary" : "ghost"}
-            size="xs"
-            onClick={() => onLanguageChange("zh")}
-            className="text-xs rounded-md"
-          >
-            中文
-          </Button>
-        </div>
       </div>
 
       {/* Mode indicator */}
@@ -360,7 +186,7 @@ export function Examples({
 
           return (
             <button
-              key={`${language}-${mode}-${i}`}
+              key={`${mode}-${i}`}
               type="button"
               disabled={disabled}
               onClick={() => handleSelect(example.text)}
@@ -397,4 +223,4 @@ export function Examples({
   )
 }
 
-export type { AgentMode, Language }
+export type { AgentMode }

@@ -367,7 +367,7 @@ export default function ChatsPage() {
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
+                      variant="destructive"
                       onClick={(e) => {
                         e.stopPropagation()
                         setSingleDeleteId(conv.id)

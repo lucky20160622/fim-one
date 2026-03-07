@@ -301,7 +301,13 @@ export const authApi = {
       body: JSON.stringify({ email, locale }),
     }),
 
-  forgotPassword: (body: { email: string; code: string; new_password: string }) =>
+  verifyForgotCode: (body: { email: string; code: string }) =>
+    apiFetch<{ success: boolean; data: { reset_token: string } }>("/api/auth/verify-forgot-code", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  forgotPassword: (body: { email: string; reset_token: string; new_password: string }) =>
     apiFetch<{ success: boolean; data: { message: string } }>("/api/auth/forgot-password", {
       method: "POST",
       body: JSON.stringify(body),

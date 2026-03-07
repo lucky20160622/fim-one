@@ -6,7 +6,8 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Send, Loader2, PanelRightOpen, PanelRightClose, ArrowDown, Square, Zap, GitBranch, Bot, Paperclip, X, Plus, ChevronsUpDown, Check, Undo2, RotateCcw, User, Download } from "lucide-react"
+import { Send, Loader2, PanelRightOpen, PanelRightClose, ArrowDown, Square, Zap, GitBranch, Bot, Paperclip, X, Plus, ChevronsUpDown, Check, Undo2, RotateCcw, Download } from "lucide-react"
+import { UserAvatar } from "@/components/shared/user-avatar"
 import { toast } from "sonner"
 import { useSSE } from "@/hooks/use-sse"
 import { useDagSteps } from "@/hooks/use-dag-steps"
@@ -57,7 +58,7 @@ import type { SSEMessage } from "@/hooks/use-sse"
 import type { MessageResponse } from "@/types/conversation"
 import type { AgentResponse } from "@/types/agent"
 import type { FileUploadResponse } from "@/types/file"
-import type { AgentMode, Language } from "@/components/playground/examples"
+import type { AgentMode } from "@/components/playground/examples"
 
 
 interface PlaygroundPageProps {
@@ -84,7 +85,6 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
   const [mode, setMode] = useState<AgentMode>("react")
   const [selectedAgent, setSelectedAgent] = useState<AgentResponse | null>(null)
   const [query, setQuery] = useState("")
-  const [language, setLanguage] = useState<Language>("en")
   const [sourceMode, setSourceMode] = useState<AgentMode | null>(null)
   const [pendingQuery, setPendingQuery] = useState<string | null>(null)
   const [pendingMode, setPendingMode] = useState<AgentMode | null>(null)
@@ -318,7 +318,6 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
         sourceMode={sourceMode}
         query={query}
         pendingQuery={pendingQuery}
-        language={language}
         messages={messages}
         isRunning={isRunning}
         isError={isError}
@@ -328,7 +327,6 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
         onRecallInject={handleRecallInject}
         onAgentChange={handleAgentChange}
         onQueryChange={setQuery}
-        onLanguageChange={setLanguage}
         onModeChange={(m) => {
           if (isRunning) return
           if (activeId) {
@@ -448,7 +446,7 @@ function HistoryTurn({ userContent, userMetadata, sseMessages, mode, hideDagGrap
   hideDagGraph: boolean
 }) {
   const { user } = useAuth()
-  const userInitial = (user?.display_name || user?.username || "U").charAt(0).toUpperCase()
+  const userFallback = (user?.display_name || user?.email || "U").charAt(0).toUpperCase()
   const reactItems = useReactSteps(sseMessages, false)
   const dagData = useDagSteps(sseMessages, false)
 
@@ -456,9 +454,7 @@ function HistoryTurn({ userContent, userMetadata, sseMessages, mode, hideDagGrap
     <>
       {userContent && (
         <div className="flex items-center gap-3">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-            <span className="text-xs font-medium text-primary">{userInitial}</span>
-          </div>
+          <UserAvatar avatar={user?.avatar} userId={user?.id} fallback={userFallback} className="h-7 w-7" iconClassName="h-3.5 w-3.5" />
           <div className="flex-1">
             <p className="text-sm text-foreground">{userContent}</p>
             {Array.isArray(userMetadata?.images) && userMetadata.images.length > 0 ? (
@@ -510,7 +506,6 @@ interface PlaygroundContentProps {
   sourceMode: AgentMode | null
   query: string
   pendingQuery: string | null
-  language: Language
   messages: ReturnType<typeof useSSE>["messages"]
   isRunning: boolean
   isError: boolean
@@ -520,7 +515,6 @@ interface PlaygroundContentProps {
   onRecallInject: (msg: {id?: string; content: string; ts: number}) => void
   onAgentChange: (agent: AgentResponse | null) => void
   onQueryChange: (q: string) => void
-  onLanguageChange: (lang: Language) => void
   onModeChange: (mode: AgentMode) => void
   onRunWithQuery: (q: string, imageIds?: string[]) => void
   onAbort: () => void
@@ -534,7 +528,6 @@ function PlaygroundContent({
   sourceMode,
   query,
   pendingQuery,
-  language,
   messages,
   isRunning,
   isError,
@@ -544,7 +537,6 @@ function PlaygroundContent({
   onRecallInject,
   onAgentChange,
   onQueryChange,
-  onLanguageChange,
   onModeChange,
   onRunWithQuery,
   onAbort,
@@ -554,7 +546,7 @@ function PlaygroundContent({
 }: PlaygroundContentProps) {
   const t = useTranslations("playground")
   const { user } = useAuth()
-  const userInitial = (user?.display_name || user?.username || "U").charAt(0).toUpperCase()
+  const userFallback = (user?.display_name || user?.email || "U").charAt(0).toUpperCase()
   const modeMatches = sourceMode === mode
   const hasLiveMessages = modeMatches && messages.length > 0
   const hasHistory = !!(activeConversation?.messages && activeConversation.messages.length > 0)
@@ -1002,9 +994,7 @@ function PlaygroundContent({
                   {/* Current turn: user message + live output */}
                   {pendingQuery && (
                     <div className="flex items-center gap-3">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                        <User className="h-3.5 w-3.5 text-primary" />
-                      </div>
+                      <UserAvatar avatar={user?.avatar} userId={user?.id} fallback={userFallback} className="h-7 w-7" iconClassName="h-3.5 w-3.5" />
                       <div className="flex-1">
                         <p className="text-sm text-foreground">{pendingQuery}</p>
                         {pendingImages.length > 0 && (
@@ -1050,9 +1040,7 @@ function PlaygroundContent({
                     })
                     .map((msg) => (
                     <div key={msg.ts} className={`flex items-center gap-3 ${msg.id ? "inject-breathe" : "animate-pulse"}`}>
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                        <User className="h-3.5 w-3.5 text-primary" />
-                      </div>
+                      <UserAvatar avatar={user?.avatar} userId={user?.id} fallback={userFallback} className="h-7 w-7" iconClassName="h-3.5 w-3.5" />
                       <div className="flex-1">
                         <p className="text-sm text-foreground">{msg.content}</p>
                         <div className="flex items-center gap-2 mt-0.5">
@@ -1129,8 +1117,6 @@ function PlaygroundContent({
         <div className="flex flex-1 flex-col justify-center min-h-0 w-full">
           <Examples
             mode={mode}
-            language={language}
-            onLanguageChange={onLanguageChange}
             onSelect={onExampleSelect}
             disabled={isRunning}
             agentPrompts={selectedAgent?.suggested_prompts}

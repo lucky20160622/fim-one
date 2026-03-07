@@ -1,10 +1,11 @@
 "use client"
 
+import { useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ChevronsUpDown, Globe, LayoutDashboard, LogOut, Settings } from "lucide-react"
+import { ChevronsUpDown, Languages, LayoutDashboard, LogOut, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { APP_VERSION } from "@/lib/constants"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { UserAvatar } from "@/components/shared/user-avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/contexts/auth-context"
 import { authApi } from "@/lib/api"
+import { useTranslations } from "next-intl"
 
 interface UserMenuProps {
   collapsed: boolean
@@ -34,11 +36,13 @@ const LANGUAGE_OPTIONS = [
 export function UserMenu({ collapsed }: UserMenuProps) {
   const { user, logout, updateUser } = useAuth()
   const router = useRouter()
+  const t = useTranslations("common")
+  const [open, setOpen] = useState(false)
 
   if (!user) return null
 
-  const displayLabel = user.display_name || user.username
-  const initial = displayLabel.charAt(0).toUpperCase()
+  const displayLabel = user.display_name || user.email || ""
+  const initial = (displayLabel || "U").charAt(0).toUpperCase()
 
   const handleLanguageChange = async (value: string) => {
     try {
@@ -55,11 +59,12 @@ export function UserMenu({ collapsed }: UserMenuProps) {
     document.cookie = locale
       ? `NEXT_LOCALE=${locale}; path=/; max-age=${60 * 60 * 24 * 365}`
       : "NEXT_LOCALE=; path=/; max-age=0"
-    window.location.reload()
+    setOpen(false)
+    router.refresh()
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <button
           className={cn(
@@ -69,11 +74,13 @@ export function UserMenu({ collapsed }: UserMenuProps) {
             collapsed && "h-9 w-9 justify-center px-0",
           )}
         >
-          <Avatar className="h-7 w-7 shrink-0">
-            <AvatarFallback className="bg-primary/10 text-xs text-primary">
-              {initial}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            avatar={user.avatar ?? null}
+            fallback={initial}
+            userId={user.id}
+            className="h-7 w-7"
+            iconClassName="h-3.5 w-3.5"
+          />
           {!collapsed && (
             <>
               <span className="flex-1 truncate text-left text-xs">
@@ -84,26 +91,29 @@ export function UserMenu({ collapsed }: UserMenuProps) {
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="start" className="w-48">
-        <DropdownMenuLabel className="flex items-center justify-between font-normal text-xs text-muted-foreground">
-          <span>{displayLabel}</span>
-          <span className="opacity-50">v{APP_VERSION}</span>
+      <DropdownMenuContent side="top" align="start" className={collapsed ? "min-w-48" : "w-[calc(var(--radix-popper-anchor-width)+2.25rem)]"}>
+        <DropdownMenuLabel className="font-normal text-xs text-muted-foreground truncate">
+          {displayLabel}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push("/settings")}>
-          <Settings className="h-4 w-4" />
-          Settings
+        <DropdownMenuItem asChild>
+          <Link href="/settings">
+            <Settings className="h-4 w-4" />
+            {t("settings")}
+          </Link>
         </DropdownMenuItem>
         {user.is_admin && (
-          <DropdownMenuItem onClick={() => router.push("/admin")}>
-            <LayoutDashboard className="h-4 w-4" />
-            Admin Panel
+          <DropdownMenuItem asChild>
+            <Link href="/admin">
+              <LayoutDashboard className="h-4 w-4" />
+              {t("adminPanel")}
+            </Link>
           </DropdownMenuItem>
         )}
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
-            <Globe className="h-4 w-4" />
-            Language
+            <Languages className="h-4 w-4" />
+            {t("language")}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <DropdownMenuRadioGroup
@@ -121,7 +131,7 @@ export function UserMenu({ collapsed }: UserMenuProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={logout}>
           <LogOut className="h-4 w-4" />
-          Log out
+          {t("logout")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

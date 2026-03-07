@@ -3,7 +3,7 @@
 import { useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTranslations } from "next-intl"
-import { LayoutDashboard, Plug, Settings, Shield, Users, MessageSquare, HardDrive, Server } from "lucide-react"
+import { LayoutDashboard, Plug, Settings, Shield, Users, MessageSquare, HardDrive, Server, Cpu } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { AdminOverview } from "@/components/admin/admin-overview"
@@ -14,17 +14,19 @@ import { AdminAudit } from "@/components/admin/admin-audit"
 import { AdminConversations } from "@/components/admin/admin-conversations"
 import { AdminStorage } from "@/components/admin/admin-storage"
 import { AdminMcpServers } from "@/components/admin/admin-mcp-servers"
+import { AdminModels } from "@/components/admin/admin-models"
 
-const TAB_KEYS = ["overview", "users", "conversations", "connectors", "storage", "mcp", "audit", "settings"] as const
+const TAB_KEYS = ["overview", "users", "conversations", "connectors", "mcp", "models", "audit", "storage", "settings"] as const
 
 const TAB_ICONS = {
   overview: LayoutDashboard,
   users: Users,
   conversations: MessageSquare,
   connectors: Plug,
-  storage: HardDrive,
   mcp: Server,
+  models: Cpu,
   audit: Shield,
+  storage: HardDrive,
   settings: Settings,
 } as const
 
@@ -102,6 +104,7 @@ function AdminPanelContent() {
           {activeTab === "connectors" && <AdminConnectors />}
           {activeTab === "storage" && <AdminStorage />}
           {activeTab === "mcp" && <AdminMcpServers />}
+          {activeTab === "models" && <AdminModels />}
           {activeTab === "audit" && <AdminAudit />}
           {activeTab === "settings" && <AdminSettings />}
         </div>

@@ -81,5 +81,14 @@
 
   "mcp_server_not_found": "MCP server not found.",
 
-  "session_expired": "Session expired, please log in again."
+  "session_expired": "Session expired, please log in again.",
+
+  "smtp_not_configured": "Email service is not configured. Please contact the administrator.",
+  "email_verification_required": "Email verification is required.",
+  "verification_code_invalid": "Incorrect verification code.",
+  "verification_code_expired": "Verification code has expired. Please request a new one.",
+  "verification_code_too_many_attempts": "Too many incorrect attempts. Please request a new code.",
+  "verification_rate_limited": "Please wait before requesting another code.",
+
+  "email_not_registered": "No account found with this email address."
 }

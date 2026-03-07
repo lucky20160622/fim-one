@@ -1,4 +1,81 @@
 {
+  "categories": {
+    "all": "全部",
+    "general": "通用",
+    "computation": "计算",
+    "filesystem": "文件系统",
+    "knowledge": "知识库",
+    "media": "媒体",
+    "web": "网络",
+    "connector": "连接器",
+    "mcp": "MCP"
+  },
+  "builtin": {
+    "calculator": {
+      "name": "计算器",
+      "desc": "计算数学表达式并返回数值结果。支持基本算术（+、-、*、/、//、%、**），数学函数（sqrt、sin、cos、tan、log、log10、exp、abs、ceil、floor、round），以及常量（pi、e）。"
+    },
+    "datetime": {
+      "name": "日期时间",
+      "desc": "获取当前日期和时间。可选指定时区（如 'UTC'、'Asia/Shanghai'、'America/New_York'），默认为 UTC。"
+    },
+    "email_send": {
+      "name": "邮件发送",
+      "desc": "通过 SMTP 发送邮件。参数：to（收件人地址或逗号分隔列表）、subject（邮件主题）、body（纯文本或 HTML 内容）、html（body 为 HTML 时设为 true，默认 false）。"
+    },
+    "file_ops": {
+      "name": "文件操作",
+      "desc": "在沙盒工作区目录内执行文件操作。支持：\"read\" — 读取文件内容（最大 50 KB）；\"write\" — 写入/覆盖文件；\"list\" — 列出目录内容；\"delete\" — 删除文件；\"exists\" — 检查文件是否存在。"
+    },
+    "generate_image": {
+      "name": "生成图片",
+      "desc": "使用 Google Imagen 根据文字描述生成图片。工具返回 Markdown 图片片段，将其原样复制到回复中以内联显示图片。"
+    },
+    "http_request": {
+      "name": "HTTP 请求",
+      "desc": "向任意 URL 发送 HTTP 请求，支持 GET、POST、PUT、PATCH、DELETE 方法，可自定义请求头、查询参数和请求体。可直接调用 REST API 获取结构化数据。"
+    },
+    "json_transform": {
+      "name": "JSON 转换",
+      "desc": "JSON 数据转换与查询工具。支持：\"path_get\" — 点号路径提取值；\"merge\" — 深度合并两个对象；\"flatten\" — 展平嵌套对象；\"pick\" — 提取指定字段；\"jmespath\" — JMESPath 查询。"
+    },
+    "kb_list": {
+      "name": "知识库列表",
+      "desc": "列出您可访问的所有知识库，返回每个知识库的 id、名称、描述、文档数量和状态。用于发现可通过 kb_retrieve 搜索的知识库。"
+    },
+    "kb_retrieve": {
+      "name": "知识库检索",
+      "desc": "在知识库中搜索与查询相关的文档，返回最相关的文本片段及相关性评分。需要从已上传文档中检索信息时使用。"
+    },
+    "node_exec": {
+      "name": "JavaScript",
+      "desc": "执行 JavaScript（Node.js）代码并返回输出。使用 console.log() 产生输出。仅保证 Node.js 内置模块可用，不支持安装 npm 包。"
+    },
+    "python_exec": {
+      "name": "Python",
+      "desc": "执行 Python 代码并返回输出。使用 print() 产生输出。仅保证标准库模块可用，不支持安装 pip 包。"
+    },
+    "shell_exec": {
+      "name": "Shell 执行",
+      "desc": "在沙盒环境中执行 shell 命令。适用于运行 curl、jq、awk、sed、wc、sort、head、tail、grep 等 CLI 工具，命令以受限权限运行。"
+    },
+    "template_render": {
+      "name": "模板渲染",
+      "desc": "使用 Jinja2 渲染模板并传入上下文变量。支持 {{ variable }}、{% if %}...{% endif %}、{% for item in list %}...{% endfor %} 及 Jinja2 过滤器（{{ text | upper }}）。"
+    },
+    "text_utils": {
+      "name": "文本工具",
+      "desc": "常用文本转换工具。支持：\"base64_encode\"/\"base64_decode\" — Base64 编解码；\"url_encode\"/\"url_decode\" — URL 编解码；\"hash\" — MD5/SHA256 哈希；\"count_words\" — 统计字数；\"truncate\" — 截断文本。"
+    },
+    "web_fetch": {
+      "name": "网页抓取",
+      "desc": "抓取网页内容并以 Markdown 格式返回。提供完整 URL（如 https://example.com）。适用于阅读文章、文档、API 响应等。"
+    },
+    "web_search": {
+      "name": "网页搜索",
+      "desc": "搜索网络并返回相关结果，包含标题、URL 和内容摘要。适用于查找最新资讯、新闻、价格、文档等。"
+    }
+  },
   "pageTitle": "工具",
   "pageDescription": "内置工具与 MCP 服务器连接",
   "builtinTab": "内置工具",
@@ -51,5 +128,38 @@
   "failedToSaveMcpServer": "保存 MCP 服务器失败",
   "searchServers": "搜索服务器...",
   "noServersFound": "未找到服务器",
-  "configure": "配置"
+  "configure": "配置",
+  "mcpHub": {
+    "categories": {
+      "All": "全部",
+      "Filesystem": "文件系统",
+      "Database": "数据库",
+      "Browser": "浏览器",
+      "Search": "搜索",
+      "Productivity": "效率",
+      "Dev Tools": "开发工具",
+      "Communication": "通讯",
+      "Cloud": "云服务"
+    },
+    "servers": {
+      "Filesystem":          { "desc": "以可配置的允许目录读写本地文件。", "config": "将 /tmp 替换为您的允许目录路径" },
+      "Git":                 { "desc": "通过 Git 查看仓库历史、差异、分支和文件内容。", "config": "需要 uv · 替换 /path/to/repo" },
+      "SQLite":              { "desc": "支持完整 SQL 的 SQLite 数据库查询与修改。", "config": "替换为您的 .sqlite 文件路径" },
+      "PostgreSQL":          { "desc": "对 PostgreSQL 数据库进行只读 SQL 访问。", "config": "替换为您的连接字符串" },
+      "Puppeteer":           { "desc": "浏览器自动化 — 导航页面、截图、与元素交互。" },
+      "Playwright":          { "desc": "使用 Microsoft Playwright 进行快速可靠的浏览器自动化。" },
+      "Fetch":               { "desc": "抓取任意网页并转换为 Markdown，无需 API Key。", "config": "需要 uv" },
+      "Brave Search":        { "desc": "通过 Brave Search API 进行网络和本地搜索。", "config": "在 brave.com/search/api 获取密钥 → 粘贴至 BRAVE_API_KEY" },
+      "Exa Search":          { "desc": "通过 Exa API 进行语义 AI 优先搜索和内容检索。", "config": "在 dashboard.exa.ai 获取密钥 → 粘贴至 EXA_API_KEY" },
+      "Memory":              { "desc": "在跨对话的 Agent 中持久化知识图谱记忆。" },
+      "Sequential Thinking": { "desc": "结构化逐步推理工具，用于解决复杂问题。" },
+      "Notion":              { "desc": "官方 Notion MCP — 读写页面、数据库和块内容。", "config": "在 notion.so/my-integrations 获取密钥 → 设置 OPENAPI_MCP_HEADERS 为：{\"Authorization\":\"Bearer YOUR_KEY\"}" },
+      "GitHub":              { "desc": "通过 GitHub API 管理仓库、Issues、Pull Requests 和代码。", "config": "在 github.com/settings/tokens 创建令牌 → 粘贴至 GITHUB_PERSONAL_ACCESS_TOKEN" },
+      "GitLab":              { "desc": "与 GitLab 仓库、Issues 和合并请求交互。", "config": "在 gitlab.com/-/user_settings/personal_access_tokens 创建令牌 · 将 GITLAB_URL 设为您的 GitLab 主机" },
+      "Everything (test)":   { "desc": "官方 MCP 测试服务器，覆盖所有工具类型，用于验证配置。" },
+      "Slack":               { "desc": "在 Slack 工作区中读取和发送消息、管理频道。", "config": "在 api.slack.com/apps 创建机器人 → 粘贴 Bot Token；在工作区 URL 中找到 Team ID" },
+      "Google Drive":        { "desc": "搜索和访问 Google Drive 中的文件。", "config": "需要 OAuth 凭据配置" },
+      "Google Maps":         { "desc": "通过 Google Maps 进行地点搜索、路线规划和地点详情。", "config": "在 console.cloud.google.com 启用 Maps API → 粘贴至 GOOGLE_MAPS_API_KEY" }
+    }
+  }
 }

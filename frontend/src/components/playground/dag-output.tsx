@@ -24,9 +24,10 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
-  User,
   SkipForward,
 } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
+import { UserAvatar } from "@/components/shared/user-avatar"
 import type {
   DagPhaseEvent,
   DagDoneEvent,
@@ -71,6 +72,8 @@ export function DagOutput({
   onSuggestionSelect,
 }: DagOutputProps) {
   const t = useTranslations("playground")
+  const { user } = useAuth()
+  const userFallback = (user?.display_name || user?.email || "U").charAt(0).toUpperCase()
   const [stepsExpanded, setStepsExpanded] = useState(false)
 
   const completedSteps = stepStates.filter(
@@ -127,9 +130,7 @@ export function DagOutput({
         {/* Inject messages — always visible */}
         {injectEvents.map((evt, i) => (
           <div key={`inject-${i}`} className="flex gap-3">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-              <User className="h-3.5 w-3.5 text-primary" />
-            </div>
+            <UserAvatar avatar={user?.avatar} userId={user?.id} fallback={userFallback} className="h-7 w-7" iconClassName="h-3.5 w-3.5" />
             <div className="flex-1 pt-0.5">
               <p className="text-sm text-foreground">{evt.content}</p>
             </div>
@@ -188,9 +189,7 @@ export function DagOutput({
       {/* Inject messages */}
       {injectEvents.map((evt, i) => (
         <div key={`inject-${i}`} className="flex gap-3">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-            <User className="h-3.5 w-3.5 text-primary" />
-          </div>
+          <UserAvatar avatar={user?.avatar} userId={user?.id} fallback={userFallback} className="h-7 w-7" iconClassName="h-3.5 w-3.5" />
           <div className="flex-1 pt-0.5">
             <p className="text-sm text-foreground">{evt.content}</p>
           </div>

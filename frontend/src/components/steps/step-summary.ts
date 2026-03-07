@@ -67,7 +67,7 @@ const ARG_PATTERNS: {
 }[] = [
   { match: ["method", "url"], fmt: (a) => `${a.method} ${trunc(String(a.url), 40)}` },
   { match: ["operation", "path"], fmt: (a) => `${a.operation} ${trunc(String(a.path), 40)}` },
-  { match: ["code"], fmt: (a) => `${String(a.code).split("\n").length} lines` },
+  { match: ["code"], fmt: (a) => { const n = String(a.code).split("\n").length; return `${n} line${n !== 1 ? "s" : ""}` } },
   { match: ["query"], fmt: (a) => trunc(String(a.query), 50) },
   { match: ["url"], fmt: (a) => trunc(String(a.url), 50) },
   { match: ["command"], fmt: (a) => trunc(String(a.command), 50) },

@@ -1,4 +1,15 @@
 {
+  "categories": {
+    "all": "All",
+    "general": "General",
+    "computation": "Computation",
+    "filesystem": "Filesystem",
+    "knowledge": "Knowledge",
+    "media": "Media",
+    "web": "Web",
+    "connector": "Connector",
+    "mcp": "MCP"
+  },
   "pageTitle": "Tools",
   "pageDescription": "Built-in tools and MCP server connections",
   "builtinTab": "Built-in",
@@ -51,5 +62,38 @@
   "failedToSaveMcpServer": "Failed to save MCP server",
   "searchServers": "Search servers...",
   "noServersFound": "No servers found",
-  "configure": "Configure"
+  "configure": "Configure",
+  "mcpHub": {
+    "categories": {
+      "All": "All",
+      "Filesystem": "Filesystem",
+      "Database": "Database",
+      "Browser": "Browser",
+      "Search": "Search",
+      "Productivity": "Productivity",
+      "Dev Tools": "Dev Tools",
+      "Communication": "Communication",
+      "Cloud": "Cloud"
+    },
+    "servers": {
+      "Filesystem":          { "desc": "Read and write local files with configurable allowed directories.", "config": "Replace /tmp with your allowed directory path" },
+      "Git":                 { "desc": "Inspect repository history, diffs, branches and file contents via Git.", "config": "Requires uv · replace /path/to/repo" },
+      "SQLite":              { "desc": "Query and modify SQLite databases with full SQL support.", "config": "Replace with your .sqlite file path" },
+      "PostgreSQL":          { "desc": "Read-only SQL access to a PostgreSQL database.", "config": "Replace with your connection string" },
+      "Puppeteer":           { "desc": "Browser automation — navigate pages, take screenshots, interact with elements." },
+      "Playwright":          { "desc": "Fast and reliable browser automation with Microsoft Playwright." },
+      "Fetch":               { "desc": "Fetch any web page and convert it to Markdown — no API key needed.", "config": "Requires uv" },
+      "Brave Search":        { "desc": "Web and local search via the Brave Search API.", "config": "Get key at brave.com/search/api → paste into BRAVE_API_KEY" },
+      "Exa Search":          { "desc": "Semantic AI-first search and content retrieval via the Exa API.", "config": "Get key at dashboard.exa.ai → paste into EXA_API_KEY" },
+      "Memory":              { "desc": "Persistent knowledge graph memory for agents across conversations." },
+      "Sequential Thinking": { "desc": "Structured step-by-step reasoning tool for complex problem solving." },
+      "Notion":              { "desc": "Official Notion MCP — read and write pages, databases, and blocks.", "config": "Get key at notion.so/my-integrations → set OPENAPI_MCP_HEADERS to: {\"Authorization\":\"Bearer YOUR_KEY\"}" },
+      "GitHub":              { "desc": "Manage repositories, issues, pull requests and code via GitHub API.", "config": "Create token at github.com/settings/tokens → paste into GITHUB_PERSONAL_ACCESS_TOKEN" },
+      "GitLab":              { "desc": "Interact with GitLab repositories, issues and merge requests.", "config": "Create token at gitlab.com/-/user_settings/personal_access_tokens · set GITLAB_URL to your GitLab host" },
+      "Everything (test)":   { "desc": "Official MCP test server covering all tool types — great for verifying setup." },
+      "Slack":               { "desc": "Read and post messages, manage channels in your Slack workspace.", "config": "Create bot at api.slack.com/apps → paste Bot Token; find Team ID in workspace URL" },
+      "Google Drive":        { "desc": "Search and access files in Google Drive.", "config": "OAuth credentials setup required" },
+      "Google Maps":         { "desc": "Location search, directions, and place details via Google Maps.", "config": "Enable Maps API at console.cloud.google.com → paste into GOOGLE_MAPS_API_KEY" }
+    }
+  }
 }
