@@ -300,7 +300,8 @@ Mode 3: Auth-Login Mode (planned v0.10)
 - [x] **Invite Code Registration**: Three-mode registration (`open` / `invite` / `disabled`); admin generates 8-char alphanumeric codes with optional note, max-uses cap, and expiry; invite code CRUD with revoke; backward-compatible with legacy `registration_enabled` setting
 
 **Visibility & Moderation**
-- [x] **API Integration Health Dashboard**: Read-only endpoint checking env-var presence for Main LLM, Fast LLM, Embedding, Reranker, Web Search, Web Fetch, Image Generation; colored dot UI in Admin Overview
+- [x] **API Integration Health Dashboard**: Read-only endpoint checking env-var presence for Main LLM, Fast LLM, Embedding, Reranker, Web Search, Web Fetch, Image Generation, SMTP; dedicated Health tab with grouped status cards, per-item `impact` field showing affected features, and amber warnings for unconfigured integrations
+- [x] **SMTP-Aware Auth Feature Gating**: Server-side validation prevents enabling email verification without SMTP configured (400 error); admin settings toggle disabled when SMTP unavailable; "Forgot Password" hidden in account settings when SMTP not configured; `smtp_configured` flag in admin settings response
 - [x] **Conversation Moderation**: Admin can list all users' conversations (paginated, searchable by user or title) and delete any conversation with cascade (messages + uploads); audit logged
 - [x] **Storage Management**: Per-user disk usage summary (file count + bytes); clear a user's upload directory; clean orphaned conversation upload dirs for deleted conversations; audit logged
 
@@ -626,7 +627,12 @@ ERP Connector     (read financial data)
 
 - [ ] **AI Connector Generation**: Upload Swagger/OpenAPI spec → AI auto-generates complete Connector (auth, Actions, tests)
 - [ ] **Connector Marketplace**: Searchable in-platform catalog of published connectors — browse by category, search by name/keyword, view install count, ratings, and author; one-click install into your workspace
-- [ ] **Plugin System**: Pip-installable Connector packages with entry-point auto-registration; packages include connector definitions, default auth schema, and bundled test fixtures
+- [ ] **Plugin Marketplace**: Extends the Connector Marketplace to full Plugin listings — each plugin bundles Agent + Connectors + KB + Commands + Skills into a single installable unit; free (community) and paid (ISV / service-provider) tiers; platform handles billing, usage metering, and revenue split for paid plugins; install → fill credentials → running in one step
+- [ ] **Plugin Bundle System**: Package an Agent (with its Skills/system prompt modules) + bound Connectors + KB definitions + Command templates into a single deliverable unit (`plugin.yaml` + assets); exported without credentials (auth schemas only — recipient fills credentials on import); version-stamped; designed for client delivery, white-label customization, and future marketplace listing
+  - **Skills**: reusable system prompt modules that compose into agent prompts (e.g., `code-review`, `system-design`, `incident-response`); same skill shared across multiple agents/plugins; installed skills auto-inject into the agent's effective system prompt
+  - **Commands**: slash-command templates bundled per plugin (e.g., `/review $ARGS`, `/incident $ARGS`); appear in the chat input and "Try asking..." suggestions
+  - **Delivery workflow**: `plugin.yaml` + optional KB files → import to any FIM Agent instance → fill credentials → agent + KB + connectors go live in one step; no manual wiring
+  - *(pip-installable connector packages with entry-point auto-registration deferred to v1.2 Connector SDK)*
 
 **Enterprise Operations**
 

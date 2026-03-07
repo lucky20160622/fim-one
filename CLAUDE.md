@@ -41,6 +41,7 @@ frontend/            # Next.js portal (shadcn/ui)
 - **Focus rings**: use `focus-visible:outline-*` pattern, **never** `focus-visible:ring-*` — `ring` is `box-shadow`, gets clipped by `overflow:hidden`. See `ui/input.tsx` for reference.
 - **No `pl-*`/`pr-*` on form wrappers** containing `<Input>`/`<Textarea>` — clips `shadow-xs`. Use `px-*` or `gap-*` instead.
 - **No native `<select>`** — use shadcn `<Select>` with `<SelectTrigger className="w-full">`. For empty defaults, use `__default__` sentinel (Radix treats `""` as unset).
+- **Tab/filter state → URL query param**: any page with tabs or filter switching MUST sync to `?tab=xxx` via `useSearchParams` + `router.replace`. Default tab uses no param (clean URL). Wrap component in `<Suspense>`. See `admin/page.tsx`, `settings/page.tsx`, `artifacts/page.tsx` for reference.
 
 ## Toast Feedback Convention (MANDATORY)
 
