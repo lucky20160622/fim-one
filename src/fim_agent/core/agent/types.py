@@ -48,6 +48,8 @@ class StepResult:
     action: Action
     observation: str | None = None
     error: str | None = None
+    content_type: str | None = None
+    artifacts: list | None = None  # list[dict] serialised from Artifact
 
 
 @dataclass

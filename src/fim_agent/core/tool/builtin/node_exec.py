@@ -49,11 +49,13 @@ class NodeExecTool(BaseTool):
         exec_dir: Path | None = None,
         memory: str | None = None,
         cpu: float | None = None,
+        artifacts_dir: Path | None = None,
     ) -> None:
         self._timeout = timeout
         self._exec_dir = exec_dir or _DEFAULT_EXEC_DIR
         self._memory = memory
         self._cpu = cpu
+        self._artifacts_dir = artifacts_dir
 
     @property
     def name(self) -> str:
@@ -111,6 +113,14 @@ class NodeExecTool(BaseTool):
         if not code.strip():
             return ""
 
+        # Lazily create exec directory on first use.
+        self._exec_dir.mkdir(parents=True, exist_ok=True)
+
+        # Snapshot files before execution for artifact detection.
+        before: set[str] = set()
+        if self._artifacts_dir:
+            before = {f.name for f in self._exec_dir.iterdir() if f.is_file()}
+
         backend = get_sandbox_backend()
         result = await backend.run_code(
             code,
@@ -131,4 +141,15 @@ class NodeExecTool(BaseTool):
             output = output + "[stderr]\n" + result.stderr
         if result.script_path is not None:
             output = f"[Script: {result.script_path.name}]\n" + output
-        return _truncate_output(output)
+        output = _truncate_output(output)
+
+        # Scan for new files after execution.
+        if self._artifacts_dir:
+            from ..artifact_utils import scan_new_files
+            from ..base import ToolResult
+
+            artifacts = scan_new_files(self._exec_dir, before, self._artifacts_dir)
+            if artifacts:
+                return ToolResult(content=output, artifacts=artifacts)
+
+        return output

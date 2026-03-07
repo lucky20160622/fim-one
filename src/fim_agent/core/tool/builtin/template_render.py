@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 from typing import Any
 
 from ..base import BaseTool
@@ -18,6 +19,9 @@ except ImportError:
 
 class TemplateRenderTool(BaseTool):
     """Render Jinja2 templates with a provided context of variables."""
+
+    def __init__(self, *, artifacts_dir: Path | None = None) -> None:
+        self._artifacts_dir = artifacts_dir
 
     @property
     def name(self) -> str:
@@ -86,8 +90,23 @@ class TemplateRenderTool(BaseTool):
             return "[Error] 'context' must be a JSON object."
 
         if _JINJA2_AVAILABLE:
-            return self._render_jinja2(template_str, ctx)
-        return self._render_stdlib(template_str, ctx)
+            result = self._render_jinja2(template_str, ctx)
+        else:
+            result = self._render_stdlib(template_str, ctx)
+
+        # Wrap HTML output as an artifact for preview
+        if (
+            self._artifacts_dir
+            and not result.startswith("[Error]")
+            and ("<html" in result.lower() or "<!doctype" in result.lower())
+        ):
+            from ..artifact_utils import save_content_artifact
+            from ..base import ToolResult
+
+            artifact = save_content_artifact(result, "rendered.html", self._artifacts_dir)
+            return ToolResult(content=result, content_type="html", artifacts=[artifact])
+
+        return result
 
     def _render_jinja2(self, template_str: str, ctx: dict) -> str:
         try:

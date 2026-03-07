@@ -304,6 +304,7 @@ class DAGExecutor:
             action: Action,
             observation: str | None,
             error: str | None,
+            step_result: Any = None,
         ) -> None:
             nonlocal iter_start
             # Skip final_answer iterations — the same content is sent via
@@ -328,6 +329,12 @@ class DAGExecutor:
             }
             if iter_elapsed is not None:
                 payload["iter_elapsed"] = iter_elapsed
+            # Attach artifact metadata for completed tool calls
+            if not is_starting and step_result is not None:
+                if getattr(step_result, "content_type", None):
+                    payload["content_type"] = step_result.content_type
+                if getattr(step_result, "artifacts", None):
+                    payload["artifacts"] = step_result.artifacts
             self._notify(step.id, "iteration", payload)
 
         agent = self._resolve_agent(step)

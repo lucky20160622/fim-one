@@ -1063,6 +1063,7 @@ async def react_endpoint(
             action: Any,
             observation: str | None,
             error: str | None,
+            step_result: Any = None,
         ) -> None:
             nonlocal iter_start
 
@@ -1100,6 +1101,20 @@ async def react_endpoint(
                 }
                 if iter_elapsed is not None:
                     payload["iter_elapsed"] = iter_elapsed
+                # Attach artifact metadata for completed tool calls
+                if not is_starting and step_result is not None:
+                    if getattr(step_result, "content_type", None):
+                        payload["content_type"] = step_result.content_type
+                    if getattr(step_result, "artifacts", None):
+                        payload["artifacts"] = [
+                            {
+                                "name": a["name"],
+                                "url": f"/api/conversations/{conversation_id}/artifacts/{a['path'].split('/')[-1].split('_', 1)[0]}",
+                                "mime_type": a["mime_type"],
+                                "size": a["size"],
+                            }
+                            for a in step_result.artifacts
+                        ] if conversation_id else step_result.artifacts
                 sse_events.append({"event": "step", "data": payload})
                 try:
                     progress_queue.put_nowait(_sse("step", payload))

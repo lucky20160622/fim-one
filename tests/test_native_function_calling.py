@@ -499,7 +499,7 @@ class TestNativeOnIterationCallback:
 
         callbacks: list[tuple] = []
 
-        def on_iter(iteration: int, action: Action, obs: str | None, err: str | None) -> None:
+        def on_iter(iteration: int, action: Action, obs: str | None, err: str | None, step: Any = None) -> None:
             callbacks.append((iteration, action.type, obs, err))
 
         await agent.run("test", on_iteration=on_iter)
@@ -520,7 +520,7 @@ class TestNativeOnIterationCallback:
 
         callbacks: list[tuple] = []
 
-        def on_iter(iteration: int, action: Action, obs: str | None, err: str | None) -> None:
+        def on_iter(iteration: int, action: Action, obs: str | None, err: str | None, step: Any = None) -> None:
             callbacks.append((iteration, action.type, obs, err))
 
         await agent.run("test", on_iteration=on_iter)
@@ -550,7 +550,7 @@ class TestNativeOnIterationCallback:
 
         callbacks: list[tuple] = []
 
-        def on_iter(iteration: int, action: Action, obs: str | None, err: str | None) -> None:
+        def on_iter(iteration: int, action: Action, obs: str | None, err: str | None, step: Any = None) -> None:
             callbacks.append((iteration, action.type, obs, err))
 
         await agent.run("test", on_iteration=on_iter)

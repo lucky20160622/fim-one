@@ -227,11 +227,13 @@ class ShellExecTool(BaseTool):
         sandbox_dir: Path | None = None,
         memory: str | None = None,
         cpu: float | None = None,
+        artifacts_dir: Path | None = None,
     ) -> None:
         self._timeout = timeout
         self._sandbox_dir = sandbox_dir or _DEFAULT_SANDBOX_DIR
         self._memory = memory
         self._cpu = cpu
+        self._artifacts_dir = artifacts_dir
 
         backend_name = os.environ.get("CODE_EXEC_BACKEND", "local").lower()
         if backend_name == "local":
@@ -322,6 +324,11 @@ class ShellExecTool(BaseTool):
         sandbox = self._sandbox_dir
         sandbox.mkdir(parents=True, exist_ok=True)
 
+        # Snapshot files before execution for artifact detection.
+        before: set[str] = set()
+        if self._artifacts_dir:
+            before = {f.name for f in sandbox.iterdir() if f.is_file()}
+
         # 3. Resolve working directory.
         working_dir_arg: str | None = kwargs.get("working_dir")
         if working_dir_arg is not None:
@@ -368,4 +375,15 @@ class ShellExecTool(BaseTool):
             parts.append(f"\nstderr:\n{result.stderr}")
 
         output = "\n".join(parts)
-        return _truncate_output(output)
+        output = _truncate_output(output)
+
+        # Scan for new files after execution.
+        if self._artifacts_dir:
+            from ..artifact_utils import scan_new_files
+            from ..base import ToolResult
+
+            artifacts = scan_new_files(sandbox, before, self._artifacts_dir)
+            if artifacts:
+                return ToolResult(content=output, artifacts=artifacts)
+
+        return output

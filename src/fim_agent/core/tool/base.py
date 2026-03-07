@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
 
@@ -74,3 +75,26 @@ class BaseTool:
     @abstractmethod
     async def run(self, **kwargs: Any) -> str:
         ...
+
+
+@dataclass
+class Artifact:
+    """A file produced by a tool execution."""
+
+    name: str       # e.g. "report.html"
+    path: str       # server-relative path under uploads root
+    mime_type: str   # e.g. "text/html"
+    size: int        # bytes
+
+
+@dataclass
+class ToolResult:
+    """Rich result from a tool execution.
+
+    Tools can return either a plain ``str`` (backward-compatible) or a
+    ``ToolResult`` for rich content with artifacts.
+    """
+
+    content: str                                # text output (what LLM sees)
+    content_type: str = "text"                  # "text" | "html" | "markdown" | "json"
+    artifacts: list[Artifact] = field(default_factory=list)

@@ -78,6 +78,15 @@ _UPLOADS_KWARGS: dict[type, str] = {
     GenerateImageTool: "output_dir",
 }
 
+# Tools that receive an artifacts_dir for storing rich output files.
+_ARTIFACTS_KWARGS: dict[type, str] = {
+    TemplateRenderTool: "artifacts_dir",
+    PythonExecTool: "artifacts_dir",
+    NodeExecTool: "artifacts_dir",
+    ShellExecTool: "artifacts_dir",
+    GenerateImageTool: "artifacts_dir",
+}
+
 # Tools that require explicit configuration and should NOT be auto-discovered.
 # They are registered manually when the appropriate config is available.
 _SKIP_AUTO_DISCOVER: set[type] = {
@@ -159,6 +168,9 @@ def discover_builtin_tools(
                     uploads_kwarg = _UPLOADS_KWARGS.get(obj)
                     if uploads_kwarg and uploads_root is not None:
                         kwargs[uploads_kwarg] = uploads_root
+                    artifacts_kwarg = _ARTIFACTS_KWARGS.get(obj)
+                    if artifacts_kwarg and uploads_root is not None:
+                        kwargs[artifacts_kwarg] = uploads_root / "artifacts"
                     if obj in _SANDBOX_EXEC_TOOLS:
                         if _memory is not None:
                             kwargs["memory"] = _memory

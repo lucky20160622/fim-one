@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import shutil
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -17,11 +19,16 @@ class GenerateImageTool(BaseTool):
     receives a markdown image link it can embed in its reply.
     """
 
-    def __init__(self, output_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        output_dir: Path | None = None,
+        artifacts_dir: Path | None = None,
+    ) -> None:
         # Default to uploads/generated when no conversation context is provided
         # (e.g. tool catalog listing). Per-conversation callers inject the
         # scoped path so images are isolated and cleaned up with the conversation.
         self._output_dir = output_dir or (Path("uploads") / "generated")
+        self._artifacts_dir = artifacts_dir
 
     @property
     def name(self) -> str:
@@ -87,8 +94,32 @@ class GenerateImageTool(BaseTool):
         except Exception as exc:
             return f"Image generation failed: {exc}"
 
-        return (
+        text = (
             f"![Generated Image]({result.url})\n\n"
             f"*Prompt:* {result.prompt}  \n"
             f"*Model:* {result.model}"
         )
+
+        # Register generated image as an artifact.
+        if self._artifacts_dir:
+            from fim_agent.core.tool.base import Artifact, ToolResult
+
+            img_path = self._output_dir / Path(result.url).name
+            if img_path.exists():
+                self._artifacts_dir.mkdir(parents=True, exist_ok=True)
+                artifact_id = uuid.uuid4().hex[:12]
+                stored = self._artifacts_dir / f"{artifact_id}_{img_path.name}"
+                shutil.copy2(img_path, stored)
+                try:
+                    rel_path = str(stored.relative_to(self._artifacts_dir.parent.parent.parent))
+                except ValueError:
+                    rel_path = stored.name
+                artifact = Artifact(
+                    name=img_path.name,
+                    path=rel_path,
+                    mime_type="image/png",
+                    size=stored.stat().st_size,
+                )
+                return ToolResult(content=text, artifacts=[artifact])
+
+        return text

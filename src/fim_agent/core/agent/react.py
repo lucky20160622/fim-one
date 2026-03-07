@@ -29,8 +29,8 @@ from fim_agent.core.utils import extract_json
 from .types import Action, AgentResult, StepResult
 
 # Callback invoked after each ReAct iteration.
-# Signature: (iteration, action, observation_or_error)
-IterationCallback = Callable[[int, Action, str | None, str | None], Any]
+# Signature: (iteration, action, observation, error, step_result)
+IterationCallback = Callable[[int, Action, str | None, str | None, "StepResult | None"], Any]
 
 logger = logging.getLogger(__name__)
 
@@ -317,7 +317,7 @@ class ReActAgent:
 
                 steps.append(StepResult(action=action))
                 if on_iteration is not None:
-                    on_iteration(iteration, action, None, None)
+                    on_iteration(iteration, action, None, None, None)
                 answer = action.answer or ""
                 await self._save_to_memory(query, answer)
                 return AgentResult(
@@ -329,13 +329,13 @@ class ReActAgent:
 
             # -- Tool call path --
             if on_iteration is not None:
-                on_iteration(iteration, action, None, None)
+                on_iteration(iteration, action, None, None, None)
 
             step = await self._execute_tool_call(action)
             steps.append(step)
 
             if on_iteration is not None:
-                on_iteration(iteration, action, step.observation, step.error)
+                on_iteration(iteration, action, step.observation, step.error, step)
 
         # Max iterations exceeded -- synthesise a timeout answer.
         logger.warning(
@@ -451,7 +451,7 @@ class ReActAgent:
             )
             steps.append(StepResult(action=action))
             if on_iteration is not None:
-                on_iteration(iteration, action, None, None)
+                on_iteration(iteration, action, None, None, None)
             await self._save_to_memory(query, answer)
             return AgentResult(
                 answer=answer,
@@ -498,6 +498,8 @@ class ReActAgent:
             to the conversation.
         """
         async def _run_single(tc: ToolCallRequest) -> tuple[StepResult, ChatMessage]:
+            from fim_agent.core.tool.base import ToolResult
+
             action = Action(
                 type="tool_call",
                 reasoning="",
@@ -520,11 +522,27 @@ class ReActAgent:
                 return step, msg
 
             try:
-                observation = await tool.run(**tc.arguments)
-                step = StepResult(action=action, observation=observation)
+                raw_result = await tool.run(**tc.arguments)
+                if isinstance(raw_result, ToolResult):
+                    step = StepResult(
+                        action=action,
+                        observation=raw_result.content,
+                        content_type=raw_result.content_type,
+                        artifacts=[
+                            {"name": a.name, "path": a.path, "mime_type": a.mime_type, "size": a.size}
+                            for a in raw_result.artifacts
+                        ] if raw_result.artifacts else None,
+                    )
+                    msg = ChatMessage(
+                        role="tool",
+                        content=raw_result.content,
+                        tool_call_id=tc.id,
+                    )
+                    return step, msg
+                step = StepResult(action=action, observation=raw_result)
                 msg = ChatMessage(
                     role="tool",
-                    content=observation,
+                    content=raw_result,
                     tool_call_id=tc.id,
                 )
                 return step, msg
@@ -548,7 +566,7 @@ class ReActAgent:
                     tool_name=tc.name,
                     tool_args=tc.arguments,
                 )
-                on_iteration(iteration, start_action, None, None)
+                on_iteration(iteration, start_action, None, None, None)
 
         results = await asyncio.gather(*[_run_single(tc) for tc in tool_calls])
 
@@ -563,6 +581,7 @@ class ReActAgent:
                     step_result.action,
                     step_result.observation,
                     step_result.error,
+                    step_result,
                 )
 
         return tool_messages
@@ -593,7 +612,7 @@ class ReActAgent:
                     type="tool_call", reasoning="",
                     tool_name="__inject__",
                     tool_args={"content": injected.content, "id": injected.id},
-                ), injected.content, None)
+                ), injected.content, None, None)
 
         # Append as a SINGLE combined message so the LLM addresses ALL
         # injected messages, not just the last one.
@@ -760,6 +779,8 @@ class ReActAgent:
         Returns:
             A ``StepResult`` with either an observation or an error.
         """
+        from fim_agent.core.tool.base import ToolResult
+
         tool_name = action.tool_name or ""
         tool = self._tools.get(tool_name)
 
@@ -772,8 +793,18 @@ class ReActAgent:
             return StepResult(action=action, error=error_msg)
 
         try:
-            observation = await tool.run(**(action.tool_args or {}))
-            return StepResult(action=action, observation=observation)
+            raw_result = await tool.run(**(action.tool_args or {}))
+            if isinstance(raw_result, ToolResult):
+                return StepResult(
+                    action=action,
+                    observation=raw_result.content,
+                    content_type=raw_result.content_type,
+                    artifacts=[
+                        {"name": a.name, "path": a.path, "mime_type": a.mime_type, "size": a.size}
+                        for a in raw_result.artifacts
+                    ] if raw_result.artifacts else None,
+                )
+            return StepResult(action=action, observation=raw_result)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
