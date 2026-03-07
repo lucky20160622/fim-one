@@ -65,9 +65,12 @@ export function AIActionPanel({
         const result = await connectorApi.aiCreateConnector({
           instruction: trimmed,
         })
+        const displayMessage = result.message_key
+          ? t(result.message_key, (result.message_args ?? {}) as Record<string, string | number>)
+          : result.message || t("aiConnectorCreatedMessage")
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: result.message || t("aiConnectorCreatedMessage") },
+          { role: "assistant", content: displayMessage },
         ])
         toast.success(t("aiConnectorCreatedSuccess"))
         onConnectorCreated?.(result.connector)
@@ -131,7 +134,10 @@ export function AIActionPanel({
         onConnectorUpdated?.(result.connector_updated)
       }
 
-      const summary = parts.length > 0 ? parts.join(". ") + "." : result.message
+      const translatedFallback = result.message_key
+        ? t(result.message_key, (result.message_args ?? {}) as Record<string, string | number>)
+        : result.message
+      const summary = parts.length > 0 ? parts.join(". ") + "." : translatedFallback
 
       setMessages((prev) => [
         ...prev,

@@ -95,9 +95,13 @@ export interface AIActionResult {
   deleted: string[]
   connector_updated: ConnectorResponse | null
   message: string
+  message_key?: string
+  message_args?: Record<string, unknown>
 }
 
 export interface AICreateConnectorResult {
   connector: ConnectorResponse
   message: string
+  message_key?: string
+  message_args?: Record<string, unknown>
 }

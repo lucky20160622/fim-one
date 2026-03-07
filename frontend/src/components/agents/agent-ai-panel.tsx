@@ -62,9 +62,12 @@ export function AgentAIPanel({
         const result = await agentApi.aiCreateAgent({
           instruction: trimmed,
         })
+        const displayMessage = result.message_key
+          ? t(result.message_key, (result.message_args ?? {}) as Record<string, string | number>)
+          : result.message || t("agentCreated")
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: result.message || t("agentCreated") },
+          { role: "assistant", content: displayMessage },
         ])
         toast.success(t("aiCreatedSuccess"))
         onAgentCreated?.(result.agent)
@@ -101,14 +104,18 @@ export function AgentAIPanel({
         instruction: trimmed,
       })
 
+      const translatedMessage = result.message_key
+        ? t(result.message_key, (result.message_args ?? {}) as Record<string, string | number>)
+        : result.message
+
       const parts: string[] = []
       if (result.modified_fields && result.modified_fields.length > 0) {
         parts.push(t("aiUpdatedFields", { fields: result.modified_fields.join(", ") }))
       }
 
       const summary = parts.length > 0
-        ? `${result.message} ${parts.join(". ")}.`
-        : result.message || t("aiAgentUpdated")
+        ? `${translatedMessage} ${parts.join(". ")}.`
+        : translatedMessage || t("aiAgentUpdated")
 
       setMessages((prev) => [
         ...prev,

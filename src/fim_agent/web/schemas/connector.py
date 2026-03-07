@@ -119,6 +119,8 @@ class AIActionResult(BaseModel):
     failed: list[str] = []
     connector_updated: ConnectorResponse | None = None
     message: str = ""
+    message_key: str = ""
+    message_args: dict = {}
 
 
 class AICreateConnectorRequest(BaseModel):
@@ -128,3 +130,5 @@ class AICreateConnectorRequest(BaseModel):
 class AICreateConnectorResult(BaseModel):
     connector: ConnectorResponse
     message: str = ""
+    message_key: str = ""
+    message_args: dict = {}

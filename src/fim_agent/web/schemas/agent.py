@@ -68,9 +68,13 @@ class AIRefineAgentRequest(BaseModel):
 class AICreateAgentResult(BaseModel):
     agent: AgentResponse
     message: str = ""
+    message_key: str = ""
+    message_args: dict = {}
 
 
 class AIRefineAgentResult(BaseModel):
     agent: AgentResponse
     modified_fields: list[str] = []
     message: str = ""
+    message_key: str = ""
+    message_args: dict = {}

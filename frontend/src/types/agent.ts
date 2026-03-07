@@ -57,10 +57,14 @@ export interface AgentUpdate {
 export interface AICreateAgentResult {
   agent: AgentResponse
   message: string
+  message_key?: string
+  message_args?: Record<string, unknown>
 }
 
 export interface AIRefineAgentResult {
   agent: AgentResponse
   modified_fields: string[]
   message: string
+  message_key?: string
+  message_args?: Record<string, unknown>
 }
