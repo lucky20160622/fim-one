@@ -46,9 +46,9 @@ class GenerateImageTool(BaseTool):
     def description(self) -> str:
         return (
             "Generate an image from a text description using Google Imagen. "
-            "The generated image is automatically displayed in the UI as a "
-            "downloadable artifact — do NOT attempt to embed the image URL in "
-            "your reply. Instead, describe what was generated in natural language. "
+            "The image file is attached below automatically — do NOT mention "
+            "any download link or URL in your reply. Just briefly describe "
+            "what was generated. "
             "Supports aspect ratios: 1:1 (default), 16:9, 9:16, 4:3, 3:4."
         )
 
