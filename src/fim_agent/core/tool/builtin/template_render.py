@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 from typing import Any
 
 from ..base import BaseTool
@@ -18,6 +19,9 @@ except ImportError:
 
 class TemplateRenderTool(BaseTool):
     """Render Jinja2 templates with a provided context of variables."""
+
+    def __init__(self, *, artifacts_dir: Path | None = None) -> None:
+        self._artifacts_dir = artifacts_dir
 
     @property
     def name(self) -> str:
@@ -90,15 +94,17 @@ class TemplateRenderTool(BaseTool):
         else:
             result = self._render_stdlib(template_str, ctx)
 
-        # Return HTML with content_type for iframe preview in ObservationBlock.
-        # No artifact is created here — if the user needs a downloadable file,
-        # the LLM will call file_ops write, which handles artifact registration.
-        if not result.startswith("[Error]") and (
-            "<html" in result.lower() or "<!doctype" in result.lower()
+        # Wrap HTML output as an artifact for preview
+        if (
+            self._artifacts_dir
+            and not result.startswith("[Error]")
+            and ("<html" in result.lower() or "<!doctype" in result.lower())
         ):
+            from ..artifact_utils import save_content_artifact
             from ..base import ToolResult
 
-            return ToolResult(content=result, content_type="html")
+            artifact = save_content_artifact(result, "rendered.html", self._artifacts_dir)
+            return ToolResult(content=result, content_type="html", artifacts=[artifact])
 
         return result
 

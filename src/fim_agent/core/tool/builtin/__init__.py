@@ -66,14 +66,21 @@ __all__ = [
 # tool (e.g. python_exec) are visible to others (e.g. file_ops, shell_exec).
 _SANDBOX_KWARGS: dict[type, str] = {
     FileOpsTool: "workspace_dir",
-    GenerateImageTool: "output_dir",
     NodeExecTool: "exec_dir",
     ShellExecTool: "sandbox_dir",
     PythonExecTool: "exec_dir",
 }
 
+# Mapping from tool class to the keyword argument name for uploads paths.
+# When uploads_root is provided, these tools receive a per-conversation
+# output directory so their files are isolated and cleaned up with the conversation.
+_UPLOADS_KWARGS: dict[type, str] = {
+    GenerateImageTool: "output_dir",
+}
+
 # Tools that receive an artifacts_dir for storing rich output files.
 _ARTIFACTS_KWARGS: dict[type, str] = {
+    TemplateRenderTool: "artifacts_dir",
     PythonExecTool: "artifacts_dir",
     NodeExecTool: "artifacts_dir",
     ShellExecTool: "artifacts_dir",
@@ -135,7 +142,6 @@ def discover_builtin_tools(
             "workspace_dir": shared,
             "sandbox_dir": shared,
             "exec_dir": shared,
-            "output_dir": shared,
         }
 
     tools: list[Tool] = []
@@ -162,6 +168,9 @@ def discover_builtin_tools(
                     kwarg_name = _SANDBOX_KWARGS.get(obj)
                     if kwarg_name and kwarg_name in sandbox_paths:
                         kwargs[kwarg_name] = sandbox_paths[kwarg_name]
+                    uploads_kwarg = _UPLOADS_KWARGS.get(obj)
+                    if uploads_kwarg and uploads_root is not None:
+                        kwargs[uploads_kwarg] = uploads_root
                     artifacts_kwarg = _ARTIFACTS_KWARGS.get(obj)
                     if artifacts_kwarg and uploads_root is not None:
                         kwargs[artifacts_kwarg] = uploads_root / "artifacts"
