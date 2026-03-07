@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import { adminApi } from "@/lib/api"
+import { getErrorMessage } from "@/lib/error-utils"
 import { useAuth } from "@/contexts/auth-context"
 import type { AdminUser } from "@/types/admin"
 
@@ -55,6 +56,7 @@ export function AdminUsers() {
   const { user: currentUser } = useAuth()
   const t = useTranslations("admin.users")
   const tc = useTranslations("common")
+  const tError = useTranslations("errors")
 
   // --- List state ---
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -98,8 +100,7 @@ export function AdminUsers() {
       setTotal(data.total)
       setPages(data.pages)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to load users"
-      toast.error(msg)
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsLoading(false)
     }
@@ -117,10 +118,6 @@ export function AdminUsers() {
       setPage(1)
     }, 300)
   }
-
-  // --- Helpers ---
-  const errMsg = (err: unknown) =>
-    err instanceof Error ? err.message : "Operation failed"
 
   // --- Create user ---
   const handleCreate = async () => {
@@ -141,7 +138,7 @@ export function AdminUsers() {
       setCreateDisplayName("")
       await loadUsers()
     } catch (err: unknown) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsMutating(false)
     }
@@ -166,7 +163,7 @@ export function AdminUsers() {
       setEditTarget(null)
       await loadUsers()
     } catch (err: unknown) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsMutating(false)
     }
@@ -188,7 +185,7 @@ export function AdminUsers() {
       setResetPassword("")
       await loadUsers()
     } catch (err: unknown) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsMutating(false)
     }
@@ -204,7 +201,7 @@ export function AdminUsers() {
       setAdminToggleTarget(null)
       await loadUsers()
     } catch (err: unknown) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsMutating(false)
     }
@@ -220,7 +217,7 @@ export function AdminUsers() {
       setDeleteTarget(null)
       await loadUsers()
     } catch (err: unknown) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsMutating(false)
     }
@@ -233,7 +230,7 @@ export function AdminUsers() {
       toast.success(t("userLoggedOut"))
       await loadUsers()
     } catch (err: unknown) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     }
   }
 
@@ -253,7 +250,7 @@ export function AdminUsers() {
       setQuotaTarget(null)
       await loadUsers()
     } catch (err: unknown) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsMutating(false)
     }
@@ -269,7 +266,7 @@ export function AdminUsers() {
       setActiveToggleTarget(null)
       await loadUsers()
     } catch (err: unknown) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsMutating(false)
     }

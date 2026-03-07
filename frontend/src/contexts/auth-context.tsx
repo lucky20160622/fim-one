@@ -9,6 +9,7 @@ import {
   useRef,
 } from "react"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { authApi, setAuthFailureCallback } from "@/lib/api"
 import {
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const router = useRouter()
+  const tError = useTranslations("errors")
 
   const clearAuth = useCallback(() => {
     localStorage.removeItem(ACCESS_TOKEN_KEY)
@@ -90,11 +92,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setAuthFailureCallback(() => {
       clearAuth()
-      toast.error("Session expired, please log in again")
+      toast.error(tError("session_expired"))
       router.replace("/login")
     })
     return () => setAuthFailureCallback(null)
-  }, [clearAuth, router])
+  }, [clearAuth, router, tError])
 
   // Initial token check on mount
   useEffect(() => {

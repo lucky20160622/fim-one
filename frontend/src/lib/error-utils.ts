@@ -11,12 +11,15 @@ import { ApiError } from "./api"
  *   const tError = useTranslations("errors")
  *   toast.error(getErrorMessage(err, tError))
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TranslatorFn = (key: string, args?: Record<string, any>) => string
+
 export function getErrorMessage(
   err: unknown,
-  tError: (key: string, args?: Record<string, unknown>) => string,
+  tError: TranslatorFn,
 ): string {
   if (err instanceof ApiError && err.errorCode) {
-    const translated = tError(err.errorCode, err.errorArgs)
+    const translated = tError(err.errorCode, err.errorArgs as Record<string, string | number>)
     // next-intl returns the key itself when no translation is found
     if (translated !== err.errorCode) return translated
   }

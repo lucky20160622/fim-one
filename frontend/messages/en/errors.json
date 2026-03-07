@@ -58,7 +58,10 @@
   "kb_not_found": "Knowledge base not found.",
   "document_not_found": "Document not found.",
   "unsupported_document_type": "Unsupported document type: {ext}.",
+  "source_file_missing": "Source file is missing from disk.",
   "chunk_not_found": "Chunk not found.",
+  "chunk_update_failed": "Failed to update chunk.",
+  "chunk_delete_failed": "Failed to delete chunk.",
 
   "model_config_not_found": "Model configuration not found.",
   "cannot_delete_system_model": "Cannot delete system model.",
@@ -76,5 +79,7 @@
   "oauth_provider_not_configured": "OAuth provider \"{provider}\" is not configured.",
   "oauth_bind_credentials_required": "Credentials required for OAuth binding.",
 
-  "mcp_server_not_found": "MCP server not found."
+  "mcp_server_not_found": "MCP server not found.",
+
+  "session_expired": "Session expired, please log in again."
 }

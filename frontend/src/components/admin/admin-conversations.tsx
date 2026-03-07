@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { adminApi } from "@/lib/api"
+import { getErrorMessage } from "@/lib/error-utils"
 import type { AdminConversation } from "@/types/admin"
 
 const PAGE_SIZE = 20
@@ -25,6 +26,7 @@ const PAGE_SIZE = 20
 export function AdminConversations() {
   const t = useTranslations("admin.conversations")
   const tc = useTranslations("common")
+  const tError = useTranslations("errors")
   const [conversations, setConversations] = useState<AdminConversation[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -33,9 +35,6 @@ export function AdminConversations() {
   const [deleteTarget, setDeleteTarget] = useState<AdminConversation | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const errMsg = (err: unknown) =>
-    err instanceof Error ? err.message : "Operation failed"
-
   const loadConversations = useCallback(async () => {
     setIsLoading(true)
     try {
@@ -43,7 +42,7 @@ export function AdminConversations() {
       setConversations(res.items)
       setTotal(res.total)
     } catch (err) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsLoading(false)
     }
@@ -67,7 +66,7 @@ export function AdminConversations() {
       setDeleteTarget(null)
       loadConversations()
     } catch (err) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     }
   }
 

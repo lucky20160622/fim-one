@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { adminApi } from "@/lib/api"
+import { getErrorMessage } from "@/lib/error-utils"
 import type { UserStorageStat } from "@/types/admin"
 
 function formatBytes(bytes: number): string {
@@ -28,13 +29,11 @@ function formatBytes(bytes: number): string {
 export function AdminStorage() {
   const t = useTranslations("admin.storage")
   const tc = useTranslations("common")
+  const tError = useTranslations("errors")
   const [stats, setStats] = useState<{ total_bytes: number; users: UserStorageStat[] } | null>(null)
   const [clearTarget, setClearTarget] = useState<UserStorageStat | null>(null)
   const [showOrphanConfirm, setShowOrphanConfirm] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-
-  const errMsg = (err: unknown) =>
-    err instanceof Error ? err.message : "Operation failed"
 
   const load = async () => {
     setIsLoading(true)
@@ -42,7 +41,7 @@ export function AdminStorage() {
       const data = await adminApi.getStorageStats()
       setStats(data)
     } catch (err) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsLoading(false)
     }
@@ -59,7 +58,7 @@ export function AdminStorage() {
       setClearTarget(null)
       load()
     } catch (err) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     }
   }
 
@@ -70,7 +69,7 @@ export function AdminStorage() {
       setShowOrphanConfirm(false)
       load()
     } catch (err) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     }
   }
 

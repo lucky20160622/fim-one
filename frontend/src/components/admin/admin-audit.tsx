@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl"
 import { Loader2, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { apiFetch } from "@/lib/api"
+import { getErrorMessage } from "@/lib/error-utils"
 import { toast } from "sonner"
 
 interface AuditEntry {
@@ -60,6 +61,7 @@ function formatTime(iso: string): string {
 export function AdminAudit() {
   const t = useTranslations("admin.audit")
   const tc = useTranslations("common")
+  const tError = useTranslations("errors")
   const [data, setData] = useState<AuditPage | null>(null)
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
@@ -70,7 +72,7 @@ export function AdminAudit() {
       const res = await apiFetch<AuditPage>(`/api/admin/audit-log?page=${page}&size=50`)
       setData(res)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load audit log")
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsLoading(false)
     }

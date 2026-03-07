@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { apiFetch, adminApi } from "@/lib/api"
+import { getErrorMessage } from "@/lib/error-utils"
 import { toast } from "sonner"
 import type { InviteCode } from "@/types/admin"
 
@@ -51,6 +52,7 @@ interface SystemSettings {
 export function AdminSettings() {
   const t = useTranslations("admin.settings")
   const tc = useTranslations("common")
+  const tError = useTranslations("errors")
   const [settings, setSettings] = useState<SystemSettings | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -67,7 +69,7 @@ export function AdminSettings() {
         setQuotaDraft(data.default_token_quota ? String(data.default_token_quota) : "0")
       })
       .catch((err) =>
-        toast.error(err instanceof Error ? err.message : "Failed to load settings"),
+        toast.error(getErrorMessage(err, tError)),
       )
       .finally(() => setIsLoading(false))
   }, [])
@@ -85,7 +87,7 @@ export function AdminSettings() {
       setAnnouncementDraft(updated.announcement_text)
       return updated
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update settings")
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsSaving(false)
     }
@@ -99,7 +101,7 @@ export function AdminSettings() {
       })
       toast.success(t("loggedOutSessions", { count: res.invalidated }))
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to force logout")
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsForcing(false)
       setForceLogoutOpen(false)
@@ -346,6 +348,7 @@ export function AdminSettings() {
 function InviteCodeManager() {
   const t = useTranslations("admin.settings")
   const tc = useTranslations("common")
+  const tError = useTranslations("errors")
   const [codes, setCodes] = useState<InviteCode[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
@@ -358,16 +361,13 @@ function InviteCodeManager() {
   const [expiresAt, setExpiresAt] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
-  const errMsg = (err: unknown) =>
-    err instanceof Error ? err.message : "Operation failed"
-
   const load = useCallback(async () => {
     setIsLoading(true)
     try {
       const data = await adminApi.listInviteCodes()
       setCodes(data)
     } catch (err) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsLoading(false)
     }
@@ -390,7 +390,7 @@ function InviteCodeManager() {
       setExpiresAt("")
       load()
     } catch (err) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsSaving(false)
     }
@@ -404,7 +404,7 @@ function InviteCodeManager() {
       setRevokeTarget(null)
       load()
     } catch (err) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     }
   }
 

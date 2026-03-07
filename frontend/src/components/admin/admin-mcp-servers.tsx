@@ -27,19 +27,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { adminApi } from "@/lib/api"
+import { getErrorMessage } from "@/lib/error-utils"
 import type { AdminMCPServer } from "@/types/admin"
 
 export function AdminMcpServers() {
   const t = useTranslations("admin.mcpServers")
   const tc = useTranslations("common")
+  const tError = useTranslations("errors")
   const [servers, setServers] = useState<AdminMCPServer[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [deleteTarget, setDeleteTarget] = useState<AdminMCPServer | null>(null)
   const [editTarget, setEditTarget] = useState<AdminMCPServer | null>(null)
   const [showCreate, setShowCreate] = useState(false)
-
-  const errMsg = (err: unknown) =>
-    err instanceof Error ? err.message : "Operation failed"
 
   const load = async () => {
     setIsLoading(true)
@@ -47,7 +46,7 @@ export function AdminMcpServers() {
       const data = await adminApi.listGlobalMcpServers()
       setServers(data)
     } catch (err) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsLoading(false)
     }
@@ -66,7 +65,7 @@ export function AdminMcpServers() {
         toast.error(result.error ?? "Test failed")
       }
     } catch (err) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     }
   }
 
@@ -78,7 +77,7 @@ export function AdminMcpServers() {
       setDeleteTarget(null)
       load()
     } catch (err) {
-      toast.error(errMsg(err))
+      toast.error(getErrorMessage(err, tError))
     }
   }
 
@@ -206,6 +205,7 @@ function GlobalMcpServerDialog({
   const isEdit = !!server
   const t = useTranslations("admin.mcpServers")
   const tc = useTranslations("common")
+  const tError = useTranslations("errors")
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -293,7 +293,7 @@ function GlobalMcpServerDialog({
       }
       onSuccess()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("saveFailed"))
+      toast.error(getErrorMessage(err, tError))
     } finally {
       setIsSaving(false)
     }

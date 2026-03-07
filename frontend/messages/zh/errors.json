@@ -58,7 +58,10 @@
   "kb_not_found": "知识库未找到。",
   "document_not_found": "文档未找到。",
   "unsupported_document_type": "不支持的文档类型：{ext}。",
+  "source_file_missing": "源文件在磁盘上不存在。",
   "chunk_not_found": "分块未找到。",
+  "chunk_update_failed": "更新分块失败。",
+  "chunk_delete_failed": "删除分块失败。",
 
   "model_config_not_found": "模型配置未找到。",
   "cannot_delete_system_model": "无法删除系统模型。",
@@ -76,5 +79,7 @@
   "oauth_provider_not_configured": "OAuth 提供商 \"{provider}\" 未配置。",
   "oauth_bind_credentials_required": "OAuth 绑定需要登录凭据。",
 
-  "mcp_server_not_found": "MCP 服务器未找到。"
+  "mcp_server_not_found": "MCP 服务器未找到。",
+
+  "session_expired": "会话已过期，请重新登录。"
 }
