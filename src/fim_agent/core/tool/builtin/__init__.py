@@ -62,8 +62,8 @@ __all__ = [
 ]
 
 # Mapping from tool class to the keyword argument name for sandbox paths.
-# NodeExecTool shares the same exec_dir as PythonExecTool so both tools'
-# output files are accessible from the same per-conversation directory.
+# All tools share a single "workspace" directory so files created by one
+# tool (e.g. python_exec) are visible to others (e.g. file_ops, shell_exec).
 _SANDBOX_KWARGS: dict[type, str] = {
     FileOpsTool: "workspace_dir",
     NodeExecTool: "exec_dir",
@@ -110,13 +110,13 @@ def discover_builtin_tools(
     Scans every module in this package, finds concrete ``BaseTool`` subclasses,
     and returns a fresh instance of each.
 
-    When *sandbox_root* is provided (a per-conversation directory), sandboxed
-    tools receive their respective sub-directory under that root::
+    When *sandbox_root* is provided (a per-conversation directory), all
+    sandboxed tools share a single ``workspace/`` directory so that files
+    created by one tool (e.g. python_exec) are visible to others
+    (e.g. file_ops, shell_exec)::
 
         sandbox_root/
-        ├── workspace/   → FileOpsTool(workspace_dir=...)
-        ├── sandbox/     → ShellExecTool(sandbox_dir=...)
-        └── exec/        → PythonExecTool(exec_dir=...) + NodeExecTool(exec_dir=...)
+        └── workspace/   → FileOpsTool + ShellExecTool + PythonExecTool + NodeExecTool
 
     When *sandbox_config* is provided (from the agent's ``sandbox_config``
     JSON column), resource limits are passed to exec tools::
@@ -133,13 +133,15 @@ def discover_builtin_tools(
     _cpu: float | None = sandbox_config.get("cpu") if sandbox_config else None
     _timeout_override: int | None = sandbox_config.get("timeout") if sandbox_config else None
 
-    # Pre-compute per-tool sandbox paths when a root is provided.
+    # All sandboxed tools share a single workspace directory so files are
+    # visible across tools (e.g. python_exec output readable by file_ops).
     sandbox_paths: dict[str, Path] = {}
     if sandbox_root is not None:
+        shared = sandbox_root / "workspace"
         sandbox_paths = {
-            "workspace_dir": sandbox_root / "workspace",
-            "sandbox_dir": sandbox_root / "sandbox",
-            "exec_dir": sandbox_root / "exec",
+            "workspace_dir": shared,
+            "sandbox_dir": shared,
+            "exec_dir": shared,
         }
 
     tools: list[Tool] = []
