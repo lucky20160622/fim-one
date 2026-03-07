@@ -56,16 +56,16 @@ export interface AvatarColorConfig {
 }
 
 export const AVATAR_COLORS: AvatarColorConfig[] = [
-  { id: "gray", bg: "bg-gradient-to-br from-gray-400 to-gray-600" },
-  { id: "slate", bg: "bg-gradient-to-br from-slate-500 to-slate-700" },
-  { id: "red", bg: "bg-gradient-to-br from-red-500 to-rose-700" },
-  { id: "orange", bg: "bg-gradient-to-br from-orange-500 to-amber-700" },
-  { id: "amber", bg: "bg-gradient-to-br from-amber-500 to-yellow-700" },
-  { id: "green", bg: "bg-gradient-to-br from-green-500 to-emerald-700" },
-  { id: "teal", bg: "bg-gradient-to-br from-cyan-500 to-teal-700" },
-  { id: "blue", bg: "bg-gradient-to-br from-blue-500 to-indigo-700" },
-  { id: "purple", bg: "bg-gradient-to-br from-violet-500 to-purple-700" },
-  { id: "pink", bg: "bg-gradient-to-br from-pink-500 to-fuchsia-700" },
+  { id: "gray", bg: "bg-gradient-to-br from-gray-400 to-gray-600 saturate-[.35] dark:saturate-100" },
+  { id: "slate", bg: "bg-gradient-to-br from-slate-500 to-slate-700 saturate-[.35] dark:saturate-100" },
+  { id: "red", bg: "bg-gradient-to-br from-red-500 to-rose-700 saturate-[.35] dark:saturate-100" },
+  { id: "orange", bg: "bg-gradient-to-br from-orange-500 to-amber-700 saturate-[.35] dark:saturate-100" },
+  { id: "amber", bg: "bg-gradient-to-br from-amber-500 to-yellow-700 saturate-[.35] dark:saturate-100" },
+  { id: "green", bg: "bg-gradient-to-br from-green-500 to-emerald-700 saturate-[.35] dark:saturate-100" },
+  { id: "teal", bg: "bg-gradient-to-br from-cyan-500 to-teal-700 saturate-[.35] dark:saturate-100" },
+  { id: "blue", bg: "bg-gradient-to-br from-blue-500 to-indigo-700 saturate-[.35] dark:saturate-100" },
+  { id: "purple", bg: "bg-gradient-to-br from-violet-500 to-purple-700 saturate-[.35] dark:saturate-100" },
+  { id: "pink", bg: "bg-gradient-to-br from-pink-500 to-fuchsia-700 saturate-[.35] dark:saturate-100" },
 ]
 
 /* ── Legacy color mapping for old "builtin:{icon}" format ── */

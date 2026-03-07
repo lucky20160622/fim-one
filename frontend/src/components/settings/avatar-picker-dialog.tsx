@@ -181,14 +181,20 @@ export function AvatarPickerDialog({
                   onClick={() => setSelectedColor(color.id)}
                   disabled={saving}
                   className={cn(
-                    "h-7 w-7 rounded-full transition-all outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                    "relative h-7 w-7 rounded-full transition-all outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                     color.bg,
                     isSelected
                       ? "outline-2 outline-offset-2 outline-primary"
                       : "hover:outline-2 hover:outline-offset-2 hover:outline-muted-foreground/40",
                   )}
                   aria-label={color.id}
-                />
+                >
+                  {isSelected && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50">
+                      <Check className="h-3.5 w-3.5 text-white stroke-[2.5]" />
+                    </div>
+                  )}
+                </button>
               )
             })}
           </div>
@@ -207,7 +213,7 @@ export function AvatarPickerDialog({
                   onClick={() => setSelectedIcon(ic.id)}
                   disabled={saving}
                   className={cn(
-                    "relative rounded-full transition-all outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                    "rounded-full transition-all outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                     isSelected
                       ? "outline-2 outline-offset-2 outline-primary"
                       : "hover:outline-2 hover:outline-offset-2 hover:outline-muted-foreground/40",
@@ -215,17 +221,17 @@ export function AvatarPickerDialog({
                 >
                   <div
                     className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-full",
+                      "relative flex h-9 w-9 items-center justify-center rounded-full",
                       colorCfg.bg,
                     )}
                   >
                     <Icon className="h-4.5 w-4.5 text-white" />
+                    {isSelected && (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50">
+                        <Check className="h-4.5 w-4.5 text-white stroke-[2.5]" />
+                      </div>
+                    )}
                   </div>
-                  {isSelected && (
-                    <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/30">
-                      <Check className="h-4 w-4 text-white" />
-                    </div>
-                  )}
                 </button>
               )
             })}
