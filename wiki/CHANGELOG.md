@@ -24,6 +24,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **Admin/Settings: invite code inactive filter**: Revoked and exhausted invite codes are hidden by default; an "N inactive" toggle button reveals them. Exhausted codes (use_count ≥ max_uses) now show an "Exhausted" badge distinct from "Revoked".
 
 ### Fixed
+- **Generated image preview broken**: `generate_image` tool now outputs artifact API URLs (`/api/conversations/{id}/artifacts/{aid}`) instead of unserved `/uploads/…` paths; `ClickableImage` in the markdown renderer fetches artifact URLs with Bearer token auth and converts to blob URLs; lightbox download button also uses authenticated fetch instead of plain `<a href>`.
 - **Admin audit log timestamps**: Added missing year to `formatTime()` — timestamps now display as "2026年3月7日 11:12:00" (zh) / "Mar 7, 2026, 11:12:00 AM" (en) instead of omitting the year.
 - **Auth: refresh token expiry comparison** — `refresh_token_expires_at` (SQLite naive datetime) now has `tzinfo=UTC` attached before comparing with `datetime.now(UTC)`, fixing `TypeError: can't compare offset-naive and offset-aware datetimes` in `POST /api/auth/refresh`.
 - **Replace deprecated `datetime.utcnow()`** with `datetime.now(UTC)` across auth and OAuth endpoints (S-9)
