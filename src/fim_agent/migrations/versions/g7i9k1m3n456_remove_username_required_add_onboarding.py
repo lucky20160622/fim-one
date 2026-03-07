@@ -1,0 +1,34 @@
+"""remove username required, add onboarding_completed
+
+Revision ID: g7i9k1m3n456
+Revises: f6h8j0k2l345
+Create Date: 2026-03-07 12:00:00.000000
+"""
+from __future__ import annotations
+
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision: str = "g7i9k1m3n456"
+down_revision: Union[str, None] = "f6h8j0k2l345"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.alter_column("username", existing_type=sa.String(50), nullable=True)
+    op.add_column(
+        "users",
+        sa.Column("onboarding_completed", sa.Boolean(), nullable=False, server_default="0"),
+    )
+
+
+def downgrade() -> None:
+    op.drop_column("users", "onboarding_completed")
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.alter_column("username", existing_type=sa.String(50), nullable=False)

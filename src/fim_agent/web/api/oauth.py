@@ -397,8 +397,8 @@ async def _handle_login(
     # overwrite another user's email address.
 
     # Issue JWT tokens
-    jwt_access = create_access_token(user.id, user.username)
-    jwt_refresh = create_refresh_token(user.id, user.username)
+    jwt_access = create_access_token(user.id, user.email)
+    jwt_refresh = create_refresh_token(user.id, user.email)
     user.refresh_token = jwt_refresh
     user.refresh_token_expires_at = datetime.now(UTC) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     await db.commit()

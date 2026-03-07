@@ -104,12 +104,12 @@ def verify_password(password: str, hashed: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def create_access_token(user_id: str, username: str) -> str:
+def create_access_token(user_id: str, email: str) -> str:
     now = datetime.now(UTC)
     expires = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
         "sub": user_id,
-        "username": username,
+        "email": email,
         "type": "access",
         "exp": expires,
         "iat": now,
@@ -117,11 +117,11 @@ def create_access_token(user_id: str, username: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def create_refresh_token(user_id: str, username: str) -> str:
+def create_refresh_token(user_id: str, email: str) -> str:
     expires = datetime.now(UTC) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     payload = {
         "sub": user_id,
-        "username": username,
+        "email": email,
         "type": "refresh",
         "exp": expires,
     }

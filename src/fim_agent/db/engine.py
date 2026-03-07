@@ -100,6 +100,7 @@ async def init_db() -> None:
             await _migrate_user_tokens_invalidated_at(conn)
             await _migrate_user_token_quota(conn)
             await _migrate_mcp_server_global(conn)
+            await _migrate_user_avatar(conn)
 
     logger.info("Database initialized successfully")
 
@@ -420,6 +421,15 @@ async def _migrate_mcp_server_global(conn) -> None:
             text("CREATE INDEX IF NOT EXISTS ix_mcp_servers_user_id ON mcp_servers(user_id)")
         )
         logger.info("mcp_servers.user_id is now nullable")
+
+
+async def _migrate_user_avatar(conn) -> None:
+    """Add avatar column to users table if it doesn't exist."""
+    result = await conn.execute(text("PRAGMA table_info(users)"))
+    existing_columns = {row[1] for row in result.fetchall()}
+    if "avatar" not in existing_columns:
+        logger.info("Adding column users.avatar")
+        await conn.execute(text("ALTER TABLE users ADD COLUMN avatar VARCHAR(255)"))
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

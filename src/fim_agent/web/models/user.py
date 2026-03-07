@@ -26,7 +26,7 @@ class User(UUIDPKMixin, TimestampMixin, Base):
         UniqueConstraint("oauth_provider", "oauth_id", name="uq_user_oauth"),
     )
 
-    username: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
+    username: Mapped[str | None] = mapped_column(String(50), unique=True, index=True, nullable=True)
     display_name: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -39,9 +39,11 @@ class User(UUIDPKMixin, TimestampMixin, Base):
     preferred_language: Mapped[str] = mapped_column(
         String(10), nullable=False, default="auto", server_default="auto"
     )
+    onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     oauth_provider: Mapped[str | None] = mapped_column(String(20), nullable=True)
     oauth_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
+    avatar: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
 
     conversations: Mapped[list[Conversation]] = relationship(back_populates="user", lazy="raise")
     agents: Mapped[list[Agent]] = relationship(back_populates="user", lazy="raise")

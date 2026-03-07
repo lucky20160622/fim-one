@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import random
+import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -55,6 +56,7 @@ from fim_agent.web.schemas.auth import (
     TokenResponse,
     UpdateProfileRequest,
     UserInfo,
+    VerifyForgotCodeRequest,
 )
 from fim_agent.web.schemas.common import ApiResponse
 
@@ -825,12 +827,12 @@ async def send_forgot_code(
     }
 
 
-@router.post("/forgot-password", response_model=ApiResponse)
-async def forgot_password(
-    body: ForgotPasswordRequest,
+@router.post("/verify-forgot-code", response_model=ApiResponse)
+async def verify_forgot_code(
+    body: VerifyForgotCodeRequest,
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
-    """Reset password via OTP (unauthenticated — login page forgot-password flow)."""
+    """Verify OTP code for forgot-password flow. Returns a reset_token for the next step."""
     # Verify user exists
     user = await db.scalar(select(User).where(User.email == body.email))
     if user is None:
@@ -866,12 +868,53 @@ async def forgot_password(
         await db.commit()
         raise AppError("verification_code_invalid")
 
-    # Mark as verified
+    # Mark as verified and generate reset token
     verif.verified_at = datetime.now(UTC)
-    await db.flush()
+    verif.reset_token = str(uuid.uuid4())
+    await db.commit()
+
+    return ApiResponse(data={"reset_token": verif.reset_token})
+
+
+@router.post("/forgot-password", response_model=ApiResponse)
+async def forgot_password(
+    body: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Reset password using a verified reset token (from verify-forgot-code)."""
+    # Verify user exists
+    user = await db.scalar(select(User).where(User.email == body.email))
+    if user is None:
+        raise AppError("email_not_registered", status_code=404)
+
+    if not user.is_active:
+        raise AppError("account_disabled", status_code=403)
+
+    # Find the verified record with matching reset_token
+    verif_result = await db.execute(
+        select(EmailVerification)
+        .where(
+            EmailVerification.email == body.email,
+            EmailVerification.purpose == "reset_password",
+            EmailVerification.verified_at != None,  # noqa: E711
+            EmailVerification.reset_token == body.reset_token,
+        )
+        .order_by(EmailVerification.created_at.desc())
+        .limit(1)
+    )
+    verif = verif_result.scalar_one_or_none()
+
+    if verif is None:
+        raise AppError("verification_code_expired")
+
+    # Check the verification is still recent (within 10 minutes of verification)
+    if verif.verified_at.replace(tzinfo=UTC) < datetime.now(UTC) - timedelta(minutes=10):
+        raise AppError("verification_code_expired")
 
     # Set new password
     user.password_hash = hash_password(body.new_password)
+    # Clear the reset token so it can't be reused
+    verif.reset_token = None
     await db.commit()
 
     return ApiResponse(data={"message": "Password reset successfully"})

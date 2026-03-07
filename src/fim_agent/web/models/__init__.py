@@ -7,6 +7,7 @@ from .audit_log import AuditLog
 from .connector import Connector, ConnectorAction
 from .connector_call_log import ConnectorCallLog
 from .conversation import Conversation
+from .email_verification import EmailVerification
 from .invite_code import InviteCode
 from .mcp_server import MCPServer
 from .knowledge_base import KBDocument, KnowledgeBase
@@ -23,6 +24,7 @@ __all__ = [
     "ConnectorAction",
     "ConnectorCallLog",
     "Conversation",
+    "EmailVerification",
     "InviteCode",
     "KBDocument",
     "KnowledgeBase",

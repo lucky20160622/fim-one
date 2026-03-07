@@ -141,10 +141,23 @@ class SendForgotCodeRequest(BaseModel):
         return v.lower()
 
 
-class ForgotPasswordRequest(BaseModel):
-    """Unauthenticated: verify OTP and set new password."""
+class VerifyForgotCodeRequest(BaseModel):
+    """Unauthenticated: verify OTP code for forgot password."""
     email: str = Field(..., max_length=255)
     code: str = Field(..., min_length=6, max_length=6)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        if not _EMAIL_RE.match(v):
+            raise ValueError("Invalid email address")
+        return v.lower()
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Unauthenticated: reset password using verified reset token."""
+    email: str = Field(..., max_length=255)
+    reset_token: str = Field(..., min_length=36, max_length=36)
     new_password: str = Field(min_length=8, max_length=100)
 
     @field_validator("email")
