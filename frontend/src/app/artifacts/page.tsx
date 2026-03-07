@@ -462,7 +462,7 @@ export default function ArtifactsPage() {
       <aside
         className={cn(
           "shrink-0 border-l flex flex-col overflow-hidden transition-all duration-200 ease-in-out",
-          selected ? "w-[420px]" : "w-0 border-l-0",
+          selected ? "w-1/2" : "w-0 border-l-0",
         )}
       >
         {selected && <PreviewPanel artifact={selected} onClose={() => setSelected(null)} />}
