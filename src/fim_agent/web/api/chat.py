@@ -818,8 +818,8 @@ async def issue_sse_ticket(
     """Generate a single-use SSE authentication ticket.
 
     The ticket is valid for 60 seconds and can be passed as the ``token``
-    query parameter to ``/api/react`` or ``/api/dag``.  It is consumed on
-    first use so it cannot be replayed.
+    field in the JSON body of ``POST /api/react`` or ``POST /api/dag``.
+    It is consumed on first use so it cannot be replayed.
     """
     ticket = secrets.token_urlsafe(32)
     expires_at = datetime.now(UTC) + timedelta(seconds=60)
@@ -830,6 +830,16 @@ async def issue_sse_ticket(
 # ---------------------------------------------------------------------------
 # Inject endpoint — mid-stream message injection
 # ---------------------------------------------------------------------------
+
+
+class ChatStreamRequest(BaseModel):
+    """Request body for ReAct/DAG streaming endpoints."""
+
+    q: str
+    conversation_id: str | None = None
+    agent_id: str | None = None
+    token: str | None = None
+    image_ids: str | None = None
 
 
 class InjectMessageRequest(BaseModel):
@@ -927,14 +937,10 @@ async def recall_inject(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/react")
+@router.post("/react")
 async def react_endpoint(
     request: Request,
-    q: str,
-    conversation_id: str | None = None,
-    agent_id: str | None = None,
-    token: str | None = None,
-    image_ids: str | None = None,
+    body: ChatStreamRequest,
 ) -> StreamingResponse:
     """Run a ReAct agent query with SSE progress updates.
 
@@ -942,19 +948,15 @@ async def react_endpoint(
     ----------
     request : Request
         The incoming HTTP request; used to detect client disconnects.
-    q : str
-        The user query / task description.
-    conversation_id : str | None
-        Optional conversation ID for persistence and multi-turn memory.
-    agent_id : str | None
-        Optional agent ID to load per-agent model, tools, and instructions.
-    token : str | None
-        JWT access token (query param) for SSE auth.  When provided,
-        conversation ownership is validated.
-    image_ids : str | None
-        Comma-separated file IDs of uploaded images to attach to the query
-        for vision model processing.
+    body : ChatStreamRequest
+        JSON request body containing the query and optional parameters.
     """
+    q = body.q
+    conversation_id = body.conversation_id
+    agent_id = body.agent_id
+    token = body.token
+    image_ids = body.image_ids
+
     # -- Pre-stream resolution (before StreamingResponse) -------------------
     current_user_id, user_system_instructions, preferred_language = await _resolve_user(token)
     if current_user_id is None:
@@ -1321,14 +1323,10 @@ async def react_endpoint(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/dag")
+@router.post("/dag")
 async def dag_endpoint(
     request: Request,
-    q: str,
-    conversation_id: str | None = None,
-    agent_id: str | None = None,
-    token: str | None = None,
-    image_ids: str | None = None,
+    body: ChatStreamRequest,
 ) -> StreamingResponse:
     """Run a DAG planner pipeline with SSE progress updates.
 
@@ -1336,18 +1334,15 @@ async def dag_endpoint(
     ----------
     request : Request
         The incoming HTTP request; used to detect client disconnects.
-    q : str
-        The user query / task description.
-    conversation_id : str | None
-        Optional conversation ID for persistence and multi-turn memory.
-    agent_id : str | None
-        Optional agent ID to load per-agent model, tools, and instructions.
-    token : str | None
-        JWT access token (query param) for SSE auth.
-    image_ids : str | None
-        Comma-separated file IDs of uploaded images to attach to the query
-        for vision model processing.
+    body : ChatStreamRequest
+        JSON request body containing the query and optional parameters.
     """
+    q = body.q
+    conversation_id = body.conversation_id
+    agent_id = body.agent_id
+    token = body.token
+    image_ids = body.image_ids
+
     # -- Pre-stream resolution ----------------------------------------------
     current_user_id, user_system_instructions, preferred_language = await _resolve_user(token)
     if current_user_id is None:
@@ -1527,6 +1522,17 @@ async def dag_endpoint(
         done_event = asyncio.Event()
 
         def on_step_progress(step_id: str, event: str, data: dict[str, Any]) -> None:
+            # Convert raw artifact dicts (path-based) to download URLs.
+            if conversation_id and "artifacts" in data and data["artifacts"]:
+                data["artifacts"] = [
+                    {
+                        "name": a["name"],
+                        "url": f"/api/conversations/{conversation_id}/artifacts/{a['path'].split('/')[-1].split('_', 1)[0]}",
+                        "mime_type": a["mime_type"],
+                        "size": a["size"],
+                    }
+                    for a in data["artifacts"]
+                ]
             step_payload = {"step_id": step_id, "event": event, **data}
             sse_events.append({"event": "step_progress", "data": step_payload})
             try:
