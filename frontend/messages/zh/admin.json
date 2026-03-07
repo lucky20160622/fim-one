@@ -426,6 +426,7 @@
     "revoke": "撤销",
     "codeRevoked": "邀请码已撤销",
     "codeCopied": "邀请码已复制到剪贴板",
-    "smtpRequired": "SMTP 未配置。请先配置 SMTP 才能使用此功能。"
+    "smtpRequired": "SMTP 未配置。请先配置 SMTP 才能使用此功能。",
+    "smtpLostWhileEnabled": "SMTP 已不可用，邮箱验证已自动跳过。请关闭此开关或重新配置 SMTP。"
   }
 }

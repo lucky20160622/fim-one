@@ -184,7 +184,9 @@ export function AdminSettings() {
                 </p>
                 {!settings?.smtp_configured && (
                   <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                    {t("smtpRequired")}
+                    {settings?.email_verification_enabled
+                      ? t("smtpLostWhileEnabled")
+                      : t("smtpRequired")}
                   </p>
                 )}
               </div>
@@ -195,7 +197,7 @@ export function AdminSettings() {
                   await patch({ email_verification_enabled: v })
                   toast.success(v ? t("emailVerificationEnabled") : t("emailVerificationDisabled"))
                 }}
-                disabled={isSaving || !settings?.smtp_configured}
+                disabled={isSaving || (!settings?.smtp_configured && !settings?.email_verification_enabled)}
               />
             </div>
           )}

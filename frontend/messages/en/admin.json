@@ -426,6 +426,7 @@
     "revoke": "Revoke",
     "codeRevoked": "Invite code revoked",
     "codeCopied": "Code copied to clipboard",
-    "smtpRequired": "SMTP is not configured. Enable SMTP to use this feature."
+    "smtpRequired": "SMTP is not configured. Enable SMTP to use this feature.",
+    "smtpLostWhileEnabled": "SMTP is no longer available. Email verification is automatically bypassed. Turn it off or configure SMTP."
   }
 }
