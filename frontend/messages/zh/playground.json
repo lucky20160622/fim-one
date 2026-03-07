@@ -81,8 +81,8 @@
       { "text": "调用 GitHub API (https://api.github.com/orgs/openai/repos?sort=stars&per_page=5) 列出 OpenAI 最热门的 5 个仓库——哪个 star 最多？", "category": "web" },
       { "text": "抓取维基百科'排序算法'页面，整理一张对比表：冒泡排序、快速排序、归并排序的时间复杂度对比", "category": "web" },
       { "text": "模拟蒙提霍尔问题 10,000 次——应该换门吗？展示胜率统计", "category": "code" },
-      { "text": "随机生成一个 15×15 迷宫并用 BFS 求解，用 ASCII 字符画展示迷宫和路径", "category": "code" },
-      { "text": "现在纽约、伦敦和东京分别几点？算一算三座城市的工作时间有多少小时重叠", "category": "hybrid" },
+      { "text": "用 Python 计算前 30 个斐波那契数及其黄金比例收敛趋势，将结果保存为 fibonacci.csv 文件", "category": "code" },
+      { "text": "现在纽约、伦敦和东京分别几点？用 template_render 创建一个美观的 HTML 世界时钟面板", "category": "hybrid" },
       { "text": "从 JSONPlaceholder API (https://jsonplaceholder.typicode.com/posts) 抓取 100 篇帖子，然后用 Python 找出发帖最多的 5 位作者及其平均标题长度", "category": "hybrid" }
     ],
     "dag": [
@@ -90,7 +90,7 @@
       { "text": "并行抓取维基百科上 Python、Rust、Go 三种编程语言的页面，制作对比表：诞生年份、创造者、类型系统和核心优势", "category": "web" },
       { "text": "生成一个 20×20 迷宫，然后让 BFS 和 DFS 并行解题——谁探索的格子更少？用 ASCII 画出两条路径", "category": "code" },
       { "text": "并行计算前 50 个斐波那契数、前 50 个素数和前 50 个三角数，找出哪些数字同时出现在多个数列中", "category": "code" },
-      { "text": "并行获取纽约、伦敦、东京、悉尼、迪拜五座城市的当前时间，然后生成一个带时区偏移的世界时钟面板", "category": "hybrid" },
+      { "text": "并行获取纽约、伦敦、东京、悉尼、迪拜五座城市的当前时间，然后用 template_render 创建一个美观的 HTML 世界时钟面板", "category": "hybrid" },
       { "text": "并行从 JSONPlaceholder API 获取帖子和待办事项 (/posts 和 /todos)，然后用 Python 分析：发帖最多的用户，他们的待办完成率也最高吗？", "category": "hybrid" }
     ]
   }
