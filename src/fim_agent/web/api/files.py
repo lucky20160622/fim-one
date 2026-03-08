@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 import uuid
+from collections import defaultdict
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, UploadFile
@@ -31,6 +33,9 @@ ALLOWED_EXTENSIONS = {
 }
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}
+
+# Per-user lock to prevent race conditions on file index read-modify-write.
+_index_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 _MIME_MAP: dict[str, str] = {
     ".jpg": "image/jpeg",
@@ -179,19 +184,20 @@ async def upload_file(
     if extracted:
         content_preview = extracted[:500]
 
-    # Update index
-    index = _load_index(current_user.id)
+    # Update index (locked to prevent concurrent read-modify-write races)
     file_url = f"/uploads/user_{current_user.id}/{stored_name}"
     mime_type = _guess_mime(ext)
-    index[file_id] = {
-        "filename": file.filename,
-        "stored_name": stored_name,
-        "file_url": file_url,
-        "size": total_size,
-        "content_preview": content_preview,
-        "mime_type": mime_type,
-    }
-    _save_index(current_user.id, index)
+    async with _index_locks[current_user.id]:
+        index = _load_index(current_user.id)
+        index[file_id] = {
+            "filename": file.filename,
+            "stored_name": stored_name,
+            "file_url": file_url,
+            "size": total_size,
+            "content_preview": content_preview,
+            "mime_type": mime_type,
+        }
+        _save_index(current_user.id, index)
 
     return ApiResponse(
         data={
@@ -250,17 +256,18 @@ async def delete_file(
     file_id: str,
     current_user: User = Depends(get_current_user),  # noqa: B008
 ) -> ApiResponse:
-    index = _load_index(current_user.id)
-    meta = index.get(file_id)
-    if meta is None:
-        raise AppError("file_not_found", status_code=404)
+    async with _index_locks[current_user.id]:
+        index = _load_index(current_user.id)
+        meta = index.get(file_id)
+        if meta is None:
+            raise AppError("file_not_found", status_code=404)
 
-    # Remove from disk
-    file_path = _user_dir(current_user.id) / meta["stored_name"]
-    file_path.unlink(missing_ok=True)
+        # Remove from disk
+        file_path = _user_dir(current_user.id) / meta["stored_name"]
+        file_path.unlink(missing_ok=True)
 
-    # Remove from index
-    del index[file_id]
-    _save_index(current_user.id, index)
+        # Remove from index
+        del index[file_id]
+        _save_index(current_user.id, index)
 
     return ApiResponse(data={"deleted": file_id})

@@ -277,11 +277,11 @@ class DAGExecutor:
 
         return ReActAgent(
             llm=llm,
-            tools=self._agent._tools,
-            system_prompt=self._agent._system_prompt_override,
-            extra_instructions=self._agent._extra_instructions,
-            max_iterations=self._agent._max_iterations,
-            context_guard=self._agent._context_guard,
+            tools=self._agent.tools,
+            system_prompt=self._agent.system_prompt_override,
+            extra_instructions=self._agent.extra_instructions,
+            max_iterations=self._agent.max_iterations,
+            context_guard=self._agent.context_guard,
         )
 
     async def _execute_step(self, step: PlanStep, context: str) -> None:

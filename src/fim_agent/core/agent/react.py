@@ -160,6 +160,35 @@ class ReActAgent:
         self._memory = memory
         self._context_guard = context_guard
 
+    # ------------------------------------------------------------------
+    # Public read-only properties
+    # ------------------------------------------------------------------
+
+    @property
+    def tools(self) -> ToolRegistry:
+        """The tool registry available to this agent."""
+        return self._tools
+
+    @property
+    def system_prompt_override(self) -> str | None:
+        """The custom system prompt, if one was provided."""
+        return self._system_prompt_override
+
+    @property
+    def extra_instructions(self) -> str | None:
+        """Additional instructions appended to the default system prompt."""
+        return self._extra_instructions
+
+    @property
+    def max_iterations(self) -> int:
+        """Maximum number of reasoning iterations."""
+        return self._max_iterations
+
+    @property
+    def context_guard(self) -> ContextGuard | None:
+        """The context-window budget manager, if configured."""
+        return self._context_guard
+
     @property
     def _native_mode_active(self) -> bool:
         """Whether native function-calling mode is currently active."""
