@@ -16,6 +16,8 @@ import {
   MessageSquare,
   Download,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { apiFetch } from "@/lib/api"
@@ -187,9 +189,17 @@ function ArtifactThumbnail({ artifact }: { artifact: ArtifactItem }) {
 function PreviewPanel({
   artifact,
   onClose,
+  onPrev,
+  onNext,
+  hasPrev,
+  hasNext,
 }: {
   artifact: ArtifactItem
   onClose: () => void
+  onPrev: () => void
+  onNext: () => void
+  hasPrev: boolean
+  hasNext: boolean
 }) {
   const t = useTranslations("artifacts")
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
@@ -247,8 +257,24 @@ function PreviewPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-b">
-        <p className="text-sm font-medium truncate" title={artifact.name}>
+      <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b">
+        <button
+          onClick={onPrev}
+          disabled={!hasPrev}
+          title={t("previous")}
+          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <button
+          onClick={onNext}
+          disabled={!hasNext}
+          title={t("next")}
+          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+        <p className="flex-1 text-sm font-medium truncate" title={artifact.name}>
           {artifact.name}
         </p>
         <button
@@ -353,17 +379,39 @@ function ArtifactsContent() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Esc to close panel
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setSelected(null) }
-    document.addEventListener("keydown", handler)
-    return () => document.removeEventListener("keydown", handler)
-  }, [])
-
   const filtered =
     activeFilter === "all"
       ? artifacts
       : artifacts.filter((a) => getFilter(a.mime_type) === activeFilter)
+
+  const selectedIndex = selected
+    ? filtered.findIndex(
+        (a) => a.id === selected.id && a.conversation_id === selected.conversation_id,
+      )
+    : -1
+  const hasPrev = selectedIndex > 0
+  const hasNext = selectedIndex >= 0 && selectedIndex < filtered.length - 1
+
+  const navigatePrev = useCallback(() => {
+    if (selectedIndex > 0) setSelected(filtered[selectedIndex - 1])
+  }, [selectedIndex, filtered])
+
+  const navigateNext = useCallback(() => {
+    if (selectedIndex >= 0 && selectedIndex < filtered.length - 1)
+      setSelected(filtered[selectedIndex + 1])
+  }, [selectedIndex, filtered])
+
+  // Esc / arrow key navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelected(null)
+      if (!selected) return
+      if (e.key === "ArrowLeft") { e.preventDefault(); navigatePrev() }
+      if (e.key === "ArrowRight") { e.preventDefault(); navigateNext() }
+    }
+    document.addEventListener("keydown", handler)
+    return () => document.removeEventListener("keydown", handler)
+  }, [selected, navigatePrev, navigateNext])
 
   const filters: { key: FilterType; label: string }[] = [
     { key: "all", label: t("filterAll") },
@@ -477,7 +525,16 @@ function ArtifactsContent() {
           selected ? "w-1/2" : "w-0 border-l-0",
         )}
       >
-        {selected && <PreviewPanel artifact={selected} onClose={() => setSelected(null)} />}
+        {selected && (
+          <PreviewPanel
+            artifact={selected}
+            onClose={() => setSelected(null)}
+            onPrev={navigatePrev}
+            onNext={navigateNext}
+            hasPrev={hasPrev}
+            hasNext={hasNext}
+          />
+        )}
       </aside>
     </div>
   )

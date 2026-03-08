@@ -13,5 +13,7 @@
   "openConversation": "Open conversation",
   "download": "Download",
   "preview": "Preview",
-  "loading": "Loading..."
+  "loading": "Loading...",
+  "previous": "Previous",
+  "next": "Next"
 }
