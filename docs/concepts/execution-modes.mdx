@@ -32,16 +32,14 @@ No external system access needed. Useful for general analysis, research, and cod
 
 Embed FIM Agent into a host system's web UI. The agent works alongside users in their familiar interface — no context switching required. Copilot mode can use multiple connectors (e.g., the host system's DB + a notification service).
 
-```
-┌────────────────────────────────────────────────┐
-│              Host System (ERP / CRM / OA)      │
-│                                                │
-│   ┌──────────────────────────┐                 │
-│   │   FIM Agent Copilot      │                 │
-│   │   (iframe / widget)      │─── Connectors ──│──► DB, API, Lark...
-│   └──────────────────────────┘                 │
-│                                                │
-└────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+  subgraph Host["Host System (ERP / CRM / OA)"]
+    Copilot["FIM Agent Copilot\n(iframe / widget)"]
+  end
+  Copilot -- Connectors --> DB["DB"]
+  Copilot -- Connectors --> API["API"]
+  Copilot -- Connectors --> Lark["Lark"]
 ```
 
 Examples:
@@ -55,12 +53,14 @@ The agent uses the same ReAct/DAG engine as Standalone mode, but now has access 
 
 The Hub is a standalone portal (or API) that serves as the central intelligence layer. It's not embedded in any single system — instead, it connects to all of them. Users access it through the Portal UI or API.
 
-```
-            ┌──────────────────────────┐
-ERP ──────►│                          │◄────── CRM
-Database ──►│    FIM Agent Hub         │◄────── OA
-Lark ──────►│    (AI orchestration)   │◄────── Custom API
-            └──────────────────────────┘
+```mermaid
+flowchart LR
+  ERP --> Hub["FIM Agent Hub\n(AI orchestration)"]
+  Database --> Hub
+  Lark --> Hub
+  CRM --> Hub
+  OA --> Hub
+  CustomAPI["Custom API"] --> Hub
 ```
 
 Examples:
@@ -89,14 +89,15 @@ Under the hood, FIM Agent provides two execution engines:
 | **ReAct** | Single complex queries | Reason → Act → Observe loop with tools |
 | **DAG Planning** | Multi-step parallel tasks | LLM generates dependency graph, independent steps run concurrently |
 
-```
-DAG Planning (orchestration layer)
-  |
-  +-- step_1 --> ReAct Agent --> Tools     \
-  |                                         |  step_1 & step_2 run in parallel
-  +-- step_2 --> ReAct Agent --> Tools     /
-  |
-  +-- step_3 --> ReAct Agent --> Tools        (waits for step_1 & step_2)
+```mermaid
+flowchart TD
+  DAG["DAG Planning\n(orchestration layer)"]
+  DAG --> step_1
+  DAG --> step_2
+  step_1 --> ReAct1["ReAct Agent"] --> Tools1["Tools"]
+  step_2 --> ReAct2["ReAct Agent"] --> Tools2["Tools"]
+  step_1 & step_2 --> step_3
+  step_3 --> ReAct3["ReAct Agent"] --> Tools3["Tools"]
 ```
 
 ReAct is the atomic unit; DAG is the orchestration layer. Both engines work in all three modes (Standalone, Copilot, Hub). In Hub mode, a single DAG step might call connectors to different systems.

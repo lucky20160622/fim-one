@@ -19,20 +19,40 @@ Hub          → Central cross-system orchestration (Portal / API)
 
 **Hub Mode is the core differentiator.** Enterprise clients have legacy systems — ERP, CRM, OA, finance, HR — that need to talk to each other through AI:
 
-```
-                        ┌───────────────────────────┐
-                        │     FIM Agent Hub          │
-                        │                            │
-ERP (SAP/Kingdee) ────│►  Agent A: Finance Audit   │───► Lark / Slack
-CRM (Salesforce)  ────│►  Agent B: Contract Review  │───► Email / WeCom
-OA (Seeyon/Weaver) ───│►  Agent C: Approval Assist  │───► Teams / Webhook
-Custom DB (PG/MySQL) ──│►  Agent D: Data Reporting   │───► Any API
-                        │                            │
-                        └──────────┬────────────────┘
-                                   │
-                   ┌───────────────┼───────────────┐
-                   │               │               │
-              Portal (UI)    API (headless)    iframe (embed)
+```mermaid
+flowchart LR
+  subgraph Sources["Source Systems"]
+    ERP["ERP\n(SAP/Kingdee)"]
+    CRM["CRM\n(Salesforce)"]
+    OA["OA\n(Seeyon/Weaver)"]
+    DB["Custom DB\n(PG/MySQL)"]
+  end
+
+  subgraph Hub["FIM Agent Hub"]
+    A["Agent A: Finance Audit"]
+    B["Agent B: Contract Review"]
+    C["Agent C: Approval Assist"]
+    D["Agent D: Data Reporting"]
+  end
+
+  subgraph Targets["Notification Targets"]
+    T1["Lark / Slack"]
+    T2["Email / WeCom"]
+    T3["Teams / Webhook"]
+    T4["Any API"]
+  end
+
+  subgraph Delivery["Delivery"]
+    Portal["Portal (UI)"]
+    API["API (headless)"]
+    Embed["iframe (embed)"]
+  end
+
+  ERP --> A --> T1
+  CRM --> B --> T2
+  OA --> C --> T3
+  DB --> D --> T4
+  Hub --> Delivery
 ```
 
 **GTM path: Land and Expand**

@@ -5,8 +5,15 @@
   "description": "AI-Powered Connector Hub — embed into one system as a Copilot, or connect them all as a Hub.",
   "colors": {
     "primary": "#D97706",
-    "light": "#FFFBEB",
-    "dark": "#1C1917"
+    "light": "#C8922A",
+    "dark": "#92400E"
+  },
+  "background": {
+    "decoration": "gradient",
+    "color": {
+      "light": "#FFFBEB",
+      "dark": "#1C1917"
+    }
   },
   "navigation": {
     "tabs": [

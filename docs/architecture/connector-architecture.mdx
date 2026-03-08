@@ -7,19 +7,27 @@ description: "How FIM Agent connects legacy systems through AI — from Copilot 
 
 The architecture supports two integration scales:
 
-```
-Copilot (embedded)                  Hub (central portal)
+```mermaid
+flowchart LR
+    subgraph Copilot["Copilot (embedded)"]
+        direction TB
+        subgraph Host["Host System (ERP)"]
+            C["FIM Agent Copilot\n(iframe / widget)"]
+        end
+        C --> DB1["DB"]
+        C --> API1["API"]
+    end
 
-┌─────────────────────────┐        ┌──────────────────────────┐
-│   Host System (ERP)     │        │                          │
-│                         │        │   FIM Agent Hub          │
-│  ┌─────────────────┐   │        │   (Portal / API)         │
-│  │  FIM Agent       │   │        │                          │
-│  │  Copilot         │───│──►DB   │───►ERP  ───►CRM          │
-│  │  (iframe/widget) │───│──►API  │───►OA   ───►Lark     │
-│  └─────────────────┘   │        │───►DB   ───►Custom API    │
-│                         │        │                          │
-└─────────────────────────┘        └──────────────────────────┘
+    subgraph Hub["Hub (central portal)"]
+        direction TB
+        H["FIM Agent Hub\n(Portal / API)"]
+        H --> ERP["ERP"]
+        H --> CRM["CRM"]
+        H --> OA["OA"]
+        H --> Lark["Lark"]
+        H --> DB2["DB"]
+        H --> CustomAPI["Custom API"]
+    end
 ```
 
 **Copilot** embeds into a host system's UI. Users interact with AI without leaving their familiar interface. It can use multiple connectors (host DB + notification service, etc.).
@@ -34,20 +42,14 @@ Same connector architecture, different delivery. A Copilot uses the same `Connec
 
 ## Three-Layer Architecture
 
-```
-┌─────────────────────────────────────────────┐
-│              FIM Agent Platform              │  Multi-tenant, scheduling,
-│          ReAct / DAG / Portal UI            │  conversation persistence
-├─────────────────────────────────────────────┤
-│        Connector Governance Layer            │  read_only enforcement,
-│         audit log, auth passthrough,        │  confirmation gate, circuit
-│         operation classification             │  breaker
-├─────────────────────────────────────────────┤
-│              MCP Protocol (Transport)        │  Standard tool description,
-│           stdio / HTTP transport            │  process isolation
-├─────────────────────────────────────────────┤
-│           Legacy System (DB / API / MQ)      │  Client's existing systems
-└─────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    A["<b>FIM Agent Platform</b>\nReAct / DAG / Portal UI\n<i>Multi-tenant, scheduling, conversation persistence</i>"]
+    B["<b>Connector Governance Layer</b>\naudit log, auth passthrough, operation classification\n<i>read_only enforcement, confirmation gate, circuit breaker</i>"]
+    C["<b>MCP Protocol (Transport)</b>\nstdio / HTTP transport\n<i>Standard tool description, process isolation</i>"]
+    D["<b>Legacy System</b>\nDB / API / MQ\n<i>Client's existing systems</i>"]
+
+    A --> B --> C --> D
 ```
 
 Each layer has a distinct responsibility:
@@ -89,26 +91,44 @@ Protocol is commodity. The technical value is in the adapters themselves (domain
 
 Everything runs in a single Docker Compose deployment. The client installs nothing.
 
+```mermaid
+flowchart LR
+    subgraph Docker["FIM Agent Deployment (Docker Compose)"]
+        subgraph Core["FIM Agent Core"]
+            R["ReAct / DAG"]
+            P["Platform API"]
+            U["Portal UI"]
+            G["Connector Governance"]
+        end
+
+        subgraph MCP1["MCP Server: Finance DB"]
+            M1["SQL queries (read-only)"]
+        end
+
+        subgraph MCP2["MCP Server: OA System"]
+            M2["REST API calls"]
+        end
+
+        subgraph MCP3["MCP Server: Lark"]
+            M3["Webhook notifications"]
+        end
+
+        Core --> MCP1
+        Core --> MCP2
+        Core --> MCP3
+    end
+
+    MCP1 --> Oracle["Client's Oracle DB"]
+    MCP2 --> Seeyon["Client's Seeyon OA"]
+    MCP3 --> Lark["Lark API"]
 ```
-┌─ FIM Agent Deployment (Docker Compose) ──────────────────────┐
-│                                                                │
-│  ┌─ FIM Agent Core ──┐                                        │
-│  │  ReAct / DAG       │    ┌─ MCP Server: Finance DB ────┐   │
-│  │  Platform API      │───→│  SQL queries (read-only)     │───│──→ Client's Oracle DB
-│  │  Portal UI         │    └──────────────────────────────┘   │
-│  │  Connector         │    ┌─ MCP Server: OA System ─────┐   │
-│  │  Governance        │───→│  REST API calls              │───│──→ Client's Seeyon OA
-│  │                    │    └──────────────────────────────┘   │
-│  │                    │    ┌─ MCP Server: Lark ──────────┐   │
-│  │                    │───→│  Webhook notifications       │───│──→ Lark API
-│  └────────────────────┘    └──────────────────────────────┘   │
-│                                                                │
-│  All provided by FIM Agent. Client provides only:              │
-│  - Database credentials (read-only account recommended)        │
-│  - API endpoints and keys (if available)                       │
-│  - Network whitelist access                                    │
-└────────────────────────────────────────────────────────────────┘
-```
+
+<Note>
+All provided by FIM Agent. Client provides only:
+- Database credentials (read-only account recommended)
+- API endpoints and keys (if available)
+- Network whitelist access
+</Note>
 
 **Access hierarchy**: FIM Agent adapts to whatever access the client can provide:
 
@@ -123,11 +143,23 @@ Everything runs in a single Docker Compose deployment. The client installs nothi
 
 The agent sees connectors as ordinary tools. It does not know or care whether a tool is built-in, a third-party MCP Server, or a legacy system connector.
 
-```
-Agent's tool list:
-  [web_search, calculator, contract_query, finance_report, lark_push]
-   ~~~~~~~~~~  ~~~~~~~~~~  ~~~~~~~~~~~~~~  ~~~~~~~~~~~~~~  ~~~~~~~~~~~~~
-   built-in    built-in    connector       connector       connector
+```mermaid
+flowchart TB
+    Agent["Agent's Tool List"]
+
+    subgraph BuiltIn["Built-in Tools"]
+        T1["web_search"]
+        T2["calculator"]
+    end
+
+    subgraph Connector["Connector Tools"]
+        T3["contract_query"]
+        T4["finance_report"]
+        T5["lark_push"]
+    end
+
+    Agent --- BuiltIn
+    Agent --- Connector
 ```
 
 This means:
@@ -185,17 +217,25 @@ User: "Check all overdue contracts from the finance system and push a summary to
 
 FIM Agent's MCP Client (shipped in v0.3) already supports third-party MCP Servers. Legacy system adapters are simply **domain-specific MCP Servers** built with the Connector Governance Layer for enterprise governance.
 
-```
-MCP ecosystem (third-party)     +     Connector Governance (FIM Agent)
-  - filesystem server                   - read_only enforcement
-  - GitHub server                       - audit logging
-  - Slack server                        - auth passthrough
-  - any community MCP server            - confirmation gate
-                    \                     /
-                     \                   /
-                      → ToolRegistry ←
-                            ↓
-                    Agent sees all as tools
+```mermaid
+flowchart TB
+    subgraph MCP["MCP Ecosystem (third-party)"]
+        M1["filesystem server"]
+        M2["GitHub server"]
+        M3["Slack server"]
+        M4["any community MCP server"]
+    end
+
+    subgraph CG["Connector Governance (FIM Agent)"]
+        C1["read_only enforcement"]
+        C2["audit logging"]
+        C3["auth passthrough"]
+        C4["confirmation gate"]
+    end
+
+    MCP --> TR["ToolRegistry"]
+    CG --> TR
+    TR --> Agent["Agent sees all as tools"]
 ```
 
 The Connector Governance Layer does not replace MCP -- it extends MCP with the governance layer that enterprise legacy system integration requires.

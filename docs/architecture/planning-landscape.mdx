@@ -23,23 +23,35 @@ These approaches are not competitors; they are complementary layers. A Kiro-styl
 
 Both Claude Code Teams and FIM Agent DAG, at full capacity, exhibit a **three-layer nested architecture**:
 
-```
-┌─────────────────────────────────────────────────────┐
-│  Layer 1: Human-in-the-Loop                         │
-│  User approves plan / confirms direction             │
-│                                                     │
-│  ┌─────────────────────────────────────────────────┐│
-│  │  Layer 2: DAG Orchestration                     ││
-│  │  Task graph with dependency edges               ││
-│  │  Parallel dispatch of independent branches       ││
-│  │                                                 ││
-│  │  ┌────────┐ ┌────────┐ ┌────────┐              ││
-│  │  │Layer 3 │ │Layer 3 │ │Layer 3 │   ...        ││
-│  │  │ReAct   │ │ReAct   │ │ReAct   │              ││
-│  │  │loop    │ │loop    │ │loop    │              ││
-│  │  └────────┘ └────────┘ └────────┘              ││
-│  └─────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph L1["Layer 1: Human-in-the-Loop"]
+        direction TB
+        H["User approves plan / confirms direction"]
+
+        subgraph L2["Layer 2: DAG Orchestration"]
+            direction TB
+            D1["Task graph with dependency edges"]
+            D2["Parallel dispatch of independent branches"]
+            D1 --> D2
+
+            subgraph L3A["Layer 3: ReAct Loop"]
+                R1["Perceive → Reason → Act → Observe"]
+            end
+
+            subgraph L3B["Layer 3: ReAct Loop"]
+                R2["Perceive → Reason → Act → Observe"]
+            end
+
+            subgraph L3C["Layer 3: ReAct Loop"]
+                R3["Perceive → Reason → Act → Observe"]
+            end
+
+            D2 --> L3A & L3B & L3C
+        end
+
+        H --> L2
+    end
 ```
 
 - **Layer 1 — Human gate**: User reviews the plan and approves before execution begins.
