@@ -101,7 +101,7 @@ This is a deliberate architectural boundary, not a capability gap.
 | **Human Confirmation** | No | No | No | Yes (pre-execution gate) |
 | **Self-hosted** | Yes (Docker stack) | No | Yes (Coze Studio) | Yes (single process) |
 
-> Deep dive: [Philosophy](https://docs.fim.ai/philosophy) | [Execution Modes](https://docs.fim.ai/execution-modes) | [Competitive Landscape](https://docs.fim.ai/competitive-landscape)
+> Deep dive: [Philosophy](https://docs.fim.ai/architecture/philosophy) | [Execution Modes](https://docs.fim.ai/concepts/execution-modes) | [Competitive Landscape](https://docs.fim.ai/strategy/competitive-landscape)
 
 ### Where FIM Agent Sits
 
@@ -122,7 +122,7 @@ Dify/n8n are **Static Planning + Static Execution** — humans design the DAG on
 
 FIM Agent doesn't do BPM/FSM — workflow logic belongs to the target system, Connectors just call APIs.
 
-> Full explanation: [Philosophy](https://docs.fim.ai/philosophy)
+> Full explanation: [Philosophy](https://docs.fim.ai/architecture/philosophy)
 
 ## Key Features
 
@@ -213,7 +213,7 @@ graph LR
 
 *Portal / API / iframe*
 
-Each connector is a standardized bridge — the agent doesn't know or care whether it's talking to SAP or a custom PostgreSQL database. See [Connector Architecture](https://docs.fim.ai/connector-architecture) for details.
+Each connector is a standardized bridge — the agent doesn't know or care whether it's talking to SAP or a custom PostgreSQL database. See [Connector Architecture](https://docs.fim.ai/architecture/connector-architecture) for details.
 
 ### Internal Execution
 
