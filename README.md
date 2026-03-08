@@ -11,7 +11,7 @@
 
 **AI-Powered Connector Hub — embed into one system as a Copilot, or connect them all as a Hub.**
 
-🌐 [Website](https://agent.fim.ai/) · 📖 [Wiki](https://github.com/fim-ai/fim-agent/wiki) · 📋 [Changelog](https://github.com/fim-ai/fim-agent/wiki/CHANGELOG) · 🐛 [Report Bug](https://github.com/fim-ai/fim-agent/issues) · 🐦 [Twitter](https://x.com/FIM_Agent)
+🌐 [Website](https://agent.fim.ai/) · 📖 [Docs](https://docs.fim.ai) · 📋 [Changelog](https://docs.fim.ai/changelog) · 🐛 [Report Bug](https://github.com/fim-ai/fim-agent/issues) · 🐦 [Twitter](https://x.com/FIM_Agent)
 
 </div>
 
@@ -97,7 +97,7 @@ This is a deliberate architectural boundary, not a capability gap.
 | **Human Confirmation** | No | No | No | Yes (pre-execution gate) |
 | **Self-hosted** | Yes (Docker stack) | No | Yes (Coze Studio) | Yes (single process) |
 
-> Deep dive: [Philosophy](https://github.com/fim-ai/fim-agent/wiki/Philosophy) | [Execution Modes](https://github.com/fim-ai/fim-agent/wiki/Execution-Modes) | [Competitive Landscape](https://github.com/fim-ai/fim-agent/wiki/Competitive-Landscape)
+> Deep dive: [Philosophy](https://docs.fim.ai/philosophy) | [Execution Modes](https://docs.fim.ai/execution-modes) | [Competitive Landscape](https://docs.fim.ai/competitive-landscape)
 
 ### Where FIM Agent Sits
 
@@ -118,7 +118,7 @@ Dify/n8n are **Static Planning + Static Execution** — humans design the DAG on
 
 FIM Agent doesn't do BPM/FSM — workflow logic belongs to the target system, Connectors just call APIs.
 
-> Full explanation: [Philosophy](https://github.com/fim-ai/fim-agent/wiki/Philosophy)
+> Full explanation: [Philosophy](https://docs.fim.ai/philosophy)
 
 ## ✨ Key Features
 
@@ -209,7 +209,7 @@ FIM Agent doesn't do BPM/FSM — workflow logic belongs to the target system, Co
                               Portal / API / iframe
 ```
 
-Each connector is a standardized bridge — the agent doesn't know or care whether it's talking to SAP or a custom PostgreSQL database. See [Connector Architecture](https://github.com/fim-ai/fim-agent/wiki/Connector-Architecture) for details.
+Each connector is a standardized bridge — the agent doesn't know or care whether it's talking to SAP or a custom PostgreSQL database. See [Connector Architecture](https://docs.fim.ai/connector-architecture) for details.
 
 ### Internal Execution
 
@@ -358,7 +358,7 @@ JINA_API_KEY=jina_...                       # unlocks web tools + RAG
 
 ### All Variables
 
-See the full [Environment Variables](https://github.com/fim-ai/fim-agent/wiki/Environment-Variables) reference for all configuration options (LLM, agent execution, web tools, RAG, code execution, image generation, connectors, platform, OAuth).
+See the full [Environment Variables](https://docs.fim.ai/configuration/environment-variables) reference for all configuration options (LLM, agent execution, web tools, RAG, code execution, image generation, connectors, platform, OAuth).
 
 ## 🛠️ Development
 
@@ -381,7 +381,7 @@ mypy src/
 
 ## 🗺️ Roadmap
 
-See the full [Roadmap](https://github.com/fim-ai/fim-agent/wiki/Roadmap) for version history and what's next.
+See the full [Roadmap](https://docs.fim.ai/roadmap) for version history and what's next.
 
 Contributions and ideas are welcome. Open an issue or submit a PR on [GitHub](https://github.com/fim-ai/fim-agent).
 
@@ -419,6 +419,6 @@ See [LICENSE](LICENSE) for full terms.
 
 <div align="center">
 
-🌐 [Website](https://agent.fim.ai/) · 📖 [Wiki](https://github.com/fim-ai/fim-agent/wiki) · 📋 [Changelog](https://github.com/fim-ai/fim-agent/wiki/CHANGELOG) · 🐛 [Report Bug](https://github.com/fim-ai/fim-agent/issues) · 💡 [Request Feature](https://github.com/fim-ai/fim-agent/issues) · 🐦 [Twitter](https://x.com/FIM_Agent)
+🌐 [Website](https://agent.fim.ai/) · 📖 [Docs](https://docs.fim.ai) · 📋 [Changelog](https://docs.fim.ai/changelog) · 🐛 [Report Bug](https://github.com/fim-ai/fim-agent/issues) · 💡 [Request Feature](https://github.com/fim-ai/fim-agent/issues) · 🐦 [Twitter](https://x.com/FIM_Agent)
 
 </div>

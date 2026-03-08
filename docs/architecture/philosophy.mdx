@@ -1,16 +1,21 @@
-### Why dynamic planning is the hard middle ground
+---
+title: "Philosophy"
+description: "Why dynamic planning is the hard middle ground — and where FIM Agent stands."
+---
+
+## Why dynamic planning is the hard middle ground
 
 The AI agent landscape split into two camps, and both picked the easy path. Traditional workflow engines -- Dify, n8n, Coze -- chose static orchestration: visual drag-and-drop flowcharts with fixed execution paths. This was not ignorance; enterprise customers demand determinism (same input, stable output), and static graphs deliver that. On the other extreme, fully autonomous agents (AutoGPT and its descendants) promised end-to-end autonomy but proved impractical: unreliable task decomposition, runaway token costs, and behavior nobody could predict or debug.
 
 The sweet spot is narrow but real. Simple tasks do not need a planner. Tasks complex enough to require dozens of interdependent steps overwhelm current LLMs. But in between lies a rich class of problems -- tasks with clear parallel subtasks that are tedious to hard-code yet tractable for an LLM to decompose. Dynamic DAG planning targets exactly this zone: the model proposes the execution graph at runtime, the framework validates the structure and runs it with maximum concurrency. No drag-and-drop, no YOLO autonomy.
 
-### The bet on improving models
+## The bet on improving models
 
 Every few months the foundation shifts -- GPT-4, function calling, Claude 3, the MCP protocol. Building a rigid abstraction on shifting ground is risky; LangChain's over-abstraction is the cautionary tale everyone in this space has internalized. FIM Agent takes the opposite approach: **minimal abstraction, maximum extensibility**. The framework owns orchestration, concurrency, and observability. The intelligence comes from the model, and the model keeps getting better.
 
 Today, LLM task decomposition accuracy sits around 70-80% for non-trivial goals. When that reaches 90%+, the "sweet spot" for dynamic planning expands dramatically -- problems that were too complex yesterday become tractable tomorrow. FIM Agent's DAG framework is designed to capture that expanding value without rewriting the plumbing.
 
-### Will ReAct and DAG planning become obsolete?
+## Will ReAct and DAG planning become obsolete?
 
 ReAct will not disappear -- it will sink into the model. Consider the analogy: you do not hand-write TCP handshakes, but TCP did not go away; it got absorbed into the operating system. When models are strong enough, the think-act-observe loop becomes implicit behavior inside the model, not explicit framework code. This is already happening: Claude Code is essentially a ReAct agent where the loop is driven by the model itself, not by an external harness.
 
@@ -18,7 +23,7 @@ DAG planning's lasting value is not "helping dumb models decompose tasks" -- it 
 
 The endgame: **models own the "what" (planning intelligence internalizes into the model), frameworks own the "how" (concurrency, retry, monitoring, cost governance)**. A framework's lasting value is not intelligence -- it is governance.
 
-### Why not mirror Dify's workflow editor
+## Why not mirror Dify's workflow editor
 
 A natural question: if DAG covers the flexible case, shouldn't we also build a static workflow editor for the deterministic case?
 
@@ -32,7 +37,7 @@ No. The reasoning:
 
 The strategic bet: **don't compete on workflow visualization; compete on being the hub where systems meet AI**. Let Dify own "build AI workflows visually." FIM Agent owns "the hub where your systems meet AI."
 
-### Where FIM Agent stands
+## Where FIM Agent stands
 
 FIM Agent is not an "AGI task scheduler" and not a static workflow engine. It occupies the middle ground: planning capability with constraints, concurrency with observability.
 
@@ -41,9 +46,7 @@ FIM Agent is not an "AGI task scheduler" and not a static workflow engine. It oc
 
 The strategy is straightforward: build the orchestration framework now, and let improving models fill it with capability over time.
 
----
-
-### Where FIM Agent Sits: Planning x Execution Spectrum
+## Where FIM Agent Sits: Planning x Execution Spectrum
 
 The AI execution landscape can be mapped on two axes -- how plans are created (static vs dynamic) and how they are executed (rigid vs adaptive):
 
@@ -79,7 +82,7 @@ The AI execution landscape can be mapped on two axes -- how plans are created (s
 
 This places FIM Agent in the same quadrant as AutoGPT, but with engineering constraints that prevent runaway behavior. More flexible than BPM/Dify, more controlled than AutoGPT.
 
-### Concept Glossary
+## Concept Glossary
 
 For readers unfamiliar with the terminology used in this document:
 
@@ -91,7 +94,7 @@ For readers unfamiliar with the terminology used in this document:
 | **HTN** (Hierarchical Task Network) | Recursive task decomposition: high-level → subtasks → atomic operations. | DAG re-planning covers most scenarios; full HTN not needed yet. |
 | **iPaaS** (Integration Platform as a Service) | Cloud integration platform connecting multiple SaaS/on-prem systems. MuleSoft, Zapier. | FIM Agent's Hub Mode is like **AI-native iPaaS** -- natural language drives cross-system integration. |
 
-### Architecture Boundary: FIM Agent Does Not Replicate Workflow Logic
+## Architecture Boundary: FIM Agent Does Not Replicate Workflow Logic
 
 Complex business processes (approval chains, transfers, rejections, escalation, co-signing, countersigning) are the **target system's responsibility**. These systems spent years building this logic -- ERP, OA, contract management systems all have mature state machines.
 

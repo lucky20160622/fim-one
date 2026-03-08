@@ -85,10 +85,9 @@ All UI text must use `next-intl` — **never hardcode English strings**. Add key
 
 After every commit, update docs silently (do NOT ask the user):
 
-1. **`wiki/CHANGELOG.md`** — append under `[Unreleased]` (`### Added/Changed/Fixed/Removed`)
-2. *(feat only)* **`wiki/Roadmap.md`** — check off completed items; add new user-facing items under current version (never retroactively add to already-shipped versions)
-3. *(feat only)* **`example.env`** — add any new env keys with placeholder + comment; then **sync `wiki/Environment-Variables.md`** — add the new variable(s) to the correct section table
+1. **`docs/changelog.mdx`** — append under `[Unreleased]` (`### Added/Changed/Fixed/Removed`)
+2. *(feat only)* **`docs/roadmap.mdx`** — check off completed items; add new user-facing items under current version (never retroactively add to already-shipped versions)
+3. *(feat only)* **`example.env`** — add any new env keys with placeholder + comment; then **sync `docs/configuration/environment-variables.mdx`** — add the new variable(s) to the correct section table
 4. *(feat only)* **`README.md`** — update Key Features and Project Structure if needed
-5. If any `wiki/*.md` changed → run `./scripts/sync-wiki.sh`
 
 **Version alignment**: CHANGELOG `[Unreleased]` and Roadmap must use the same version numbers.

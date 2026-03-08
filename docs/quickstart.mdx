@@ -1,0 +1,109 @@
+---
+title: "Quick Start"
+description: "Get FIM Agent running in minutes with Docker or local development."
+---
+
+## Option A: Docker (Recommended)
+
+No local Python or Node.js required — everything is built inside the container.
+
+```bash
+git clone https://github.com/fim-ai/fim-agent.git
+cd fim-agent
+
+# Configure — only LLM_API_KEY is required
+cp example.env .env
+# Edit .env: set LLM_API_KEY (and optionally LLM_BASE_URL, LLM_MODEL)
+
+# Build and run (first time, or after pulling new code)
+docker compose up --build -d
+```
+
+Open http://localhost:3000 — on first launch you'll be guided through creating an admin account. That's it.
+
+After the initial build, subsequent starts only need:
+
+```bash
+docker compose up -d          # start (skip rebuild if image unchanged)
+docker compose down           # stop
+docker compose logs -f        # view logs
+```
+
+Data is persisted in Docker named volumes (`fim-data`, `fim-uploads`) and survives container restarts.
+
+**Note:** Docker mode does not support hot reload. Code changes require rebuilding the image (`docker compose up --build -d`). For active development with live reload, use **Option B** below.
+
+## Option B: Local Development
+
+Prerequisites: Python 3.11+, [uv](https://docs.astral.sh/uv/), Node.js 18+, pnpm.
+
+```bash
+git clone https://github.com/fim-ai/fim-agent.git
+cd fim-agent
+
+cp example.env .env
+# Edit .env: set LLM_API_KEY
+
+# Install
+uv sync --all-extras
+cd frontend && pnpm install && cd ..
+
+# Launch (with hot reload)
+./start.sh
+```
+
+| Command          | What starts                                             | URL                                      |
+| ---------------- | ------------------------------------------------------- | ---------------------------------------- |
+| `./start.sh`     | Next.js + FastAPI                                       | http://localhost:3000 (UI) + :8000 (API) |
+| `./start.sh dev` | Same, with hot reload (Python `--reload` + Next.js HMR) | Same                                     |
+| `./start.sh api` | FastAPI only (headless, for integration or testing)     | http://localhost:8000/api                |
+
+## Configuration
+
+FIM Agent works with **any OpenAI-compatible LLM provider** — OpenAI, DeepSeek, Anthropic, Qwen, Ollama, vLLM, and more.
+
+| Provider | `LLM_API_KEY` | `LLM_BASE_URL` | `LLM_MODEL` |
+| -------- | ------------- | -------------- | ----------- |
+| **OpenAI** | `sk-...` | *(default)* | `gpt-4o` |
+| **DeepSeek** | `sk-...` | `https://api.deepseek.com/v1` | `deepseek-chat` |
+| **Anthropic** | `sk-ant-...` | `https://api.anthropic.com/v1` | `claude-sonnet-4-6` |
+| **Ollama** (local) | `ollama` | `http://localhost:11434/v1` | `qwen2.5:14b` |
+
+**[Jina AI](https://jina.ai/)** unlocks web search/fetch, embedding, and the full RAG pipeline (free tier available).
+
+Minimal `.env`:
+
+```bash
+LLM_API_KEY=sk-your-key
+# LLM_BASE_URL=https://api.openai.com/v1   # default — change for other providers
+# LLM_MODEL=gpt-4o                         # default — change for other models
+
+JINA_API_KEY=jina_...                       # unlocks web tools + RAG
+```
+
+For a complete list of all configuration options, see the [Environment Variables](/configuration/environment-variables) reference.
+
+## Production Deployment
+
+Both options work in production:
+
+| Method | Command | Best for |
+|--------|---------|----------|
+| **Docker** | `docker compose up -d` | Hands-off deployment, easy updates |
+| **Script** | `./start.sh` | Bare-metal servers, custom process managers |
+
+For either method, put an Nginx reverse proxy in front for HTTPS and custom domain:
+
+```
+User → Nginx (443/HTTPS) → localhost:3000
+```
+
+The API runs internally on port 8000 — Next.js proxies `/api/*` requests automatically. Only port 3000 needs to be exposed.
+
+If you use the code execution sandbox (`CODE_EXEC_BACKEND=docker`), mount the Docker socket:
+
+```yaml
+# docker-compose.yml
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock
+```

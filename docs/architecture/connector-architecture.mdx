@@ -1,6 +1,7 @@
-# Connector Architecture
-
-> How FIM Agent connects systems through AI — from Copilot to Hub.
+---
+title: "Connector Architecture"
+description: "How FIM Agent connects legacy systems through AI — from Copilot to Hub."
+---
 
 ## Copilot vs Hub
 
@@ -34,19 +35,19 @@ Same connector architecture, different delivery. A Copilot uses the same `Connec
 ## Three-Layer Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│              FIM Agent Platform                  │  Multi-tenant, scheduling,
-│          ReAct / DAG / Portal UI                │  conversation persistence
-├─────────────────────────────────────────────────┤
-│        Connector Governance Layer                │  read_only enforcement,
-│         audit log, auth passthrough,            │  confirmation gate, circuit
-│         operation classification                 │  breaker
-├─────────────────────────────────────────────────┤
-│              MCP Protocol (Transport)            │  Standard tool description,
-│           stdio / HTTP transport                │  process isolation
-├─────────────────────────────────────────────────┤
-│           Legacy System (DB / API / MQ)          │  Client's existing systems
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│              FIM Agent Platform              │  Multi-tenant, scheduling,
+│          ReAct / DAG / Portal UI            │  conversation persistence
+├─────────────────────────────────────────────┤
+│        Connector Governance Layer            │  read_only enforcement,
+│         audit log, auth passthrough,        │  confirmation gate, circuit
+│         operation classification             │  breaker
+├─────────────────────────────────────────────┤
+│              MCP Protocol (Transport)        │  Standard tool description,
+│           stdio / HTTP transport            │  process isolation
+├─────────────────────────────────────────────┤
+│           Legacy System (DB / API / MQ)      │  Client's existing systems
+└─────────────────────────────────────────────┘
 ```
 
 Each layer has a distinct responsibility:

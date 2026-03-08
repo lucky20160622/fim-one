@@ -1,0 +1,93 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "FIM Agent",
+  "description": "AI-Powered Connector Hub — embed into one system as a Copilot, or connect them all as a Hub.",
+  "colors": {
+    "primary": "#3B82F6",
+    "light": "#F8FAFC",
+    "dark": "#0F172A"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "icon": "rocket",
+            "pages": ["index", "quickstart"]
+          },
+          {
+            "group": "Concepts",
+            "icon": "lightbulb",
+            "pages": ["concepts/execution-modes"]
+          },
+          {
+            "group": "Architecture",
+            "icon": "sitemap",
+            "pages": [
+              "architecture/philosophy",
+              "architecture/connector-architecture",
+              "architecture/planning-landscape"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "icon": "gear",
+            "pages": [
+              "configuration/environment-variables",
+              "configuration/oauth-providers"
+            ]
+          },
+          {
+            "group": "Strategy",
+            "icon": "chess",
+            "pages": [
+              "strategy/competitive-landscape",
+              "strategy/orthogonality-strategy"
+            ]
+          },
+          {
+            "group": "Project",
+            "icon": "map",
+            "pages": ["roadmap"]
+          }
+        ]
+      },
+      {
+        "tab": "Changelog",
+        "groups": [
+          {
+            "group": "Changelog",
+            "pages": ["changelog"]
+          }
+        ]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo-light.svg",
+    "dark": "/logo-dark.svg",
+    "href": "https://agent.fim.ai"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/fim-ai/fim-agent"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get Started",
+      "href": "https://agent.fim.ai"
+    }
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/FIM_Agent",
+      "github": "https://github.com/fim-ai/fim-agent"
+    }
+  }
+}

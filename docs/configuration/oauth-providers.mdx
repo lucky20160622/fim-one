@@ -1,0 +1,173 @@
+---
+title: "OAuth Providers"
+description: "Configure GitHub, Google, Discord, and Feishu social login."
+---
+
+FIM Agent supports social login via GitHub, Google, Discord, and Feishu (Lark). Any provider whose credentials are present in the environment automatically shows a login button on the sign-in page — no code changes required.
+
+**Callback URL pattern** — register this exact URL in each provider's developer console:
+
+```
+{API_BASE_URL}/api/auth/oauth/{provider}/callback
+```
+
+`API_BASE_URL` is the externally reachable address of the FIM Agent backend. Examples:
+
+| Scenario | Example callback URL |
+|---|---|
+| Local dev | `http://localhost:8000/api/auth/oauth/github/callback` |
+| Dedicated API subdomain | `https://api.yourdomain.com/api/auth/oauth/github/callback` |
+| Reverse-proxy (same domain) | `https://yourdomain.com/api/auth/oauth/github/callback` |
+
+---
+
+## GitHub
+
+**Developer console:** https://github.com/settings/developers
+
+1. Click **OAuth Apps** → **New OAuth App**.
+2. Fill in:
+   - **Application name** — any name (e.g. `FIM Agent`)
+   - **Homepage URL** — your frontend URL (e.g. `https://yourdomain.com`)
+   - **Authorization callback URL** — `https://yourdomain.com/api/auth/oauth/github/callback`
+3. Click **Register application**, then click **Generate a new client secret**.
+4. Copy the **Client ID** and the generated **Client Secret** into your `.env`.
+
+**Scopes requested automatically:** `read:user`, `user:email`
+
+GitHub accounts with a private primary email are handled correctly — FIM Agent always fetches the primary verified email from `/user/emails`, not the public profile email.
+
+```env
+GITHUB_CLIENT_ID=Ov23li...
+GITHUB_CLIENT_SECRET=...
+```
+
+---
+
+## Google
+
+**Developer console:** https://console.cloud.google.com/apis/credentials
+
+1. Click **+ CREATE CREDENTIALS** → **OAuth client ID**.
+2. If prompted, configure the **OAuth consent screen** first (set User Type to "External" for personal/public apps).
+3. Set **Application type** to **Web application**.
+4. Under **Authorized redirect URIs**, add:
+   ```
+   https://yourdomain.com/api/auth/oauth/google/callback
+   ```
+5. Click **Create**, then copy the **Client ID** and **Client Secret**.
+
+**Scopes requested automatically:** `openid`, `email`, `profile`
+
+> Note: During development the consent screen will show a "This app is not verified" warning. You can proceed past it for testing. Publish the consent screen if you want to remove the warning for end users.
+
+```env
+GOOGLE_CLIENT_ID=12345678-abc.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-...
+```
+
+---
+
+## Discord
+
+**Developer console:** https://discord.com/developers/applications
+
+1. Click **New Application** and give it a name.
+2. In the left sidebar, click **OAuth2**.
+3. Under **Redirects**, click **Add Redirect** and enter:
+   ```
+   https://api.yourdomain.com/api/auth/oauth/discord/callback
+   ```
+4. Copy the **Client ID** (shown at the top of the OAuth2 page) and click **Reset Secret** to reveal the **Client Secret**.
+
+**Scopes requested automatically:** `identify`, `email`
+
+> Discord does not guarantee a verified email for all accounts. If a user has not verified their email with Discord, the `email` field may be `null`. FIM Agent creates the account with a null email in that case — the user can add one later in Settings.
+
+```env
+DISCORD_CLIENT_ID=123456789012345678
+DISCORD_CLIENT_SECRET=...
+```
+
+---
+
+## Feishu (Lark)
+
+**Developer console:** https://open.feishu.cn/app
+
+1. Click **Create App** → **In-house app** (自建应用). Company/enterprise accounts are required — Feishu OAuth is not available for personal accounts.
+2. Under **Permissions & Scopes**, search for and enable:
+   - `contact:user.email:readonly`
+3. Under **Security Settings** → **Redirect URL**, add your callback URL:
+   ```
+   https://yourdomain.com/api/auth/oauth/feishu/callback
+   ```
+4. Copy the **App ID** and **App Secret** from the **Credentials & Basic Info** section.
+
+**Scopes configured in console (not in the authorization URL):** `contact:user.email:readonly`
+
+> Note: Feishu uses `App ID` / `App Secret` instead of the standard `Client ID` / `Client Secret` naming. The env var names reflect this: `FEISHU_APP_ID` and `FEISHU_APP_SECRET`.
+
+```env
+FEISHU_APP_ID=cli_a1b2c3d4e5f6...
+FEISHU_APP_SECRET=...
+```
+
+### Important: Feishu Email Behavior
+
+The Feishu user info API (`authen/v1/user_info`) returns the user's **enterprise contact email** (联系邮箱) — the address configured by the organization admin in the Feishu admin console. This is **not** the user's personal Feishu login email.
+
+Consequences:
+- Users whose org admin has not configured a contact email will get an empty email field from the API, even though they have a valid Feishu account.
+- Users on personal Feishu accounts (not part of an enterprise) will always get an empty email.
+
+FIM Agent handles this gracefully: see [Account Binding Rules](#account-binding-rules) below.
+
+---
+
+## Account Binding Rules
+
+Registered users can link additional OAuth providers from **Settings → Account**. The following rules apply when a user initiates a binding:
+
+### General rule (GitHub, Google, Discord)
+
+The email returned by the OAuth provider must match the FIM account's registered email. This prevents accidentally linking another person's social account to your FIM account.
+
+If the emails do not match, the binding is rejected with an `email_mismatch` error.
+
+### Feishu exception
+
+Because Feishu's API returns the enterprise contact email rather than the login email, and that field is often empty for personal accounts or accounts in orgs where the admin has not configured it, the email-match check for Feishu follows a looser rule:
+
+- **Both sides have an email** → the emails must match (same check as other providers).
+- **Either side has no email** (Feishu returned empty, or the FIM account has no email) → binding succeeds based on the ticket-based authentication alone.
+
+### Feishu login (no binding yet)
+
+When a user logs in via Feishu for the first time (no existing binding):
+
+1. FIM Agent looks for an existing account whose email matches the Feishu enterprise contact email.
+2. If a match is found, the Feishu account is auto-bound to that existing FIM account and the user is logged in.
+3. If no match (including when the email is empty), a new FIM account is created identified by the Feishu `open_id`. The account will have a null email, which the user can fill in from Settings later.
+
+---
+
+## Environment Variables Quick Reference
+
+| Variable | Provider | Required | Description |
+|---|---|---|---|
+| `GITHUB_CLIENT_ID` | GitHub | Both | GitHub OAuth App client ID |
+| `GITHUB_CLIENT_SECRET` | GitHub | Both | GitHub OAuth App client secret |
+| `GOOGLE_CLIENT_ID` | Google | Both | Google OAuth 2.0 client ID |
+| `GOOGLE_CLIENT_SECRET` | Google | Both | Google OAuth 2.0 client secret |
+| `DISCORD_CLIENT_ID` | Discord | Both | Discord OAuth2 application client ID |
+| `DISCORD_CLIENT_SECRET` | Discord | Both | Discord OAuth2 application client secret |
+| `FEISHU_APP_ID` | Feishu | Both | Feishu in-house app ID (note: not `CLIENT_ID`) |
+| `FEISHU_APP_SECRET` | Feishu | Both | Feishu in-house app secret |
+| `FRONTEND_URL` | All | Prod | Where the browser is redirected after OAuth completes (e.g. `https://yourdomain.com`) |
+| `API_BASE_URL` | All | Prod | Externally reachable backend URL, used to build callback URLs |
+| `NEXT_PUBLIC_API_URL` | All | Prod | Browser-side API URL for OAuth redirects — baked in at build time |
+
+"Required: Both" means both the `_ID` and `_SECRET` (or `_APP_ID` and `_APP_SECRET` for Feishu) must be set together; setting only one has no effect.
+
+> See [Environment Variables](/configuration/environment-variables) for full documentation of `FRONTEND_URL`, `API_BASE_URL`, and `NEXT_PUBLIC_API_URL`.

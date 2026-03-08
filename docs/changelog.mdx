@@ -1,0 +1,196 @@
+---
+title: "Changelog"
+description: "All notable changes to FIM Agent."
+---
+
+All notable changes to this project are documented here.
+
+Format follows [Keep a Changelog](https://keepachangelog.com/). Versions correspond to [Roadmap](/roadmap) milestones.
+
+## [Unreleased]
+
+### Added
+- **Docker Compose deployment**: Single image (API + Frontend), named volumes for data persistence, standalone Next.js output mode
+- **Admin: login history recording**: Auth endpoints now record every login attempt (IP address, User-Agent, success/failure with reason) to the `LoginHistory` table for security auditing
+- **Admin: file browser**: New admin file browser endpoints for listing and downloading user-uploaded files with pagination support
+- **Admin: enriched agent/KB views**: Admin agent list and knowledge base views now expose `model_name`, `tools`, `kb_ids`, and `embedding_model` fields for better visibility
+- **Chat: sensitive word blocking**: Both ReAct and `inject_message` chat endpoints now enforce sensitive word filtering, blocking messages that contain configured sensitive words
+- **SSE: structured error handling**: `onError` callback in `useSSE` hook upgraded from plain string to `ApiError` object for richer error context (error code, args)
+- **UI: `formatTokens` utility**: New formatting helper for displaying token counts with locale-aware number formatting
+- **UI: `Checkbox` and `FadeIn` components**: New shadcn-style checkbox and fade-in animation wrapper components
+
+### Fixed
+- **Docker i18n broken**: Copy `messages/` directory into standalone output and add `outputFileTracingIncludes` so next-intl can discover locale JSON files at runtime
+- **Docker startup race condition**: Add API readiness wait loop (Python socket poll) in entrypoint before starting Next.js, preventing `e.map is not a function` SSR errors
+- **Artifacts: sort by conversation created_at**: Sort artifacts by conversation creation time instead of file mtime (mtime is unreliable on Docker volumes)
+- **OAuth: auto-detect production API URL from window.location port**: Browser auto-detection now works correctly for custom ports in production (not just 3000)
+
+## [v0.7.3] - 2026-02-28
+
+### Added
+- **Global MCP servers**: Admin-provisioned MCP servers loaded in all chat sessions (not per-user/agent); query logic: `or_(is_global==True, user_id==current_user.id)`
+- **Backward-compat mode**: Admin Platform reads legacy `registration_enabled` boolean if `registration_mode` is not set (auto-migrates to "open" mode)
+- **Structured audit logging**: `write_audit()` helper centralizes audit log writes (admin_id, target_type, target_id, detail fields); replaces ad-hoc `AuditLog()` calls
+
+### Changed
+- **Audit log schema**: Moved from raw `meta` dict to structured `admin_id` / `target_type` / `target_id` / `detail` columns for better compliance
+- **OAuth callback URL construction**: `{API_BASE_URL}/api/auth/oauth/{provider}/callback` (auto-constructed by backend, no hardcoding)
+
+### Fixed
+- **Invite code backward-compat**: Correctly interprets registration_mode when not explicitly set (reads from registration_enabled)
+- **Multi-user scenario**: Global MCP servers no longer conflict with per-user tools
+
+## [v0.7.2] - 2026-02-21
+
+### Added
+- **Invite-only registration mode**: New registration system with three modes (open/invite/disabled) and invite code CRUD
+- **Storage management**: Per-user disk usage calculation, clear command, orphan file cleanup
+- **Per-user force logout**: Admin ability to revoke all tokens and force re-authentication
+- **Conversation moderation**: Admin ability to list and delete all user conversations
+
+### Changed
+- **Admin panels**: Separated into Admin List (users, API keys, agents, etc.) with consistent dropdown-menu action patterns
+
+### Fixed
+- **Admin list pagination**: All admin data lists now support pagination and search
+
+## [v0.7.1] - 2026-02-14
+
+### Added
+- **API health dashboard**: System stats (users, conversations, tokens, model usage charts, tokens-by-agent breakdown), connector call metrics (success rate, latency)
+- **JWT auth**: Token-based SSE auth, conversation ownership, per-user resource isolation
+- **Admin API**: Agent management, per-user token quota enforcement (429 when exceeded)
+
+### Fixed
+- **Token quota enforcement**: ReAct and DAG endpoints now check per-user quotas before execution
+
+## [v0.7] - 2026-02-07
+
+### Added
+- **Admin Platform v0.7**: User management with search/pagination, role toggle, password reset, account enable/disable, invite-only registration, per-user quota, conversation moderation, storage management
+- **First-run setup wizard**: On first launch, portal guides through admin account creation (username, password, email)
+- **Personal Center**: Per-user global system instructions applied across all conversations
+- **Language preference**: Per-user language setting (auto/en/zh) directs all LLM responses to chosen language
+
+### Changed
+- **Multi-tenant auth**: JWT tokens enforce conversation ownership; agents inherit user context
+
+### Fixed
+- **OAuth account binding**: Proper email matching for link/login flows across all providers
+
+## [v0.6.5] - 2026-01-31
+
+### Added
+- **Utility tools**: `email_send`, `json_transform`, `template_render`, `text_utils`
+- **Connector response filtering**: `CONNECTOR_RESPONSE_MAX_CHARS` and `CONNECTOR_RESPONSE_MAX_ITEMS` limits
+- **Embedding model options**: Support for Jina, OpenAI, and custom embedding providers
+
+### Fixed
+- **RAG pipeline stability**: Better error handling for failed chunk operations
+
+## [v0.6] - 2026-01-10
+
+### Added
+- **Connector Platform (core feature)**:
+  - Connector CRUD (create, read, update, delete)
+  - `ConnectorToolAdapter` converts Connector → BaseTool in ToolRegistry
+  - Per-user credentials with AES-GCM encryption
+  - Confirmation gate for write operations
+  - Circuit breaker for connection failures
+  - Operation classification (read/write/admin)
+  - Audit logging for all tool calls
+- **MCP integration**: Tool auto-discovery via MCP protocol, process isolation
+- **Connector data flow example**: Query → Governance → MCP → Legacy System
+
+### Changed
+- **Tool architecture**: Unified ToolRegistry supports built-in, MCP, and connector tools
+
+### Fixed
+- **Tool categorization**: All built-in tools properly tagged with categories
+
+## [v0.5] - 2025-12-20
+
+### Added
+- **Full RAG pipeline**: Jina embedding + LanceDB vector store + FTS + RRF hybrid retrieval + reranker
+- **Grounded Generation**: Evidence-anchored RAG with `[N]` citations, conflict detection, explainable confidence scores
+- **KB document management**: Chunk-level CRUD, text search, failed doc retry, auto-migrating vector store schema
+- **ContextGuard + Pinned Messages**: Token budget manager; pinned messages protected from compaction
+
+### Changed
+- **Multi-turn memory**: DbMemory in `core/memory/db.py`, CompactUtils in `core/memory/compact.py`
+- **LLM Compact**: `CompactUtils.llm_compact()` summarizes old turns via fast LLM
+- **DAG Re-Planning**: Loop up to `MAX_REPLAN_ROUNDS=3`; re-plans when `analysis.achieved=False` and `confidence < 0.5`
+
+### Fixed
+- **Token overflow handling**: Automatic LLM-powered summarization respects token budgets
+
+## [v0.4] - 2025-11-15
+
+### Added
+- **Multi-turn conversations**: DbMemory persists conversation history; smart truncation handles long sessions
+- **Tool step folding**: UI collapses/expands tool call steps for readability
+- **HTTP request tool**: Custom headers, auth, method selection
+- **Shell exec tool**: Safe command execution with timeout
+- **Agent management**: Create, configure, publish agents with bound models, tools, instructions
+- **Per-agent execution mode**: Standard/Planner mode toggle, temperature control
+- **JWT authentication**: Stateless token-based auth for API calls
+
+### Changed
+- **Memory architecture**: ReAct fully wired to DbMemory; DAG injects history as enriched query prefix
+- **Admin health check**: Monitors both ENV-configured and admin-configured models
+
+### Fixed
+- **Multi-user isolation**: Conversations isolated by user; agents scoped to user
+
+## [v0.3] - 2025-10-20
+
+### Added
+- **Web tools**: `web_search` (Jina/Tavily/Brave), `web_fetch`, configurable providers
+- **File operations tool**: Read, write, list, delete with path validation
+- **MCP client**: Protocol-first tool integration, process isolation
+- **Tool auto-discovery**: `discover_builtin_tools()` in `builtin/__init__.py`
+- **Tool categories**: computation, web, filesystem, knowledge, mcp, connector, general
+- **DAG visualization**: Interactive flow graph with live status, dependency edges, click-to-scroll
+- **Python/Node.js execution**: Code execution in Docker for isolation (`CODE_EXEC_BACKEND=docker`)
+- **Sandbox hardening**: `--network=none`, `--memory=256m`, timeout enforcement
+
+### Changed
+- **Tool interface**: All tools now categorized; registry supports filtering
+- **Execution model**: DAG Executor runs steps concurrently via asyncio
+
+### Fixed
+- **Tool discovery robustness**: Handles missing optional dependencies gracefully
+
+## [v0.2] - 2025-09-15
+
+### Added
+- **Retry & rate limiting**: Automatic exponential backoff for transient failures
+- **Usage tracking**: Per-request token/cost accounting
+- **Native function calling**: Direct model support for tool selection (no JSON-only parsing)
+- **Multi-model support**: `FAST_LLM_MODEL` for cheaper DAG step execution
+- **Memory system**: WindowMemory (latest N turns), SummaryMemory (LLM-summarized), DbMemory (persistent)
+- **FastAPI backend**: `/api/execute` (ReAct), `/api/stream` (SSE streaming)
+
+### Changed
+- **LLM abstraction**: BaseLLM → OpenAICompatibleLLM with unified interface
+- **ModelRegistry**: Centralized configuration, provider auto-selection
+
+### Fixed
+- **Error recovery**: Automatic retry on transient API errors
+
+## [v0.1] - 2025-08-01
+
+### Added
+- **ReActAgent**: Reason → Act → Observe loop with tools
+- **DAGPlanner**: LLM-generated dependency graphs, DAGExecutor for concurrent execution, PlanAnalyzer for result verification
+- **BaseTool framework**: Unified interface for all tools
+- **Calculator tool**: Arithmetic expressions, formula evaluation
+- **Python exec tool**: Code execution in isolated environment
+- **KaTeX rendering**: Mathematical notation in streaming output
+- **JSON mode parsing**: Robust structured output handling
+- **Portal UI**: Next.js web interface with real-time streaming, dark/light/system theme
+- **Initial documentation**: Wiki pages covering philosophy, architecture, roadmap
+
+### Fixed
+- **Streaming stability**: Proper SSE error handling and connection cleanup
+

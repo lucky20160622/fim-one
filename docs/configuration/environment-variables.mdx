@@ -1,4 +1,7 @@
-# Environment Variables
+---
+title: "Environment Variables"
+description: "Complete configuration reference for FIM Agent."
+---
 
 All configuration is done via `.env`. Copy `example.env` and fill in your values:
 
@@ -6,9 +9,43 @@ All configuration is done via `.env`. Copy `example.env` and fill in your values
 cp example.env .env
 ```
 
+## Configuration Levels
+
+Each integration has a configuration level indicating its importance:
+
+| Level | Meaning | Behavior when not configured |
+|-------|---------|------------------------------|
+| **Required** | Core system dependency | System will error — chat and primary functions will not work |
+| **Recommended** | Significant feature enabler | Graceful degradation — the feature is visibly unavailable but the system runs |
+| **Optional** | Enhancement capability | Transparent degradation — system works fine, capability simply not present |
+
+> **Note**: Admin-configured models (Admin → Models page) can substitute for LLM environment variables. The health check considers both sources.
+
 ---
 
-## LLM
+## Frontend (Local Dev Only)
+
+The frontend has a separate env file **only for local development**: `frontend/.env.local`.
+
+> **This file is NOT used in Docker.** Inside the Docker container, Next.js proxies `/api/*` to the Python backend internally (port 8000 is container-internal), so no frontend env file is needed.
+
+For local dev, the defaults work out of the box — you do **not** need to create `frontend/.env.local` unless your backend runs on a non-default port.
+
+If you need to override, create `frontend/.env.local` manually:
+
+```bash
+echo 'NEXT_PUBLIC_API_URL=http://localhost:9000' > frontend/.env.local
+```
+
+| Variable | Default | Description |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` *(auto)* | Backend URL the **browser** uses for direct API calls (OAuth redirects, streaming). Auto-detected from `window.location` if unset — only override if your backend runs on a non-standard port locally. |
+
+> **Build-time note**: `NEXT_PUBLIC_*` variables are baked into the JS bundle at `pnpm build` time. Changing them at runtime (e.g. via root `.env`) has no effect — this is why they live in `frontend/.env.local` for local dev only.
+
+---
+
+## LLM (Required)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -22,7 +59,7 @@ cp example.env .env
 | `FAST_LLM_CONTEXT_SIZE` | No | *(falls back to `LLM_CONTEXT_SIZE`)* | Context window size for the fast LLM |
 | `FAST_LLM_MAX_OUTPUT_TOKENS` | No | *(falls back to `LLM_MAX_OUTPUT_TOKENS`)* | Max output tokens per call for the fast LLM |
 
-> DB model config (Settings → Models) takes priority over these ENV vars when set.
+> **Resolution order**: User Preference → Admin Models (DB) → ENV Fallback. If an admin model with role "General" is configured in Admin → Models, these ENV vars serve as fallback only. The health check considers both sources.
 
 ---
 
@@ -38,7 +75,7 @@ cp example.env .env
 
 ---
 
-## Web Tools
+## Web Tools (Optional)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -50,7 +87,7 @@ cp example.env .env
 
 ---
 
-## RAG & Knowledge Base
+## RAG & Knowledge Base (Recommended)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -64,6 +101,8 @@ cp example.env .env
 | `COHERE_API_KEY` | No | — | Cohere API key (auto-selects Cohere reranker when set) |
 | `COHERE_RERANKER_MODEL` | No | `rerank-multilingual-v3.0` | Cohere reranker model |
 | `VECTOR_STORE_DIR` | No | `./data/vector_store` | Directory for LanceDB vector store data |
+
+> Embedding is **recommended** for knowledge base features. Reranker is **optional** — search works without it using fusion scoring.
 
 ---
 
@@ -94,7 +133,7 @@ Size limits for files produced by tool execution (code execution, template rende
 
 ---
 
-## Image Generation
+## Image Generation (Optional)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -105,7 +144,7 @@ Size limits for files produced by tool execution (code execution, template rende
 
 ---
 
-## Email (SMTP)
+## Email (SMTP) (Recommended)
 
 Auto-registers the `email_send` built-in tool when `SMTP_HOST`, `SMTP_USER`, and `SMTP_PASS` are all set.
 
@@ -148,10 +187,30 @@ Auto-registers the `email_send` built-in tool when `SMTP_HOST`, `SMTP_USER`, and
 
 ## OAuth (Optional)
 
+When both `CLIENT_ID` and `CLIENT_SECRET` are set for a provider, the login page automatically shows the corresponding OAuth button.
+
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `GITHUB_CLIENT_ID` | No | — | GitHub OAuth App client ID |
+| `GITHUB_CLIENT_ID` | No | — | GitHub OAuth App client ID. Create at [github.com/settings/developers](https://github.com/settings/developers) → OAuth Apps |
 | `GITHUB_CLIENT_SECRET` | No | — | GitHub OAuth App client secret |
-| `GOOGLE_CLIENT_ID` | No | — | Google OAuth client ID |
+| `GOOGLE_CLIENT_ID` | No | — | Google OAuth client ID. Create at [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials) |
 | `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth client secret |
-| `FRONTEND_URL` | No | `http://localhost:3000` | Frontend URL for OAuth callback redirect |
+| `DISCORD_CLIENT_ID` | No | — | Discord OAuth2 client ID. Create at [discord.com/developers](https://discord.com/developers/applications) |
+| `DISCORD_CLIENT_SECRET` | No | — | Discord OAuth2 client secret |
+| `FEISHU_APP_ID` | No | — | Feishu (Lark) App ID. Create at [open.feishu.cn](https://open.feishu.cn/app). Requires `contact:user.email:readonly` permission |
+| `FEISHU_APP_SECRET` | No | — | Feishu (Lark) App Secret |
+| `FRONTEND_URL` | **Prod** | `http://localhost:3000` | Where the browser lands after OAuth completes. Must be set in production (e.g. `https://yourdomain.com`) |
+| `API_BASE_URL` | **Prod** | `http://localhost:8000` | Externally reachable backend URL, used to build OAuth callback URLs. Must be set in production |
+| `NEXT_PUBLIC_API_URL` | **Prod** | *(auto-detected as `<hostname>:8000`)* | Browser-side API base URL for OAuth redirects. **This is a frontend build-time variable** — set it in `frontend/.env.local` for local dev, or pass it as a Docker build arg for custom production deployments. Auto-detection works for standard reverse-proxy setups (port 80/443). |
+
+> **Prod** = optional locally (defaults work), but **required for any internet-facing deployment**.
+
+### OAuth Callback URLs to register with each provider
+
+The backend constructs callback URLs as: `{API_BASE_URL}/api/auth/oauth/{provider}/callback`
+
+| Provider | Callback URL to register |
+|----------|--------------------------|
+| GitHub | `https://yourdomain.com/api/auth/oauth/github/callback` |
+| Google | `https://yourdomain.com/api/auth/oauth/google/callback` |
+| Discord | `https://yourdomain.com/api/auth/oauth/discord/callback` |
