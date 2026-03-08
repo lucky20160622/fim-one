@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useRef } from "react"
+import { ApiError } from "@/lib/api"
 
 export interface SSEMessage {
   event: string
@@ -10,7 +11,7 @@ export interface SSEMessage {
 
 export interface StartOptions {
   body?: Record<string, unknown>
-  onError?: (msg: string) => void
+  onError?: (err: Error) => void
 }
 
 export function useSSE() {
@@ -51,7 +52,12 @@ export function useSSE() {
               ? body.detail
               : `Request failed (${res.status})`
           setIsError(true)
-          options?.onError?.(detail)
+          options?.onError?.(new ApiError(
+            res.status,
+            detail,
+            body?.error_code ?? null,
+            body?.error_args ?? {},
+          ))
           setIsRunning(false)
           abortRef.current = null
           return
@@ -59,7 +65,7 @@ export function useSSE() {
 
         if (!res.body) {
           setIsError(true)
-          options?.onError?.("No response body")
+          options?.onError?.(new Error("No response body"))
           setIsRunning(false)
           abortRef.current = null
           return
@@ -111,7 +117,7 @@ export function useSSE() {
       } catch (err: unknown) {
         if ((err as { name?: string })?.name === "AbortError") return
         setIsError(true)
-        options?.onError?.((err as Error)?.message ?? "Stream error")
+        options?.onError?.(err instanceof Error ? err : new Error("Stream error"))
       } finally {
         if (abortRef.current === controller) {
           abortRef.current = null

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useTranslations, useLocale } from "next-intl"
-import { Bot, BookOpen, Loader2, MoreHorizontal, Search } from "lucide-react"
+import { Bot, BookOpen, Loader2, MoreHorizontal, Search, Info } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -243,6 +243,15 @@ export function AdminResources() {
         <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
+      {/* Admin view notice */}
+      <div className="rounded-md border border-blue-500/30 bg-blue-50 dark:bg-blue-950/20 px-4 py-3 flex items-start gap-3">
+        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-sm font-medium text-blue-700 dark:text-blue-300">{t("adminNoticeTitle")}</p>
+          <p className="text-xs text-blue-600/80 dark:text-blue-400/80 mt-0.5">{t("adminNoticeDesc")}</p>
+        </div>
+      </div>
+
       {/* Sub-section toggle */}
       <div className="flex gap-1 rounded-md border border-border p-0.5 w-fit">
         <button
@@ -331,7 +340,7 @@ export function AdminResources() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
+                              variant="destructive"
                               onClick={() => setDeleteAgent(agent)}
                             >
                               {tc("delete")}
@@ -437,7 +446,7 @@ export function AdminResources() {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
+                              variant="destructive"
                               onClick={() => setDeleteKB(kb)}
                             >
                               {tc("delete")}
@@ -487,7 +496,7 @@ export function AdminResources() {
           <DialogHeader>
             <DialogTitle>{t("docsTitle")}</DialogTitle>
             <DialogDescription>
-              {t("docsSubtitle", { name: docsKB?.name ?? "" })}
+              {t("docsSubtitle", { name: docsKB?.name ?? "", count: docs.length })}
             </DialogDescription>
           </DialogHeader>
 
@@ -552,7 +561,7 @@ export function AdminResources() {
           <AlertDialogHeader>
             <AlertDialogTitle>{t("deleteAgentTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("deleteAgentDesc", { name: deleteAgent?.name ?? "" })}
+              {t("deleteAgentDesc", { name: deleteAgent?.name ?? "", owner: deleteAgent?.username || deleteAgent?.email || "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

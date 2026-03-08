@@ -33,7 +33,7 @@ import type {
   AIActionResult,
   AICreateConnectorResult,
 } from "@/types/connector"
-import type { AdminUser, AdminConversation, AdminMessage, StorageStats, InviteCode, AdminMCPServer, IntegrationHealth, AdminModelsResponse, AdminModelCreate, AdminModelUpdate } from "@/types/admin"
+import type { AdminUser, AdminConversation, AdminMessage, StorageStats, InviteCode, AdminMCPServer, IntegrationHealth, AdminModelsResponse, AdminModelCreate, AdminModelUpdate, AdminUserFile } from "@/types/admin"
 import type { MCPServerResponse, MCPServerCreate, MCPServerUpdate } from "@/types/mcp-server"
 import type { ModelConfigResponse, ModelConfigCreate, ModelConfigUpdate } from "@/types/model_config"
 
@@ -731,12 +731,8 @@ export interface AdminKBDoc {
 export interface AdminKBDetail extends AdminKBInfo {
   documents: AdminKBDoc[]
 }
-export interface AdminPromptTemplate {
-  id: string; name: string; description: string | null; content: string
-  category: string; is_active: boolean; use_count: number; created_at: string
-}
 export interface AdminSensitiveWord {
-  id: string; word: string; category: string; severity: string
+  id: string; word: string; category: string
   is_active: boolean; created_at: string
 }
 export interface AdminUsageEntry {
@@ -745,10 +741,6 @@ export interface AdminUsageEntry {
 }
 export interface AdminTrendEntry {
   date: string; total_tokens: number; conversation_count: number; active_users: number
-}
-export interface AdminCostEstimate {
-  total_tokens: number; estimated_cost: number
-  by_model: { model: string; tokens: number; cost: number }[]
 }
 export interface AdminAnnouncement {
   id: string; title: string; content: string; level: string; is_active: boolean
@@ -862,6 +854,32 @@ export const adminApi = {
   cleanOrphanedStorage: () =>
     apiFetch<{ ok: boolean }>('/api/admin/storage/orphaned', { method: 'DELETE' }),
 
+  listUserFiles: (userId: string, page = 1, size = 50) =>
+    apiFetch<PaginatedResponse<AdminUserFile>>(`/api/admin/storage/user/${userId}/files?page=${page}&size=${size}`),
+
+  downloadUserFile: async (userId: string, fileId: string, filename: string): Promise<void> => {
+    const token = getAccessToken()
+    const headers: Record<string, string> = {}
+    if (token) headers["Authorization"] = `Bearer ${token}`
+    const res = await fetch(
+      `${getApiBaseUrl()}/api/admin/storage/user/${userId}/files/${fileId}`,
+      { headers },
+    )
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new ApiError(res.status, body.detail || res.statusText, body.error_code ?? null, body.error_args ?? {})
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  },
+
   // Feature 7 -- global MCP servers
   listGlobalMcpServers: () =>
     apiFetch<AdminMCPServer[]>('/api/admin/mcp-servers'),
@@ -952,7 +970,10 @@ export const adminApi = {
   createApiKey: (data: { name: string; user_id?: string; scopes?: string; expires_at?: string }) =>
     apiFetch<AdminApiKeyCreated>('/api/admin/api-keys', { method: 'POST', body: JSON.stringify(data) }),
   toggleApiKey: (id: string, is_active: boolean) =>
-    apiFetch<AdminApiKeyInfo>(`/api/admin/api-keys/${id}/active`, { method: 'PATCH', body: JSON.stringify({ is_active }) }),
+    apiFetch<AdminApiKeyInfo>(`/api/admin/api-keys/${id}/active`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_active }),
+    }),
   deleteApiKey: (id: string) =>
     apiFetch(`/api/admin/api-keys/${id}`, { method: 'DELETE' }),
 
@@ -980,34 +1001,26 @@ export const adminApi = {
   adminDeleteKB: (kbId: string) =>
     apiFetch(`/api/admin/knowledge-bases/${kbId}`, { method: 'DELETE' }),
 
-  // --- Prompt Templates ---
-  listPromptTemplates: (params?: { category?: string }) => {
-    const sp = new URLSearchParams()
-    if (params?.category) sp.set('category', params.category)
-    return apiFetch<AdminPromptTemplate[]>(`/api/admin/prompt-templates?${sp}`)
-  },
-  createPromptTemplate: (data: { name: string; content: string; description?: string; category?: string }) =>
-    apiFetch<AdminPromptTemplate>('/api/admin/prompt-templates', { method: 'POST', body: JSON.stringify(data) }),
-  updatePromptTemplate: (id: string, data: Partial<{ name: string; content: string; description: string; category: string; is_active: boolean }>) =>
-    apiFetch<AdminPromptTemplate>(`/api/admin/prompt-templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deletePromptTemplate: (id: string) =>
-    apiFetch(`/api/admin/prompt-templates/${id}`, { method: 'DELETE' }),
-
   // --- Content Moderation ---
-  listSensitiveWords: (params?: { category?: string; severity?: string }) => {
+  listSensitiveWords: (params?: { category?: string }) => {
     const sp = new URLSearchParams()
     if (params?.category) sp.set('category', params.category)
-    if (params?.severity) sp.set('severity', params.severity)
     return apiFetch<AdminSensitiveWord[]>(`/api/admin/sensitive-words?${sp}`)
   },
-  createSensitiveWord: (data: { word: string; category?: string; severity?: string }) =>
+  createSensitiveWord: (data: { word: string; category?: string }) =>
     apiFetch<AdminSensitiveWord>('/api/admin/sensitive-words', { method: 'POST', body: JSON.stringify(data) }),
-  batchImportWords: (data: { words: string[]; category?: string; severity?: string }) =>
+  batchImportWords: (data: { words: string[]; category?: string }) =>
     apiFetch<{ added: number }>('/api/admin/sensitive-words/batch', { method: 'POST', body: JSON.stringify(data) }),
   deleteSensitiveWord: (id: string) =>
     apiFetch(`/api/admin/sensitive-words/${id}`, { method: 'DELETE' }),
+  toggleSensitiveWord: (wordId: string, isActive: boolean) =>
+    apiFetch(`/api/admin/sensitive-words/${wordId}/toggle`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: isActive }),
+    }),
   checkText: (data: { text: string }) =>
-    apiFetch<{ matched: { word: string; category: string; severity: string }[]; clean: boolean }>('/api/admin/sensitive-words/check', { method: 'POST', body: JSON.stringify(data) }),
+    apiFetch<{ matched: { word: string; category: string }[]; clean: boolean }>('/api/admin/sensitive-words/check', { method: 'POST', body: JSON.stringify(data) }),
 
   // --- Analytics ---
   getUsageAnalytics: (params?: { period?: string; top_n?: number }) => {
@@ -1018,11 +1031,6 @@ export const adminApi = {
   },
   getUsageTrends: () =>
     apiFetch<AdminTrendEntry[]>('/api/admin/analytics/trends'),
-  getCostEstimate: (params?: { price_per_1k_tokens?: number }) => {
-    const sp = new URLSearchParams()
-    if (params?.price_per_1k_tokens) sp.set('price_per_1k_tokens', String(params.price_per_1k_tokens))
-    return apiFetch<AdminCostEstimate>(`/api/admin/analytics/cost?${sp}`)
-  },
 
   // --- Announcements ---
   listAnnouncements: () =>

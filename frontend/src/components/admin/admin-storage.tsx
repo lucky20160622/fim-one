@@ -22,7 +22,6 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,7 +51,11 @@ export function AdminStorage() {
   const [filesTarget, setFilesTarget] = useState<UserStorageStat | null>(null)
   const [userFiles, setUserFiles] = useState<AdminUserFile[]>([])
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [filePage, setFilePage] = useState(1)
+  const [fileTotal, setFileTotal] = useState(0)
+  const [filePages, setFilePages] = useState(0)
 
   const load = async () => {
     setIsLoading(true)
@@ -94,14 +97,35 @@ export function AdminStorage() {
 
   const handleRowClick = async (u: UserStorageStat) => {
     setFilesTarget(u)
+    setUserFiles([])
+    setFilePage(1)
+    setFileTotal(0)
+    setFilePages(0)
     setIsLoadingFiles(true)
     try {
-      const files = await adminApi.listUserFiles(u.user_id)
-      setUserFiles(files)
+      const res = await adminApi.listUserFiles(u.user_id, 1)
+      setUserFiles(res.items)
+      setFileTotal(res.total)
+      setFilePages(res.pages)
     } catch (err) {
       toast.error(getErrorMessage(err, tError))
     } finally {
       setIsLoadingFiles(false)
+    }
+  }
+
+  const handleLoadMore = async () => {
+    if (!filesTarget) return
+    const nextPage = filePage + 1
+    setIsLoadingMore(true)
+    try {
+      const res = await adminApi.listUserFiles(filesTarget.user_id, nextPage)
+      setUserFiles((prev) => [...prev, ...res.items])
+      setFilePage(nextPage)
+    } catch (err) {
+      toast.error(getErrorMessage(err, tError))
+    } finally {
+      setIsLoadingMore(false)
     }
   }
 
@@ -232,9 +256,10 @@ export function AdminStorage() {
             <SheetTitle>{t("filesTitle")}</SheetTitle>
             <SheetDescription>
               {t("filesSubtitle", { username: filesTarget?.username || filesTarget?.email || "" })}
+              {fileTotal > 0 && !isLoadingFiles ? ` · ${fileTotal}` : ""}
             </SheetDescription>
           </SheetHeader>
-          <ScrollArea className="flex-1 px-6 py-4">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
             {isLoadingFiles ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -266,9 +291,21 @@ export function AdminStorage() {
                     </Button>
                   </div>
                 ))}
+                {filePage < filePages && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2"
+                    disabled={isLoadingMore}
+                    onClick={handleLoadMore}
+                  >
+                    {isLoadingMore && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                    {tc("loadMore")}
+                  </Button>
+                )}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </SheetContent>
       </Sheet>
     </div>

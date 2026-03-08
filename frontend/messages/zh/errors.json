@@ -90,5 +90,9 @@
   "verification_code_too_many_attempts": "错误次数过多，请重新获取验证码。",
   "verification_rate_limited": "请稍后再请求验证码。",
 
-  "email_not_registered": "未找到使用此邮箱的账户。"
+  "email_not_registered": "未找到使用此邮箱的账户。",
+
+  "sensitive_word_blocked": "您的消息包含受限内容，已被拦截。",
+  "sensitive_word_duplicate": "该敏感词已存在。",
+  "sensitive_word_not_found": "敏感词不存在。"
 }

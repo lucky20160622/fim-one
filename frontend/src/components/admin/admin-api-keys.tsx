@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useTranslations } from "next-intl"
-import { Key, Plus, Loader2, Trash2, Copy, Check, MoreHorizontal, Power, PowerOff } from "lucide-react"
+import { format } from "date-fns"
+import { Key, Plus, Loader2, Trash2, Copy, Check, MoreHorizontal, Info, CalendarIcon, ShieldOff } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,13 +30,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Calendar } from "@/components/ui/calendar"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { adminApi } from "@/lib/api"
 import { getErrorMessage } from "@/lib/error-utils"
+import { cn } from "@/lib/utils"
+
+const AVAILABLE_SCOPES = ["chat", "agents", "kb", "connectors", "admin"] as const
 
 interface ApiKeyInfo {
   id: string
@@ -63,6 +70,8 @@ interface CreateApiKeyResponse {
   created_at: string
 }
 
+type ActionTarget = { key: ApiKeyInfo; action: "revoke" | "delete" }
+
 export function AdminApiKeys() {
   const t = useTranslations("admin.apiKeys")
   const tc = useTranslations("common")
@@ -77,12 +86,13 @@ export function AdminApiKeys() {
 
   // --- Dialog states ---
   const [createOpen, setCreateOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<ApiKeyInfo | null>(null)
+  const [actionTarget, setActionTarget] = useState<ActionTarget | null>(null)
 
   // --- Create form fields ---
   const [createName, setCreateName] = useState("")
-  const [createScopes, setCreateScopes] = useState("")
-  const [createExpiresAt, setCreateExpiresAt] = useState("")
+  const [selectedScopes, setSelectedScopes] = useState<string[]>([])
+  const [expiresAt, setExpiresAt] = useState<Date | undefined>()
+  const [expiresAtOpen, setExpiresAtOpen] = useState(false)
 
   // --- Show key after creation ---
   const [createdKey, setCreatedKey] = useState<string | null>(null)
@@ -119,18 +129,18 @@ export function AdminApiKeys() {
       const payload: { name: string; scopes?: string; expires_at?: string } = {
         name: createName.trim(),
       }
-      if (createScopes.trim()) {
-        payload.scopes = createScopes.trim()
+      if (selectedScopes.length > 0) {
+        payload.scopes = selectedScopes.join(",")
       }
-      if (createExpiresAt) {
-        payload.expires_at = createExpiresAt
+      if (expiresAt) {
+        payload.expires_at = format(expiresAt, "yyyy-MM-dd")
       }
       const result: CreateApiKeyResponse = await adminApi.createApiKey(payload)
       toast.success(t("keyCreated"))
       setCreateOpen(false)
       setCreateName("")
-      setCreateScopes("")
-      setCreateExpiresAt("")
+      setSelectedScopes([])
+      setExpiresAt(undefined)
       // Show the full key
       setCreatedKey(result.key)
       setShowKeyOpen(true)
@@ -156,30 +166,45 @@ export function AdminApiKeys() {
     }
   }
 
-  // --- Toggle active/inactive ---
-  const handleToggle = async (apiKey: ApiKeyInfo) => {
-    try {
-      await adminApi.toggleApiKey(apiKey.id, !apiKey.is_active)
-      toast.success(t("keyToggled"))
-      await loadKeys()
-    } catch (err: unknown) {
-      toast.error(getErrorMessage(err, tError))
-    }
-  }
-
-  // --- Delete key ---
-  const handleDelete = async () => {
-    if (!deleteTarget) return
+  // --- Revoke key (soft-delete: set is_active=false) ---
+  const handleRevoke = async () => {
+    if (!actionTarget || actionTarget.action !== "revoke") return
     setIsMutating(true)
     try {
-      await adminApi.deleteApiKey(deleteTarget.id)
-      toast.success(t("keyDeleted"))
-      setDeleteTarget(null)
+      await adminApi.toggleApiKey(actionTarget.key.id, false)
+      toast.success(t("keyRevoked"))
+      setActionTarget(null)
       await loadKeys()
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, tError))
     } finally {
       setIsMutating(false)
+    }
+  }
+
+  // --- Delete key (permanent removal from DB) ---
+  const handleDelete = async () => {
+    if (!actionTarget || actionTarget.action !== "delete") return
+    setIsMutating(true)
+    try {
+      await adminApi.deleteApiKey(actionTarget.key.id)
+      toast.success(t("keyDeleted"))
+      setActionTarget(null)
+      await loadKeys()
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, tError))
+    } finally {
+      setIsMutating(false)
+    }
+  }
+
+  // --- Confirm action handler ---
+  const handleConfirmAction = () => {
+    if (!actionTarget) return
+    if (actionTarget.action === "revoke") {
+      handleRevoke()
+    } else {
+      handleDelete()
     }
   }
 
@@ -218,6 +243,15 @@ export function AdminApiKeys() {
         </Button>
       </div>
 
+      {/* Coming Soon notice */}
+      <div className="rounded-md border border-blue-500/30 bg-blue-50 dark:bg-blue-950/20 px-4 py-3 flex items-start gap-3">
+        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-sm font-medium text-blue-700 dark:text-blue-300">{t("comingSoonTitle")}</p>
+          <p className="text-xs text-blue-600/80 dark:text-blue-400/80 mt-0.5">{t("comingSoonDesc")}</p>
+        </div>
+      </div>
+
       {/* Table */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
@@ -240,10 +274,10 @@ export function AdminApiKeys() {
                   {t("colPrefix")}
                 </th>
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                  {t("colScopes")}
+                  {t("colStatus")}
                 </th>
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
-                  {t("colStatus")}
+                  {t("colScopes")}
                 </th>
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
                   {t("colLastUsed")}
@@ -261,7 +295,13 @@ export function AdminApiKeys() {
             </thead>
             <tbody className="divide-y divide-border">
               {keys.map((k) => (
-                <tr key={k.id} className="hover:bg-muted/20 transition-colors">
+                <tr
+                  key={k.id}
+                  className={cn(
+                    "hover:bg-muted/20 transition-colors",
+                    !k.is_active && "opacity-50",
+                  )}
+                >
                   <td className="px-4 py-3 font-medium text-foreground">
                     {k.name}
                   </td>
@@ -270,22 +310,22 @@ export function AdminApiKeys() {
                       {k.key_prefix}...
                     </code>
                   </td>
+                  <td className="px-4 py-3">
+                    {k.is_active ? (
+                      <Badge variant="outline" className="border-green-500/30 bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400">
+                        {t("active")}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-red-500/30 bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400">
+                        {t("revoked")}
+                      </Badge>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {k.scopes ? (
                       <span className="text-xs">{k.scopes}</span>
                     ) : (
                       <span className="text-muted-foreground/50">--</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {k.is_active ? (
-                      <Badge variant="outline" className="border-green-500/40 text-green-600 dark:text-green-400">
-                        {t("active")}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="border-red-500/40 text-red-600 dark:text-red-400">
-                        {t("inactive")}
-                      </Badge>
                     )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
@@ -305,27 +345,23 @@ export function AdminApiKeys() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleToggle(k)}>
-                          {k.is_active ? (
-                            <>
-                              <PowerOff className="mr-2 h-4 w-4" />
-                              {tc("disable")}
-                            </>
-                          ) : (
-                            <>
-                              <Power className="mr-2 h-4 w-4" />
-                              {tc("enable")}
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setDeleteTarget(k)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          {tc("delete")}
-                        </DropdownMenuItem>
+                        {k.is_active ? (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setActionTarget({ key: k, action: "revoke" })}
+                          >
+                            <ShieldOff className="mr-2 h-4 w-4" />
+                            {t("revoke")}
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setActionTarget({ key: k, action: "delete" })}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {tc("delete")}
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -386,21 +422,47 @@ export function AdminApiKeys() {
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">{t("scopes")}</Label>
-              <Input
-                value={createScopes}
-                onChange={(e) => setCreateScopes(e.target.value)}
-                placeholder="read,write,admin"
-              />
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {AVAILABLE_SCOPES.map((scope) => (
+                  <label key={scope} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer hover:bg-accent/50 transition-colors">
+                    <Checkbox
+                      checked={selectedScopes.includes(scope)}
+                      onCheckedChange={(checked) => {
+                        setSelectedScopes(prev =>
+                          checked ? [...prev, scope] : prev.filter(s => s !== scope)
+                        )
+                      }}
+                    />
+                    {scope}
+                  </label>
+                ))}
+              </div>
               <p className="text-xs text-muted-foreground">{t("scopesHint")}</p>
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">{t("expiresAt")}</Label>
-              <Input
-                type="date"
-                value={createExpiresAt}
-                onChange={(e) => setCreateExpiresAt(e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
-              />
+              <Popover open={expiresAtOpen} onOpenChange={setExpiresAtOpen}>
+                <PopoverTrigger asChild>
+                  <button className={cn(
+                    "flex w-full items-center gap-2 rounded-md border border-input bg-transparent px-3 h-9 text-sm shadow-xs transition-[color,box-shadow] focus-visible:outline-2 focus-visible:outline-ring/70",
+                    !expiresAt && "text-muted-foreground",
+                  )}>
+                    <CalendarIcon className="size-4 text-muted-foreground" />
+                    {expiresAt ? format(expiresAt, "yyyy-MM-dd") : t("expiresAtPlaceholder")}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    captionLayout="dropdown"
+                    selected={expiresAt}
+                    onSelect={(date) => { setExpiresAt(date); setExpiresAtOpen(false) }}
+                    disabled={(date) => date < new Date()}
+                    startMonth={new Date()}
+                    endMonth={new Date(new Date().getFullYear() + 2, 11)}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <DialogFooter>
@@ -475,27 +537,33 @@ export function AdminApiKeys() {
         </DialogContent>
       </Dialog>
 
-      {/* --- Delete API Key AlertDialog --- */}
+      {/* --- Revoke / Delete API Key AlertDialog --- */}
       <AlertDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        open={actionTarget !== null}
+        onOpenChange={(open) => { if (!open) setActionTarget(null) }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {actionTarget?.action === "revoke"
+                ? t("revokeConfirmTitle")
+                : t("deleteTitle")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {t("deleteDesc")}
+              {actionTarget?.action === "revoke"
+                ? t("revokeConfirmDesc")
+                : t("deleteDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={handleDelete}
+              onClick={handleConfirmAction}
               disabled={isMutating}
             >
               {isMutating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {tc("delete")}
+              {actionTarget?.action === "revoke" ? t("revoke") : tc("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -83,6 +83,26 @@ logger = logging.getLogger(__name__)
 
 _allow_stdio_mcp = os.environ.get("ALLOW_STDIO_MCP", "true").lower() != "false"
 
+
+# ---------------------------------------------------------------------------
+# Sensitive word check helper
+# ---------------------------------------------------------------------------
+
+
+async def _check_sensitive_words(text: str, db: AsyncSession) -> list[str]:
+    """Return list of matched blocked words. Empty = clean."""
+    from fim_agent.web.models import SensitiveWord
+
+    result = await db.execute(
+        sa_select(SensitiveWord).where(
+            SensitiveWord.is_active == True,  # noqa: E712
+        )
+    )
+    words = result.scalars().all()
+    text_lower = text.lower()
+    return [w.word for w in words if w.word.lower() in text_lower]
+
+
 # ---------------------------------------------------------------------------
 # SSE one-time ticket store  (ticket → (user_id, expires_at))
 # ---------------------------------------------------------------------------
@@ -935,6 +955,16 @@ async def inject_message(
     q = get_interrupt_queue(body.conversation_id)
     if q is None:
         raise AppError("no_active_execution", status_code=404)
+
+    # Sensitive word check — block before persisting or queuing
+    matched = await _check_sensitive_words(body.content, db)
+    if matched:
+        raise AppError(
+            "sensitive_word_blocked",
+            status_code=400,
+            detail_args={"words": ", ".join(matched)},
+        )
+
     msg_id = uuid.uuid4().hex[:12]
     q.put(InjectedMessage(id=msg_id, content=body.content))
 
@@ -1015,6 +1045,18 @@ async def react_endpoint(
     agent_id = body.agent_id
     token = body.token
     image_ids = body.image_ids
+
+    # Sensitive word check — block before starting the agent
+    from fim_agent.db import create_session as _create_sw_session
+
+    async with _create_sw_session() as _sw_db:
+        matched = await _check_sensitive_words(q, _sw_db)
+    if matched:
+        raise AppError(
+            "sensitive_word_blocked",
+            status_code=400,
+            detail_args={"words": ", ".join(matched)},
+        )
 
     # -- Pre-stream resolution (before StreamingResponse) -------------------
     current_user_id, user_system_instructions, preferred_language = await _resolve_user(token)

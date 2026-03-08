@@ -329,7 +329,7 @@ async def list_active_sessions(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ):
     """List users with active refresh tokens (i.e. active sessions)."""
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     q = (
         select(User)
         .where(

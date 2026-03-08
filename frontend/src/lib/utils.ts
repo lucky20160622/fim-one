@@ -19,6 +19,13 @@ export function isImageFile(file: { filename: string; mime_type?: string | null 
   return ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)
 }
 
+/** Format token count into a human-friendly string (e.g. 1.23M, 3.4K). */
+export function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return n.toString()
+}
+
 /** Format bytes into a human-friendly file size string. */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 B"

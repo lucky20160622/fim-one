@@ -376,7 +376,7 @@ export function AdminSecurity() {
 
             {/* Pagination */}
             <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>{historyTotal.toLocaleString()}</span>
+              <span>{t("totalRecords", { count: historyTotal })}</span>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -492,7 +492,7 @@ export function AdminSecurity() {
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
+                            variant="destructive"
                             onClick={() => setDeleteTarget(rule)}
                           >
                             {tc("delete")}

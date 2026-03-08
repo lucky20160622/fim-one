@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from "next-intl"
 import { Users, MessageSquare, Zap, Bot, Database, BookOpen, FileText, Hash, Plug } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { apiFetch } from "@/lib/api"
+import { formatTokens } from "@/lib/utils"
 import {
   PieChart,
   Pie,
@@ -100,12 +101,6 @@ function SkeletonCard() {
       <div className="h-8 w-16 rounded bg-muted" />
     </div>
   )
-}
-
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return n.toString()
 }
 
 function formatDate(dateStr: string, locale?: string): string {

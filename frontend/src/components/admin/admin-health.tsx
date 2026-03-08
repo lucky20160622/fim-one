@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react"
 import { useTranslations } from "next-intl"
 import { CheckCircle2, XCircle, AlertTriangle, Loader2 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { adminApi } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import type { IntegrationHealth } from "@/types/admin"
@@ -52,6 +50,10 @@ export function AdminHealth() {
   const groupedKeys = new Set(Object.values(GROUPS).flat())
   const ungrouped = items.filter((i) => !groupedKeys.has(i.key))
 
+  const totalCount = items.length
+  const configuredCount = items.filter((i) => i.configured).length
+  const allReady = configuredCount === totalCount
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
@@ -59,33 +61,67 @@ export function AdminHealth() {
         <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
-      <Separator />
+      {/* Summary bar */}
+      <div
+        className={cn(
+          "rounded-md border px-4 py-3 text-sm flex items-center gap-3",
+          allReady
+            ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30"
+            : "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30",
+        )}
+      >
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold shrink-0",
+            allReady
+              ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
+              : "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+          )}
+        >
+          {t("configuredCount", { count: configuredCount, total: totalCount })}
+        </span>
+        <span
+          className={cn(
+            "text-sm",
+            allReady
+              ? "text-green-700 dark:text-green-300"
+              : "text-amber-700 dark:text-amber-300",
+          )}
+        >
+          {allReady
+            ? t("allReady")
+            : t("needsConfig", { count: totalCount - configuredCount })}
+        </span>
+      </div>
 
-      {groupEntries.map(({ group, items: groupItems }) => (
-        <Card key={group}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">{t(`group.${group}`)}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {groupItems.map((item) => (
-              <HealthRow key={item.key} item={item} />
-            ))}
-          </CardContent>
-        </Card>
-      ))}
+      {/* Group sections */}
+      <div className="space-y-6">
+        {groupEntries.map(({ group, items: groupItems }) => (
+          <div key={group}>
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+              {t(`group.${group}`)}
+            </div>
+            <div className="divide-y divide-border rounded-md border border-border">
+              {groupItems.map((item) => (
+                <HealthRow key={item.key} item={item} />
+              ))}
+            </div>
+          </div>
+        ))}
 
-      {ungrouped.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">{t("group.other")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {ungrouped.map((item) => (
-              <HealthRow key={item.key} item={item} />
-            ))}
-          </CardContent>
-        </Card>
-      )}
+        {ungrouped.length > 0 && (
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+              {t("group.other")}
+            </div>
+            <div className="divide-y divide-border rounded-md border border-border">
+              {ungrouped.map((item) => (
+                <HealthRow key={item.key} item={item} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -94,7 +130,7 @@ function HealthRow({ item }: { item: IntegrationHealth }) {
   const t = useTranslations("admin.health")
 
   return (
-    <div className="space-y-1.5">
+    <div className="px-4 py-3 space-y-1.5">
       <div className="flex items-center gap-2">
         {item.configured ? (
           <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
@@ -119,7 +155,7 @@ function HealthRow({ item }: { item: IntegrationHealth }) {
         </div>
       </div>
       {!item.configured && item.impact && (
-        <div className="flex items-start gap-2 ml-6 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2">
+        <div className="flex items-start gap-2 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2">
           <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
           <p className="text-xs text-amber-700 dark:text-amber-300">
             {t("impactLabel")}: {item.impact}

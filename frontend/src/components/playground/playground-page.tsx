@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Send, Loader2, PanelRightOpen, PanelRightClose, ArrowDown, Square, Zap, GitBranch, Bot, Paperclip, X, Plus, ChevronsUpDown, Check, Undo2, RotateCcw, Download } from "lucide-react"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/error-utils"
 import { useSSE } from "@/hooks/use-sse"
 import { useSlashCommands } from "@/hooks/use-slash-commands"
 import { SlashCommandMenu } from "@/components/playground/slash-command-menu"
@@ -71,6 +72,7 @@ interface PlaygroundPageProps {
 export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
   const t = useTranslations("playground")
   const tc = useTranslations("common")
+  const tError = useTranslations("errors")
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
@@ -239,9 +241,10 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
           const res = await chatApi.inject(activeId, trimmed)
           // Store the backend-assigned id for recall support
           setInjectedMessages(prev => prev.map(m => m.ts === ts ? { ...m, id: res.id } : m))
-        } catch {
-          // 409 = execution already finished — restore to input for user to re-send
+        } catch (err) {
           setInjectedMessages(prev => prev.filter(m => m.ts !== ts))
+          const msg = getErrorMessage(err, tError)
+          toast.error(msg)
           failedInjectRef.current = trimmed
         }
         return
@@ -289,7 +292,7 @@ export function PlaygroundPage({ isNewChat }: PlaygroundPageProps) {
       if (selectedAgent?.id) body.agent_id = selectedAgent.id
       if (imageIds?.length) body.image_ids = imageIds.join(",")
       setSourceMode(mode)
-      start(url, { body, onError: (errMsg) => toast.error(errMsg) })
+      start(url, { body, onError: (err) => toast.error(getErrorMessage(err, tError)) })
     },
     [isRunning, mode, start, activeId, createConversation, selectConversation, selectedAgent, setInjectedMessages],
   )

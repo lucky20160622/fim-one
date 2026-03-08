@@ -15,7 +15,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from fim_agent.web.email import _smtp_configured
@@ -36,6 +36,7 @@ from fim_agent.web.schemas.model_config import ModelConfigResponse
 # ---------------------------------------------------------------------------
 
 from fim_agent.web.api.admin_utils import get_setting, set_setting, write_audit  # noqa: F811,E402
+from fim_agent.web.api.files import _load_index, _user_dir
 
 SETTING_REGISTRATION_ENABLED = "registration_enabled"
 
@@ -201,6 +202,22 @@ class UserStorageStat(BaseModel):
 class StorageStatsResponse(BaseModel):
     total_bytes: int
     users: list[UserStorageStat]
+
+
+class AdminFileItem(BaseModel):
+    file_id: str
+    filename: str
+    size: int
+    mime_type: str
+    stored_name: str
+
+
+class PaginatedFiles(BaseModel):
+    items: list[AdminFileItem]
+    total: int
+    page: int
+    size: int
+    pages: int
 
 
 class IntegrationHealth(BaseModel):
@@ -1571,6 +1588,58 @@ async def clean_orphaned_storage(
     await write_audit(
         db, current_user, "storage.cleanup_orphaned",
         detail=f"deleted {deleted_count} orphaned dirs",
+    )
+
+
+@router.get("/storage/user/{user_id}/files")
+async def list_user_files(
+    user_id: str,
+    page: int = Query(1, ge=1),  # noqa: B008
+    size: int = Query(50, ge=1, le=200),  # noqa: B008
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+) -> PaginatedFiles:
+    """List files uploaded by a specific user (paginated)."""
+    index = _load_index(user_id)
+    all_items = [
+        AdminFileItem(
+            file_id=fid,
+            filename=meta["filename"],
+            size=meta["size"],
+            mime_type=meta.get("mime_type", "application/octet-stream"),
+            stored_name=meta["stored_name"],
+        )
+        for fid, meta in index.items()
+    ]
+    total = len(all_items)
+    pages = math.ceil(total / size) if total else 0
+    start = (page - 1) * size
+    return PaginatedFiles(
+        items=all_items[start : start + size],
+        total=total,
+        page=page,
+        size=size,
+        pages=pages,
+    )
+
+
+@router.get("/storage/user/{user_id}/files/{file_id}")
+async def download_user_file(
+    user_id: str,
+    file_id: str,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+) -> FileResponse:
+    """Download a specific file uploaded by a user."""
+    index = _load_index(user_id)
+    meta = index.get(file_id)
+    if meta is None:
+        raise AppError("file_not_found", status_code=404)
+    file_path = _user_dir(user_id) / meta["stored_name"]
+    if not file_path.exists():
+        raise AppError("file_not_found", status_code=404)
+    return FileResponse(
+        path=str(file_path),
+        filename=meta["filename"],
+        media_type="application/octet-stream",
     )
 
 

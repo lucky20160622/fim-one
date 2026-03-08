@@ -52,18 +52,6 @@ class DailyTrend(BaseModel):
     active_users: int
 
 
-class ModelCost(BaseModel):
-    model: str
-    tokens: int
-    cost: float
-
-
-class CostBreakdown(BaseModel):
-    total_tokens: int
-    estimated_cost: float
-    by_model: list[ModelCost]
-
-
 class AnnouncementInfo(BaseModel):
     id: str
     title: str
@@ -237,47 +225,6 @@ async def analytics_trends(
         )
         for row in result.all()
     ]
-
-
-@router.get("/analytics/cost", response_model=CostBreakdown)
-async def analytics_cost(
-    price_per_1k_tokens: float = Query(0.01, ge=0),
-    current_user: User = Depends(get_current_admin),  # noqa: B008
-    db: AsyncSession = Depends(get_session),  # noqa: B008
-) -> CostBreakdown:
-    """Estimated cost breakdown by model."""
-    # Total tokens across all conversations
-    total_result = await db.execute(
-        select(func.coalesce(func.sum(Conversation.total_tokens), 0))
-    )
-    total_tokens: int = total_result.scalar_one()
-
-    # Per-model breakdown
-    model_query = (
-        select(
-            func.coalesce(Conversation.model_name, "Unknown").label("model"),
-            func.coalesce(func.sum(Conversation.total_tokens), 0).label("tokens"),
-        )
-        .group_by(func.coalesce(Conversation.model_name, "Unknown"))
-        .order_by(func.sum(Conversation.total_tokens).desc())
-    )
-    model_result = await db.execute(model_query)
-
-    by_model = [
-        ModelCost(
-            model=row.model,
-            tokens=row.tokens,
-            cost=round(row.tokens / 1000 * price_per_1k_tokens, 4),
-        )
-        for row in model_result.all()
-    ]
-
-    estimated_cost = round(total_tokens / 1000 * price_per_1k_tokens, 4)
-    return CostBreakdown(
-        total_tokens=total_tokens,
-        estimated_cost=estimated_cost,
-        by_model=by_model,
-    )
 
 
 # ---------------------------------------------------------------------------

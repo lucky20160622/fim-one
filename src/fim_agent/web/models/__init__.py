@@ -18,7 +18,6 @@ from .knowledge_base import KBDocument, KnowledgeBase
 from .message import Message
 from .model_config import ModelConfig
 from .oauth_binding import UserOAuthBinding
-from .prompt_template import PromptTemplate
 from .sensitive_word import SensitiveWord
 from .system_setting import SystemSetting
 from .user import User
@@ -41,7 +40,6 @@ __all__ = [
     "MCPServer",
     "Message",
     "ModelConfig",
-    "PromptTemplate",
     "SensitiveWord",
     "SystemSetting",
     "User",

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useTranslations, useLocale } from "next-intl"
 import { MoreHorizontal, Search, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { formatTokens } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -177,7 +178,7 @@ export function AdminConversations() {
                     {conv.mode ? <Badge variant="outline">{conv.mode}</Badge> : <span className="text-muted-foreground/50">--</span>}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">{conv.model_name ?? "--"}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{conv.total_tokens.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{formatTokens(conv.total_tokens)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{conv.message_count}</td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
                     {new Date(conv.created_at).toLocaleDateString(locale)}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 import shutil
@@ -44,8 +45,12 @@ class AdminAgentInfo(BaseModel):
     execution_mode: str = "react"
     status: str = "draft"
     user_id: str
-    owner_username: str
-    owner_email: str
+    username: str | None = None
+    email: str | None = None
+    model_name: str | None = None
+    tools: str | None = None
+    kb_ids: str | None = None
+    enable_planning: bool = False
     created_at: str
 
 
@@ -61,8 +66,9 @@ class AdminKBInfo(BaseModel):
     total_chunks: int = 0
     status: str = "active"
     user_id: str
-    owner_username: str
-    owner_email: str
+    username: str | None = None
+    email: str | None = None
+    embedding_model: str | None = None
     created_at: str
 
 
@@ -89,8 +95,9 @@ class AdminKBDetailResponse(BaseModel):
     total_chunks: int = 0
     status: str = "active"
     user_id: str
-    owner_username: str
-    owner_email: str
+    username: str | None = None
+    email: str | None = None
+    embedding_model: str | None = None
     created_at: str
     documents: list[AdminKBDocumentInfo]
 
@@ -129,21 +136,31 @@ async def list_all_agents(
         )
     ).all()
 
-    items = [
-        AdminAgentInfo(
-            id=agent.id,
-            name=agent.name,
-            icon=agent.icon,
-            description=agent.description,
-            execution_mode=agent.execution_mode,
-            status=agent.status,
-            user_id=user.id,
-            owner_username=user.username or user.email,
-            owner_email=user.email,
-            created_at=agent.created_at.isoformat() if agent.created_at else "",
-        ).model_dump()
-        for agent, user in rows
-    ]
+    items = []
+    for agent, user in rows:
+        # Extract model_name from model_config_json dict
+        model_name = None
+        if agent.model_config_json and isinstance(agent.model_config_json, dict):
+            model_name = agent.model_config_json.get("model_name")
+
+        items.append(
+            AdminAgentInfo(
+                id=agent.id,
+                name=agent.name,
+                icon=agent.icon,
+                description=agent.description,
+                execution_mode=agent.execution_mode,
+                status=agent.status,
+                user_id=user.id,
+                username=user.username,
+                email=user.email,
+                model_name=model_name,
+                tools=json.dumps(agent.tool_categories) if agent.tool_categories else None,
+                kb_ids=json.dumps(agent.kb_ids) if agent.kb_ids else None,
+                enable_planning=agent.execution_mode == "dag",
+                created_at=agent.created_at.isoformat() if agent.created_at else "",
+            ).model_dump()
+        )
 
     return PaginatedResponse(
         items=items,
@@ -171,6 +188,12 @@ async def toggle_agent_active(
         raise AppError("agent_not_found", status_code=404)
 
     agent, user = row
+
+    # Extract model_name from model_config_json dict
+    model_name = None
+    if agent.model_config_json and isinstance(agent.model_config_json, dict):
+        model_name = agent.model_config_json.get("model_name")
+
     return AdminAgentInfo(
         id=agent.id,
         name=agent.name,
@@ -179,8 +202,12 @@ async def toggle_agent_active(
         execution_mode=agent.execution_mode,
         status=agent.status,
         user_id=user.id,
-        owner_username=user.username or user.email,
-        owner_email=user.email,
+        username=user.username,
+        email=user.email,
+        model_name=model_name,
+        tools=json.dumps(agent.tool_categories) if agent.tool_categories else None,
+        kb_ids=json.dumps(agent.kb_ids) if agent.kb_ids else None,
+        enable_planning=agent.execution_mode == "dag",
         created_at=agent.created_at.isoformat() if agent.created_at else "",
     )
 
@@ -258,8 +285,9 @@ async def list_all_knowledge_bases(
             total_chunks=kb.total_chunks,
             status=kb.status,
             user_id=user.id,
-            owner_username=user.username or user.email,
-            owner_email=user.email,
+            username=user.username,
+            email=user.email,
+            embedding_model=None,
             created_at=kb.created_at.isoformat() if kb.created_at else "",
         ).model_dump()
         for kb, user in rows
@@ -318,8 +346,9 @@ async def admin_get_knowledge_base(
         total_chunks=kb.total_chunks,
         status=kb.status,
         user_id=user.id,
-        owner_username=user.username or user.email,
-        owner_email=user.email,
+        username=user.username,
+        email=user.email,
+        embedding_model=None,
         created_at=kb.created_at.isoformat() if kb.created_at else "",
         documents=documents,
     )

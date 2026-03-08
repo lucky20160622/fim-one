@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
+import { formatTokens } from "@/lib/utils"
 import {
   Loader2,
   Search,
@@ -17,6 +18,7 @@ import {
   Trash2,
   LogOut,
   Gauge,
+  HelpCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -47,6 +49,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { adminApi } from "@/lib/api"
 import { getErrorMessage } from "@/lib/error-utils"
 import { useAuth } from "@/contexts/auth-context"
@@ -316,6 +324,21 @@ export function AdminUsers() {
                   {t("username")}
                 </th>
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex items-center gap-1 cursor-default">
+                          {t("onlineStatus")}
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs">
+                        {t("sessionNoticeDesc")}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </th>
+                <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
                   {t("email")}
                 </th>
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
@@ -345,12 +368,18 @@ export function AdminUsers() {
                             {t("you")}
                           </span>
                         )}
-                        {u.has_active_session && (
-                          <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20 text-[10px] px-1.5 py-0">
-                            {t("online")}
-                          </Badge>
-                        )}
                       </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {u.has_active_session ? (
+                        <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20 text-[10px] px-1.5 py-0">
+                          {t("online")}
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="bg-muted/60 text-muted-foreground border-border text-[10px] px-1.5 py-0">
+                          {t("offline")}
+                        </Badge>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {u.email ?? <span className="text-muted-foreground/50">--</span>}
@@ -365,7 +394,7 @@ export function AdminUsers() {
                     <td className="px-4 py-3">
                       {u.is_active ? (
                         <Badge variant="outline" className="border-green-500/40 text-green-600 dark:text-green-400">
-                          {tc("active")}
+                          {tc("enabled")}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="border-red-500/40 text-red-600 dark:text-red-400">
@@ -376,10 +405,10 @@ export function AdminUsers() {
                     <td className="px-4 py-3 text-sm">
                       <div className="space-y-0.5">
                         {u.monthly_tokens > 0 && (
-                          <p className="text-muted-foreground text-xs">{t("tokensLabel", { count: u.monthly_tokens.toLocaleString() })}</p>
+                          <p className="text-muted-foreground text-xs">{t("tokensLabel", { count: formatTokens(u.monthly_tokens) })}</p>
                         )}
                         <p className="text-xs text-muted-foreground/70">
-                          {u.token_quota !== null ? t("quotaValue", { value: u.token_quota.toLocaleString() }) : t("unlimited")}
+                          {u.token_quota !== null ? t("quotaValue", { value: formatTokens(u.token_quota) }) : t("unlimited")}
                         </p>
                       </div>
                     </td>

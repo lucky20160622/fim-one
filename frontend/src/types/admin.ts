@@ -109,3 +109,11 @@ export interface AdminModelCreate {
 }
 
 export type AdminModelUpdate = Partial<AdminModelCreate>
+
+export interface AdminUserFile {
+  file_id: string
+  filename: string
+  size: number
+  mime_type: string
+  stored_name: string
+}

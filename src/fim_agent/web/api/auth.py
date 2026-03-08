@@ -9,7 +9,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Request, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import func, select, update
 
@@ -38,7 +38,7 @@ from fim_agent.web.auth import (
     hash_password,
     verify_password,
 )
-from fim_agent.web.models import User
+from fim_agent.web.models import LoginHistory, User
 from fim_agent.web.models.conversation import Conversation
 from fim_agent.web.models.oauth_binding import UserOAuthBinding
 from fim_agent.web.schemas.auth import (
@@ -101,6 +101,37 @@ def _build_token_response(user: User, access: str, refresh: str) -> TokenRespons
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user=_build_user_info(user),
     )
+
+
+async def _record_login(
+    db: AsyncSession,
+    request: Request,
+    user: User | None,
+    *,
+    success: bool,
+    failure_reason: str | None = None,
+    email: str | None = None,
+) -> None:
+    """Record a login attempt in login_history for security auditing."""
+    # Extract IP: prefer X-Forwarded-For (first entry), fall back to client host
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    ip_address = forwarded.split(",")[0].strip() if forwarded else None
+    if not ip_address and request.client:
+        ip_address = request.client.host
+
+    user_agent = request.headers.get("User-Agent", "") or None
+
+    record = LoginHistory(
+        user_id=user.id if user else None,
+        username=user.username if user else None,
+        email=user.email if user else email,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        success=success,
+        failure_reason=failure_reason,
+    )
+    db.add(record)
+    await db.commit()
 
 
 @router.get("/registration-status")
@@ -295,15 +326,22 @@ async def register(
 @router.post("/login", response_model=TokenResponse)
 async def login(
     body: LoginRequest,
+    request: Request,
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> TokenResponse:
     user = await db.scalar(
         select(User).options(selectinload(User.oauth_bindings)).where(User.email == body.email)
     )
-    if user is None or user.password_hash is None or not verify_password(body.password, user.password_hash):
+    if user is None:
+        await _record_login(db, request, None, success=False, failure_reason="user_not_found", email=body.email)
+        raise AppError("invalid_credentials", status_code=401)
+
+    if user.password_hash is None or not verify_password(body.password, user.password_hash):
+        await _record_login(db, request, user, success=False, failure_reason="wrong_password")
         raise AppError("invalid_credentials", status_code=401)
 
     if not user.is_active:
+        await _record_login(db, request, user, success=False, failure_reason="account_disabled")
         raise AppError("account_disabled", status_code=403)
 
     access = create_access_token(user.id, user.email)
@@ -314,6 +352,8 @@ async def login(
         days=REFRESH_TOKEN_EXPIRE_DAYS
     )
     await db.commit()
+
+    await _record_login(db, request, user, success=True)
 
     # Reload with oauth_bindings (commit expires loaded attributes)
     result = await db.execute(
@@ -376,6 +416,7 @@ async def send_login_code(
 @router.post("/login-with-code", response_model=TokenResponse)
 async def login_with_code(
     body: LoginWithCodeRequest,
+    request: Request,
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> TokenResponse:
     """Passwordless login using an email OTP code."""
@@ -383,9 +424,11 @@ async def login_with_code(
         select(User).options(selectinload(User.oauth_bindings)).where(User.email == body.email)
     )
     if user is None:
+        await _record_login(db, request, None, success=False, failure_reason="email_not_registered", email=body.email)
         raise AppError("email_not_registered", status_code=404)
 
     if not user.is_active:
+        await _record_login(db, request, user, success=False, failure_reason="account_disabled")
         raise AppError("account_disabled", status_code=403)
 
     # Find the latest unexpired, unverified code for this email+purpose
@@ -402,17 +445,21 @@ async def login_with_code(
     verif = verif_result.scalar_one_or_none()
 
     if verif is None:
+        await _record_login(db, request, user, success=False, failure_reason="verification_code_expired")
         raise AppError("verification_code_expired")
 
     if verif.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
+        await _record_login(db, request, user, success=False, failure_reason="verification_code_expired")
         raise AppError("verification_code_expired")
 
     if verif.attempts >= VERIFICATION_MAX_ATTEMPTS:
+        await _record_login(db, request, user, success=False, failure_reason="verification_code_too_many_attempts")
         raise AppError("verification_code_too_many_attempts")
 
     if verif.code != body.code:
         verif.attempts += 1
         await db.commit()
+        await _record_login(db, request, user, success=False, failure_reason="verification_code_invalid")
         raise AppError("verification_code_invalid")
 
     # Mark as verified
@@ -428,6 +475,8 @@ async def login_with_code(
         days=REFRESH_TOKEN_EXPIRE_DAYS
     )
     await db.commit()
+
+    await _record_login(db, request, user, success=True)
 
     # Reload with oauth_bindings (commit expires loaded attributes)
     result = await db.execute(
