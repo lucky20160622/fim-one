@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 ## [Unreleased]
 
 ### Added
+- **Docker Compose deployment**: Single image (API + Frontend), named volumes for data persistence, standalone Next.js output mode
 - **Admin: login history recording**: Auth endpoints now record every login attempt (IP address, User-Agent, success/failure with reason) to the `LoginHistory` table for security auditing
 - **Admin: file browser**: New admin file browser endpoints for listing and downloading user-uploaded files with pagination support
 - **Admin: enriched agent/KB views**: Admin agent list and knowledge base views now expose `model_name`, `tools`, `kb_ids`, and `embedding_model` fields for better visibility
@@ -15,7 +16,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **UI: `formatTokens` utility**: New formatting helper for displaying token counts with locale-aware number formatting
 - **UI: `Checkbox` and `FadeIn` components**: New shadcn-style checkbox and fade-in animation wrapper components
 
+### Fixed
+- **Docker i18n broken**: Copy `messages/` directory into standalone output and add `outputFileTracingIncludes` so next-intl can discover locale JSON files at runtime
+- **Docker startup race condition**: Add API readiness wait loop (Python socket poll) in entrypoint before starting Next.js, preventing `e.map is not a function` SSR errors
+- **Docker source code exposure**: Compile `.py` → `.pyc` with `compileall -b` and delete source files (except migrations/) to protect IP in distributed images
+
 ### Changed
+- **README Quick Start restructured**: Docker (recommended), Local Development, and Production Deployment sections
+- **pnpm upgraded from v6 to v9**: lockfile regenerated (v9 format)
 - **Admin UX: unified "..." actions dropdown across all list pages**: All admin pages with data tables (Storage, Resources, Security, Conversations, Audit, Models, Content, MCP Servers) now use a single `MoreHorizontal` DropdownMenu in the last column for row actions — matching the existing `admin-users.tsx` pattern. Inline icon buttons (trash, eye, edit, power toggle, switch) and clickable rows have been removed in favour of labelled `DropdownMenuItem` entries ordered safe→toggle→destructive. Convention documented in `CLAUDE.md`.
 - **i18n: admin keys updated for template removal, login history, and file browser**: Added/removed i18n keys in both `en` and `zh` admin/common/errors namespaces to reflect prompt template removal, login history additions, file browser UI, and sensitive word model simplification
 
@@ -69,6 +77,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **Admin/Settings: invite code inactive filter**: Revoked and exhausted invite codes are hidden by default; an "N inactive" toggle button reveals them. Exhausted codes (use_count ≥ max_uses) now show an "Exhausted" badge distinct from "Revoked".
 
 ### Fixed
+- **Missing `swr` dependency**: Added `swr` to frontend `package.json`
 - **Chat auto-scroll: snap to result top on stream complete**: When streaming finishes, the viewport now scrolls to show the **top** of the assistant's answer block instead of the absolute bottom — prevents users from seeing only the tail of a tall result and having to scroll back up. "New updates" button also scrolls to the result top rather than the very bottom. Implemented via `data-live-output` anchor + `isRunning` transition effect with double-rAF for layout stability.
 - **Generated image preview broken**: `generate_image` tool now outputs artifact API URLs (`/api/conversations/{id}/artifacts/{aid}`) instead of unserved `/uploads/…` paths; `ClickableImage` in the markdown renderer fetches artifact URLs with Bearer token auth and converts to blob URLs; lightbox download button also uses authenticated fetch instead of plain `<a href>`.
 - **Admin audit log timestamps**: Added missing year to `formatTime()` — timestamps now display as "2026年3月7日 11:12:00" (zh) / "Mar 7, 2026, 11:12:00 AM" (en) instead of omitting the year.

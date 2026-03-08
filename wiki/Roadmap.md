@@ -594,7 +594,7 @@ ERP Connector     (read financial data)
 - [ ] **Circuit Breaker**: Connector connection circuit breaker with graceful degradation
 - [ ] **Health Check**: `/api/health` endpoint (LLM + Connector + vector store connectivity)
 - [ ] **Execution Replay**: Complete execution trace replay for debugging and auditing
-- [ ] **Docker Compose**: API + SQLite + optional Langfuse, production-ready
+- [x] **Docker Compose**: API + SQLite + optional Langfuse, production-ready
 
 **i18n** *(core items moved to v0.8.1 — Chinese-first strategy)*
 - [x] **User Language Preference**: `preferred_language` backend setting with language directive injection across all LLM interactions *(shipped in v0.6.2)*
