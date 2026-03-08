@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage*
+.tox/
+.nox/
+
+# Node
+node_modules/
+frontend/.next/
+frontend/.next-build/
+
+# Data (mounted as volumes, not baked into image)
+data/
+uploads/
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Secrets
+.env
+
+# Project metadata
+.claude/
+.git/
+.playwright-mcp/
+tmp/
+wiki/
+tests/
+scripts/

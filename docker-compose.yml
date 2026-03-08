@@ -1,0 +1,15 @@
+services:
+  fim-agent:
+    build: .
+    ports:
+      - "3000:3000"   # Next.js frontend
+      - "8000:8000"   # FastAPI backend
+    volumes:
+      - ./data:/app/data           # SQLite database + vector store
+      - ./uploads:/app/uploads     # User-uploaded files
+    env_file: .env
+    restart: unless-stopped
+    # If you use CODE_EXEC_BACKEND=docker (code sandbox), uncomment below
+    # to give the container access to the host Docker daemon:
+    # volumes:
+    #   - /var/run/docker.sock:/var/run/docker.sock
