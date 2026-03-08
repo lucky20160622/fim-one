@@ -33,8 +33,10 @@ uploads/
 *~
 .DS_Store
 
-# Secrets
+# Secrets & env overrides (injected at runtime via env_file, not baked into image)
 .env
+.env.*
+frontend/.env*
 
 # Project metadata
 .claude/

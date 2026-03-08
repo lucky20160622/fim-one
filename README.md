@@ -25,7 +25,7 @@
 - [Where FIM Agent Sits](#where-fim-agent-sits)
 - [Key Features](#key-features)
 - [Architecture](#architecture)
-- [Quick Start](#quick-start)
+- [Quick Start](#quick-start) (Docker / Local / Production)
 - [Configuration](#configuration)
 - [Development](#development)
 - [Roadmap](#roadmap)
@@ -166,7 +166,7 @@ FIM Agent doesn't do BPM/FSM — workflow logic belongs to the target system, Co
 #### Context & Memory
 - **LLM Compact** — Automatic LLM-powered summarization to stay within token budgets.
 - **ContextGuard + Pinned Messages** — Token budget manager; pinned messages are protected from compaction.
-- **Single-Process Deployment** — No Redis, no PostgreSQL, no message queue. One process + SQLite.
+- **Single-Process Deployment** — No Redis, no PostgreSQL, no message queue. One process + SQLite. `docker compose up` and you're live.
 
 ## 🏗️ Architecture
 
@@ -251,13 +251,7 @@ User Query
 
 ## 🚀 Quick Start
 
-### Prerequisites
-
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/) (Python package manager)
-- Node.js 18+ and pnpm (for the portal frontend)
-
-### Get Running
+### Option A: Docker (recommended)
 
 ```bash
 git clone https://github.com/fim-ai/fim-agent.git
@@ -267,6 +261,25 @@ cd fim-agent
 cp example.env .env
 # Edit .env: set LLM_API_KEY (and optionally LLM_BASE_URL, LLM_MODEL)
 
+# Build and run
+docker compose up -d
+```
+
+Open http://localhost:3000 — on first launch you'll be guided through creating an admin account. That's it.
+
+Data is persisted in Docker named volumes (`fim-data`, `fim-uploads`) and survives container restarts.
+
+### Option B: Local Development
+
+Prerequisites: Python 3.11+, [uv](https://docs.astral.sh/uv/), Node.js 18+, pnpm.
+
+```bash
+git clone https://github.com/fim-ai/fim-agent.git
+cd fim-agent
+
+cp example.env .env
+# Edit .env: set LLM_API_KEY
+
 # Install
 uv sync --extra web
 cd frontend && pnpm install && cd ..
@@ -275,17 +288,29 @@ cd frontend && pnpm install && cd ..
 ./start.sh
 ```
 
-Open http://localhost:3000 — on first launch you'll be guided through creating an admin account (username, password, email). That's it — you're in.
-
-### start.sh Commands
-
 | Command          | What starts                                             | URL                                      |
 | ---------------- | ------------------------------------------------------- | ---------------------------------------- |
 | `./start.sh`     | Next.js + FastAPI                                       | http://localhost:3000 (UI) + :8000 (API) |
 | `./start.sh dev` | Same, with hot reload (Python `--reload` + Next.js HMR) | Same                                     |
 | `./start.sh api` | FastAPI only (headless, for integration or testing)     | http://localhost:8000/api                |
 
-> **Docker deployment** is on the [Roadmap](https://github.com/fim-ai/fim-agent/wiki/Roadmap) (v0.9). For now, `./start.sh` is the recommended way to run.
+### Production Deployment
+
+For production, put an Nginx reverse proxy in front of the container for HTTPS and custom domain:
+
+```
+User → Nginx (443/HTTPS) → Container :3000
+```
+
+The API runs internally on port 8000 inside the container — Next.js proxies `/api/*` requests automatically. Only port 3000 needs to be exposed.
+
+If you use the code execution sandbox (`CODE_EXEC_BACKEND=docker`), mount the Docker socket:
+
+```yaml
+# docker-compose.yml
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock
+```
 
 The portal offers two modes: **ReAct Agent** (single-query tool loop) and **DAG Planner** (multi-step planning with concurrent execution), with real-time SSE streaming, DAG visualization, and KaTeX math rendering.
 

@@ -4,8 +4,8 @@ services:
     ports:
       - "3000:3000"   # Next.js frontend (API is proxied internally via rewrites)
     volumes:
-      - fim-data:/app/data             # SQLite database + vector store (REQUIRED)
-      - fim-uploads:/app/uploads       # User-uploaded files (REQUIRED)
+      - ./data:/app/data             # SQLite database + vector store (REQUIRED)
+      - ./uploads:/app/uploads       # User-uploaded files (REQUIRED)
       # Code sandbox: mount Docker socket to run AI-generated code in isolated containers.
       # Required when CODE_EXEC_BACKEND=docker in .env (recommended for multi-user deployments).
       # - /var/run/docker.sock:/var/run/docker.sock
@@ -13,7 +13,3 @@ services:
     restart: unless-stopped
     # Production: put an Nginx reverse proxy in front for HTTPS + custom domain.
     # Example: nginx → http://fim-agent:3000
-
-volumes:
-  fim-data:       # Persistent: SQLite DB, LanceDB vectors, Alembic version
-  fim-uploads:    # Persistent: user-uploaded files
