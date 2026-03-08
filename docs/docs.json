@@ -4,9 +4,9 @@
   "name": "FIM Agent",
   "description": "AI-Powered Connector Hub — embed into one system as a Copilot, or connect them all as a Hub.",
   "colors": {
-    "primary": "#3B82F6",
-    "light": "#F8FAFC",
-    "dark": "#0F172A"
+    "primary": "#D97706",
+    "light": "#FFFBEB",
+    "dark": "#1C1917"
   },
   "navigation": {
     "tabs": [
