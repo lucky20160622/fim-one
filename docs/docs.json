@@ -81,64 +81,64 @@
       {
         "tabs": [
           {
-            "tab": "Documentation",
+            "tab": "文档",
             "groups": [
               {
-                "group": "Getting Started",
+                "group": "快速入门",
                 "icon": "rocket",
                 "pages": [
-                  "index",
-                  "quickstart"
+                  "zh/index",
+                  "zh/quickstart"
                 ]
               },
               {
-                "group": "Concepts",
+                "group": "概念",
                 "icon": "lightbulb",
                 "pages": [
-                  "concepts/execution-modes"
+                  "zh/concepts/execution-modes"
                 ]
               },
               {
-                "group": "Architecture",
+                "group": "架构",
                 "icon": "sitemap",
                 "pages": [
-                  "architecture/philosophy",
-                  "architecture/connector-architecture",
-                  "architecture/planning-landscape"
+                  "zh/architecture/philosophy",
+                  "zh/architecture/connector-architecture",
+                  "zh/architecture/planning-landscape"
                 ]
               },
               {
-                "group": "Configuration",
+                "group": "配置",
                 "icon": "gear",
                 "pages": [
-                  "configuration/environment-variables",
-                  "configuration/oauth-providers"
+                  "zh/configuration/environment-variables",
+                  "zh/configuration/oauth-providers"
                 ]
               },
               {
-                "group": "Strategy",
+                "group": "策略",
                 "icon": "chess",
                 "pages": [
-                  "strategy/competitive-landscape",
-                  "strategy/orthogonality-strategy"
+                  "zh/strategy/competitive-landscape",
+                  "zh/strategy/orthogonality-strategy"
                 ]
               },
               {
-                "group": "Project",
+                "group": "项目",
                 "icon": "map",
                 "pages": [
-                  "roadmap"
+                  "zh/roadmap"
                 ]
               }
             ]
           },
           {
-            "tab": "Changelog",
+            "tab": "变更日志",
             "groups": [
               {
-                "group": "Changelog",
+                "group": "变更日志",
                 "pages": [
-                  "changelog"
+                  "zh/changelog"
                 ]
               }
             ]
