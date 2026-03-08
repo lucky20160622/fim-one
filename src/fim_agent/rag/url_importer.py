@@ -9,6 +9,8 @@ from urllib.parse import urlparse
 
 import httpx
 
+from fim_agent.core.security import validate_url
+
 logger = logging.getLogger(__name__)
 
 _JINA_READER_BASE = "https://r.jina.ai/"
@@ -56,6 +58,7 @@ async def resolve_url(url: str, jina_api_key: str) -> dict:
     suffix = Path(parsed.path).suffix.lower()
 
     if suffix in _FILE_EXTENSIONS:
+        validate_url(url)
         filename = Path(parsed.path).name or "download"
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.get(url)

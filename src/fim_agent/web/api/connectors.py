@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from fim_agent.core.security import validate_url
 from fim_agent.core.tool.connector.openapi_parser import parse_openapi_spec
 from fim_agent.web.exceptions import AppError
 from fim_agent.db import get_session
@@ -220,6 +221,14 @@ async def _resolve_openapi_spec(body: OpenAPIImportRequest) -> dict[str, Any]:
     raw: str | None = body.spec_raw
 
     if raw is None and body.spec_url:
+        try:
+            validate_url(body.spec_url)
+        except ValueError as exc:
+            raise AppError(
+                "spec_url_blocked",
+                status_code=400,
+                detail=str(exc),
+            ) from exc
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.get(body.spec_url)
