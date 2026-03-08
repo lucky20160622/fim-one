@@ -81,7 +81,14 @@ All UI text must use `next-intl` — **never hardcode English strings**. Add key
 - Tests alongside features: every new module → `tests/test_*.py`
 - Keep `__init__.py` imports minimal — only re-export public API
 
-## Post-Commit Documentation Sync (MANDATORY)
+## Documentation & Translation Workflow (MANDATORY)
+
+### Principle: English first, translate on commit
+
+- **During development**: only edit English versions (`docs/*.mdx`, `README.md`). Never update Chinese docs mid-task.
+- **On commit**: translate staged English doc changes into the corresponding Chinese files (`docs/zh/*.mdx`, `README.zh.md`). The translation is a pure diff — based on exactly what was staged, not the full file.
+
+### Post-Commit Documentation Sync
 
 After every commit, update docs silently (do NOT ask the user):
 
@@ -89,6 +96,18 @@ After every commit, update docs silently (do NOT ask the user):
 2. *(feat only)* **`docs/roadmap.mdx`** — check off completed items; add new user-facing items under current version (never retroactively add to already-shipped versions)
 3. *(feat only)* **`example.env`** — add any new env keys with placeholder + comment; then **sync `docs/configuration/environment-variables.mdx`** — add the new variable(s) to the correct section table
 4. *(feat only)* **`README.md`** — update Key Features and Project Structure if needed
+
+### Post-Commit Chinese Translation Sync
+
+After the English doc updates above, translate the **staged diff** into the corresponding Chinese files:
+
+- `docs/changelog.mdx` → `docs/zh/changelog.mdx`
+- `docs/roadmap.mdx` → `docs/zh/roadmap.mdx`
+- `docs/configuration/environment-variables.mdx` → `docs/zh/configuration/environment-variables.mdx`
+- `README.md` → `README.zh.md`
+- Any other `docs/*.mdx` that was modified → `docs/zh/*.mdx`
+
+**Rules**: translate only the changed portions (diff-based). Keep technical terms, code identifiers, and variable names in English. Commit English + Chinese together in the same commit.
 
 **Version alignment**: CHANGELOG `[Unreleased]` and Roadmap must use the same version numbers.
 
