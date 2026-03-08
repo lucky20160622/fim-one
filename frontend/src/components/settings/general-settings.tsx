@@ -8,6 +8,16 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { AvatarPickerDialog } from "@/components/settings/avatar-picker-dialog"
 import { useAuth } from "@/contexts/auth-context"
@@ -32,6 +42,7 @@ export function GeneralSettings() {
   const [username, setUsername] = useState("")
   const [usernameError, setUsernameError] = useState("")
   const [savingUsername, setSavingUsername] = useState(false)
+  const [usernameConfirmOpen, setUsernameConfirmOpen] = useState(false)
 
   // --- Profile ---
   const [displayName, setDisplayName] = useState("")
@@ -65,8 +76,19 @@ export function GeneralSettings() {
   const isInstructionsDirty = instructions !== (user?.system_instructions || "")
   const isInstructionsOverLimit = instructions.length > MAX_INSTRUCTIONS_LENGTH
 
-  const handleSaveUsername = async () => {
+  // First-time setup (no existing username) saves directly; otherwise confirm first
+  const handleSaveUsernameClick = () => {
     if (!isUsernameDirty || isUsernameOverLimit || isUsernameTooShort) return
+    if (!user?.username) {
+      // First-time setup — no cooldown, save directly
+      doSaveUsername()
+    } else {
+      // Changing existing username — confirm first
+      setUsernameConfirmOpen(true)
+    }
+  }
+
+  const doSaveUsername = async () => {
     setSavingUsername(true)
     try {
       const updated = await authApi.updateProfile({
@@ -81,6 +103,9 @@ export function GeneralSettings() {
         ""
       if (msg.includes("username_taken")) {
         setUsernameError(t("usernameTaken"))
+      } else if (msg.includes("username_cooldown")) {
+        const days = (err as { errorArgs?: Record<string, unknown> })?.errorArgs?.days ?? 7
+        setUsernameError(t("usernameCooldown", { days: String(days) }))
       } else {
         toast.error(t("usernameSaveFailed"))
       }
@@ -188,7 +213,7 @@ export function GeneralSettings() {
               </span>
               <Button
                 size="sm"
-                onClick={handleSaveUsername}
+                onClick={handleSaveUsernameClick}
                 disabled={
                   !isUsernameDirty ||
                   isUsernameOverLimit ||
@@ -312,6 +337,28 @@ export function GeneralSettings() {
         open={avatarDialogOpen}
         onOpenChange={setAvatarDialogOpen}
       />
+
+      <AlertDialog open={usernameConfirmOpen} onOpenChange={setUsernameConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("usernameChangeConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("usernameChangeConfirmDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setUsernameConfirmOpen(false)
+                doSaveUsername()
+              }}
+            >
+              {t("usernameChangeConfirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

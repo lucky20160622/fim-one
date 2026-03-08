@@ -17,6 +17,7 @@ export interface IntegrationHealth {
   configured: boolean
   detail: string | null
   impact: string | null
+  level: "required" | "recommended" | "optional"
 }
 
 export interface AdminConversation {

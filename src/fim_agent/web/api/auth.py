@@ -565,16 +565,6 @@ async def update_profile(
         user.system_instructions = body.system_instructions or None
     if body.preferred_language is not None:
         user.preferred_language = body.preferred_language
-    if body.email is not None:
-        if not body.email or not body.email.strip():
-            raise AppError("email_empty")
-        # Check email uniqueness (exclude current user)
-        email_result = await db.execute(
-            select(User).where(User.email == body.email, User.id != user.id)
-        )
-        if email_result.scalar_one_or_none() is not None:
-            raise AppError("email_already_registered", status_code=409)
-        user.email = body.email
     if body.onboarding_completed is not None:
         user.onboarding_completed = body.onboarding_completed
     if body.avatar is not None:
@@ -583,13 +573,31 @@ async def update_profile(
         if not body.username or not body.username.strip():
             raise AppError("username_empty")
         new_username = body.username.strip()
-        # Check uniqueness (exclude current user)
-        username_result = await db.execute(
-            select(User).where(User.username == new_username, User.id != user.id)
-        )
-        if username_result.scalar_one_or_none() is not None:
-            raise AppError("username_taken", status_code=409)
-        user.username = new_username
+        # Only apply cooldown & uniqueness check if username is actually changing
+        if new_username != user.username:
+            # First-time username setup (NULL) skips cooldown
+            if user.username is not None and user.username_changed_at is not None:
+                cooldown_days = 7
+                cooldown_end = user.username_changed_at + timedelta(days=cooldown_days)
+                now = datetime.now(UTC)
+                # username_changed_at may be naive (UTC assumed) — compare accordingly
+                naive_now = now.replace(tzinfo=None)
+                if naive_now < cooldown_end:
+                    remaining = (cooldown_end - naive_now).days + 1
+                    raise AppError(
+                        "username_cooldown",
+                        detail=f"Username can only be changed once every {cooldown_days} days. "
+                               f"Please wait {remaining} more day(s).",
+                        detail_args={"days": remaining},
+                    )
+            # Check uniqueness (exclude current user)
+            username_result = await db.execute(
+                select(User).where(User.username == new_username, User.id != user.id)
+            )
+            if username_result.scalar_one_or_none() is not None:
+                raise AppError("username_taken", status_code=409)
+            user.username = new_username
+            user.username_changed_at = datetime.now(UTC).replace(tzinfo=None)
     await db.commit()
 
     # Reload with oauth_bindings for response serialization

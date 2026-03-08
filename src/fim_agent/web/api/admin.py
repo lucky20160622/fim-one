@@ -226,6 +226,7 @@ class IntegrationHealth(BaseModel):
     configured: bool
     detail: str | None
     impact: str | None = None
+    level: str = "optional"  # "required" | "recommended" | "optional"
 
 
 class InviteCodeInfo(BaseModel):
@@ -1188,6 +1189,7 @@ async def set_user_quota(
 @router.get("/system/health", response_model=list[IntegrationHealth])
 async def get_system_health(
     current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
 ):
     """Return configuration status for key integrations. Requires admin privileges."""
     from urllib.parse import urlparse
@@ -1199,29 +1201,56 @@ async def get_system_health(
         except Exception:
             return url
 
+    # Check DB for admin-configured models (system-level, user_id=NULL)
+    from sqlalchemy import select as sa_select  # noqa: PLC0415
+    from fim_agent.web.models.model_config import ModelConfig as ModelConfigORM  # noqa: PLC0415
+
+    _db_result = await db.execute(
+        sa_select(ModelConfigORM.role).where(
+            ModelConfigORM.user_id == None,  # noqa: E711
+            ModelConfigORM.is_active == True,  # noqa: E712
+            ModelConfigORM.api_key != None,  # noqa: E711
+            ModelConfigORM.api_key != "",
+            ModelConfigORM.role.in_(["general", "fast"]),
+        )
+    )
+    _db_roles = {r[0] for r in _db_result.all()}
+    has_db_general = "general" in _db_roles
+    has_db_fast = "fast" in _db_roles
+
     checks: list[IntegrationHealth] = []
 
     # ── AI Models ────────────────────────────────────────────────────────
     llm_model = os.environ.get("LLM_MODEL", "").strip('"')
     llm_key = os.environ.get("LLM_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "")
     llm_base = os.environ.get("LLM_BASE_URL", "")
-    llm_configured = bool(llm_model and llm_key)
-    llm_parts = [p for p in [llm_model, _host(llm_base) if llm_base else None] if p]
+    llm_configured = bool(llm_model and llm_key) or has_db_general
+    llm_detail_parts = [p for p in [llm_model, _host(llm_base) if llm_base else None] if p]
+    if has_db_general and not (llm_model and llm_key):
+        llm_detail = "Admin Models"
+    else:
+        llm_detail = " · ".join(llm_detail_parts) if llm_detail_parts else None
     checks.append(IntegrationHealth(
         key="llm", label="Main LLM",
         configured=llm_configured,
-        detail=" · ".join(llm_parts) if llm_parts else None,
-        impact=None if llm_configured else "Chat will not work",
+        detail=llm_detail,
+        impact=None if llm_configured else "Chat will not work — configure via Admin → Models or set LLM_API_KEY",
+        level="required",
     ))
 
     fast_model = os.environ.get("FAST_LLM_MODEL", "").strip('"')
-    fast_configured = bool(fast_model)
+    fast_configured = bool(fast_model) or has_db_fast
     fast_parts = [p for p in [fast_model, _host(llm_base) if llm_base else None] if p]
+    if has_db_fast and not fast_model:
+        fast_detail = "Admin Models"
+    else:
+        fast_detail = " · ".join(fast_parts) if fast_parts else None
     checks.append(IntegrationHealth(
         key="fast_llm", label="Fast LLM",
         configured=fast_configured,
-        detail=" · ".join(fast_parts) if fast_parts else None,
-        impact=None if fast_configured else "DAG mode and summarization unavailable",
+        detail=fast_detail,
+        impact=None if fast_configured else "Falls back to main LLM; dedicated fast model improves speed and cost",
+        level="recommended",
     ))
 
     # ── Retrieval ────────────────────────────────────────────────────────
@@ -1237,7 +1266,8 @@ async def get_system_health(
         key="embedding", label="Embedding",
         configured=emb_configured,
         detail=" · ".join(emb_parts) if emb_parts else None,
-        impact=None if emb_configured else "Knowledge base retrieval unavailable",
+        impact=None if emb_configured else "Knowledge base document ingestion and retrieval unavailable",
+        level="recommended",
     ))
 
     reranker_provider = os.environ.get("RERANKER_PROVIDER", "")
@@ -1251,7 +1281,8 @@ async def get_system_health(
         key="reranker", label="Reranker",
         configured=reranker_configured,
         detail=" · ".join(reranker_parts) if reranker_parts else None,
-        impact=None if reranker_configured else "Search result ranking degraded",
+        impact=None if reranker_configured else "Search results use fusion scoring only; reranker improves precision",
+        level="optional",
     ))
 
     # ── Web Tools ────────────────────────────────────────────────────────
@@ -1265,6 +1296,7 @@ async def get_system_health(
         key="web_search", label="Web Search",
         configured=True,
         detail=search_provider + (" (no API key)" if not search_key else ""),
+        level="optional",
     ))
 
     fetch_provider = os.environ.get("WEB_FETCH_PROVIDER", "")
@@ -1273,6 +1305,7 @@ async def get_system_health(
         key="web_fetch", label="Web Fetch",
         configured=True,
         detail=fetch_detail,
+        level="optional",
     ))
 
     # ── Image Generation ─────────────────────────────────────────────────
@@ -1290,7 +1323,8 @@ async def get_system_health(
         key="image_gen", label="Image Generation",
         configured=image_configured,
         detail=" · ".join(image_parts) if image_configured else None,
-        impact=None if image_configured else "Image generation unavailable",
+        impact=None if image_configured else "Image generation tool will not be available to agents",
+        level="optional",
     ))
 
     # ── Email ────────────────────────────────────────────────────────────
@@ -1302,7 +1336,51 @@ async def get_system_health(
         key="smtp", label="SMTP (Email)",
         configured=smtp_ok,
         detail=" · ".join(smtp_parts) if smtp_ok and smtp_parts else None,
-        impact=None if smtp_ok else "Email code login, email verification, forgot password",
+        impact=None if smtp_ok else "Email code login, email verification, and forgot password unavailable",
+        level="recommended",
+    ))
+
+    # ── OAuth ────────────────────────────────────────────────────────────
+    from fim_agent.web.oauth import get_configured_providers  # noqa: PLC0415
+    oauth_providers = get_configured_providers()
+    feishu_ok = "feishu" in oauth_providers
+    feishu_app_id = os.environ.get("FEISHU_APP_ID", "")
+    checks.append(IntegrationHealth(
+        key="oauth_feishu", label="Feishu OAuth",
+        configured=feishu_ok,
+        detail=feishu_app_id if feishu_ok else None,
+        impact=None if feishu_ok else "Feishu login button will not appear",
+        level="optional",
+    ))
+
+    github_ok = "github" in oauth_providers
+    github_client_id = os.environ.get("GITHUB_CLIENT_ID", "")
+    checks.append(IntegrationHealth(
+        key="oauth_github", label="GitHub OAuth",
+        configured=github_ok,
+        detail=github_client_id if github_ok else None,
+        impact=None if github_ok else "GitHub login button will not appear",
+        level="optional",
+    ))
+
+    google_ok = "google" in oauth_providers
+    google_client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    checks.append(IntegrationHealth(
+        key="oauth_google", label="Google OAuth",
+        configured=google_ok,
+        detail=google_client_id if google_ok else None,
+        impact=None if google_ok else "Google login button will not appear",
+        level="optional",
+    ))
+
+    discord_ok = "discord" in oauth_providers
+    discord_client_id = os.environ.get("DISCORD_CLIENT_ID", "")
+    checks.append(IntegrationHealth(
+        key="oauth_discord", label="Discord OAuth",
+        configured=discord_ok,
+        detail=discord_client_id if discord_ok else None,
+        impact=None if discord_ok else "Discord login button will not appear",
+        level="optional",
     ))
 
     return checks

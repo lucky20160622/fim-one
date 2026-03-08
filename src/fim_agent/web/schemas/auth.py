@@ -101,7 +101,6 @@ class UpdateProfileRequest(BaseModel):
     display_name: str | None = Field(None, max_length=50)
     system_instructions: str | None = Field(None, max_length=2000)
     preferred_language: str | None = Field(None, pattern=r"^(auto|en|zh)$")
-    email: str | None = Field(None, max_length=255)
     onboarding_completed: bool | None = None
     avatar: str | None = None  # "builtin:cat", "builtin:star", etc. or None to remove
     username: str | None = Field(None, min_length=2, max_length=50)

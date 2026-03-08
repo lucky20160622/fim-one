@@ -174,8 +174,8 @@ export function AdminStorage() {
           {t("noUploads")}
         </div>
       ) : (
-        <div className="rounded-md border border-border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-md border border-border overflow-x-auto">
+          <table className="w-full min-w-max text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("userColumn")}</th>

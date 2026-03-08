@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useTranslations } from "next-intl"
-import { CheckCircle2, XCircle, AlertTriangle, Loader2 } from "lucide-react"
+import { CheckCircle2, XCircle, AlertTriangle, Info, Loader2 } from "lucide-react"
 import { adminApi } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import type { IntegrationHealth } from "@/types/admin"
@@ -13,6 +13,7 @@ const GROUPS: Record<string, string[]> = {
   web: ["web_search", "web_fetch"],
   email: ["smtp"],
   media: ["image_gen"],
+  oauth: ["oauth_github", "oauth_google", "oauth_discord", "oauth_feishu"],
 }
 
 export function AdminHealth() {
@@ -52,7 +53,14 @@ export function AdminHealth() {
 
   const totalCount = items.length
   const configuredCount = items.filter((i) => i.configured).length
-  const allReady = configuredCount === totalCount
+
+  const requiredItems = items.filter((i) => i.level === "required")
+  const recommendedItems = items.filter((i) => i.level === "recommended")
+  const requiredOk = requiredItems.every((i) => i.configured)
+  const recommendedOk = recommendedItems.every((i) => i.configured)
+
+  // Summary status: red if required missing, amber if recommended missing, green otherwise
+  const summaryStatus = !requiredOk ? "error" : !recommendedOk ? "warning" : "success"
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -65,17 +73,17 @@ export function AdminHealth() {
       <div
         className={cn(
           "rounded-md border px-4 py-3 text-sm flex items-center gap-3",
-          allReady
-            ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30"
-            : "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30",
+          summaryStatus === "success" && "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30",
+          summaryStatus === "warning" && "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30",
+          summaryStatus === "error" && "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30",
         )}
       >
         <span
           className={cn(
             "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold shrink-0",
-            allReady
-              ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
-              : "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+            summaryStatus === "success" && "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300",
+            summaryStatus === "warning" && "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+            summaryStatus === "error" && "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
           )}
         >
           {t("configuredCount", { count: configuredCount, total: totalCount })}
@@ -83,14 +91,16 @@ export function AdminHealth() {
         <span
           className={cn(
             "text-sm",
-            allReady
-              ? "text-green-700 dark:text-green-300"
-              : "text-amber-700 dark:text-amber-300",
+            summaryStatus === "success" && "text-green-700 dark:text-green-300",
+            summaryStatus === "warning" && "text-amber-700 dark:text-amber-300",
+            summaryStatus === "error" && "text-red-700 dark:text-red-300",
           )}
         >
-          {allReady
+          {summaryStatus === "success"
             ? t("allReady")
-            : t("needsConfig", { count: totalCount - configuredCount })}
+            : summaryStatus === "error"
+              ? t("requiredNeedsConfig", { count: requiredItems.filter((i) => !i.configured).length })
+              : t("recommendedNeedsConfig", { count: recommendedItems.filter((i) => !i.configured).length })}
         </span>
       </div>
 
@@ -126,8 +136,38 @@ export function AdminHealth() {
   )
 }
 
+const LEVEL_BADGE_STYLES: Record<string, string> = {
+  required: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  recommended: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  optional: "bg-muted text-muted-foreground",
+}
+
 function HealthRow({ item }: { item: IntegrationHealth }) {
   const t = useTranslations("admin.health")
+
+  // Determine icon and colors for unconfigured items based on level
+  const unconfiguredIcon =
+    item.level === "required" ? (
+      <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+    ) : item.level === "recommended" ? (
+      <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+    ) : (
+      <Info className="h-4 w-4 text-muted-foreground shrink-0" />
+    )
+
+  const unconfiguredTextClass =
+    item.level === "required"
+      ? "text-red-600 dark:text-red-400"
+      : item.level === "recommended"
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-muted-foreground"
+
+  const levelLabelKey =
+    item.level === "required"
+      ? "levelRequired"
+      : item.level === "recommended"
+        ? "levelRecommended"
+        : "levelOptional"
 
   return (
     <div className="px-4 py-3 space-y-1.5">
@@ -135,10 +175,18 @@ function HealthRow({ item }: { item: IntegrationHealth }) {
         {item.configured ? (
           <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
         ) : (
-          <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+          unconfiguredIcon
         )}
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <span className="text-sm font-medium">{item.label}</span>
+          <span
+            className={cn(
+              "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none",
+              LEVEL_BADGE_STYLES[item.level],
+            )}
+          >
+            {t(levelLabelKey)}
+          </span>
           {item.detail && (
             <span className="text-xs text-muted-foreground truncate">
               {item.detail}
@@ -147,7 +195,7 @@ function HealthRow({ item }: { item: IntegrationHealth }) {
           <span
             className={cn(
               "ml-auto text-xs shrink-0",
-              item.configured ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400",
+              item.configured ? "text-green-600 dark:text-green-400" : unconfiguredTextClass,
             )}
           >
             {item.configured ? t("configured") : t("notConfigured")}
@@ -155,9 +203,33 @@ function HealthRow({ item }: { item: IntegrationHealth }) {
         </div>
       </div>
       {!item.configured && item.impact && (
-        <div className="flex items-start gap-2 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2">
-          <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-          <p className="text-xs text-amber-700 dark:text-amber-300">
+        <div
+          className={cn(
+            "flex items-start gap-2 rounded-md px-3 py-2",
+            item.level === "optional"
+              ? "bg-muted/50 border border-border"
+              : item.level === "required"
+                ? "bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800"
+                : "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800",
+          )}
+        >
+          {item.level === "optional" ? (
+            <Info className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+          ) : item.level === "required" ? (
+            <XCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
+          ) : (
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          )}
+          <p
+            className={cn(
+              "text-xs",
+              item.level === "optional"
+                ? "text-muted-foreground"
+                : item.level === "required"
+                  ? "text-red-700 dark:text-red-300"
+                  : "text-amber-700 dark:text-amber-300",
+            )}
+          >
             {t("impactLabel")}: {item.impact}
           </p>
         </div>

@@ -242,7 +242,7 @@ export const authApi = {
       body: JSON.stringify({ refresh_token: refreshToken }),
     }),
 
-  updateProfile: (body: { system_instructions?: string | null; display_name?: string | null; email?: string | null; preferred_language?: string | null; onboarding_completed?: boolean; avatar?: string | null; username?: string | null }) =>
+  updateProfile: (body: { system_instructions?: string | null; display_name?: string | null; preferred_language?: string | null; onboarding_completed?: boolean; avatar?: string | null; username?: string | null }) =>
     apiFetch<ApiResponse<UserInfo>>("/api/auth/profile", {
       method: "PATCH",
       body: JSON.stringify(body),

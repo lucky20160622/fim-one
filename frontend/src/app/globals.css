@@ -325,6 +325,43 @@ input:-webkit-autofill:focus {
   background: oklch(0.70 0.16 155 / 0.35);
 }
 
+/* Hero text entrance animation */
+@keyframes hero-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0px);
+  }
+}
+
+/* H1 title — each line animates independently */
+.hero-title-line {
+  display: block;
+  opacity: 0;
+  will-change: transform, opacity, filter;
+  animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.hero-title-line:nth-child(1) { animation-delay: 0.10s; }
+.hero-title-line:nth-child(2) { animation-delay: 0.28s; }
+
+/* Subtitle lines — staggered after title */
+.hero-line {
+  display: block;
+  opacity: 0;
+  will-change: transform, opacity, filter;
+  animation: hero-fade-up 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.hero-line:nth-child(1) { animation-delay: 0.50s; }
+.hero-line:nth-child(2) { animation-delay: 0.62s; }
+.hero-line:nth-child(3) { animation-delay: 0.74s; }
+
 /* Shiny text shimmer effect */
 @keyframes shimmer {
   0% {

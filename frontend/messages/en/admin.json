@@ -57,20 +57,26 @@
 
   "health": {
     "title": "Integration Health",
-    "subtitle": "Configuration status for all system integrations and their feature impact.",
+    "subtitle": "Items marked Required will cause errors if not configured. Recommended items degrade gracefully but affect key features. Optional items add capabilities without affecting core functions.",
     "loading": "Loading health status...",
     "configured": "Configured",
     "notConfigured": "Not configured",
     "impactLabel": "Affected features",
     "configuredCount": "{count} / {total} Configured",
-    "allReady": "All integrations are configured and ready.",
+    "allReady": "All required and recommended integrations are configured.",
     "needsConfig": "{count} integration(s) need configuration.",
+    "levelRequired": "Required",
+    "levelRecommended": "Recommended",
+    "levelOptional": "Optional",
+    "requiredNeedsConfig": "{count} required integration(s) need configuration.",
+    "recommendedNeedsConfig": "All required integrations are ready. {count} recommended integration(s) could be configured.",
     "group": {
       "ai": "AI Models",
       "retrieval": "Retrieval & Search",
       "web": "Web Tools",
       "email": "Email",
       "media": "Media",
+      "oauth": "OAuth Login",
       "other": "Other"
     }
   },

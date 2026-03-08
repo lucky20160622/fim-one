@@ -303,8 +303,8 @@ export function AdminResources() {
               {t("noAgents")}
             </div>
           ) : (
-            <div className="rounded-md border border-border overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="rounded-md border border-border overflow-x-auto">
+              <table className="w-full min-w-max text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("colName")}</th>
@@ -409,8 +409,8 @@ export function AdminResources() {
               {t("noKBs")}
             </div>
           ) : (
-            <div className="rounded-md border border-border overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="rounded-md border border-border overflow-x-auto">
+              <table className="w-full min-w-max text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("colName")}</th>
@@ -509,8 +509,8 @@ export function AdminResources() {
               {t("noKBs")}
             </div>
           ) : (
-            <div className="rounded-md border border-border overflow-hidden max-h-[60vh] overflow-y-auto">
-              <table className="w-full text-sm">
+            <div className="rounded-md border border-border overflow-x-auto max-h-[60vh] overflow-y-auto">
+              <table className="w-full min-w-max text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b border-border bg-muted/40">
                     <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("colFilename")}</th>

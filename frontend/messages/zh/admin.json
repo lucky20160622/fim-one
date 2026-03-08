@@ -57,20 +57,26 @@
 
   "health": {
     "title": "集成健康状态",
-    "subtitle": "所有系统集成的配置状态及其功能影响。",
+    "subtitle": "标记为「必须」的项未配置会导致报错；「推荐」项未配置会缺失重要功能但不报错；「可选」项仅提供增强能力，不影响核心功能。",
     "loading": "加载健康状态...",
     "configured": "已配置",
     "notConfigured": "未配置",
     "impactLabel": "受影响功能",
     "configuredCount": "{count} / {total} 已配置",
-    "allReady": "所有集成均已配置完成，可正常使用。",
+    "allReady": "所有必须和推荐的集成均已配置。",
     "needsConfig": "有 {count} 个集成尚未配置。",
+    "levelRequired": "必须",
+    "levelRecommended": "推荐",
+    "levelOptional": "可选",
+    "requiredNeedsConfig": "有 {count} 个核心集成未配置。",
+    "recommendedNeedsConfig": "核心集成就绪，有 {count} 个推荐集成可配置。",
     "group": {
       "ai": "AI 模型",
       "retrieval": "检索与搜索",
       "web": "Web 工具",
       "email": "邮件",
       "media": "媒体",
+      "oauth": "OAuth 登录",
       "other": "其他"
     }
   },
