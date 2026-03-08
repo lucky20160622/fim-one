@@ -8,13 +8,6 @@
     "light": "#C8922A",
     "dark": "#92400E"
   },
-  "background": {
-    "decoration": "gradient",
-    "color": {
-      "light": "#FFFBEB",
-      "dark": "#1C1917"
-    }
-  },
   "navigation": {
     "tabs": [
       {
