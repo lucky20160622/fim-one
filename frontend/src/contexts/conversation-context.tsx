@@ -8,6 +8,7 @@ import {
   useEffect,
   useRef,
 } from "react"
+import { toast } from "sonner"
 import { conversationApi, ApiError } from "@/lib/api"
 import { useAuth } from "./auth-context"
 import type {
@@ -63,6 +64,7 @@ export function ConversationProvider({
       setConversations(res.items)
     } catch (err) {
       console.error("Failed to load conversations:", err)
+      toast.error(err instanceof Error ? err.message : "Failed to load conversations")
     } finally {
       setIsLoadingList(false)
     }
@@ -93,6 +95,7 @@ export function ConversationProvider({
         setConversations((prev) => prev.filter((c) => c.id !== id))
       } else {
         console.error("Failed to load conversation:", err)
+        toast.error(err instanceof Error ? err.message : "Failed to load conversation")
       }
     } finally {
       setIsLoadingDetail(false)

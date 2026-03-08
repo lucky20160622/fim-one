@@ -222,7 +222,11 @@ function LoginPageInner() {
       await login({ email: loginEmail, password: loginPassword })
       // Redirect is handled by the useEffect that watches user state
     } catch (err) {
-      toast.error(getErrorMessage(err, tError))
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        setFieldErrors(prev => ({ ...prev, login: getErrorMessage(err, tError) }))
+      } else {
+        toast.error(getErrorMessage(err, tError))
+      }
     } finally {
       setLoginLoading(false)
     }
@@ -250,7 +254,7 @@ function LoginPageInner() {
       await loginWithCode({ email: otpEmail, code: codeOverride || otpCode })
       // Redirect is handled by the useEffect that watches user state
     } catch (err) {
-      toast.error(getErrorMessage(err, tError))
+      setFieldErrors(prev => ({ ...prev, otpCode: getErrorMessage(err, tError) }))
       setOtpCode("")
     } finally {
       setOtpVerifying(false)
@@ -310,7 +314,7 @@ function LoginPageInner() {
       setForgotResetToken(result.data.reset_token)
       setForgotStep("password")
     } catch (err) {
-      toast.error(getErrorMessage(err, tError))
+      setFieldErrors(prev => ({ ...prev, forgotCode: getErrorMessage(err, tError) }))
       setForgotCode("")
     } finally {
       setForgotVerifying(false)
@@ -337,7 +341,7 @@ function LoginPageInner() {
       setForgotEmail("")
       setForgotResetToken("")
     } catch (err) {
-      toast.error(getErrorMessage(err, tError))
+      setFieldErrors(prev => ({ ...prev, forgotPassword: getErrorMessage(err, tError) }))
     } finally {
       setForgotSubmitting(false)
     }
@@ -363,7 +367,7 @@ function LoginPageInner() {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail)) {
       errors.regEmail = t("emailInvalid")
     }
-    if (regPassword.length < 6) {
+    if (regPassword.length < 8) {
       errors.regPassword = t("passwordMinLength")
     }
     if (regPassword !== regConfirm) {
@@ -581,7 +585,7 @@ function LoginPageInner() {
                       <InputOTP
                         maxLength={6}
                         value={forgotCode}
-                        onChange={setForgotCode}
+                        onChange={(v) => { setForgotCode(v); clearFieldError("forgotCode") }}
                         onComplete={(code) => doVerifyForgotCode(code)}
                         disabled={forgotVerifying}
                         autoFocus
@@ -599,6 +603,9 @@ function LoginPageInner() {
                         </InputOTPGroup>
                       </InputOTP>
                     </div>
+                    {fieldErrors.forgotCode && (
+                      <p className="text-sm text-destructive text-center">{fieldErrors.forgotCode}</p>
+                    )}
                     {forgotVerifying && (
                       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -637,7 +644,7 @@ function LoginPageInner() {
                         type="password"
                         placeholder={t("newPasswordPlaceholder")}
                         value={forgotNewPassword}
-                        onChange={(e) => setForgotNewPassword(e.target.value)}
+                        onChange={(e) => { setForgotNewPassword(e.target.value); clearFieldError("forgotPassword") }}
                         autoComplete="new-password"
                         autoFocus
                       />
@@ -645,10 +652,13 @@ function LoginPageInner() {
                         type="password"
                         placeholder={t("confirmNewPasswordPlaceholder")}
                         value={forgotConfirmPassword}
-                        onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                        onChange={(e) => { setForgotConfirmPassword(e.target.value); clearFieldError("forgotPassword") }}
                         autoComplete="new-password"
                       />
                     </div>
+                    {fieldErrors.forgotPassword && (
+                      <p className="text-sm text-destructive">{fieldErrors.forgotPassword}</p>
+                    )}
                     {forgotConfirmPassword.length > 0 && forgotNewPassword !== forgotConfirmPassword && (
                       <p className="text-sm text-destructive">{t("passwordsMustMatch")}</p>
                     )}
@@ -683,7 +693,7 @@ function LoginPageInner() {
                       type="email"
                       placeholder={t("emailPlaceholder")}
                       value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
+                      onChange={(e) => { setLoginEmail(e.target.value); clearFieldError("login") }}
                       required
                       autoFocus
                       autoComplete="email"
@@ -692,10 +702,13 @@ function LoginPageInner() {
                       type="password"
                       placeholder={t("passwordPlaceholder")}
                       value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
+                      onChange={(e) => { setLoginPassword(e.target.value); clearFieldError("login") }}
                       required
                       autoComplete="current-password"
                     />
+                    {fieldErrors.login && (
+                      <p className="text-sm text-destructive">{fieldErrors.login}</p>
+                    )}
                   </div>
                   <Button type="submit" className="w-full" disabled={loginLoading}>
                     {loginLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -778,7 +791,7 @@ function LoginPageInner() {
                     <InputOTP
                       maxLength={6}
                       value={otpCode}
-                      onChange={setOtpCode}
+                      onChange={(v) => { setOtpCode(v); clearFieldError("otpCode") }}
                       onComplete={(code) => doLoginWithCode(code)}
                       disabled={otpVerifying}
                       autoFocus
@@ -796,6 +809,9 @@ function LoginPageInner() {
                       </InputOTPGroup>
                     </InputOTP>
                   </div>
+                  {fieldErrors.otpCode && (
+                    <p className="text-sm text-destructive text-center">{fieldErrors.otpCode}</p>
+                  )}
                   {otpVerifying && (
                     <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -809,6 +825,7 @@ function LoginPageInner() {
                       onClick={() => {
                         setOtpStep("email")
                         setOtpCode("")
+                        clearFieldError("otpCode")
                       }}
                     >
                       {t("changeEmail")}
@@ -868,7 +885,7 @@ function LoginPageInner() {
                           value={regPassword}
                           onChange={(e) => { setRegPassword(e.target.value); clearFieldError("regPassword") }}
                           required
-                          minLength={6}
+                          minLength={8}
                           autoComplete="new-password"
                         />
                         {fieldErrors.regPassword && (

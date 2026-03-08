@@ -1,4 +1,4 @@
-import { getApiBaseUrl, ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY } from "./constants"
+import { getApiBaseUrl, ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from "./constants"
 import type { UserInfo, TokenResponse, LoginRequest, LoginWithCodeRequest, RegisterRequest, ChangePasswordRequest, SetPasswordRequest, SetupRequest } from "@/types/auth"
 import type {
   ConversationResponse,
@@ -93,7 +93,7 @@ function clearTokens(): void {
   if (typeof window === "undefined") return
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
-  localStorage.removeItem("fim_user")
+  localStorage.removeItem(USER_KEY)
 }
 
 // --- Token refresh (singleton) ---

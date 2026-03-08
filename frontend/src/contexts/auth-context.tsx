@@ -19,6 +19,16 @@ import {
 } from "@/lib/constants"
 import type { UserInfo, LoginRequest, LoginWithCodeRequest, RegisterRequest } from "@/types/auth"
 
+/** Decode JWT payload and return the `exp` field in milliseconds, or null on failure. */
+function getTokenExpiry(token: string): number | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload.exp ? payload.exp * 1000 : null
+  } catch {
+    return null
+  }
+}
+
 interface AuthContextValue {
   user: UserInfo | null
   isLoading: boolean
@@ -108,7 +118,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(savedUser) as UserInfo
         setUser(parsed)
         syncLocaleCookie(parsed.preferred_language)
-        scheduleRefresh(7200) // conservative 2h
+        const expiry = getTokenExpiry(token)
+        const expiresIn = expiry
+          ? Math.max(Math.floor((expiry - Date.now()) / 1000), 0)
+          : 7200 // fallback to 2h if JWT has no exp
+        scheduleRefresh(expiresIn)
       } catch {
         clearAuth()
       }
