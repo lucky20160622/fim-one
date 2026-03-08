@@ -63,6 +63,21 @@ async def _get_owned_server(
     return server
 
 
+def _is_stdio_allowed() -> bool:
+    """Check whether stdio MCP servers are allowed by administrator."""
+    return os.getenv("ALLOW_STDIO_MCP", "").lower() in ("1", "true", "yes")
+
+
+def _enforce_stdio_policy(transport: str) -> None:
+    """Raise AppError if stdio transport is requested but disabled."""
+    if transport == "stdio" and not _is_stdio_allowed():
+        raise AppError(
+            "stdio_mcp_disabled",
+            status_code=403,
+            detail="Stdio MCP servers are disabled by administrator",
+        )
+
+
 # ---------------------------------------------------------------------------
 # Capabilities (must be before /{server_id} to avoid path conflict)
 # ---------------------------------------------------------------------------
@@ -70,9 +85,7 @@ async def _get_owned_server(
 
 @router.get("/capabilities")
 async def get_capabilities():
-    allow_stdio = os.environ.get("ALLOW_STDIO_MCP", "true").lower() != "false"
-    return {"allow_stdio": allow_stdio}
-
+    return {"allow_stdio": _is_stdio_allowed()}
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +99,8 @@ async def create_mcp_server(
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
+    _enforce_stdio_policy(body.transport)
+
     server = MCPServer(
         user_id=current_user.id,
         name=body.name,
@@ -157,6 +172,11 @@ async def update_mcp_server(
     server = await _get_owned_server(server_id, current_user.id, db)
 
     update_data = body.model_dump(exclude_unset=True)
+
+    # If transport is being changed to stdio, enforce the policy
+    new_transport = update_data.get("transport", server.transport)
+    _enforce_stdio_policy(new_transport)
+
     for field, value in update_data.items():
         setattr(server, field, value)
 
@@ -175,6 +195,7 @@ async def test_mcp_server(
 ) -> ApiResponse:
     """Test connectivity to an MCP server and update its tool_count."""
     server = await _get_owned_server(server_id, current_user.id, db)
+    _enforce_stdio_policy(server.transport)
 
     try:
         from fim_agent.core.mcp import MCPClient

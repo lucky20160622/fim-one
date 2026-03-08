@@ -146,7 +146,12 @@ def _build_connector_context(connector: Connector) -> str:
         f"Auth: {connector.auth_type}",
     ]
     if connector.auth_config:
-        lines.append(f"Auth Config: {json.dumps(connector.auth_config)}")
+        _sensitive = ("token", "key", "password", "secret")
+        safe = {
+            k: "***" if any(s in k.lower() for s in _sensitive) else v
+            for k, v in connector.auth_config.items()
+        }
+        lines.append(f"Auth Config: {json.dumps(safe)}")
     if connector.actions:
         lines.append(f"\nExisting actions ({len(connector.actions)}):")
         for a in connector.actions:
