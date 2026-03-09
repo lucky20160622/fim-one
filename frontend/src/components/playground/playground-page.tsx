@@ -13,6 +13,7 @@ import { getErrorMessage } from "@/lib/error-utils"
 import { useSSE } from "@/hooks/use-sse"
 import { useSlashCommands } from "@/hooks/use-slash-commands"
 import { SlashCommandMenu } from "@/components/playground/slash-command-menu"
+import { ExportDialog } from "@/components/playground/export-dialog"
 import { useDagSteps } from "@/hooks/use-dag-steps"
 import { useReactSteps } from "@/hooks/use-react-steps"
 import { useMediaQuery } from "@/hooks/use-media-query"
@@ -576,6 +577,7 @@ function PlaygroundContent({
   const [showScrollBtn, setShowScrollBtn] = useState(false)
   const composingRef = useRef(false)
   const [composing, setComposing] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   // Auto-focus textarea on new chat
   useEffect(() => {
@@ -980,6 +982,7 @@ function PlaygroundContent({
   const retryQuery = wasStopped ? pendingQuery : refreshStoppedQuery
 
   return (
+    <>
     <div className="flex flex-1 flex-col overflow-hidden p-6 gap-4">
       {/* Output area / empty state */}
       {hasMessages ? (
@@ -1016,6 +1019,16 @@ function PlaygroundContent({
                 </Button>
               )}
               <div className="flex-1" />
+              {activeConversation && !isRunning && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setExportOpen(true)}
+                  className="h-7 w-7 text-muted-foreground"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                </Button>
+              )}
               {hasLiveMessages && isWideScreen && mode === "dag" && (
                 <Button
                   variant="ghost"
@@ -1418,5 +1431,14 @@ function PlaygroundContent({
         </div>
       </div>
     </div>
+    {activeConversation && (
+      <ExportDialog
+        conversationId={activeConversation.id}
+        conversationTitle={activeConversation.title}
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+      />
+    )}
+    </>
   )
 }

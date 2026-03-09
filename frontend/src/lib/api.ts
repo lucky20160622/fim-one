@@ -384,6 +384,32 @@ export const conversationApi = {
       `/api/conversations/batch`,
       { method: "DELETE", body: JSON.stringify({ ids }) },
     ),
+
+  export: async (id: string, format: "md" | "txt" | "docx", detail: "full" | "summary" = "full"): Promise<void> => {
+    const token = getAccessToken()
+    const headers: Record<string, string> = {}
+    if (token) headers["Authorization"] = `Bearer ${token}`
+    const res = await fetch(
+      `${getApiBaseUrl()}/api/conversations/${id}/export?format=${format}&detail=${detail}`,
+      { headers },
+    )
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new ApiError(res.status, body.detail || res.statusText, body.error_code ?? null, body.error_args ?? {})
+    }
+    const blob = await res.blob()
+    const contentDisposition = res.headers.get("content-disposition")
+    const filenameMatch = contentDisposition?.match(/filename="?([^";\n]+)"?/)
+    const filename = filenameMatch?.[1] ?? `export.${format}`
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  },
 }
 
 // --- Agent API ---

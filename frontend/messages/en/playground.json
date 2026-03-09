@@ -76,6 +76,17 @@
   "tokenIn": "{value}k in",
   "tokenOut": "{value}k out",
   "retryButton": "Retry",
+  "exportTitle": "Export Conversation",
+  "exportDescription": "Choose a format and detail level for the export.",
+  "exportFormatMd": "Markdown",
+  "exportFormatTxt": "Plain Text",
+  "exportFormatDocx": "Word Document",
+  "exportFormatMdDesc": "Formatted text with headers and code blocks",
+  "exportFormatTxtDesc": "Simple text without formatting",
+  "exportFormatDocxDesc": "Microsoft Word compatible document",
+  "exportIncludeDetails": "Include execution details",
+  "exportDetailsDescription": "Include tool calls, reasoning steps, and execution stats",
+  "exportButton": "Export",
   "slash": {
     "newDesc": "Start a fresh conversation",
 "agentDesc": "Quick-select an agent by name",
@@ -84,20 +95,20 @@
   },
   "examples": {
     "react": [
-      { "text": "Call the GitHub API (https://api.github.com/orgs/openai/repos?sort=stars&per_page=5) to list OpenAI's top 5 repos -- which one has the most stars?", "category": "web" },
-      { "text": "Fetch the Wikipedia page on 'Sorting algorithm' and create a comparison table of Bubble Sort, Quick Sort, and Merge Sort by time complexity", "category": "web" },
+      { "text": "Find the top 5 most-starred repositories on GitHub -- which one is #1 and how many stars does it have?", "category": "web" },
+      { "text": "Look up 'Sorting algorithm' on Wikipedia and create a comparison table of Bubble Sort, Quick Sort, and Merge Sort by time complexity", "category": "web" },
       { "text": "Simulate the Monty Hall problem 10,000 times -- should you switch doors? Show the win rates", "category": "code" },
       { "text": "Write Python to calculate the first 30 Fibonacci numbers and their golden ratio convergence, save the results as fibonacci.csv", "category": "code" },
       { "text": "What time is it in New York, London, and Tokyo right now? Use template_render to create a styled HTML world clock dashboard", "category": "hybrid" },
-      { "text": "Fetch 100 posts from the JSONPlaceholder API (https://jsonplaceholder.typicode.com/posts), then write Python to rank the top 5 most prolific authors and their average post title length", "category": "hybrid" }
+      { "text": "Find a public REST API with dummy posts, fetch 100 of them, then write Python to rank the top 5 most prolific authors and their average post title length", "category": "hybrid" }
     ],
     "dag": [
-      { "text": "Fetch GitHub repos for facebook, google, and microsoft in parallel (https://api.github.com/orgs/{org}/repos?sort=stars&per_page=3), then compare which tech giant has the highest average stars", "category": "web" },
-      { "text": "Fetch the Wikipedia pages for Python, Rust, and Go programming languages in parallel, then build a comparison table: creation year, creator, type system, and key strength", "category": "web" },
+      { "text": "Look up the top 3 most-starred repos for Facebook, Google, and Microsoft on GitHub in parallel, then compare which tech giant has the highest average stars", "category": "web" },
+      { "text": "Look up Python, Rust, and Go on Wikipedia in parallel, then build a comparison table: creation year, creator, type system, and key strength", "category": "web" },
       { "text": "Generate a 20x20 maze, then race BFS vs DFS in parallel -- which explores fewer cells? Visualize both solutions in ASCII art", "category": "code" },
       { "text": "Compute the first 50 Fibonacci numbers, first 50 primes, and first 50 triangular numbers in parallel, then find which numbers appear in multiple sequences", "category": "code" },
       { "text": "Get the current time in New York, London, Tokyo, Sydney, and Dubai in parallel, then use template_render to create a styled HTML world clock dashboard", "category": "hybrid" },
-      { "text": "Fetch posts and todos from the JSONPlaceholder API in parallel (/posts and /todos), then write Python to correlate: which users write the most, and do they also complete the most todos?", "category": "hybrid" }
+      { "text": "Find a public REST API with posts and todos, fetch both in parallel, then write Python to correlate: do the most prolific posters also complete the most todos?", "category": "hybrid" }
     ]
   }
 }
