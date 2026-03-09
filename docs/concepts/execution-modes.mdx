@@ -35,7 +35,7 @@ Embed FIM Agent into a host system's web UI. The agent works alongside users in 
 ```mermaid
 flowchart LR
   subgraph Host["Host System (ERP / CRM / OA)"]
-    Copilot["FIM Agent Copilot\n(iframe / widget)"]
+    Copilot["FIM Agent Copilot<br/>(iframe / widget)"]
   end
   Copilot -- Connectors --> DB["DB"]
   Copilot -- Connectors --> API["API"]
@@ -55,7 +55,7 @@ The Hub is a standalone portal (or API) that serves as the central intelligence 
 
 ```mermaid
 flowchart LR
-  ERP --> Hub["FIM Agent Hub\n(AI orchestration)"]
+  ERP --> Hub["FIM Agent Hub<br/>(AI orchestration)"]
   Database --> Hub
   Lark --> Hub
   CRM --> Hub
@@ -91,7 +91,7 @@ Under the hood, FIM Agent provides two execution engines:
 
 ```mermaid
 flowchart TD
-  DAG["DAG Planning\n(orchestration layer)"]
+  DAG["DAG Planning<br/>(orchestration layer)"]
   DAG --> step_1
   DAG --> step_2
   step_1 --> ReAct1["ReAct Agent"] --> Tools1["Tools"]

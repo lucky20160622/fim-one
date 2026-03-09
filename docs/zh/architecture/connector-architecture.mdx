@@ -14,7 +14,7 @@ flowchart LR
     subgraph Copilot["副驾模式（嵌入式）"]
         direction TB
         subgraph Host["宿主系统（ERP）"]
-            C["FIM Agent 副驾模式\n(内嵌框架 / 小部件)"]
+            C["FIM Agent 副驾模式<br/>(内嵌框架 / 小部件)"]
         end
         C --> DB1["DB"]
         C --> API1["API"]
@@ -22,7 +22,7 @@ flowchart LR
 
     subgraph Hub["枢纽（中央门户）"]
         direction TB
-        H["FIM Agent 枢纽\n（门户 / API）"]
+        H["FIM Agent 枢纽<br/>（门户 / API）"]
         H --> ERP["ERP"]
         H --> CRM["CRM"]
         H --> OA["OA"]
@@ -51,10 +51,10 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    A["<b>FIM Agent Platform</b>\nReAct / DAG / Portal UI\n<i>Multi-tenant, scheduling, conversation persistence</i>"]
-    B["<b>Connector Governance Layer</b>\naudit log, auth passthrough, operation classification\n<i>read_only enforcement, confirmation gate, circuit breaker</i>"]
-    C["<b>MCP Protocol (Transport)</b>\nstdio / HTTP transport\n<i>Standard tool description, process isolation</i>"]
-    D["<b>Legacy System</b>\nDB / API / MQ\n<i>Client's existing systems</i>"]
+    A["<b>FIM Agent Platform</b><br/>ReAct / DAG / Portal UI<br/><i>Multi-tenant, scheduling, conversation persistence</i>"]
+    B["<b>Connector Governance Layer</b><br/>audit log, auth passthrough, operation classification<br/><i>read_only enforcement, confirmation gate, circuit breaker</i>"]
+    C["<b>MCP Protocol (Transport)</b><br/>stdio / HTTP transport<br/><i>Standard tool description, process isolation</i>"]
+    D["<b>Legacy System</b><br/>DB / API / MQ<br/><i>Client's existing systems</i>"]
 
     A --> B --> C --> D
 ```
