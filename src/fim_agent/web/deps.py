@@ -14,11 +14,11 @@ FAST_LLM_MODEL   : Model identifier for the fast model used for DAG step
                     execution (default: falls back to ``LLM_MODEL``).
 LLM_TEMPERATURE  : Default sampling temperature (default: ``0.7``).
 LLM_REASONING_EFFORT : Extended thinking level — ``low``, ``medium``, or
-                    ``high`` (default: empty = disabled).  When set, a
-                    ``reasoning`` object is sent with each API request and the
-                    model's ``reasoning_content`` is surfaced in SSE step events.
-LLM_REASONING_BUDGET_TOKENS : Optional cap on reasoning tokens (sent as
-                    ``reasoning.max_tokens``).  Only effective when
+                    ``high`` (default: empty = disabled).  For OpenAI/Gemini
+                    sends ``reasoning_effort``; for Anthropic (auto-detected)
+                    sends ``thinking`` via ``extra_body``.
+LLM_REASONING_BUDGET_TOKENS : Explicit token budget for Anthropic thinking
+                    (minimum 1024).  Only effective when
                     ``LLM_REASONING_EFFORT`` is set.
 MAX_CONCURRENCY  : Max parallel steps in DAG executor (default: ``5``).
 LLM_CONTEXT_SIZE : Effective context cap for the main LLM in tokens
