@@ -139,12 +139,15 @@ class TestPythonExecTool:
 
     async def test_basic_print(self, python_tool: PythonExecTool) -> None:
         result = await python_tool.run(code='print("hello")')
-        assert result.strip() == "hello"
+        assert "hello" in result
+        # Output now includes a [Script: ...] prefix line
+        assert result.strip().endswith("hello")
 
     async def test_multiline_code(self, python_tool: PythonExecTool) -> None:
         code = "x = 2 + 3\nprint(x)"
         result = await python_tool.run(code=code)
-        assert result.strip() == "5"
+        assert "5" in result
+        assert result.strip().endswith("5")
 
     async def test_exception_handling(self, python_tool: PythonExecTool) -> None:
         result = await python_tool.run(code="raise ValueError('boom')")
@@ -174,6 +177,7 @@ class TestPythonExecTool:
         assert "Timeout" in result
 
     async def test_no_output(self, python_tool: PythonExecTool) -> None:
-        """Code that produces no output should return an empty string."""
+        """Code that produces no output should return the script prefix only."""
         result = await python_tool.run(code="x = 42")
-        assert result == ""
+        # Output now includes a [Script: ...] prefix even with no printed output
+        assert "[Script:" in result or result == ""

@@ -504,8 +504,9 @@ class TestNativeOnIterationCallback:
 
         await agent.run("test", on_iteration=on_iter)
 
-        assert len(callbacks) == 1
-        assert callbacks[0] == (1, "final_answer", None, None)
+        assert len(callbacks) == 2
+        assert callbacks[0] == (1, "thinking", None, None)
+        assert callbacks[1] == (1, "final_answer", None, None)
 
     async def test_callback_on_tool_call_and_answer(self) -> None:
         llm = NativeToolFakeLLM(
@@ -525,13 +526,17 @@ class TestNativeOnIterationCallback:
 
         await agent.run("test", on_iteration=on_iter)
 
-        assert len(callbacks) == 3
-        # First: tool_start (obs=None, err=None)
-        assert callbacks[0] == (1, "tool_call", None, None)
-        # Second: tool result in iteration 1
-        assert callbacks[1] == (1, "tool_call", "hi", None)
-        # Third: final answer in iteration 2
-        assert callbacks[2] == (2, "final_answer", None, None)
+        assert len(callbacks) == 5
+        # First: thinking start for iteration 1
+        assert callbacks[0] == (1, "thinking", None, None)
+        # Second: tool_start (obs=None, err=None)
+        assert callbacks[1] == (1, "tool_call", None, None)
+        # Third: tool result in iteration 1
+        assert callbacks[2] == (1, "tool_call", "hi", None)
+        # Fourth: thinking start for iteration 2
+        assert callbacks[3] == (2, "thinking", None, None)
+        # Fifth: final answer in iteration 2
+        assert callbacks[4] == (2, "final_answer", None, None)
 
     async def test_callback_on_parallel_tool_calls(self) -> None:
         """Each parallel tool call should trigger its own callback."""
@@ -555,13 +560,16 @@ class TestNativeOnIterationCallback:
 
         await agent.run("test", on_iteration=on_iter)
 
-        # Two tool_start + two tool results (all iteration 1) + one final answer (iteration 2)
-        assert len(callbacks) == 5
-        assert callbacks[0] == (1, "tool_call", None, None)  # tool_start a
-        assert callbacks[1] == (1, "tool_call", None, None)  # tool_start b
-        assert callbacks[2] == (1, "tool_call", "a", None)   # result a
-        assert callbacks[3] == (1, "tool_call", "b", None)   # result b
-        assert callbacks[4] == (2, "final_answer", None, None)
+        # thinking + two tool_start + two tool results (all iteration 1)
+        # + thinking + final answer (iteration 2)
+        assert len(callbacks) == 7
+        assert callbacks[0] == (1, "thinking", None, None)   # thinking iter 1
+        assert callbacks[1] == (1, "tool_call", None, None)  # tool_start a
+        assert callbacks[2] == (1, "tool_call", None, None)  # tool_start b
+        assert callbacks[3] == (1, "tool_call", "a", None)   # result a
+        assert callbacks[4] == (1, "tool_call", "b", None)   # result b
+        assert callbacks[5] == (2, "thinking", None, None)   # thinking iter 2
+        assert callbacks[6] == (2, "final_answer", None, None)
 
 
 class TestNativeCustomSystemPrompt:

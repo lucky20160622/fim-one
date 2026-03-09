@@ -11,10 +11,9 @@ import pytest
 
 from fim_agent.core.tool.builtin.http_request import (
     HttpRequestTool,
-    _is_private_ip,
     _looks_like_json,
-    _resolve_and_check,
 )
+from fim_agent.core.security.ssrf import is_private_ip, resolve_and_check
 
 
 # ======================================================================
@@ -33,43 +32,43 @@ def tool() -> HttpRequestTool:
 
 
 class TestIsPrivateIp:
-    """Tests for the ``_is_private_ip`` helper."""
+    """Tests for the ``is_private_ip`` helper."""
 
     def test_localhost_v4(self) -> None:
-        assert _is_private_ip("127.0.0.1") is True
+        assert is_private_ip("127.0.0.1") is True
 
     def test_localhost_v6(self) -> None:
-        assert _is_private_ip("::1") is True
+        assert is_private_ip("::1") is True
 
     def test_private_10(self) -> None:
-        assert _is_private_ip("10.0.0.1") is True
+        assert is_private_ip("10.0.0.1") is True
 
     def test_private_172(self) -> None:
-        assert _is_private_ip("172.16.0.1") is True
+        assert is_private_ip("172.16.0.1") is True
 
     def test_private_192(self) -> None:
-        assert _is_private_ip("192.168.1.1") is True
+        assert is_private_ip("192.168.1.1") is True
 
     def test_link_local(self) -> None:
-        assert _is_private_ip("169.254.1.1") is True
+        assert is_private_ip("169.254.1.1") is True
 
     def test_public_ip(self) -> None:
-        assert _is_private_ip("8.8.8.8") is False
+        assert is_private_ip("8.8.8.8") is False
 
     def test_public_ip_v6(self) -> None:
-        assert _is_private_ip("2607:f8b0:4004:800::200e") is False
+        assert is_private_ip("2607:f8b0:4004:800::200e") is False
 
     def test_unparseable(self) -> None:
-        assert _is_private_ip("not-an-ip") is True
+        assert is_private_ip("not-an-ip") is True
 
     def test_zero_network(self) -> None:
-        assert _is_private_ip("0.0.0.1") is True
+        assert is_private_ip("0.0.0.1") is True
 
     def test_fc00_v6(self) -> None:
-        assert _is_private_ip("fc00::1") is True
+        assert is_private_ip("fc00::1") is True
 
     def test_fe80_v6(self) -> None:
-        assert _is_private_ip("fe80::1") is True
+        assert is_private_ip("fe80::1") is True
 
 
 class TestLooksLikeJson:
@@ -92,7 +91,7 @@ class TestLooksLikeJson:
 
 
 class TestResolveAndCheck:
-    """Tests for the ``_resolve_and_check`` SSRF guard."""
+    """Tests for the ``resolve_and_check`` SSRF guard."""
 
     def test_blocks_private_resolved_ip(self) -> None:
         with patch("socket.getaddrinfo") as mock_gai:
@@ -100,26 +99,26 @@ class TestResolveAndCheck:
                 (2, 1, 6, "", ("127.0.0.1", 0)),
             ]
             with pytest.raises(ValueError, match="SSRF blocked"):
-                _resolve_and_check("evil.example.com")
+                resolve_and_check("evil.example.com")
 
     def test_allows_public_ip(self) -> None:
         with patch("socket.getaddrinfo") as mock_gai:
             mock_gai.return_value = [
                 (2, 1, 6, "", ("93.184.216.34", 0)),
             ]
-            _resolve_and_check("example.com")  # Should not raise
+            resolve_and_check("example.com")  # Should not raise
 
     def test_dns_failure_raises(self) -> None:
         import socket as _socket
 
         with patch("socket.getaddrinfo", side_effect=_socket.gaierror("nope")):
             with pytest.raises(ValueError, match="DNS resolution failed"):
-                _resolve_and_check("nonexistent.invalid")
+                resolve_and_check("nonexistent.invalid")
 
     def test_no_results_raises(self) -> None:
         with patch("socket.getaddrinfo", return_value=[]):
             with pytest.raises(ValueError, match="no results"):
-                _resolve_and_check("empty.example.com")
+                resolve_and_check("empty.example.com")
 
 
 # ======================================================================
@@ -185,7 +184,7 @@ class TestInputValidation:
 
     async def test_unsupported_method(self, tool: HttpRequestTool) -> None:
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             result = await tool.run(url="https://example.com", method="TRACE")
             assert "[Error]" in result
@@ -260,7 +259,7 @@ class TestSuccessfulRequests:
             headers={"content-type": "text/plain"},
         )
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_resp):
                 result = await tool.run(url="https://example.com")
@@ -275,7 +274,7 @@ class TestSuccessfulRequests:
             headers={"content-type": "application/json"},
         )
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_resp):
                 result = await tool.run(url="https://api.example.com/data")
@@ -293,7 +292,7 @@ class TestSuccessfulRequests:
             headers={"content-type": "application/json"},
         )
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
                 result = await tool.run(
@@ -311,7 +310,7 @@ class TestSuccessfulRequests:
     async def test_custom_headers(self, tool: HttpRequestTool) -> None:
         mock_resp = _make_mock_response(content=b"ok")
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
                 result = await tool.run(
@@ -326,7 +325,7 @@ class TestSuccessfulRequests:
     async def test_query_params(self, tool: HttpRequestTool) -> None:
         mock_resp = _make_mock_response(content=b"ok")
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
                 result = await tool.run(
@@ -345,7 +344,7 @@ class TestSuccessfulRequests:
             content=b"",
         )
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
                 result = await tool.run(
@@ -361,7 +360,7 @@ class TestSuccessfulRequests:
     async def test_default_method_is_get(self, tool: HttpRequestTool) -> None:
         mock_resp = _make_mock_response(content=b"ok")
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
                 await tool.run(url="https://example.com")
@@ -386,7 +385,7 @@ class TestResponseTruncation:
             headers={"content-type": "text/plain"},
         )
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_resp):
                 result = await tool.run(url="https://example.com/big")
@@ -405,7 +404,7 @@ class TestErrorHandling:
 
     async def test_timeout(self, tool: HttpRequestTool) -> None:
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch(
                 "httpx.AsyncClient.request",
@@ -419,7 +418,7 @@ class TestErrorHandling:
 
     async def test_custom_timeout(self, tool: HttpRequestTool) -> None:
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch(
                 "httpx.AsyncClient.request",
@@ -434,7 +433,7 @@ class TestErrorHandling:
     async def test_timeout_capped_at_max(self, tool: HttpRequestTool) -> None:
         """Timeout values above 120s should be capped."""
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch(
                 "httpx.AsyncClient.request",
@@ -448,7 +447,7 @@ class TestErrorHandling:
 
     async def test_too_many_redirects(self, tool: HttpRequestTool) -> None:
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch(
                 "httpx.AsyncClient.request",
@@ -462,7 +461,7 @@ class TestErrorHandling:
 
     async def test_connection_error(self, tool: HttpRequestTool) -> None:
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch(
                 "httpx.AsyncClient.request",
@@ -497,7 +496,7 @@ class TestContentTypeAutoDetection:
     async def test_json_body_gets_content_type(self, tool: HttpRequestTool) -> None:
         mock_resp = _make_mock_response(content=b"ok")
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
                 await tool.run(
@@ -513,7 +512,7 @@ class TestContentTypeAutoDetection:
     async def test_non_json_body_no_auto_content_type(self, tool: HttpRequestTool) -> None:
         mock_resp = _make_mock_response(content=b"ok")
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
                 await tool.run(
@@ -529,7 +528,7 @@ class TestContentTypeAutoDetection:
     async def test_explicit_content_type_not_overridden(self, tool: HttpRequestTool) -> None:
         mock_resp = _make_mock_response(content=b"ok")
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_resp) as mock_req:
                 await tool.run(
@@ -562,7 +561,7 @@ class TestResponseFormatting:
             },
         )
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_resp):
                 result = await tool.run(url="https://example.com")
@@ -575,7 +574,7 @@ class TestResponseFormatting:
     async def test_body_section_present(self, tool: HttpRequestTool) -> None:
         mock_resp = _make_mock_response(content=b"response content")
         with patch(
-            "fim_agent.core.tool.builtin.http_request._resolve_and_check"
+            "fim_agent.core.tool.builtin.http_request.resolve_and_check"
         ):
             with patch("httpx.AsyncClient.request", new_callable=AsyncMock, return_value=mock_resp):
                 result = await tool.run(url="https://example.com")

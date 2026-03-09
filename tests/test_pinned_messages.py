@@ -278,14 +278,17 @@ class TestModelHintAgentContextGuard:
         from fim_agent.core.planner.executor import DAGExecutor
         from fim_agent.core.planner.types import PlanStep
 
-        # Build a mock parent agent with context_guard set
+        # Build a mock parent agent with context_guard set.
+        # Use the public property names that _resolve_agent accesses
+        # (tools, system_prompt_override, extra_instructions, max_iterations,
+        # context_guard) rather than the private attributes.
         mock_agent = MagicMock()
-        mock_agent._tools = MagicMock()
-        mock_agent._system_prompt_override = None
-        mock_agent._extra_instructions = "Be concise."
-        mock_agent._max_iterations = 10
         mock_guard = MagicMock(spec=ContextGuard)
-        mock_agent._context_guard = mock_guard
+        mock_agent.tools = MagicMock()
+        mock_agent.system_prompt_override = None
+        mock_agent.extra_instructions = "Be concise."
+        mock_agent.max_iterations = 10
+        mock_agent.context_guard = mock_guard
 
         # Build a mock model registry that returns a different LLM
         mock_registry = MagicMock()

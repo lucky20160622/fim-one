@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 import pytest
@@ -171,24 +172,33 @@ class TestDAGPlannerValidation:
         with pytest.raises(ValueError, match="Circular dependency"):
             planner._validate_dag(steps)
 
-    def test_dangling_dependency(self) -> None:
+    def test_dangling_dependency(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Dangling dependency is auto-removed with a warning (not raised)."""
         planner = self._make_planner()
         steps = [
             PlanStep(id="s1", task="a"),
             PlanStep(id="s2", task="b", dependencies=["s999"]),
         ]
-        with pytest.raises(ValueError, match="unknown step"):
-            planner._validate_dag(steps)
+        with caplog.at_level(logging.WARNING, logger="fim_agent.core.planner.planner"):
+            planner._validate_dag(steps)  # should NOT raise
+        # Dangling dep removed
+        assert steps[1].dependencies == []
+        # Warning logged
+        assert any("s999" in record.message for record in caplog.records)
 
-    def test_dangling_among_valid(self) -> None:
-        """Dangling reference mixed with valid dependencies."""
+    def test_dangling_among_valid(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Dangling reference mixed with valid dependencies is auto-removed."""
         planner = self._make_planner()
         steps = [
             PlanStep(id="s1", task="a"),
             PlanStep(id="s2", task="b", dependencies=["s1", "ghost"]),
         ]
-        with pytest.raises(ValueError, match="unknown step"):
-            planner._validate_dag(steps)
+        with caplog.at_level(logging.WARNING, logger="fim_agent.core.planner.planner"):
+            planner._validate_dag(steps)  # should NOT raise
+        # Only the valid dep remains
+        assert steps[1].dependencies == ["s1"]
+        # Warning logged about the dangling ref
+        assert any("ghost" in record.message for record in caplog.records)
 
 
 # ======================================================================

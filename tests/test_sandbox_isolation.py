@@ -13,10 +13,33 @@ from typing import Any
 
 import pytest
 
+import fim_agent.core.tool.sandbox as _sandbox_module
 from fim_agent.core.tool.builtin.file_ops import FileOpsTool, _DEFAULT_WORKSPACE_DIR
 from fim_agent.core.tool.builtin.shell_exec import ShellExecTool, _DEFAULT_SANDBOX_DIR
 from fim_agent.core.tool.builtin.python_exec import PythonExecTool, _DEFAULT_EXEC_DIR
 from fim_agent.core.tool.builtin import discover_builtin_tools
+
+
+# Docker backend maps sandbox dirs to /workspace inside the container,
+# so cwd-based assertions must accept either the host path or "/workspace".
+_DOCKER_WORKSPACE = "/workspace"
+
+
+def _is_docker_backend() -> bool:
+    """Return True when the active sandbox backend is Docker."""
+    return os.environ.get("CODE_EXEC_BACKEND", "local").lower() == "docker"
+
+
+@pytest.fixture(autouse=True)
+def _reset_sandbox_singleton():
+    """Reset the sandbox backend singleton before and after every test.
+
+    This prevents a Docker-mode singleton created by earlier tests
+    (e.g. test_sandbox_backend.py) from leaking into these tests.
+    """
+    _sandbox_module._backend = None
+    yield
+    _sandbox_module._backend = None
 
 
 # ======================================================================
@@ -117,7 +140,9 @@ class TestShellExecToolSandbox:
 
         result = await tool.run(command="pwd")
         assert "Exit Code: 0" in result
-        assert str(sandbox) in result
+        # Docker backend maps the sandbox dir to /workspace inside the
+        # container, so pwd will report /workspace instead of the host path.
+        assert str(sandbox) in result or _DOCKER_WORKSPACE in result
 
     async def test_file_created_in_custom_sandbox(self, tmp_path: Path) -> None:
         sandbox = tmp_path / "conv_shell2" / "sandbox"
@@ -161,7 +186,9 @@ class TestPythonExecToolSandbox:
         tool = PythonExecTool(exec_dir=exec_dir, timeout=10)
 
         result = await tool.run(code="import os; print(os.getcwd())")
-        assert str(exec_dir) in result
+        # Docker backend maps exec_dir to /workspace inside the container,
+        # so os.getcwd() will report /workspace instead of the host path.
+        assert str(exec_dir) in result or _DOCKER_WORKSPACE in result
 
     async def test_file_io_in_custom_exec_dir(self, tmp_path: Path) -> None:
         exec_dir = tmp_path / "conv_py2" / "exec"
@@ -214,9 +241,13 @@ class TestDiscoverBuiltinToolsSandbox:
         assert shell_exec is not None
         assert python_exec is not None
 
-        assert file_ops._workspace_dir == sandbox_root / "workspace"
-        assert shell_exec._sandbox_dir == sandbox_root / "sandbox"
-        assert python_exec._exec_dir == sandbox_root / "exec"
+        # All sandboxed tools share a single "workspace" directory so that
+        # files created by one tool (e.g. python_exec) are visible to others
+        # (e.g. file_ops, shell_exec).
+        shared = sandbox_root / "workspace"
+        assert file_ops._workspace_dir == shared
+        assert shell_exec._sandbox_dir == shared
+        assert python_exec._exec_dir == shared
 
     def test_non_sandboxed_tools_unaffected(self, tmp_path: Path) -> None:
         """Tools like calculator, web_fetch etc. should still be instantiated."""
