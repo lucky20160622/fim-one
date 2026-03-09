@@ -141,6 +141,10 @@ flowchart LR
 
 ## Planned Versions
 
+### v0.7.x (continued) — Builder Agent Hardening
+
+- **Builder prompt auto-refresh (Method A)**: On every `POST /api/builder/session`, overwrite `instructions` on the existing builder agent even if it already exists. This ensures new deployments with improved builder prompts are picked up without manual DB intervention or stale sessions. Currently the session endpoint returns early if the agent already exists, leaving old prompts in place.
+
 ### v0.8 — Connector Declarative Config + RBAC
 
 **Goal**: Make it easier to define connectors without writing Python code.
