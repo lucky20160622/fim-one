@@ -147,7 +147,7 @@ export function ChatSearchDialog({ open, onOpenChange }: ChatSearchDialogProps) 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("searchConversationsPlaceholder")}
-            className="border-0 shadow-none focus-visible:ring-0 px-0 h-8"
+            className="border-0 shadow-none focus-visible:ring-0 focus-visible:outline-none px-0 h-8"
           />
         </div>
 
