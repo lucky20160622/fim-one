@@ -138,12 +138,12 @@ flowchart LR
 - MCP servers management moved to Connectors page
 - Dual database support: SQLite (zero-config default) + PostgreSQL (production); Docker Compose auto-provisions PostgreSQL
 - Models configuration documentation page with extended thinking setup per provider
+- SSE Protocol v2: real-time answer streaming with `delta_reasoning`, `usage` fields, and split `done`/`suggestions`/`title`/`end` events; SQLite pool size 5 -> 20
+- AI Builder expansion: 7 new builder tools (GetSettings, TestConnection, ImportOpenAPI for connectors; ListConnectors, AddConnector, RemoveConnector, SetModel for agents), `is_builder` flag on agents, builder prompt auto-refresh, SSRF guard
+- SSE v2 frontend: streaming dot-pulse cursor, DAG re-plan round snapshots as collapsible cards, DAG layout decoupled from step states
+- AI Builder concept documentation page with connector and agent builder guides
 
 ## Planned Versions
-
-### v0.7.x (continued) — Builder Agent Hardening
-
-- **Builder prompt auto-refresh (Method A)**: On every `POST /api/builder/session`, overwrite `instructions` on the existing builder agent even if it already exists. This ensures new deployments with improved builder prompts are picked up without manual DB intervention or stale sessions. Currently the session endpoint returns early if the agent already exists, leaving old prompts in place.
 
 ### v0.8 — Connector Declarative Config + RBAC
 

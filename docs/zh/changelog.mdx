@@ -15,6 +15,10 @@ description: "FIM Agent 的所有重要变更。"
   ### 新增
 </div>
 
+* **SSE 协议 v2 — 实时回答流式传输**：后端 `StreamChunk` 新增 `delta_reasoning` 和 `usage` 字段；LLM 请求包含用量追踪；ReAct `_run_native()` 现在通过 `stream_chat` 进行流式传输。SSE 协议在回答后立即发送 `done`，随后将 `suggestions`、`title` 和 `end` 作为独立事件发送。LLM 执行期间提前释放 DB 会话。SQLite 连接池大小从 5 提升至 20
+* **AI Builder 扩展 — 7 个新工具 + `is_builder` 标志**：三个新连接器构建器工具（`GetSettings`、`TestConnection`、`ImportOpenAPI`）和四个新智能体构建器工具（`ListConnectors`、`AddConnector`、`RemoveConnector`、`SetModel`）。智能体新增 `is_builder` 布尔字段及 Alembic 迁移。构建器提示词在会话创建时自动刷新。OpenAPI 导入新增 SSRF 防护
+* **SSE v2 前端 — 流式光标、DAG 轮次快照、UI 优化**：前端 hooks 解析 `end` / `suggestions` / `title` 事件。DAG 重新规划显示之前失败轮次为可折叠卡片。CSS 点脉冲流式光标。DAG 布局与步骤状态解耦。侧边栏折叠时新增新建对话按钮。连接器编辑器溢出修复。`font-mono` 替换为 `tabular-nums`
+* **AI Builder 概念文档页面**：新增 `docs/concepts/ai-builder.mdx`，含连接器和智能体构建器指南，附中文翻译
 * **Builder Dialog — Connector 管理 ReAct 智能体**：将 AI 助手面板从单次 LLM 调用升级为完整 ReAct 循环。"高级构建器"按钮打开全屏对话框，左侧为嵌入式 PlaygroundPage，右侧为实时 Action 预览（3 秒轮询）。六个 Connector Builder 工具（`connector_list_actions`、`connector_create_action`、`connector_update_action`、`connector_delete_action`、`connector_update_settings`、`connector_test_action`）直接操作数据库，Builder Agent 激活时自动注入。`POST /api/builder/session` 按 Connector 缓存复用 Builder Agent，保留对话历史
 * **双数据库支持（SQLite + PostgreSQL）**：`DATABASE_URL` 现在同时支持 SQLite（`sqlite+aiosqlite:///...`）和 PostgreSQL（`postgresql+asyncpg://...`）连接字符串。SQLite 仍为零配置默认值；PostgreSQL 推荐用于生产环境和多进程部署。Docker Compose 自动配置 PostgreSQL 服务并附带健康检查。Alembic 迁移可感知数据库方言（json_extract vs `::json->>'key'`）。管理员健康看板显示实际数据库引擎和版本
 * **模型配置文档**：新增 `docs/configuration/models.mdx` 页面，记录模型配置参考，包括各提供商的扩展思考/推理设置
@@ -38,6 +42,7 @@ description: "FIM Agent 的所有重要变更。"
   ### 变更
 </div>
 
+* **测试：NativeToolFakeLLM 更新为流式 ReAct**：测试用假 LLM 现在生成 `StreamChunk` 序列，以匹配新的基于流式的 `_run_native()` 循环
 * **LLM 层**：使用 [LiteLLM](https://github.com/BerriAI/litellm) 替换了直连 `AsyncOpenAI` 客户端，实现通用提供商支持。所有提供商特定的条件逻辑（Anthropic thinking、`max_completion_tokens`、GPT-5 tools 变通方案）已全部移除。Anthropic 模型现在通过 LiteLLM 的原生 API 路由，正确支持 `reasoning_content`（扩展思考）
 * **工具页面简化**：工具页面现在仅显示内置工具（不再有标签页切换）；MCP 管理已移至连接器页面
 * **Redis 中断代理**：通过 Redis Pub/Sub 实现跨进程中断/注入中继。设置 `REDIS_URL` 时自动启用，否则回退到进程内队列。Docker Compose 现已包含 Redis 服务（自动配置，无需用户操作）

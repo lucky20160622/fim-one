@@ -166,6 +166,10 @@ flowchart LR
 * MCP 服务器管理移至连接器页面
 * 双数据库支持：SQLite（零配置默认）+ PostgreSQL（生产环境推荐）；Docker Compose 自动配置 PostgreSQL
 * 模型配置文档页面，含各提供商的扩展思考设置指南
+* SSE 协议 v2：实时回答流式传输，新增 `delta_reasoning`、`usage` 字段，事件拆分为 `done`/`suggestions`/`title`/`end`；SQLite 连接池 5 -> 20
+* AI Builder 扩展：7 个新构建器工具（连接器端 GetSettings、TestConnection、ImportOpenAPI；智能体端 ListConnectors、AddConnector、RemoveConnector、SetModel），智能体新增 `is_builder` 标志，构建器提示词自动刷新，SSRF 防护
+* SSE v2 前端：点脉冲流式光标、DAG 重新规划轮次快照显示为可折叠卡片、DAG 布局与步骤状态解耦
+* AI Builder 概念文档页面，含连接器和智能体构建器指南
 
 <div id="planned-versions">
   ## 规划版本

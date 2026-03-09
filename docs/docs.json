@@ -44,6 +44,7 @@
                 "icon": "gear",
                 "pages": [
                   "configuration/environment-variables",
+                  "configuration/database",
                   "configuration/models",
                   "configuration/oauth-providers"
                 ]

@@ -133,7 +133,7 @@ FIM Agent doesn't do BPM/FSM — workflow logic belongs to the target system, Co
 - **Any System, One Pattern** — Connect APIs, databases, and message buses. Actions auto-register as agent tools with auth injection (Bearer, API Key, Basic).
 - **Three Ways to Build Connectors:**
   - *Import OpenAPI spec* — upload YAML/JSON/URL; connectors and all actions generated automatically.
-  - *AI chat builder* — describe the API in natural language; AI generates and iterates the action config in-conversation.
+  - *AI chat builder* — describe the API in natural language; AI generates and iterates the action config in-conversation. 10 specialized builder tools handle connector settings, actions, testing, and agent wiring.
   - *MCP ecosystem* — connect any MCP server directly; the third-party MCP community works out of the box.
 
 #### Intelligent Planning & Execution
@@ -156,8 +156,8 @@ FIM Agent doesn't do BPM/FSM — workflow logic belongs to the target system, Co
 - **KB Document Management** — Chunk-level CRUD, text search across chunks, failed document retry, and auto-migrating vector store schema.
 
 #### Portal & UX
-- **Real-time Streaming** — SSE with KaTeX math rendering and tool step folding.
-- **DAG Visualization** — Interactive flow graph with live status, dependency edges, and click-to-scroll.
+- **Real-time Streaming (SSE v2)** — Split event protocol (`done` / `suggestions` / `title` / `end`) with streaming dot-pulse cursor, KaTeX math rendering, and tool step folding.
+- **DAG Visualization** — Interactive flow graph with live status, dependency edges, click-to-scroll, and re-plan round snapshots as collapsible cards.
 - **Conversational Interrupt** — Send follow-up messages while the agent is running; injected at the next iteration boundary.
 - **Dark / Light / System Theme** — Full theme support with system-preference detection.
 - **Command Palette** — Conversation search, starring, batch operations, and title rename.

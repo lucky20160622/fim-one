@@ -1,0 +1,150 @@
+---
+title: "Database"
+description: "Choose and configure the right database backend for your deployment"
+---
+
+FIM Agent supports two database backends: **SQLite** (default, zero-config) and **PostgreSQL** (recommended for production). The backend is determined by the `DATABASE_URL` environment variable.
+
+```bash
+# SQLite (default — no configuration needed)
+DATABASE_URL=sqlite+aiosqlite:///./data/fim_agent.db
+
+# PostgreSQL (production)
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/fim_agent
+```
+
+Tables are created automatically on first start — no manual migration step is required.
+
+---
+
+## SQLite vs PostgreSQL
+
+| | SQLite | PostgreSQL |
+|---|---|---|
+| **Setup** | Zero-config, file-based | Requires a separate server |
+| **Concurrency** | Single-writer (global lock) | Full MVCC, row-level locking |
+| **Multi-worker** | Not supported (`WORKERS` must be `1`) | Fully supported |
+| **SSE streaming** | Connections held during streams may block other requests | Concurrent reads and writes are unaffected |
+| **Backup** | Copy the `.db` file | `pg_dump` or streaming replication |
+| **Best for** | Development, single-user, demos | Production, multi-user, teams |
+
+<Tip>
+For quick prototyping or single-user local development, SQLite works out of the box with zero setup. Switch to PostgreSQL when you need concurrent users or multi-worker deployments.
+</Tip>
+
+---
+
+## Known Limitation: SQLite Concurrent Streaming
+
+<Warning>
+**SQLite can become a bottleneck under concurrent load.**
+
+FIM Agent uses Server-Sent Events (SSE) for streaming AI responses. During streaming, each active SSE connection holds a database connection from the pool for the duration of the stream. SQLite enforces a global write lock, meaning only one write operation can proceed at a time — all other writes queue behind it.
+
+Even though the connection pool supports up to 30 simultaneous connections (`pool_size=20` + `max_overflow=10`), the bottleneck is the lock itself, not the pool. When multiple users are chatting simultaneously, their write operations (saving messages, updating token counts) serialize against each other.
+
+**Symptoms you may observe:**
+- Conversation list loads slowly while another user is streaming
+- Settings pages feel sluggish during active chat sessions
+- API responses are delayed when multiple streams are active
+
+**Recommendation:** If you have more than 2-3 concurrent users, switch to PostgreSQL. PostgreSQL uses MVCC (Multi-Version Concurrency Control) with row-level locking, so concurrent reads and writes proceed independently without blocking each other.
+</Warning>
+
+---
+
+## Connection Pool Configuration
+
+FIM Agent configures SQLAlchemy connection pool settings internally for each backend. These are tuned defaults that do not require environment variables — they are applied automatically based on the `DATABASE_URL` scheme. Understanding them helps explain runtime behavior.
+
+### SQLite Pool Settings
+
+| Setting | Value | Description |
+|---|---|---|
+| `pool_size` | `20` | Base number of persistent connections in the pool |
+| `max_overflow` | `10` | Additional connections created under load (up to 30 total) |
+| WAL journal mode | Enabled | Write-Ahead Logging allows concurrent reads while a write is in progress, significantly reducing lock contention |
+| `busy_timeout` | `30s` | When the write lock is held, other writers wait up to 30 seconds before raising an error, instead of failing immediately |
+| `synchronous` | `NORMAL` | Safe with WAL mode; provides better write throughput than the default `FULL` |
+
+WAL mode and the 30-second busy timeout are set via SQLite PRAGMAs on every new connection. This combination ensures that short-lived reads (loading a conversation list, fetching settings) are not blocked by long-running write transactions, and that concurrent writes queue gracefully instead of failing.
+
+### PostgreSQL Pool Settings
+
+| Setting | Value | Description |
+|---|---|---|
+| `pool_size` | `10` | Base number of persistent connections in the pool |
+| `max_overflow` | `20` | Additional connections created under load (up to 30 total) |
+| `pool_timeout` | `30s` | Maximum time to wait for a free connection from the pool before raising a timeout error |
+| `pool_recycle` | `1800s` | Connections are recycled every 30 minutes to prevent stale connections (important for cloud-hosted databases that close idle connections) |
+
+PostgreSQL handles concurrency natively via MVCC, so the pool settings primarily control resource usage rather than contention. The 30-minute recycle interval avoids issues with firewalls, load balancers, or managed database services that silently drop idle TCP connections.
+
+---
+
+## Switching to PostgreSQL
+
+### Step 1: Start a PostgreSQL Instance
+
+The quickest way is with Docker:
+
+```bash
+docker run -d \
+  --name postgres \
+  -e POSTGRES_PASSWORD=secret \
+  -e POSTGRES_DB=fim_agent \
+  -p 5432:5432 \
+  postgres:16-alpine
+```
+
+### Step 2: Set the DATABASE_URL
+
+Add or update the following line in your `.env` file:
+
+```bash
+DATABASE_URL=postgresql+asyncpg://postgres:secret@localhost:5432/fim_agent
+```
+
+### Step 3: Restart FIM Agent
+
+```bash
+# Local development
+./start.sh portal
+
+# Or restart your process manager / systemd service
+```
+
+Tables are created automatically on first start. No manual schema migration is needed.
+
+<Note>
+**Existing SQLite data is not migrated automatically.** Switching `DATABASE_URL` from SQLite to PostgreSQL starts with a fresh database. If you have existing conversations, agents, or connectors in SQLite that you need to preserve, see the [Data Migration](#data-migration) section below.
+</Note>
+
+### Docker Compose (Recommended)
+
+If you deploy with Docker Compose, PostgreSQL is already included and auto-configured. The `docker-compose.yml` sets `DATABASE_URL` internally — your `.env` value is overridden:
+
+```yaml
+environment:
+  DATABASE_URL: postgresql+asyncpg://fim:fim@postgres:5432/fim_agent
+```
+
+No additional database setup is needed when using Docker Compose.
+
+---
+
+## Data Migration
+
+There is no built-in migration tool from SQLite to PostgreSQL. For most deployments, the recommended approach depends on your situation:
+
+**Fresh deployment (no existing data):** Simply set `DATABASE_URL` to your PostgreSQL connection string and start FIM Agent. All tables are created automatically.
+
+**Existing data that must be preserved:** Manual export/import is required. The general approach:
+
+1. Export data from SQLite using a tool like `sqlite3` CLI or a Python script
+2. Transform the data as needed (SQLite and PostgreSQL have minor type differences)
+3. Import into PostgreSQL using `psql`, `pg_restore`, or application-level insert scripts
+
+<Tip>
+For most users upgrading from a development setup to production, it is simpler to start fresh with PostgreSQL and re-create your agents and connectors through the UI. Conversation history is typically not critical enough to warrant manual migration.
+</Tip>
