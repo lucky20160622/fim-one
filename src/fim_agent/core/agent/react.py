@@ -626,6 +626,7 @@ class ReActAgent:
             stream = self._llm.stream_chat(
                 messages,
                 tools=tools_payload,
+                tool_choice=tool_choice,
             )
             content_parts: list[str] = []
             reasoning_parts: list[str] = []

@@ -226,6 +226,7 @@ class OpenAICompatibleLLM(BaseLLM):
         messages: list[ChatMessage],
         *,
         tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> AsyncIterator[StreamChunk]:
@@ -243,6 +244,7 @@ class OpenAICompatibleLLM(BaseLLM):
             self._retry_config,
             messages,
             tools=tools,
+            tool_choice=tool_choice,
             temperature=temperature,
             max_tokens=max_tokens,
         ):
@@ -253,6 +255,7 @@ class OpenAICompatibleLLM(BaseLLM):
         messages: list[ChatMessage],
         *,
         tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> AsyncIterator[StreamChunk]:
@@ -263,6 +266,7 @@ class OpenAICompatibleLLM(BaseLLM):
         kwargs = self._build_request_kwargs(
             messages,
             tools=tools,
+            tool_choice=tool_choice,
             temperature=temperature,
             max_tokens=max_tokens,
             stream=True,
