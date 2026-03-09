@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import logging
 import math
-import os
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from fim_agent.core.security import is_stdio_allowed, validate_stdio_command
 from fim_agent.db import get_session
 from fim_agent.web.exceptions import AppError
 from fim_agent.web.auth import get_current_user
@@ -63,14 +63,9 @@ async def _get_owned_server(
     return server
 
 
-def _is_stdio_allowed() -> bool:
-    """Check whether stdio MCP servers are allowed by administrator."""
-    return os.getenv("ALLOW_STDIO_MCP", "").lower() in ("1", "true", "yes")
-
-
 def _enforce_stdio_policy(transport: str) -> None:
     """Raise AppError if stdio transport is requested but disabled."""
-    if transport == "stdio" and not _is_stdio_allowed():
+    if transport == "stdio" and not is_stdio_allowed():
         raise AppError(
             "stdio_mcp_disabled",
             status_code=403,
@@ -85,7 +80,7 @@ def _enforce_stdio_policy(transport: str) -> None:
 
 @router.get("/capabilities")
 async def get_capabilities():
-    return {"allow_stdio": _is_stdio_allowed()}
+    return {"allow_stdio": is_stdio_allowed()}
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +95,16 @@ async def create_mcp_server(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
     _enforce_stdio_policy(body.transport)
+
+    if body.transport == "stdio" and body.command:
+        try:
+            validate_stdio_command(body.command)
+        except ValueError as exc:
+            raise AppError(
+                "stdio_command_not_allowed",
+                status_code=400,
+                detail=str(exc),
+            ) from exc
 
     server = MCPServer(
         user_id=current_user.id,
@@ -176,6 +181,17 @@ async def update_mcp_server(
     # If transport is being changed to stdio, enforce the policy
     new_transport = update_data.get("transport", server.transport)
     _enforce_stdio_policy(new_transport)
+
+    new_command = update_data.get("command", server.command)
+    if new_transport == "stdio" and new_command:
+        try:
+            validate_stdio_command(new_command)
+        except ValueError as exc:
+            raise AppError(
+                "stdio_command_not_allowed",
+                status_code=400,
+                detail=str(exc),
+            ) from exc
 
     for field, value in update_data.items():
         setattr(server, field, value)

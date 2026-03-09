@@ -93,6 +93,10 @@ class MCPClient:
                 "Install it with: uv sync --extra mcp"
             ) from exc
 
+        # Defense-in-depth: validate command even if caller already checked
+        from fim_agent.core.security import validate_stdio_command
+        validate_stdio_command(command)
+
         server_params = StdioServerParameters(
             command=command,
             args=args or [],

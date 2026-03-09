@@ -55,6 +55,7 @@ from fim_agent.core.planner import (
     PlanAnalyzer,
 )
 from fim_agent.core.memory.context_guard import ContextGuard
+from fim_agent.core.security import is_stdio_allowed
 from fim_agent.core.tool import ToolRegistry
 from fim_agent.core.utils import extract_json_value, get_language_directive
 
@@ -82,8 +83,6 @@ from fim_agent.web.auth import get_current_user, get_current_user_optional
 from fim_agent.web.models import User
 
 logger = logging.getLogger(__name__)
-
-_allow_stdio_mcp = os.environ.get("ALLOW_STDIO_MCP", "true").lower() != "false"
 
 
 # ---------------------------------------------------------------------------
@@ -798,7 +797,7 @@ async def _connect_pending_mcp_servers(tools: ToolRegistry) -> Any:
     for _srv in pending:
         try:
             if _srv.transport == "stdio" and _srv.command:
-                if not _allow_stdio_mcp:
+                if not is_stdio_allowed():
                     logger.warning(
                         "STDIO MCP disabled by ALLOW_STDIO_MCP=false, skipping %r",
                         _srv.name,
@@ -1399,6 +1398,7 @@ async def react_endpoint(
                 from fim_agent.core.memory import DbMemory
                 memory = DbMemory(
                     conversation_id=conversation_id,
+                    max_tokens=_context_budget,
                     compact_llm=fast_llm,
                     user_id=current_user_id,
                     usage_tracker=fast_usage_tracker,
@@ -1713,6 +1713,7 @@ async def dag_endpoint(
         async with _create_session() as _llm_db:
             llm = await _resolve_llm(agent_cfg, _llm_db)
             _fast_context_budget = await get_effective_fast_context_budget(_llm_db)
+            _context_budget = await get_effective_context_budget(_llm_db)
     except ValueError as exc:
         raise AppError(
             "agent_config_error",
@@ -1831,6 +1832,7 @@ async def dag_endpoint(
 
                 dag_memory = DbMemory(
                     conversation_id=conversation_id,
+                    max_tokens=_context_budget,
                     compact_llm=fast_llm,
                     user_id=current_user_id,
                     usage_tracker=fast_usage_tracker,
