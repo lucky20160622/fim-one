@@ -44,6 +44,7 @@
                 "icon": "gear",
                 "pages": [
                   "configuration/environment-variables",
+                  "configuration/models",
                   "configuration/oauth-providers"
                 ]
               },
@@ -112,6 +113,7 @@
                 "icon": "gear",
                 "pages": [
                   "zh/configuration/environment-variables",
+                  "zh/configuration/models",
                   "zh/configuration/oauth-providers"
                 ]
               },

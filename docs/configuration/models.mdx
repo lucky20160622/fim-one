@@ -1,0 +1,324 @@
+---
+title: "Recommended Models"
+description: "Choose the right LLM for your FIM Agent deployment."
+---
+
+FIM Agent is **provider-agnostic** — any OpenAI-compatible endpoint works. This page helps you pick the best model combination for your use case. For configuration details, see [Environment Variables](/configuration/environment-variables).
+
+## How FIM Agent Uses Models
+
+FIM Agent has two model slots:
+
+| Slot | Env Variable | Used For |
+|---|---|---|
+| **Main LLM** | `LLM_MODEL` | Planning, analysis, ReAct agent, complex reasoning |
+| **Fast LLM** | `FAST_LLM_MODEL` | DAG step execution, context compaction (cheaper, faster) |
+
+If `FAST_LLM_MODEL` is not set, it falls back to `LLM_MODEL`. For production deployments, splitting into two models gives the best cost/quality balance.
+
+---
+
+## Quick Selection Matrix
+
+| Provider | Main LLM | Fast LLM | Reasoning | Notes |
+|---|---|---|---|---|
+| **OpenAI** | `gpt-5.4` / `o3` | `gpt-5-mini` / `gpt-5-nano` | ✅ `reasoning_effort` | Best native tool-calling; GPT-5.4 is the latest flagship |
+| **Anthropic** | `claude-sonnet-4-6` | `claude-haiku-4-5` | ⚠️ via `extra_body` | Thinking content not returned via compat endpoint |
+| **Google Gemini** | `gemini-2.5-pro` / `gemini-3.1-pro-preview` | `gemini-2.5-flash` / `gemini-3-flash-preview` | ✅ `reasoning_effort` | 2.5 is stable GA; 3.x is preview |
+| **DeepSeek** | `deepseek-chat` (V3.2) | `deepseek-chat` | ✅ `deepseek-reasoner` | Best cost/performance; V4 imminent |
+| **Qwen (Alibaba)** | `qwen3.5-plus` / `qwen3-max` | `qwen-turbo` | ✅ `qwen3-max-thinking` | Strongest Chinese language support |
+| **ChatGLM (Zhipu)** | `glm-5` | `glm-4-flash` | ❌ | GLM-5 is 744B MoE; free tier on glm-4-flash |
+| **MiniMax** | `MiniMax-M2.5` | `MiniMax-M2.5-Lightning` | ❌ | Open-weight, strong coding (80.2% SWE-Bench) |
+| **Kimi (Moonshot)** | `kimi-k2.5` | `kimi-k2.5` | ❌ | 256K context, strong coding |
+| **Ollama (local)** | `qwen3.5` / `llama4` | `qwen3.5:9b` | ❌ | Fully offline, no API key |
+
+---
+
+## Provider Details
+
+### OpenAI
+
+The most battle-tested option. OpenAI models have the best native function calling (tool-calling) support, which directly impacts agent reliability. The GPT-5 family (August 2025+) is a major generational leap over GPT-4.
+
+**Recommended models:**
+- Main: `gpt-5.4` (latest flagship, Mar 2026 — built-in computer use) or `o3` (best reasoning accuracy)
+- Fast: `gpt-5-mini` ($0.25/$2.00 per MTok) or `gpt-5-nano` (cheapest at $0.05/$0.40 per MTok)
+- Legacy: `gpt-4.1` (still in API, 1M context, good for coding) — retired from ChatGPT Feb 2026
+
+**Reasoning:** Set `LLM_REASONING_EFFORT=medium` — works natively with o-series and GPT-5.x models. The o-series requires `max_completion_tokens` instead of `max_tokens`, which FIM Agent handles automatically.
+
+| Model | Input $/MTok | Output $/MTok | Context |
+|---|---|---|---|
+| `gpt-5.4` | $2.50 | $15.00 | 272K |
+| `o3` | $2.00 | $8.00 | 200K |
+| `o4-mini` | $1.10 | $4.40 | 200K |
+| `gpt-5-mini` | $0.25 | $2.00 | — |
+| `gpt-5-nano` | $0.05 | $0.40 | — |
+
+```bash
+# .env — OpenAI (production with reasoning)
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-5.4
+FAST_LLM_MODEL=gpt-5-nano
+LLM_REASONING_EFFORT=medium
+```
+
+```bash
+# .env — OpenAI (budget reasoning)
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=o3
+FAST_LLM_MODEL=gpt-5-nano
+LLM_REASONING_EFFORT=medium
+```
+
+---
+
+### Anthropic (Claude)
+
+Claude excels at nuanced reasoning and complex multi-step tasks. FIM Agent connects via Anthropic's OpenAI-compatible endpoint. The current generation is Claude 4.6 (February 2026).
+
+**Recommended models:**
+- Main: `claude-sonnet-4-6` (best balance of capability and cost — $3/$15 per MTok)
+- Fast: `claude-haiku-4-5` (fast and cheap — $1/$5 per MTok)
+- Premium: `claude-opus-4-6` (most capable, 128K max output — $5/$25 per MTok)
+
+**Base URL:** `https://api.anthropic.com/v1/`
+
+All current Claude models support extended thinking and have a 200K context window (1M in beta).
+
+<Warning>
+**Reasoning content is NOT returned via the compatibility endpoint.** When you set `LLM_REASONING_EFFORT`, the model *will* think internally, but the thinking text is not included in the response — the UI "thinking" step will appear with empty content. This is an Anthropic compatibility-layer limitation. For full reasoning visibility, use a third-party proxy that returns `reasoning_content`. See [Extended Thinking](/configuration/environment-variables#extended-thinking-reasoning) for details.
+</Warning>
+
+```bash
+# .env — Anthropic Claude
+LLM_API_KEY=sk-ant-...
+LLM_BASE_URL=https://api.anthropic.com/v1/
+LLM_MODEL=claude-sonnet-4-6
+FAST_LLM_MODEL=claude-haiku-4-5
+```
+
+---
+
+### Google Gemini
+
+Gemini models offer strong performance at competitive pricing via Google's OpenAI-compatible endpoint. The 3.x generation (late 2025+) is a major leap — Gemini 3 Flash outperforms 2.5 Pro while being 3x faster.
+
+**Recommended models:**
+- Stable (GA): `gemini-2.5-pro` (main) + `gemini-2.5-flash` (fast) — production-ready
+- Latest (Preview): `gemini-3.1-pro-preview` (main) + `gemini-3-flash-preview` (fast) — best performance, but preview status
+
+**Base URL:** `https://generativelanguage.googleapis.com/v1beta/openai/`
+
+**Reasoning:** `reasoning_effort` is supported on the compatibility endpoint — set `LLM_REASONING_EFFORT=medium` and it works out of the box.
+
+| Model | Input $/MTok | Output $/MTok | Status |
+|---|---|---|---|
+| `gemini-3.1-pro-preview` | $2.00 | $12.00 | Preview |
+| `gemini-3-flash-preview` | $0.50 | $3.00 | Preview |
+| `gemini-2.5-pro` | $1.25 | $10.00 | Stable GA |
+| `gemini-2.5-flash` | $0.30 | $2.50 | Stable GA |
+| `gemini-2.5-flash-lite` | $0.10 | $0.40 | Stable GA |
+
+```bash
+# .env — Gemini (stable)
+LLM_API_KEY=AIza...
+LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+LLM_MODEL=gemini-2.5-pro
+FAST_LLM_MODEL=gemini-2.5-flash
+LLM_REASONING_EFFORT=medium
+```
+
+```bash
+# .env — Gemini (latest preview)
+LLM_API_KEY=AIza...
+LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+LLM_MODEL=gemini-3.1-pro-preview
+FAST_LLM_MODEL=gemini-3-flash-preview
+LLM_REASONING_EFFORT=medium
+```
+
+---
+
+### DeepSeek
+
+DeepSeek offers the best cost/performance ratio in the market. V3.2 (December 2025) unified the chat and reasoning lineages into a single model, with incredibly low pricing.
+
+**Model IDs** (both backed by V3.2):
+- `deepseek-chat` — general purpose (non-thinking mode)
+- `deepseek-reasoner` — chain-of-thought reasoning mode, returns `reasoning_content`
+
+**Base URL:** `https://api.deepseek.com`
+
+**Pricing:** $0.28/$0.42 per MTok (cache hit: $0.028) — by far the cheapest frontier-class API.
+
+> **V4 is imminent** (March 2026): trillion-parameter multimodal model with 1M context window. Expect new model IDs when it launches.
+
+```bash
+# .env — DeepSeek (budget-friendly)
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-chat
+FAST_LLM_MODEL=deepseek-chat
+```
+
+```bash
+# .env — DeepSeek (with reasoning)
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-reasoner
+FAST_LLM_MODEL=deepseek-chat
+```
+
+---
+
+### Chinese Domestic Models
+
+All major Chinese model providers expose OpenAI-compatible endpoints. These are particularly strong for Chinese-language tasks and offer competitive local pricing.
+
+#### Qwen / 通义千问 (Alibaba Cloud)
+
+Qwen 3.5 (February 2026) is the latest generation — the 397B MoE flagship outperforms GPT-5.2 on MMLU-Pro.
+
+- **Base URL:** `https://dashscope.aliyuncs.com/compatible-mode/v1`
+- **International:** `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
+- **Main:** `qwen3.5-plus` (flagship, 1M context) or `qwen3-max` (trillion-param)
+- **Fast:** `qwen-turbo` (fast and cheap)
+- **Reasoning:** `qwen3-max-thinking` (comparable to GPT-5.2-Thinking)
+
+```bash
+# .env — Qwen
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+LLM_MODEL=qwen3.5-plus
+FAST_LLM_MODEL=qwen-turbo
+```
+
+#### ChatGLM / 智谱
+
+GLM-5 (2026) is the latest flagship — 744B total params (40B active), approaching Claude Opus-level on coding/agent tasks.
+
+- **Base URL:** `https://open.bigmodel.cn/api/paas/v4`
+- **Main:** `glm-5` (flagship)
+- **Fast:** `glm-4-flash` (free tier available!)
+
+<Warning>
+Some HTTP clients auto-append `/v1` to base URLs. Zhipu uses `/v4` — ensure your client does not force an OpenAI-style path suffix or you'll get 404 errors.
+</Warning>
+
+```bash
+# .env — ChatGLM
+LLM_API_KEY=...
+LLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+LLM_MODEL=glm-5
+FAST_LLM_MODEL=glm-4-flash
+```
+
+#### MiniMax
+
+MiniMax M2.5 (February 2026) is open-weight and scores 80.2% on SWE-Bench.
+
+- **Base URL (China):** `https://api.minimaxi.com/v1`
+- **Base URL (Global):** `https://api.minimax.io`
+- **Main:** `MiniMax-M2.5`
+- **Fast:** `MiniMax-M2.5-Lightning`
+
+```bash
+# .env — MiniMax
+LLM_API_KEY=...
+LLM_BASE_URL=https://api.minimaxi.com/v1
+LLM_MODEL=MiniMax-M2.5
+FAST_LLM_MODEL=MiniMax-M2.5-Lightning
+```
+
+#### Kimi / 月之暗面 (Moonshot)
+
+Kimi K2.5 (January 2026) has 256K context and strong coding performance (76.8% SWE-Bench among open-source models).
+
+- **Base URL:** `https://api.moonshot.ai/v1`
+- **Model:** `kimi-k2.5`
+
+```bash
+# .env — Kimi
+LLM_API_KEY=...
+LLM_BASE_URL=https://api.moonshot.ai/v1
+LLM_MODEL=kimi-k2.5
+FAST_LLM_MODEL=kimi-k2.5
+```
+
+---
+
+### Local Models (Ollama)
+
+Run models entirely on your own hardware — no API key needed, fully offline. Ollama exposes an OpenAI-compatible endpoint out of the box. The open-source landscape has changed dramatically — Qwen 3.5, Llama 4, and GPT-OSS (OpenAI's first open-weight models) are all available.
+
+**Base URL:** `http://localhost:11434/v1`
+
+**Recommended models by VRAM:**
+
+| VRAM | Main LLM | Fast LLM | Notes |
+|---|---|---|---|
+| 8 GB | `qwen3.5:9b` / `gemma3:4b` | `qwen3.5:4b` | Qwen 3.5 9B is the standout at this tier |
+| 16 GB | `gpt-oss:20b` / `deepseek-r1:14b` | `qwen3.5:9b` | GPT-OSS 20B is agent-optimized |
+| 24 GB | `qwen3:32b` / `deepseek-r1:32b` | `qwen3.5:9b` | Qwen 3 32B is best for tool-calling |
+| 48 GB+ | `llama3.3:70b` / `gpt-oss:120b` | `qwen3.5:14b` | Near-frontier quality |
+
+**Best for tool-calling:** Qwen 3/3.5 (32B+), GLM-4.7, GPT-OSS, Mistral — these have explicit function-calling training. Models with 14B+ parameters are the minimum for reliable tool calling; 32B+ is strongly preferred.
+
+<Warning>
+**Tool-calling quality varies significantly across local models.** Not all models reliably generate valid function calls. Test your chosen model with agent workflows before using in production. The general rule: 14B minimum, 32B+ recommended for agent tasks.
+</Warning>
+
+```bash
+# .env — Ollama (balanced, 16GB VRAM)
+LLM_API_KEY=ollama
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_MODEL=gpt-oss:20b
+FAST_LLM_MODEL=qwen3.5:9b
+LLM_CONTEXT_SIZE=32768
+LLM_MAX_OUTPUT_TOKENS=8192
+```
+
+```bash
+# .env — Ollama (agent-optimized, 24GB VRAM)
+LLM_API_KEY=ollama
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_MODEL=qwen3:32b
+FAST_LLM_MODEL=qwen3.5:9b
+LLM_CONTEXT_SIZE=32768
+LLM_MAX_OUTPUT_TOKENS=8192
+```
+
+---
+
+## Configuration Strategy
+
+### Main vs Fast: When to Split
+
+- **Split** when your main model is expensive or slow (e.g., `gpt-5.4` + `gpt-5-nano`). DAG mode runs many parallel steps — using a cheaper fast model saves significant cost.
+- **Same model** when your model is already cheap (e.g., `deepseek-chat` for both). The overhead of managing two models isn't worth it.
+
+### When to Enable Reasoning
+
+- **Enable** for complex analytical tasks, multi-step planning, and tasks requiring careful judgment
+- **Disable** (default) for routine tasks, simple Q&A, and cost-sensitive deployments
+- Reasoning typically increases cost 2-5x per request — `medium` effort is a good starting point
+
+### Context Window Sizing
+
+Set `LLM_CONTEXT_SIZE` to match your model's actual window:
+
+| Model | Context Window |
+|---|---|
+| GPT-5.4 | 272K |
+| o3 / o4-mini | 200K |
+| Claude Sonnet 4.6 | 200K (1M beta) |
+| Gemini 2.5 Pro | 1M |
+| Gemini 3.1 Pro | 1M |
+| DeepSeek V3.2 | 128K |
+| Qwen 3.5 Plus | 1M |
+| Local (Ollama) | 4K–128K (varies) |
+
+For local models, set both `LLM_CONTEXT_SIZE` and `LLM_MAX_OUTPUT_TOKENS` explicitly — defaults assume cloud-scale context windows that local models cannot support.

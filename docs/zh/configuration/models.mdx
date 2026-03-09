@@ -1,0 +1,336 @@
+---
+title: "推荐模型"
+description: "为你的 FIM Agent 部署选择合适的 LLM。"
+---
+
+FIM Agent 是**提供商无关**的——任何兼容 OpenAI 的端点都可以使用。本页帮助你为自己的使用场景选择最佳模型组合。配置详情请参阅[环境变量](/zh/configuration/environment-variables)。
+
+<div id="how-fim-agent-uses-models">
+  ## FIM Agent 如何使用模型
+</div>
+
+FIM Agent 有两个模型槽位：
+
+| 槽位 | 环境变量 | 用途 |
+|---|---|---|
+| **主 LLM** | `LLM_MODEL` | 规划、分析、ReAct 智能体、复杂推理 |
+| **快速 LLM** | `FAST_LLM_MODEL` | DAG 步骤执行、上下文压缩（成本更低、速度更快） |
+
+如果未设置 `FAST_LLM_MODEL`，则回退到 `LLM_MODEL`。生产部署中，使用两个不同模型可获得最佳的成本/质量平衡。
+
+---
+
+<div id="quick-selection-matrix">
+  ## 快速选型矩阵
+</div>
+
+| 提供商 | 主 LLM | 快速 LLM | 推理支持 | 备注 |
+|---|---|---|---|---|
+| **OpenAI** | `gpt-5.4` / `o3` | `gpt-5-mini` / `gpt-5-nano` | ✅ `reasoning_effort` | 最佳原生工具调用；GPT-5.4 是最新旗舰 |
+| **Anthropic** | `claude-sonnet-4-6` | `claude-haiku-4-5` | ⚠️ 通过 `extra_body` | 兼容端点不返回思考内容 |
+| **Google Gemini** | `gemini-2.5-pro` / `gemini-3.1-pro-preview` | `gemini-2.5-flash` / `gemini-3-flash-preview` | ✅ `reasoning_effort` | 2.5 为稳定 GA 版；3.x 为预览版 |
+| **DeepSeek** | `deepseek-chat` (V3.2) | `deepseek-chat` | ✅ `deepseek-reasoner` | 最佳成本效益比；V4 即将发布 |
+| **通义千问 (阿里)** | `qwen3.5-plus` / `qwen3-max` | `qwen-turbo` | ✅ `qwen3-max-thinking` | 中文能力最强 |
+| **智谱 ChatGLM** | `glm-5` | `glm-4-flash` | ❌ | GLM-5 为 744B MoE；glm-4-flash 有免费额度 |
+| **MiniMax** | `MiniMax-M2.5` | `MiniMax-M2.5-Lightning` | ❌ | 开源权重，编码强（SWE-Bench 80.2%） |
+| **Kimi (月之暗面)** | `kimi-k2.5` | `kimi-k2.5` | ❌ | 256K 上下文，编码能力强 |
+| **Ollama (本地)** | `qwen3.5` / `llama4` | `qwen3.5:9b` | ❌ | 完全离线，无需 API 密钥 |
+
+---
+
+<div id="provider-details">
+  ## 提供商详情
+</div>
+
+### OpenAI
+
+最成熟的选择。OpenAI 模型拥有最好的原生函数调用（tool-calling）支持，这直接影响智能体的可靠性。GPT-5 系列（2025年8月起）是相对于 GPT-4 的重大代际飞跃。
+
+**推荐模型：**
+- 主模型：`gpt-5.4`（最新旗舰，2026年3月——内置 computer use）或 `o3`（最佳推理准确度）
+- 快速模型：`gpt-5-mini`（$0.25/$2.00 每 MTok）或 `gpt-5-nano`（最便宜，$0.05/$0.40 每 MTok）
+- 旧版：`gpt-4.1`（API 中仍可用，1M 上下文，适合编码）——已于 2026年2月从 ChatGPT 退役
+
+**推理：** 设置 `LLM_REASONING_EFFORT=medium` 即可——o 系列和 GPT-5.x 模型原生支持。o 系列需要 `max_completion_tokens` 而非 `max_tokens`，FIM Agent 会自动处理。
+
+| 模型 | 输入 $/MTok | 输出 $/MTok | 上下文 |
+|---|---|---|---|
+| `gpt-5.4` | $2.50 | $15.00 | 272K |
+| `o3` | $2.00 | $8.00 | 200K |
+| `o4-mini` | $1.10 | $4.40 | 200K |
+| `gpt-5-mini` | $0.25 | $2.00 | — |
+| `gpt-5-nano` | $0.05 | $0.40 | — |
+
+```bash
+# .env — OpenAI（生产环境，启用推理）
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-5.4
+FAST_LLM_MODEL=gpt-5-nano
+LLM_REASONING_EFFORT=medium
+```
+
+```bash
+# .env — OpenAI（经济推理）
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=o3
+FAST_LLM_MODEL=gpt-5-nano
+LLM_REASONING_EFFORT=medium
+```
+
+---
+
+### Anthropic (Claude)
+
+Claude 在细腻推理和复杂多步骤任务方面表现出色。FIM Agent 通过 Anthropic 的 OpenAI 兼容端点连接。当前最新一代为 Claude 4.6（2026年2月）。
+
+**推荐模型：**
+- 主模型：`claude-sonnet-4-6`（能力与成本的最佳平衡——$3/$15 每 MTok）
+- 快速模型：`claude-haiku-4-5`（快速且便宜——$1/$5 每 MTok）
+- 旗舰：`claude-opus-4-6`（最强能力，128K 最大输出——$5/$25 每 MTok）
+
+**Base URL：** `https://api.anthropic.com/v1/`
+
+所有当前 Claude 模型都支持扩展思考，拥有 200K 上下文窗口（1M beta 中）。
+
+<Warning>
+**兼容端点不会返回推理内容。** 设置 `LLM_REASONING_EFFORT` 后，模型*确实会*进行内部思考，但思考文本不会包含在响应中——UI 的"思考中"步骤会出现但内容为空。这是 Anthropic 兼容层的限制。如需完整的推理可见性，请使用能返回 `reasoning_content` 的第三方代理。详见[扩展思考](/zh/configuration/environment-variables#扩展思考reasoning)。
+</Warning>
+
+```bash
+# .env — Anthropic Claude
+LLM_API_KEY=sk-ant-...
+LLM_BASE_URL=https://api.anthropic.com/v1/
+LLM_MODEL=claude-sonnet-4-6
+FAST_LLM_MODEL=claude-haiku-4-5
+```
+
+---
+
+### Google Gemini
+
+Gemini 通过 Google 的 OpenAI 兼容端点提供出色性能和有竞争力的价格。3.x 代（2025年末起）是一次重大飞跃——Gemini 3 Flash 性能超过 2.5 Pro，同时速度快 3 倍。
+
+**推荐模型：**
+- 稳定版 (GA)：`gemini-2.5-pro`（主）+ `gemini-2.5-flash`（快）——生产就绪
+- 最新预览版：`gemini-3.1-pro-preview`（主）+ `gemini-3-flash-preview`（快）——最佳性能，但为预览状态
+
+**Base URL：** `https://generativelanguage.googleapis.com/v1beta/openai/`
+
+**推理：** 兼容端点支持 `reasoning_effort`——设置 `LLM_REASONING_EFFORT=medium` 即可开箱即用。
+
+| 模型 | 输入 $/MTok | 输出 $/MTok | 状态 |
+|---|---|---|---|
+| `gemini-3.1-pro-preview` | $2.00 | $12.00 | 预览版 |
+| `gemini-3-flash-preview` | $0.50 | $3.00 | 预览版 |
+| `gemini-2.5-pro` | $1.25 | $10.00 | 稳定 GA |
+| `gemini-2.5-flash` | $0.30 | $2.50 | 稳定 GA |
+| `gemini-2.5-flash-lite` | $0.10 | $0.40 | 稳定 GA |
+
+```bash
+# .env — Gemini（稳定版）
+LLM_API_KEY=AIza...
+LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+LLM_MODEL=gemini-2.5-pro
+FAST_LLM_MODEL=gemini-2.5-flash
+LLM_REASONING_EFFORT=medium
+```
+
+```bash
+# .env — Gemini（最新预览版）
+LLM_API_KEY=AIza...
+LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+LLM_MODEL=gemini-3.1-pro-preview
+FAST_LLM_MODEL=gemini-3-flash-preview
+LLM_REASONING_EFFORT=medium
+```
+
+---
+
+### DeepSeek
+
+DeepSeek 提供市场上最佳的成本效益比。V3.2（2025年12月）将聊天和推理能力统一为一个模型，定价极低。
+
+**模型 ID**（均基于 V3.2）：
+- `deepseek-chat` — 通用（非思考模式）
+- `deepseek-reasoner` — 思维链推理模式，返回 `reasoning_content`
+
+**Base URL：** `https://api.deepseek.com`
+
+**定价：** $0.28/$0.42 每 MTok（缓存命中：$0.028）——目前最便宜的前沿级 API。
+
+> **V4 即将发布**（2026年3月）：万亿参数多模态模型，1M 上下文窗口。发布后预计会有新的模型 ID。
+
+```bash
+# .env — DeepSeek（经济实惠）
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-chat
+FAST_LLM_MODEL=deepseek-chat
+```
+
+```bash
+# .env — DeepSeek（启用推理）
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-reasoner
+FAST_LLM_MODEL=deepseek-chat
+```
+
+---
+
+<div id="chinese-domestic-models">
+  ### 国产模型
+</div>
+
+国内主流模型提供商均提供兼容 OpenAI 的端点。这些模型在中文任务上特别有优势，且有有竞争力的本地定价。
+
+#### 通义千问 / Qwen (阿里云)
+
+Qwen 3.5（2026年2月）是最新一代——397B MoE 旗舰在 MMLU-Pro 上超越 GPT-5.2。
+
+- **Base URL：** `https://dashscope.aliyuncs.com/compatible-mode/v1`
+- **国际版：** `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
+- **主模型：** `qwen3.5-plus`（旗舰，1M 上下文）或 `qwen3-max`（万亿参数）
+- **快速模型：** `qwen-turbo`（快速且便宜）
+- **推理模型：** `qwen3-max-thinking`（可比 GPT-5.2-Thinking）
+
+```bash
+# .env — 通义千问
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+LLM_MODEL=qwen3.5-plus
+FAST_LLM_MODEL=qwen-turbo
+```
+
+#### 智谱 ChatGLM
+
+GLM-5（2026）是最新旗舰——744B 总参数（40B 激活），在编码/智能体任务上接近 Claude Opus 水平。
+
+- **Base URL：** `https://open.bigmodel.cn/api/paas/v4`
+- **主模型：** `glm-5`（旗舰版）
+- **快速模型：** `glm-4-flash`（有免费额度！）
+
+<Warning>
+部分 HTTP 客户端会自动在 base URL 后追加 `/v1`。智谱使用 `/v4` 路径——请确保你的客户端不会强制添加 OpenAI 风格的路径后缀，否则会出现 404 错误。
+</Warning>
+
+```bash
+# .env — 智谱 ChatGLM
+LLM_API_KEY=...
+LLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+LLM_MODEL=glm-5
+FAST_LLM_MODEL=glm-4-flash
+```
+
+#### MiniMax
+
+MiniMax M2.5（2026年2月）为开源权重，SWE-Bench 得分 80.2%。
+
+- **Base URL（国内）：** `https://api.minimaxi.com/v1`
+- **Base URL（国际）：** `https://api.minimax.io`
+- **主模型：** `MiniMax-M2.5`
+- **快速模型：** `MiniMax-M2.5-Lightning`
+
+```bash
+# .env — MiniMax
+LLM_API_KEY=...
+LLM_BASE_URL=https://api.minimaxi.com/v1
+LLM_MODEL=MiniMax-M2.5
+FAST_LLM_MODEL=MiniMax-M2.5-Lightning
+```
+
+#### Kimi / 月之暗面 (Moonshot)
+
+Kimi K2.5（2026年1月）拥有 256K 上下文和出色的编码性能（开源模型中 SWE-Bench 76.8%）。
+
+- **Base URL：** `https://api.moonshot.ai/v1`
+- **模型：** `kimi-k2.5`
+
+```bash
+# .env — Kimi
+LLM_API_KEY=...
+LLM_BASE_URL=https://api.moonshot.ai/v1
+LLM_MODEL=kimi-k2.5
+FAST_LLM_MODEL=kimi-k2.5
+```
+
+---
+
+<div id="local-models-ollama">
+  ### 本地模型 (Ollama)
+</div>
+
+在自己的硬件上完全离线运行——无需 API 密钥。Ollama 开箱即用地暴露了兼容 OpenAI 的端点。开源模型格局已发生巨大变化——Qwen 3.5、Llama 4 和 GPT-OSS（OpenAI 首批开源权重模型）均已可用。
+
+**Base URL：** `http://localhost:11434/v1`
+
+**按显存推荐模型：**
+
+| 显存 | 主 LLM | 快速 LLM | 备注 |
+|---|---|---|---|
+| 8 GB | `qwen3.5:9b` / `gemma3:4b` | `qwen3.5:4b` | Qwen 3.5 9B 是该档位最佳选择 |
+| 16 GB | `gpt-oss:20b` / `deepseek-r1:14b` | `qwen3.5:9b` | GPT-OSS 20B 针对智能体优化 |
+| 24 GB | `qwen3:32b` / `deepseek-r1:32b` | `qwen3.5:9b` | Qwen 3 32B 工具调用最佳 |
+| 48 GB+ | `llama3.3:70b` / `gpt-oss:120b` | `qwen3.5:14b` | 接近前沿质量 |
+
+**工具调用最佳选择：** Qwen 3/3.5（32B+）、GLM-4.7、GPT-OSS、Mistral——这些模型都有专门的函数调用训练。14B+ 参数是可靠工具调用的最低要求；32B+ 强烈推荐。
+
+<Warning>
+**本地模型的工具调用质量差异很大。** 并非所有模型都能可靠地生成有效的函数调用。在生产环境使用前，请先用智能体工作流测试你选择的模型。一般规则：14B 为最低要求，32B+ 推荐用于智能体任务。
+</Warning>
+
+```bash
+# .env — Ollama（均衡方案，16GB 显存）
+LLM_API_KEY=ollama
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_MODEL=gpt-oss:20b
+FAST_LLM_MODEL=qwen3.5:9b
+LLM_CONTEXT_SIZE=32768
+LLM_MAX_OUTPUT_TOKENS=8192
+```
+
+```bash
+# .env — Ollama（智能体优化，24GB 显存）
+LLM_API_KEY=ollama
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_MODEL=qwen3:32b
+FAST_LLM_MODEL=qwen3.5:9b
+LLM_CONTEXT_SIZE=32768
+LLM_MAX_OUTPUT_TOKENS=8192
+```
+
+---
+
+<div id="configuration-strategy">
+  ## 配置策略
+</div>
+
+### 主模型 vs 快速模型：何时拆分
+
+- **拆分使用**：当主模型昂贵或慢时（如 `gpt-5.4` + `gpt-5-nano`）。DAG 模式会运行多个并行步骤——使用更便宜的快速模型可节省大量成本。
+- **使用同一模型**：当模型本身就便宜时（如两个都用 `deepseek-chat`）。管理两个模型的额外开销不值得。
+
+### 何时启用推理
+
+- **启用**：复杂的分析任务、多步骤规划、需要仔细判断的任务
+- **禁用**（默认）：常规任务、简单问答、成本敏感的部署
+- 推理通常会使每次请求的成本增加 2-5 倍——`medium` 级别是个好的起点
+
+### 上下文窗口设置
+
+将 `LLM_CONTEXT_SIZE` 设置为与模型的实际窗口匹配：
+
+| 模型 | 上下文窗口 |
+|---|---|
+| GPT-5.4 | 272K |
+| o3 / o4-mini | 200K |
+| Claude Sonnet 4.6 | 200K（1M beta） |
+| Gemini 2.5 Pro | 1M |
+| Gemini 3.1 Pro | 1M |
+| DeepSeek V3.2 | 128K |
+| Qwen 3.5 Plus | 1M |
+| 本地模型 (Ollama) | 4K–128K（视模型而定） |
+
+对于本地模型，请显式设置 `LLM_CONTEXT_SIZE` 和 `LLM_MAX_OUTPUT_TOKENS`——默认值假设的是云端规模的上下文窗口，本地模型无法支持。

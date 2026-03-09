@@ -63,6 +63,49 @@ echo 'NEXT_PUBLIC_API_URL=http://localhost:9000' > frontend/.env.local
 
 > **Resolution order**: User Preference → Admin Models (DB) → ENV Fallback. If an admin model with role "General" is configured in Admin → Models, these ENV vars serve as fallback only. The health check considers both sources.
 
+### Extended Thinking (Reasoning)
+
+When `LLM_REASONING_EFFORT` is set, FIM Agent enables the model's extended thinking capability so the internal chain-of-thought is surfaced in the UI "thinking" step. **We currently support two official provider paths only:**
+
+#### Supported providers
+
+| Provider | `LLM_BASE_URL` | API parameter sent | Reasoning content returned? |
+|---|---|---|---|
+| **OpenAI** (o1 / o3 / o4-mini) | `https://api.openai.com/v1` | `reasoning_effort: "high"` | Yes |
+| **Anthropic** (Claude 3.7+) | `https://api.anthropic.com/v1/` | `extra_body: {thinking: {type: "enabled", budget_tokens: N}}` | No (compat endpoint limitation) |
+
+The system auto-detects Anthropic by checking whether `LLM_BASE_URL` contains `anthropic.com`.
+
+- **Google Gemini** also supports `reasoning_effort` on its OpenAI-compatible endpoint (`generativelanguage.googleapis.com/v1beta/openai/`), so it should work out of the box — but we have not officially tested it.
+
+#### Important caveats
+
+<Warning>
+**Anthropic's OpenAI-compatible endpoint does not return reasoning content.**
+If you set `LLM_BASE_URL` to Anthropic's official endpoint (`https://api.anthropic.com/v1/`), the `thinking` parameter will be sent correctly and the model *will* think internally, but the response **will not include the reasoning text** — you will only see the final answer. The UI "thinking" step will appear but with empty reasoning content. This is a limitation of Anthropic's compatibility layer, not a bug.
+
+For full reasoning visibility with Claude, use the native Anthropic SDK or a third-party proxy that returns `reasoning_content`.
+</Warning>
+
+<Warning>
+**Third-party proxies / custom endpoints are not guaranteed.**
+If your `LLM_BASE_URL` points to a third-party API proxy (e.g., OpenRouter, one-api, custom gateway), the `reasoning_effort` parameter is sent as-is. Whether the proxy translates it correctly to the underlying provider depends entirely on the proxy's implementation. Some proxies expect a different format (e.g., `reasoning: {effort, max_tokens}`). If reasoning does not work through your proxy, consult the proxy's documentation for their expected parameter format — FIM Agent cannot adapt to arbitrary proxy conventions.
+</Warning>
+
+#### How `LLM_REASONING_BUDGET_TOKENS` works
+
+This variable is **only meaningful for the Anthropic path**. When set, it overrides the auto-calculated budget and is sent as `budget_tokens` in the `thinking` parameter. When not set, the budget is derived from `LLM_MAX_OUTPUT_TOKENS` × effort ratio:
+
+| `LLM_REASONING_EFFORT` | Budget ratio | Example (max_tokens = 64000) |
+|---|---|---|
+| `low` | 20% | 12,800 tokens |
+| `medium` | 50% | 32,000 tokens |
+| `high` | 80% | 51,200 tokens |
+
+The minimum budget is 1,024 tokens (Anthropic's hard minimum).
+
+For OpenAI and Gemini, the provider handles token allocation internally based on the `reasoning_effort` level — `LLM_REASONING_BUDGET_TOKENS` has no effect.
+
 ---
 
 ## Agent Execution
