@@ -448,6 +448,12 @@ class ReActAgent:
             assistant_content = result.message.content or ""
             action = self._parse_action(assistant_content)
 
+            # Use API-level reasoning_content as fallback when the JSON
+            # reasoning field is empty (extended thinking models like
+            # DeepSeek R1 return reasoning outside the content body).
+            if not action.reasoning and result.message.reasoning_content:
+                action.reasoning = result.message.reasoning_content
+
             # If JSON parsing failed, ask the LLM to re-format as JSON
             # (one retry).  The ``continue`` naturally advances ``iteration``
             # so this counts against ``max_iterations``.

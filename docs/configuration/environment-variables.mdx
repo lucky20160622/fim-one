@@ -58,6 +58,8 @@ echo 'NEXT_PUBLIC_API_URL=http://localhost:9000' > frontend/.env.local
 | `LLM_MAX_OUTPUT_TOKENS` | No | `64000` | Max output tokens per call for the main LLM |
 | `FAST_LLM_CONTEXT_SIZE` | No | *(falls back to `LLM_CONTEXT_SIZE`)* | Context window size for the fast LLM |
 | `FAST_LLM_MAX_OUTPUT_TOKENS` | No | *(falls back to `LLM_MAX_OUTPUT_TOKENS`)* | Max output tokens per call for the fast LLM |
+| `LLM_REASONING_EFFORT` | No | *(disabled)* | Extended thinking level for supported models (OpenAI o-series, Gemini 2.5+, Claude). Values: `low`, `medium`, `high`. For OpenAI/Gemini sends `reasoning_effort`; for Anthropic (auto-detected) sends `thinking` via `extra_body`. The model's chain-of-thought is surfaced in the UI "thinking" step. |
+| `LLM_REASONING_BUDGET_TOKENS` | No | *(auto from effort)* | Explicit token budget for Anthropic thinking (minimum 1024). For OpenAI/Gemini the effort level is used directly. Only effective when `LLM_REASONING_EFFORT` is set. |
 
 > **Resolution order**: User Preference → Admin Models (DB) → ENV Fallback. If an admin model with role "General" is configured in Admin → Models, these ENV vars serve as fallback only. The health check considers both sources.
 

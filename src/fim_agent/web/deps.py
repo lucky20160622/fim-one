@@ -13,6 +13,13 @@ LLM_MODEL        : Model identifier for the main (smart) model used for
 FAST_LLM_MODEL   : Model identifier for the fast model used for DAG step
                     execution (default: falls back to ``LLM_MODEL``).
 LLM_TEMPERATURE  : Default sampling temperature (default: ``0.7``).
+LLM_REASONING_EFFORT : Extended thinking level — ``low``, ``medium``, or
+                    ``high`` (default: empty = disabled).  When set, a
+                    ``reasoning`` object is sent with each API request and the
+                    model's ``reasoning_content`` is surfaced in SSE step events.
+LLM_REASONING_BUDGET_TOKENS : Optional cap on reasoning tokens (sent as
+                    ``reasoning.max_tokens``).  Only effective when
+                    ``LLM_REASONING_EFFORT`` is set.
 MAX_CONCURRENCY  : Max parallel steps in DAG executor (default: ``5``).
 LLM_CONTEXT_SIZE : Effective context cap for the main LLM in tokens
                     (default: ``128000`` — sweet spot for attention quality).
@@ -70,6 +77,18 @@ def _fast_model() -> str:
 
 def _temperature() -> float:
     return float(os.environ.get("LLM_TEMPERATURE", "0.7"))
+
+
+def _reasoning_effort() -> str | None:
+    """Return the reasoning effort level for extended thinking, or None."""
+    val = os.environ.get("LLM_REASONING_EFFORT", "").strip().lower()
+    return val if val in ("low", "medium", "high") else None
+
+
+def _reasoning_budget_tokens() -> int | None:
+    """Return the reasoning budget token cap, or None."""
+    raw = os.environ.get("LLM_REASONING_BUDGET_TOKENS", "").strip()
+    return int(raw) if raw else None
 
 
 def get_max_concurrency() -> int:
@@ -149,6 +168,8 @@ def get_llm() -> OpenAICompatibleLLM:
         model=_main_model(),
         default_temperature=_temperature(),
         default_max_tokens=_main_max_output(),
+        reasoning_effort=_reasoning_effort(),
+        reasoning_budget_tokens=_reasoning_budget_tokens(),
     )
 
 
@@ -163,6 +184,8 @@ def get_fast_llm() -> OpenAICompatibleLLM:
         model=_fast_model(),
         default_temperature=_temperature(),
         default_max_tokens=_fast_max_output(),
+        reasoning_effort=_reasoning_effort(),
+        reasoning_budget_tokens=_reasoning_budget_tokens(),
     )
 
 
@@ -241,6 +264,8 @@ def get_llm_from_config(config: dict[str, object]) -> OpenAICompatibleLLM | None
         model=str(model_name),
         default_temperature=float(config.get("temperature", 0) or _temperature()),
         default_max_tokens=int(config.get("max_output_tokens", 0) or _main_max_output()),
+        reasoning_effort=_reasoning_effort(),
+        reasoning_budget_tokens=_reasoning_budget_tokens(),
     )
 
 
@@ -266,6 +291,8 @@ async def get_llm_by_config_id(
         model=cfg.model_name,
         default_temperature=cfg.temperature if cfg.temperature is not None else _temperature(),
         default_max_tokens=cfg.max_output_tokens or _main_max_output(),
+        reasoning_effort=_reasoning_effort(),
+        reasoning_budget_tokens=_reasoning_budget_tokens(),
     )
 
 
@@ -300,6 +327,8 @@ async def get_system_default_llm(
         model=cfg.model_name,
         default_temperature=cfg.temperature if cfg.temperature is not None else _temperature(),
         default_max_tokens=cfg.max_output_tokens or _main_max_output(),
+        reasoning_effort=_reasoning_effort(),
+        reasoning_budget_tokens=_reasoning_budget_tokens(),
     )
 
 
@@ -334,6 +363,8 @@ async def get_system_llm_by_role(
         model=cfg.model_name,
         default_temperature=cfg.temperature if cfg.temperature is not None else _temperature(),
         default_max_tokens=cfg.max_output_tokens or _main_max_output(),
+        reasoning_effort=_reasoning_effort(),
+        reasoning_budget_tokens=_reasoning_budget_tokens(),
     )
 
 

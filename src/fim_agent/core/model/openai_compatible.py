@@ -46,6 +46,7 @@ class OpenAICompatibleLLM(BaseLLM):
         retry_config: RetryConfig | None = RetryConfig(),
         rate_limit_config: RateLimitConfig | None = RateLimitConfig(),
         reasoning_effort: str | None = None,
+        reasoning_budget_tokens: int | None = None,
     ) -> None:
         self._client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         self._model = model
@@ -56,6 +57,8 @@ class OpenAICompatibleLLM(BaseLLM):
             TokenBucketRateLimiter(rate_limit_config) if rate_limit_config else None
         )
         self._reasoning_effort = reasoning_effort
+        self._reasoning_budget_tokens = reasoning_budget_tokens
+        self._is_anthropic = "anthropic.com" in base_url
 
     @property
     def model_id(self) -> str:
@@ -299,8 +302,30 @@ class OpenAICompatibleLLM(BaseLLM):
         if response_format is not None:
             kwargs["response_format"] = response_format
         if self._reasoning_effort:
-            kwargs["reasoning_effort"] = self._reasoning_effort
+            if self._is_anthropic:
+                # Anthropic ignores reasoning_effort; use extra_body with
+                # their native thinking parameter instead.
+                budget = self._reasoning_budget_tokens or self._effort_to_budget(
+                    self._reasoning_effort,
+                    kwargs.get("max_tokens", self._default_max_tokens),
+                )
+                kwargs["extra_body"] = {
+                    "thinking": {
+                        "type": "enabled",
+                        "budget_tokens": budget,
+                    }
+                }
+            else:
+                # OpenAI / Gemini / most proxies: flat reasoning_effort.
+                kwargs["reasoning_effort"] = self._reasoning_effort
         return kwargs
+
+    @staticmethod
+    def _effort_to_budget(effort: str, max_tokens: int) -> int:
+        """Map an effort level to a token budget for Anthropic thinking."""
+        ratio = {"low": 0.2, "medium": 0.5, "high": 0.8}.get(effort, 0.5)
+        budget = int(max_tokens * ratio)
+        return max(budget, 1024)  # Anthropic minimum is 1024
 
     @staticmethod
     def _parse_tool_calls(
@@ -333,8 +358,14 @@ class OpenAICompatibleLLM(BaseLLM):
         tool_calls: list[ToolCallRequest] | None = None
         if msg.tool_calls:
             tool_calls = OpenAICompatibleLLM._parse_tool_calls(msg.tool_calls)
-        # Extract extended thinking / reasoning content (DeepSeek R1, OpenAI o-series)
-        reasoning_content = getattr(msg, "reasoning_content", None)
+        # Extract extended thinking / reasoning content.
+        # Different providers use different field names:
+        #   - DeepSeek R1: reasoning_content
+        #   - Some Claude proxies: reasoning_content or reasoning
+        reasoning_content = getattr(msg, "reasoning_content", None) or getattr(msg, "reasoning", None)
+        # Guard against the field being a non-string (e.g. dict from some proxies).
+        if reasoning_content and not isinstance(reasoning_content, str):
+            reasoning_content = None
         return ChatMessage(
             role=msg.role,
             content=msg.content,
