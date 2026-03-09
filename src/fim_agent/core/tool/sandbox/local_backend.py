@@ -10,6 +10,7 @@ For proper OS-level isolation use :class:`DockerBackend` instead.
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import importlib.abc
 import importlib.machinery
@@ -106,6 +107,25 @@ def _make_safe_open(exec_dir: Path):
             )
         return open(file_path, mode, *args, **kwargs)
     return _safe_open
+
+
+def _validate_python_ast(code: str) -> str | None:
+    """Reject code that accesses dunder attributes (e.g. __class__, __bases__).
+
+    Returns an error message if dangerous patterns are found, None if safe.
+    """
+    try:
+        tree = ast.parse(code, mode="exec")
+    except SyntaxError:
+        return None  # Let exec() handle syntax errors with proper tracebacks
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and node.attr.startswith("__") and node.attr.endswith("__"):
+            return (
+                f"Access to dunder attribute '{node.attr}' is not allowed. "
+                "Direct attribute access to double-underscore names is blocked for security."
+            )
+    return None
 
 
 # Modules that should never be importable from user code (local mode only).
@@ -301,6 +321,11 @@ class LocalBackend:
         # Build a restricted builtins dict with safe import and sandboxed open
         _sandbox_builtins = {**_SAFE_BUILTINS, "__import__": _safe_import, "open": _make_safe_open(exec_dir)}
         namespace: dict[str, Any] = {"__builtins__": _sandbox_builtins}
+
+        # AST validation — block dunder attribute access patterns
+        ast_error = _validate_python_ast(code)
+        if ast_error is not None:
+            return f"[Sandbox] {ast_error}"
 
         old_stdout = sys.stdout
         old_stderr = sys.stderr
