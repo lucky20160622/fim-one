@@ -400,7 +400,7 @@ function LoginPageInner() {
     document.cookie = cookieValue
       ? `NEXT_LOCALE=${cookieValue}; path=/; max-age=${60 * 60 * 24 * 365}`
       : "NEXT_LOCALE=; path=/; max-age=0"
-    router.refresh()
+    window.location.reload()
   }
 
   if (authLoading || setupChecking) {

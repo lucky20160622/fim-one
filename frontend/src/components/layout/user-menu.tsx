@@ -60,7 +60,7 @@ export function UserMenu({ collapsed }: UserMenuProps) {
       ? `NEXT_LOCALE=${locale}; path=/; max-age=${60 * 60 * 24 * 365}`
       : "NEXT_LOCALE=; path=/; max-age=0"
     setOpen(false)
-    router.refresh()
+    window.location.reload()
   }
 
   return (
