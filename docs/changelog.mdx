@@ -10,10 +10,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 ## [Unreleased]
 
 ### Added
+- **Extended thinking / reasoning support**: Add `LLM_REASONING_EFFORT` (low/medium/high) and `LLM_REASONING_BUDGET_TOKENS` env vars for models with extended thinking (OpenAI o-series, Gemini 2.5+, Claude). Sends `reasoning_effort` for OpenAI/Gemini, `thinking` for Anthropic (auto-detected). Extracts `reasoning_content` from multiple provider field names (DeepSeek R1, Claude proxies) and surfaces it in the UI "thinking" step
+- **Admin: tool disable**: New admin Tools panel with per-tool enable/disable toggles (stored as `disabled_builtin_tools` setting). Disabled tools are filtered from chat tool resolution at runtime. The `/api/tools/catalog` endpoint returns a `disabled` flag, and the Tools page UI shows disabled state
+- **Admin: MCP servers on Connectors page**: MCP servers management moved from Tools page to Connectors page as a new tab. `MCPServersSection` extracted into a reusable component with imperative action refs
+- **Admin: reasoning effort in health dashboard**: Reasoning effort label now displayed in the admin health check dashboard
 - **Export: PDF format**: Conversations can now be exported as PDF documents (requires `reportlab` + `Markdown` extras)
 - **start.sh: WORKERS env var**: Set `WORKERS=N` to run uvicorn with multiple workers in portal/api mode
 
 ### Changed
+- **Tools page simplification**: Tools page now shows only built-in tools (no more tabs); MCP management moved to Connectors page
 - **Redis interrupt broker**: Cross-worker interrupt/inject relay via Redis Pub/Sub. Auto-enabled when `REDIS_URL` is set; falls back to in-process queues otherwise. Docker Compose now includes a Redis service (auto-configured, no user action needed)
 - **Export: default detail level**: Export dialog now defaults to summary (no execution details) instead of full
 - **Artifacts: sort by file mtime**: List-all-artifacts now uses per-file mtime for accurate ordering (reverts conversation-time workaround)
