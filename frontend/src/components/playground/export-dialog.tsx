@@ -19,7 +19,7 @@ import { Switch } from "@/components/ui/switch"
 import { conversationApi } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
-type ExportFormat = "md" | "txt" | "docx"
+type ExportFormat = "md" | "txt" | "docx" | "pdf"
 
 interface ExportDialogProps {
   conversationId: string
@@ -32,6 +32,7 @@ const FORMAT_OPTIONS: { value: ExportFormat; icon: typeof FileCode; labelKey: st
   { value: "md", icon: FileCode, labelKey: "exportFormatMd", descKey: "exportFormatMdDesc" },
   { value: "txt", icon: FileText, labelKey: "exportFormatTxt", descKey: "exportFormatTxtDesc" },
   { value: "docx", icon: File, labelKey: "exportFormatDocx", descKey: "exportFormatDocxDesc" },
+  { value: "pdf", icon: FileText, labelKey: "exportFormatPdf", descKey: "exportFormatPdfDesc" },
 ]
 
 export function ExportDialog({ conversationId, open, onOpenChange }: ExportDialogProps) {
@@ -39,7 +40,7 @@ export function ExportDialog({ conversationId, open, onOpenChange }: ExportDialo
   const tc = useTranslations("common")
   const tError = useTranslations("errors")
   const [format, setFormat] = useState<ExportFormat>("md")
-  const [includeDetails, setIncludeDetails] = useState(true)
+  const [includeDetails, setIncludeDetails] = useState(false)
   const [exporting, setExporting] = useState(false)
 
   const handleExport = async () => {

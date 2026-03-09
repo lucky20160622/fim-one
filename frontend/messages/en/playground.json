@@ -84,6 +84,8 @@
   "exportFormatMdDesc": "Formatted text with headers and code blocks",
   "exportFormatTxtDesc": "Simple text without formatting",
   "exportFormatDocxDesc": "Microsoft Word compatible document",
+  "exportFormatPdf": "PDF Document",
+  "exportFormatPdfDesc": "Portable document format with formatted text",
   "exportIncludeDetails": "Include execution details",
   "exportDetailsDescription": "Include tool calls, reasoning steps, and execution stats",
   "exportButton": "Export",

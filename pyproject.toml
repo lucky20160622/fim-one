@@ -57,6 +57,8 @@ files = [
     "pdfplumber>=0.10",
     "python-docx>=1.0",
     "markitdown[docx,xlsx,pptx]>=0.1",
+    "Markdown>=3.4",
+    "reportlab>=4.0",
 ]
 rag = [
     "lancedb>=0.6",

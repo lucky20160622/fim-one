@@ -84,6 +84,8 @@
   "exportFormatMdDesc": "带标题和代码块的格式化文本",
   "exportFormatTxtDesc": "不带格式的简单文本",
   "exportFormatDocxDesc": "Microsoft Word 兼容文档",
+  "exportFormatPdf": "PDF 文档",
+  "exportFormatPdfDesc": "带格式文本的便携文档格式",
   "exportIncludeDetails": "包含执行详情",
   "exportDetailsDescription": "包含工具调用、推理步骤和执行统计",
   "exportButton": "导出",

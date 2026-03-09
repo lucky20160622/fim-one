@@ -385,7 +385,7 @@ export const conversationApi = {
       { method: "DELETE", body: JSON.stringify({ ids }) },
     ),
 
-  export: async (id: string, format: "md" | "txt" | "docx", detail: "full" | "summary" = "full"): Promise<void> => {
+  export: async (id: string, format: "md" | "txt" | "docx" | "pdf", detail: "full" | "summary" = "full"): Promise<void> => {
     const token = getAccessToken()
     const headers: Record<string, string> = {}
     if (token) headers["Authorization"] = `Bearer ${token}`

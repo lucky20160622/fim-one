@@ -1,7 +1,8 @@
-"""Tests for conversation export renderers (MD, TXT, DOCX)."""
+"""Tests for conversation export renderers (MD, TXT, DOCX, PDF)."""
 
 from __future__ import annotations
 
+import io
 import json
 from datetime import datetime, timezone
 from typing import Any
@@ -167,12 +168,15 @@ from fim_agent.web.api.export import (
     _extract_sse_events,
     _format_date,
     _format_date_compact,
+    _md_to_docx,
     _mode_label,
     _pair_messages,
     _render_docx,
     _render_md,
+    _render_pdf,
     _render_txt,
     _sanitize_filename,
+    _strip_emoji,
 )
 
 
@@ -578,13 +582,28 @@ class TestEdgeCases:
         assert "Fallback answer" in md
 
     def test_no_model_name(self):
-        conv = _make_conv(model_name=None)
+        """model_name should never appear in any export format."""
+        conv = _make_conv(model_name="gpt-4o")  # even when set
         msgs = [
             _make_msg("user", "Hi", created_at=datetime(2026, 1, 1, 0, 0)),
             _make_msg("assistant", "Hello", created_at=datetime(2026, 1, 1, 0, 1)),
         ]
         md = _render_md(conv, msgs, DetailLevel.SUMMARY)
         assert "Model" not in md
+        assert "gpt-4o" not in md
+
+        txt = _render_txt(conv, msgs, DetailLevel.SUMMARY)
+        assert "Model" not in txt
+        assert "gpt-4o" not in txt
+
+        # DOCX -- parse the document to check
+        from docx import Document
+
+        docx_bytes = _render_docx(conv, msgs, DetailLevel.SUMMARY)
+        doc = Document(io.BytesIO(docx_bytes))
+        full_text = "\n".join(p.text for p in doc.paragraphs)
+        assert "Model" not in full_text
+        assert "gpt-4o" not in full_text
 
     def test_user_message_without_assistant(self):
         conv = _make_conv()
@@ -597,3 +616,287 @@ class TestEdgeCases:
         conv = _make_conv(total_tokens=0)
         md = _render_md(conv, [], DetailLevel.SUMMARY)
         assert "Total Tokens" not in md
+
+
+# ===================================================================
+# Integration tests: DOCX markdown rendering
+# ===================================================================
+
+
+class TestDocxMarkdownRendering:
+    """Verify that assistant's markdown answer renders as proper DOCX elements."""
+
+    def test_headings_rendered(self):
+        """Headings in markdown should become DOCX headings, not raw '## text'."""
+        conv = _make_conv()
+        msgs = [
+            _make_msg("user", "Explain", created_at=datetime(2026, 1, 1, 0, 0)),
+            _make_msg(
+                "assistant",
+                "# Title\n\n## Section\n\nSome text.",
+                created_at=datetime(2026, 1, 1, 0, 1),
+            ),
+        ]
+        docx_bytes = _render_docx(conv, msgs, DetailLevel.SUMMARY)
+        from docx import Document
+
+        doc = Document(io.BytesIO(docx_bytes))
+        # Find heading paragraphs
+        heading_texts = [
+            p.text for p in doc.paragraphs if p.style.name.startswith("Heading")
+        ]
+        # The assistant's markdown headings should be real headings
+        assert any("Title" in h for h in heading_texts)
+        assert any("Section" in h for h in heading_texts)
+        # Raw markdown markers should NOT appear
+        all_text = "\n".join(p.text for p in doc.paragraphs)
+        assert "## Section" not in all_text
+
+    def test_bold_rendered(self):
+        """Bold markdown should become bold runs, not raw **text**."""
+        conv = _make_conv()
+        msgs = [
+            _make_msg("user", "Q", created_at=datetime(2026, 1, 1, 0, 0)),
+            _make_msg(
+                "assistant",
+                "This is **important** text.",
+                created_at=datetime(2026, 1, 1, 0, 1),
+            ),
+        ]
+        docx_bytes = _render_docx(conv, msgs, DetailLevel.SUMMARY)
+        from docx import Document
+
+        doc = Document(io.BytesIO(docx_bytes))
+        all_text = "\n".join(p.text for p in doc.paragraphs)
+        assert "**important**" not in all_text  # raw markers gone
+        assert "important" in all_text  # content preserved
+        # Check that at least one run is bold
+        has_bold = any(
+            run.bold for p in doc.paragraphs for run in p.runs if run.bold
+        )
+        assert has_bold
+
+    def test_code_block_rendered(self):
+        """Code blocks should use monospace font."""
+        conv = _make_conv()
+        answer = "Here is code:\n\n```python\nprint('hello')\n```\n\nDone."
+        msgs = [
+            _make_msg("user", "Show code", created_at=datetime(2026, 1, 1, 0, 0)),
+            _make_msg("assistant", answer, created_at=datetime(2026, 1, 1, 0, 1)),
+        ]
+        docx_bytes = _render_docx(conv, msgs, DetailLevel.SUMMARY)
+        from docx import Document
+
+        doc = Document(io.BytesIO(docx_bytes))
+        # Code block should have Courier New font
+        has_courier = any(
+            run.font.name == "Courier New"
+            for p in doc.paragraphs
+            for run in p.runs
+            if run.font.name == "Courier New"
+        )
+        assert has_courier
+
+    def test_list_rendered(self):
+        """Lists should use List Bullet/Number styles."""
+        conv = _make_conv()
+        answer = "Items:\n\n- First\n- Second\n- Third"
+        msgs = [
+            _make_msg("user", "List", created_at=datetime(2026, 1, 1, 0, 0)),
+            _make_msg("assistant", answer, created_at=datetime(2026, 1, 1, 0, 1)),
+        ]
+        docx_bytes = _render_docx(conv, msgs, DetailLevel.SUMMARY)
+        from docx import Document
+
+        doc = Document(io.BytesIO(docx_bytes))
+        bullet_styles = [
+            p.style.name for p in doc.paragraphs if "List" in p.style.name
+        ]
+        assert len(bullet_styles) >= 3  # at least 3 list items
+
+
+# ===================================================================
+# Integration tests: PDF rendering
+# ===================================================================
+
+
+class TestRenderPdf:
+    def test_basic_pdf(self):
+        """Basic PDF generation should produce valid PDF bytes."""
+        conv = _make_conv()
+        msgs = [
+            _make_msg("user", "What is AI?", created_at=datetime(2026, 1, 1, 0, 0)),
+            _make_msg(
+                "assistant",
+                "AI is artificial intelligence.",
+                created_at=datetime(2026, 1, 1, 0, 1),
+            ),
+        ]
+        pdf_bytes = _render_pdf(conv, msgs, DetailLevel.SUMMARY)
+        assert pdf_bytes[:5] == b"%PDF-"
+        assert len(pdf_bytes) > 100
+
+    def test_summary_mode(self):
+        """Summary PDF should not include execution details."""
+        events = _react_events([{"tool": "web_search", "elapsed": 1.0}])
+        conv = _make_conv()
+        msgs = [
+            _make_msg("user", "Search", created_at=datetime(2026, 1, 1, 0, 0)),
+            _make_msg(
+                "assistant",
+                "Found it.",
+                metadata_={"sse_events": events},
+                created_at=datetime(2026, 1, 1, 0, 1),
+            ),
+        ]
+        pdf_bytes = _render_pdf(conv, msgs, DetailLevel.SUMMARY)
+        assert pdf_bytes[:5] == b"%PDF-"
+
+    def test_full_react_mode(self):
+        """Full mode PDF with ReAct steps should produce valid PDF."""
+        events = _react_events(
+            [
+                {
+                    "tool": "web_search",
+                    "args": {"query": "test"},
+                    "reasoning": "searching",
+                    "observation": "found",
+                    "elapsed": 1.5,
+                },
+            ],
+            answer="Result.",
+        )
+        conv = _make_conv()
+        msgs = [
+            _make_msg(
+                "user", "Search for info", created_at=datetime(2026, 1, 1, 0, 0)
+            ),
+            _make_msg(
+                "assistant",
+                "Result.",
+                metadata_={"sse_events": events, "answer": "Result."},
+                created_at=datetime(2026, 1, 1, 0, 1),
+            ),
+        ]
+        pdf_bytes = _render_pdf(conv, msgs, DetailLevel.FULL)
+        assert pdf_bytes[:5] == b"%PDF-"
+        assert len(pdf_bytes) > 500
+
+    def test_full_dag_mode(self):
+        """Full mode PDF with DAG steps."""
+        plan = [
+            {"id": "S1", "task": "Search", "deps": [], "tool_hint": "web_search"},
+            {
+                "id": "S2",
+                "task": "Analyze",
+                "deps": ["S1"],
+                "tool_hint": "python_exec",
+            },
+        ]
+        events = _dag_events(plan, answer="DAG done.")
+        conv = _make_conv(mode="dag")
+        msgs = [
+            _make_msg("user", "Multi-step", created_at=datetime(2026, 1, 1, 0, 0)),
+            _make_msg(
+                "assistant",
+                "DAG done.",
+                metadata_={"sse_events": events, "answer": "DAG done."},
+                created_at=datetime(2026, 1, 1, 0, 1),
+            ),
+        ]
+        pdf_bytes = _render_pdf(conv, msgs, DetailLevel.FULL)
+        assert pdf_bytes[:5] == b"%PDF-"
+
+    def test_cjk_content(self):
+        """PDF with Chinese content should not crash."""
+        conv = _make_conv(title="测试对话")
+        msgs = [
+            _make_msg(
+                "user", "你好，请解释人工智能", created_at=datetime(2026, 1, 1, 0, 0)
+            ),
+            _make_msg(
+                "assistant",
+                "人工智能是计算机科学的一个分支。",
+                created_at=datetime(2026, 1, 1, 0, 1),
+            ),
+        ]
+        pdf_bytes = _render_pdf(conv, msgs, DetailLevel.SUMMARY)
+        assert pdf_bytes[:5] == b"%PDF-"
+
+    def test_empty_conversation(self):
+        """PDF with no messages should still produce a valid PDF."""
+        conv = _make_conv()
+        pdf_bytes = _render_pdf(conv, [], DetailLevel.FULL)
+        assert pdf_bytes[:5] == b"%PDF-"
+
+    def test_markdown_in_answer(self):
+        """PDF should handle markdown content in the assistant answer."""
+        conv = _make_conv()
+        answer = (
+            "# Hello\n\nThis is **bold** and *italic*.\n\n"
+            "```python\nprint('hi')\n```\n\n- item 1\n- item 2"
+        )
+        msgs = [
+            _make_msg(
+                "user", "Show me stuff", created_at=datetime(2026, 1, 1, 0, 0)
+            ),
+            _make_msg("assistant", answer, created_at=datetime(2026, 1, 1, 0, 1)),
+        ]
+        pdf_bytes = _render_pdf(conv, msgs, DetailLevel.SUMMARY)
+        assert pdf_bytes[:5] == b"%PDF-"
+        assert len(pdf_bytes) > 200
+
+
+# ===================================================================
+# Unit tests: _strip_emoji
+# ===================================================================
+
+
+class TestStripEmoji:
+    def test_emoji_removed(self):
+        assert _strip_emoji("Hello \U0001F30D World \U0001F680") == "Hello  World "
+
+    def test_bmp_emoji_removed(self):
+        """Emoji from BMP blocks (Misc Technical, Geometric Shapes, etc.)."""
+        assert _strip_emoji("⭐ star") == " star"         # U+2B50
+        assert _strip_emoji("⏰ alarm") == " alarm"       # U+23F0
+        assert _strip_emoji("▶ play") == " play"          # U+25B6
+        assert _strip_emoji("ℹ info") == " info"          # U+2139
+
+    def test_enclosed_supplement_removed(self):
+        """Emoji from Enclosed Ideographic Supplement (U+1F200 block)."""
+        assert _strip_emoji("🈁 koko") == " koko"         # U+1F201
+
+    def test_normal_text_unchanged(self):
+        assert _strip_emoji("Hello World") == "Hello World"
+
+    def test_cjk_not_stripped(self):
+        text = "你好世界 Hello"
+        assert _strip_emoji(text) == text
+
+    def test_empty_string(self):
+        assert _strip_emoji("") == ""
+
+
+# ===================================================================
+# Integration tests: DOCX heading color
+# ===================================================================
+
+
+class TestDocxHeadingColor:
+    def test_headings_use_amber_color(self):
+        """DOCX headings should use amber color (0x946B2D), not default blue."""
+        from docx import Document
+        from docx.shared import RGBColor
+
+        conv = _make_conv()
+        msgs = [
+            _make_msg("user", "Hi", created_at=datetime(2026, 1, 1, 0, 0)),
+            _make_msg("assistant", "Hello", created_at=datetime(2026, 1, 1, 0, 1)),
+        ]
+        docx_bytes = _render_docx(conv, msgs, DetailLevel.SUMMARY)
+        doc = Document(io.BytesIO(docx_bytes))
+
+        expected = RGBColor(0x94, 0x6B, 0x2D)
+        style = doc.styles["Heading 1"]
+        assert style.font.color.rgb == expected
