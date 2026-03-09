@@ -16,6 +16,8 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from fim_agent.core.security import get_safe_async_client
+
 from ..base import BaseTool
 
 logger = logging.getLogger(__name__)
@@ -513,7 +515,7 @@ class ConnectorTestActionTool(_ConnectorBuilderBase):
 
             # Send request
             try:
-                async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                async with get_safe_async_client(timeout=30, follow_redirects=True) as client:
                     resp = await client.request(
                         method=action.method,
                         url=url,
@@ -689,7 +691,7 @@ class ConnectorTestConnectionTool(_ConnectorBuilderBase):
 
         t0 = time.monotonic()
         try:
-            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            async with get_safe_async_client(timeout=10, follow_redirects=True) as client:
                 resp = await client.get(url, headers=headers, auth=auth)
             latency_ms = round((time.monotonic() - t0) * 1000)
         except httpx.TimeoutException:
@@ -869,7 +871,7 @@ class ConnectorImportOpenAPITool(_ConnectorBuilderBase):
             if _p.scheme not in {"http", "https"}:
                 return f"[Error] Unsafe URL scheme '{_p.scheme}'."
             try:
-                async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+                async with get_safe_async_client(timeout=20, follow_redirects=True) as client:
                     resp = await client.get(url, headers={"Accept": "application/json"})
                     resp.raise_for_status()
                     spec = resp.json()

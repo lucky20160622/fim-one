@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from fim_agent.core.security import validate_url
+from fim_agent.core.security import get_safe_async_client, validate_url
 from fim_agent.core.tool.connector.openapi_parser import parse_openapi_spec
 from fim_agent.web.exceptions import AppError
 from fim_agent.db import get_session
@@ -230,7 +230,7 @@ async def _resolve_openapi_spec(body: OpenAPIImportRequest) -> dict[str, Any]:
                 detail=str(exc),
             ) from exc
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with get_safe_async_client(timeout=15) as client:
                 resp = await client.get(body.spec_url)
                 resp.raise_for_status()
                 raw = resp.text
