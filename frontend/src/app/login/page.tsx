@@ -698,6 +698,8 @@ function LoginPageInner() {
                     </p>
                     <div className="space-y-2">
                       <Input
+                        id="forgot-new-password"
+                        name="new-password"
                         type="password"
                         placeholder={t("newPasswordPlaceholder")}
                         value={forgotNewPassword}
@@ -706,6 +708,8 @@ function LoginPageInner() {
                         autoFocus
                       />
                       <Input
+                        id="forgot-confirm-password"
+                        name="confirm-password"
                         type="password"
                         placeholder={t("confirmNewPasswordPlaceholder")}
                         value={forgotConfirmPassword}
@@ -747,6 +751,8 @@ function LoginPageInner() {
                 <form onSubmit={handleLogin} className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <Input
+                      id="login-email"
+                      name="email"
                       type="email"
                       placeholder={t("emailPlaceholder")}
                       value={loginEmail}
@@ -756,6 +762,8 @@ function LoginPageInner() {
                       autoComplete="email"
                     />
                     <Input
+                      id="login-password"
+                      name="password"
                       type="password"
                       placeholder={t("passwordPlaceholder")}
                       value={loginPassword}
@@ -924,6 +932,8 @@ function LoginPageInner() {
                     <div className="space-y-2">
                       <div>
                         <Input
+                          id="register-email"
+                          name="email"
                           type="email"
                           placeholder={t("emailPlaceholder")}
                           value={regEmail}
@@ -937,6 +947,8 @@ function LoginPageInner() {
                       </div>
                       <div>
                         <Input
+                          id="register-password"
+                          name="password"
                           type="password"
                           placeholder={t("passwordMinLengthPlaceholder")}
                           value={regPassword}
