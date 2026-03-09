@@ -111,7 +111,7 @@ export const DagOutput = forwardRef<DagOutputHandle, DagOutputProps>(function Da
             className="flex w-full items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors text-xs text-muted-foreground rounded-lg"
           >
             <Wrench className="h-3.5 w-3.5 shrink-0" />
-            <span>{summaryParts.join(" \u00b7 ")}</span>
+            <span className="font-mono tabular-nums">{summaryParts.join(" \u00b7 ")}</span>
             {stepsExpanded ? (
               <ChevronUp className="h-3.5 w-3.5 ml-auto shrink-0" />
             ) : (
@@ -294,7 +294,7 @@ function StepProgressCard({ state }: { state: StepState }) {
             {state.task}
           </span>
           {state.status === "completed" && state.duration != null && (
-            <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+            <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground shrink-0 font-mono tabular-nums">
               <Clock className="h-2.5 w-2.5" />
               {fmtDuration(state.duration)}
             </span>
@@ -347,11 +347,11 @@ function StepProgressCard({ state }: { state: StepState }) {
 function ElapsedTimer({ startedAt }: { startedAt: number }) {
   const [elapsed, setElapsed] = useState(() => Date.now() / 1000 - startedAt)
   useEffect(() => {
-    const id = setInterval(() => setElapsed(Date.now() / 1000 - startedAt), 500)
+    const id = setInterval(() => setElapsed(Date.now() / 1000 - startedAt), 100)
     return () => clearInterval(id)
   }, [startedAt])
   return (
-    <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+    <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground shrink-0 font-mono tabular-nums">
       <Clock className="h-2.5 w-2.5" />
       {fmtDuration(elapsed)}
     </span>
@@ -498,7 +498,7 @@ function DagDoneCard({ done, stepStates, onSuggestionSelect }: { done: DagDoneEv
           </div>
           <CardTitle className="text-sm">{t("result")}</CardTitle>
           <div className="ml-auto flex items-center gap-3 text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 font-mono tabular-nums">
               <Clock className="h-2.5 w-2.5" />
               {fmtDuration(done.elapsed)}
             </span>
@@ -509,7 +509,7 @@ function DagDoneCard({ done, stepStates, onSuggestionSelect }: { done: DagDoneEv
               </span>
             )}
             {done.usage && (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 font-mono tabular-nums">
                 <BarChart3 className="h-2.5 w-2.5" />
                 {t("tokenIn", { value: (done.usage.prompt_tokens / 1000).toFixed(1) })} · {t("tokenOut", { value: (done.usage.completion_tokens / 1000).toFixed(1) })}
               </span>

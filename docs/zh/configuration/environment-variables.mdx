@@ -206,6 +206,8 @@ echo 'NEXT_PUBLIC_API_URL=http://localhost:9000' > frontend/.env.local
 | `MCP_SERVERS` | 否 | — | MCP 服务器配置的 JSON 数组（需要 `uv sync --extra mcp`） |
 | `ALLOW_STDIO_MCP` | 否 | `true` | 是否允许 stdio MCP 服务器。对于公网/SaaS 部署，请设置为 `false` |
 | `LOG_LEVEL` | 否 | `INFO` | 日志级别：`DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
+| `REDIS_URL` | 否 | — | 跨进程中断中继的 Redis 连接 URL。Docker Compose 自动配置，仅本地多进程开发时需手动设置（`WORKERS>1`）。 |
+| `WORKERS` | 否 | `1` | Uvicorn 工作进程数。`1` 为安全默认值，无需额外服务。`>1` **必须使用 PostgreSQL**（SQLite 为单写者）。认证、OAuth、文件操作均为多进程安全（基于 JWT）。**限制**：未配置 `REDIS_URL` 时，流式中断/注入仅在同一工作进程内有效。Docker Compose 自动配置 Redis。 |
 
 ---
 

@@ -34,6 +34,32 @@ IterationCallback = Callable[[int, Action, str | None, str | None, "StepResult |
 
 logger = logging.getLogger(__name__)
 
+# When the total number of available tools exceeds this threshold, the agent
+# runs a lightweight "selection" LLM call first to pick the most relevant
+# tools for the current query.  This avoids injecting dozens of full schemas
+# into the main conversation context.
+TOOL_SELECTION_THRESHOLD = 12
+
+# Maximum number of tools the selection phase may pick.
+_TOOL_SELECTION_MAX = 6
+
+_TOOL_SELECTION_PROMPT = """\
+You are a tool selection assistant.  Given a user query and a catalog of \
+available tools, select the tools most likely to be needed.
+
+User query: {query}
+
+Available tools:
+{catalog}
+
+Return a JSON object with a single key "tools" whose value is a list of \
+tool names (strings) you would use to answer this query.  Select at most \
+{max_tools} tools.  Only include tools that are clearly relevant.
+
+Example response:
+{{"tools": ["web_search", "python_exec"]}}
+"""
+
 _SYSTEM_PROMPT_TEMPLATE = """\
 You are an intelligent assistant that solves tasks by reasoning step-by-step \
 and using tools when necessary.
@@ -210,6 +236,12 @@ class ReActAgent:
     ) -> AgentResult:
         """Execute the ReAct loop for a given user query.
 
+        When the number of registered tools exceeds
+        ``TOOL_SELECTION_THRESHOLD``, a lightweight selection phase runs
+        first to pick only the most relevant tools for *query*.  The
+        selected subset is then used for the main reasoning loop,
+        reducing context consumption significantly.
+
         Args:
             query: The user question or task description.
             on_iteration: Optional callback invoked after each iteration with
@@ -222,15 +254,133 @@ class ReActAgent:
         Returns:
             An ``AgentResult`` containing the final answer and full step trace.
         """
+        # --- Two-phase tool selection ---
+        effective_tools = self._tools
+        if len(self._tools) > TOOL_SELECTION_THRESHOLD:
+            effective_tools = await self._select_relevant_tools(
+                query, on_iteration,
+            )
+
         if self._native_mode_active:
             return await self._run_native(
                 query, on_iteration, image_urls=image_urls,
                 interrupt_queue=interrupt_queue,
+                effective_tools=effective_tools,
             )
         return await self._run_json(
             query, on_iteration, image_urls=image_urls,
             interrupt_queue=interrupt_queue,
+            effective_tools=effective_tools,
         )
+
+    # ------------------------------------------------------------------
+    # Tool selection phase
+    # ------------------------------------------------------------------
+
+    async def _select_relevant_tools(
+        self,
+        query: str,
+        on_iteration: IterationCallback | None = None,
+    ) -> ToolRegistry:
+        """Run a lightweight LLM call to select the most relevant tools.
+
+        Builds a compact catalog (name + one-line description, no parameter
+        schemas) and asks the LLM to choose up to ``_TOOL_SELECTION_MAX``
+        tools.  This keeps the main conversation context lean when many
+        tools are available.
+
+        If the selection call fails or returns unparseable output, the full
+        tool set is returned as a safe fallback.
+
+        Args:
+            query: The user's current query.
+            on_iteration: Optional callback to emit a ``selecting_tools``
+                phase event to the SSE stream.
+
+        Returns:
+            A filtered ``ToolRegistry`` with only the selected tools.
+        """
+        catalog = self._tools.to_compact_catalog()
+        prompt = _TOOL_SELECTION_PROMPT.format(
+            query=query,
+            catalog=catalog,
+            max_tools=_TOOL_SELECTION_MAX,
+        )
+
+        # Emit phase event so the frontend can show a brief indicator.
+        if on_iteration is not None:
+            on_iteration(
+                0,
+                Action(
+                    type="tool_call",
+                    reasoning="Selecting relevant tools from catalog",
+                    tool_name="__selecting_tools__",
+                    tool_args={"total": len(self._tools)},
+                ),
+                None,
+                None,
+                None,
+            )
+
+        try:
+            response_format: dict[str, Any] | None = None
+            if self._llm.abilities.get("json_mode", False):
+                response_format = {"type": "json_object"}
+
+            result: LLMResult = await self._llm.chat(
+                [
+                    ChatMessage(role="system", content="You are a tool selection assistant. Respond only with JSON."),
+                    ChatMessage(role="user", content=prompt),
+                ],
+                response_format=response_format,
+            )
+
+            content = result.message.content or ""
+            data = extract_json(content)
+            if data is None:
+                logger.warning(
+                    "Tool selection returned non-JSON; falling back to all tools"
+                )
+                return self._tools
+
+            selected_names: list[str] = data.get("tools", [])
+            if not isinstance(selected_names, list) or not selected_names:
+                logger.warning(
+                    "Tool selection returned empty or invalid list; "
+                    "falling back to all tools"
+                )
+                return self._tools
+
+            # Ensure names are strings and cap at max.
+            selected_names = [
+                str(n) for n in selected_names[:_TOOL_SELECTION_MAX]
+            ]
+
+            filtered = self._tools.filter_by_names(selected_names)
+
+            # If filtering resulted in zero tools (all names were bogus),
+            # fall back to the full set.
+            if len(filtered) == 0:
+                logger.warning(
+                    "Tool selection produced 0 valid tools; "
+                    "falling back to all tools"
+                )
+                return self._tools
+
+            logger.info(
+                "Tool selection: %d/%d tools selected: %s",
+                len(filtered),
+                len(self._tools),
+                [t.name for t in filtered.list_tools()],
+            )
+            return filtered
+
+        except Exception:
+            logger.warning(
+                "Tool selection failed; falling back to all tools",
+                exc_info=True,
+            )
+            return self._tools
 
     # ------------------------------------------------------------------
     # JSON mode (original ReAct loop)
@@ -242,12 +392,19 @@ class ReActAgent:
         on_iteration: IterationCallback | None = None,
         image_urls: list[str] | None = None,
         interrupt_queue: Any | None = None,
+        effective_tools: ToolRegistry | None = None,
     ) -> AgentResult:
-        """Execute the JSON-based ReAct loop."""
+        """Execute the JSON-based ReAct loop.
+
+        Args:
+            effective_tools: When provided, overrides ``self._tools`` for
+                this run (used by the two-phase tool selection mechanism).
+        """
+        tools = effective_tools if effective_tools is not None else self._tools
         usage_tracker = UsageTracker()
 
         messages: list[ChatMessage] = [
-            ChatMessage(role="system", content=self._build_system_prompt()),
+            ChatMessage(role="system", content=self._build_system_prompt(tools=tools)),
         ]
 
         # Load history from memory.
@@ -268,6 +425,14 @@ class ReActAgent:
 
         for iteration in range(1, self._max_iterations + 1):
             logger.debug("ReAct iteration %d", iteration)
+
+            # Signal thinking start before LLM call.
+            if on_iteration is not None:
+                on_iteration(
+                    iteration,
+                    Action(type="thinking", reasoning=""),
+                    None, None, None,
+                )
 
             if self._context_guard is not None:
                 messages = await self._context_guard.check_and_compact(
@@ -393,8 +558,14 @@ class ReActAgent:
         on_iteration: IterationCallback | None = None,
         image_urls: list[str] | None = None,
         interrupt_queue: Any | None = None,
+        effective_tools: ToolRegistry | None = None,
     ) -> AgentResult:
-        """Execute the native function-calling loop."""
+        """Execute the native function-calling loop.
+
+        Args:
+            effective_tools: When provided, overrides ``self._tools`` for
+                building the tools payload (used by two-phase selection).
+        """
         usage_tracker = UsageTracker()
 
         messages: list[ChatMessage] = [
@@ -419,12 +590,21 @@ class ReActAgent:
 
         steps: list[StepResult] = []
 
-        # Build OpenAI-format tool definitions.
-        tools_payload = self._build_tools_payload()
+        # Build OpenAI-format tool definitions using the effective (possibly
+        # filtered) tool set for context efficiency.
+        tools_payload = self._build_tools_payload(tools=effective_tools)
         tool_choice: str | None = "auto" if tools_payload else None
 
         for iteration in range(1, self._max_iterations + 1):
             logger.debug("Native ReAct iteration %d", iteration)
+
+            # Signal thinking start before LLM call.
+            if on_iteration is not None:
+                on_iteration(
+                    iteration,
+                    Action(type="thinking", reasoning=""),
+                    None, None, None,
+                )
 
             if self._context_guard is not None:
                 messages = await self._context_guard.check_and_compact(
@@ -453,6 +633,7 @@ class ReActAgent:
                     iteration,
                     steps,
                     on_iteration,
+                    reasoning=assistant_msg.reasoning_content or "",
                 )
                 messages.extend(tool_results)
 
@@ -475,7 +656,7 @@ class ReActAgent:
             answer = assistant_msg.content or ""
             action = Action(
                 type="final_answer",
-                reasoning="",
+                reasoning=assistant_msg.reasoning_content or "",
                 answer=answer,
             )
             steps.append(StepResult(action=action))
@@ -513,6 +694,7 @@ class ReActAgent:
         iteration: int,
         steps: list[StepResult],
         on_iteration: IterationCallback | None,
+        reasoning: str = "",
     ) -> list[ChatMessage]:
         """Execute one or more native tool calls in parallel.
 
@@ -521,6 +703,7 @@ class ReActAgent:
             iteration: The current iteration number.
             steps: The running list of step results (mutated in-place).
             on_iteration: Optional callback.
+            reasoning: LLM reasoning/thinking content for this turn.
 
         Returns:
             A list of ``ChatMessage`` objects with role ``"tool"`` to append
@@ -601,10 +784,10 @@ class ReActAgent:
 
         # Notify all tool calls starting before parallel execution.
         if on_iteration is not None:
-            for tc in tool_calls:
+            for i, tc in enumerate(tool_calls):
                 start_action = Action(
                     type="tool_call",
-                    reasoning="",
+                    reasoning=reasoning if i == 0 else "",
                     tool_name=tc.name,
                     tool_args=tc.arguments,
                 )
@@ -677,8 +860,14 @@ class ReActAgent:
             pinned=True,
         ))
 
-    def _build_system_prompt(self) -> str:
+    def _build_system_prompt(
+        self, tools: ToolRegistry | None = None,
+    ) -> str:
         """Build the system prompt, including descriptions of available tools.
+
+        Args:
+            tools: Optional tool registry override.  When ``None``,
+                ``self._tools`` is used.
 
         Returns:
             The full system prompt string.
@@ -688,7 +877,7 @@ class ReActAgent:
 
         now_dt = datetime.now(timezone.utc)
         now = now_dt.strftime("%Y-%m-%d %H:%M UTC")
-        tool_descriptions = self._format_tool_descriptions()
+        tool_descriptions = self._format_tool_descriptions(tools=tools)
         prompt = _SYSTEM_PROMPT_TEMPLATE.format(
             tool_descriptions=tool_descriptions,
             current_datetime=now,
@@ -718,19 +907,26 @@ class ReActAgent:
             prompt += f"\n\nAdditional instructions:\n{self._extra_instructions}"
         return prompt
 
-    def _format_tool_descriptions(self) -> str:
+    def _format_tool_descriptions(
+        self, tools: ToolRegistry | None = None,
+    ) -> str:
         """Format tool descriptions for inclusion in the system prompt.
+
+        Args:
+            tools: Optional tool registry override.  When ``None``,
+                ``self._tools`` is used.
 
         Returns:
             A human-readable listing of every registered tool with its
             name, description, and parameter schema.
         """
-        tools = self._tools.list_tools()
-        if not tools:
+        registry = tools if tools is not None else self._tools
+        tool_list = registry.list_tools()
+        if not tool_list:
             return "(no tools available)"
 
         lines: list[str] = []
-        for tool in tools:
+        for tool in tool_list:
             schema_str = json.dumps(tool.parameters_schema, indent=2)
             lines.append(
                 f"- **{tool.name}**: {tool.description}\n"
@@ -738,19 +934,26 @@ class ReActAgent:
             )
         return "\n".join(lines)
 
-    def _build_tools_payload(self) -> list[dict[str, Any]] | None:
+    def _build_tools_payload(
+        self, tools: ToolRegistry | None = None,
+    ) -> list[dict[str, Any]] | None:
         """Build OpenAI-format tool definitions for native mode.
+
+        Args:
+            tools: Optional tool registry override.  When ``None``,
+                ``self._tools`` is used.
 
         Returns:
             A list of tool definition dicts, or ``None`` if no tools are
             registered.
         """
-        tools = self._tools.list_tools()
-        if not tools:
+        registry = tools if tools is not None else self._tools
+        tool_list = registry.list_tools()
+        if not tool_list:
             return None
 
         payload: list[dict[str, Any]] = []
-        for tool in tools:
+        for tool in tool_list:
             payload.append({
                 "type": "function",
                 "function": {

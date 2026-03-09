@@ -33,7 +33,7 @@ export function IterationDetailDrawer({ data, summary, onClose }: IterationDetai
   const [activeTab, setActiveTab] = useState<TabKey>("args")
 
   const open = !!data
-  const isTool = data?.type === "tool_call" || data?.type === "tool_start"
+  const isTool = !!data?.tool_name
   const displayName = isTool && data?.tool_name
     ? getToolDisplayName(data.tool_name, catalog?.tools)
     : t("thinking")
@@ -105,7 +105,7 @@ export function IterationDetailDrawer({ data, summary, onClose }: IterationDetai
                   <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground">
                     {summary && <span>{summary}</span>}
                     {data.duration != null && (
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 font-mono tabular-nums">
                         <Clock className="h-3 w-3" />
                         {fmtDuration(data.duration)}
                       </span>

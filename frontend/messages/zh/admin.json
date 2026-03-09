@@ -71,6 +71,7 @@
     "requiredNeedsConfig": "有 {count} 个核心集成未配置。",
     "recommendedNeedsConfig": "核心集成就绪，有 {count} 个推荐集成可配置。",
     "group": {
+      "infrastructure": "基础设施",
       "ai": "AI 模型",
       "retrieval": "检索与搜索",
       "web": "Web 工具",
@@ -78,6 +79,10 @@
       "media": "媒体",
       "oauth": "OAuth 登录",
       "other": "其他"
+    },
+    "impact": {
+      "database": "SQLite 为单写模式，高并发部署建议使用 PostgreSQL",
+      "redis": "未配置 Redis 时，流式中断/注入在多工作进程间不可用（WORKERS>1）"
     }
   },
 

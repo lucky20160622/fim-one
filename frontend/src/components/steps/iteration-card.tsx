@@ -29,7 +29,7 @@ export function IterationCard({
   const t = useTranslations("dag")
   const { data: catalog } = useToolCatalog()
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const isLoading = data.loading || data.type === "tool_start"
+  const isLoading = !!data.loading
 
   const hasDetail = !isLoading && (
     (data.tool_args && Object.keys(data.tool_args).length > 0) ||
@@ -39,7 +39,7 @@ export function IterationCard({
   )
 
   const summary = summaryProp ?? (
-    (data.type === "tool_call" || data.type === "tool_start")
+    data.tool_name
       ? generateStepSummary(data.tool_name, data.tool_args, data.reasoning)
       : undefined
   )
@@ -119,7 +119,7 @@ export function IterationCard({
             <span className="text-muted-foreground truncate min-w-0">{summary}</span>
           )}
           {!isLoading && data.duration != null && (
-            <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+            <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground shrink-0 font-mono tabular-nums">
               <Clock className="h-2.5 w-2.5" />
               {fmtDuration(data.duration)}
             </span>

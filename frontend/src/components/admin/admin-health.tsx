@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import type { IntegrationHealth } from "@/types/admin"
 
 const GROUPS: Record<string, string[]> = {
+  infrastructure: ["database", "redis"],
   ai: ["llm", "fast_llm"],
   retrieval: ["embedding", "reranker"],
   web: ["web_search", "web_fetch"],
@@ -230,7 +231,7 @@ function HealthRow({ item }: { item: IntegrationHealth }) {
                   : "text-amber-700 dark:text-amber-300",
             )}
           >
-            {t("impactLabel")}: {item.impact}
+            {t("impactLabel")}: {t.has(`impact.${item.key}`) ? t(`impact.${item.key}`) : item.impact}
           </p>
         </div>
       )}

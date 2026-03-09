@@ -30,6 +30,7 @@
   "statusAnalyzing": "Analyzing...",
   "statusAnalyzingRound": "Analyzing (Round {round})...",
   "statusProcessing": "Processing...",
+  "answerGenerating": "Generating answer...",
   "standardMode": "Standard mode",
   "plannerMode": "Planner mode",
   "suggestedPrompts": "Suggested prompts",

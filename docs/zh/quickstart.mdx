@@ -93,25 +93,76 @@ JINA_API_KEY=jina_...                       # 启用网页工具 + RAG
   ## 生产部署
 </div>
 
-这两种方式都可用于生产环境：
+### Docker（推荐）
 
-| 方法         | 命令                     | 最适合            |
-| ---------- | ---------------------- | -------------- |
-| **Docker** | `docker compose up -d` | 省心部署，便于更新      |
-| **脚本**     | `./start.sh`           | 裸机服务器、自定义进程管理器 |
+`docker compose up -d` 一键启动所有服务——**无需手动配置任何基础设施**：
 
-无论采用哪种方式，都应在前端配置 Nginx 反向代理，以支持 HTTPS 和自定义域名：
+| 服务 | 用途 | 配置方式 |
+|------|------|---------|
+| **fim-agent** | API + 前端 | `.env`（LLM 密钥等） |
+| **Redis** | 跨进程中断中继 | Compose 自动配置 |
+
+```bash
+docker compose up --build -d   # 首次 / 代码变更后
+docker compose up -d           # 后续启动
+docker compose logs -f         # 查看日志
+docker compose down            # 停止所有服务
+```
+
+#### 多进程扩展
+
+默认情况下，API 使用单个工作进程运行。如需处理更多并发用户，可在 `.env` 中增加进程数：
+
+```bash
+WORKERS=4   # Uvicorn 工作进程数
+```
+
+多进程要求：
+- **PostgreSQL** — SQLite 为单写模式，不支持并发写入。需设置 `DATABASE_URL` 为 PostgreSQL 连接字符串。
+- **Redis** — Docker Compose 已内置（自动配置），负责跨进程中断/注入消息中继。
+
+使用 `WORKERS=1`（默认值）时，不需要 Redis 或 PostgreSQL——SQLite 完全够用。
+
+#### Nginx 反向代理
+
+如需 HTTPS 和自定义域名，请在前端配置 Nginx 反向代理：
 
 ```
-User → Nginx (443/HTTPS) → localhost:3000
+用户 → Nginx (443/HTTPS) → localhost:3000
 ```
 
-API 在内部运行于 8000 端口——Next.js 会自动代理 `/api/*` 请求。只需暴露 3000 端口。
+API 在内部运行于 8000 端口——Next.js 自动代理 `/api/*` 请求。只需暴露 3000 端口。
 
-如果使用代码执行沙箱 (`CODE_EXEC_BACKEND=docker`) ，请挂载 Docker 套接字：
+#### 代码执行沙箱
+
+如果使用代码执行沙箱（`CODE_EXEC_BACKEND=docker`），请挂载 Docker 套接字：
 
 ```yaml
 # docker-compose.yml
 volumes:
   - /var/run/docker.sock:/var/run/docker.sock
+```
+
+### 脚本部署（裸机）
+
+对于裸机服务器或自定义进程管理器，可直接使用 `./start.sh`：
+
+```bash
+./start.sh           # 生产模式
+./start.sh portal    # 同上（显式指定）
+./start.sh api       # 仅 API（无头模式）
+```
+
+此模式下不自动包含 Redis，系统默认运行在单进程、进程内模式——适合低流量部署。
+
+如需在本地启用多进程 + Redis：
+
+```bash
+# 启动 Redis 实例（Docker 或系统包）
+docker run -d --name redis -p 6379:6379 redis:7-alpine
+
+# 在 .env 中添加
+REDIS_URL=redis://localhost:6379/0
+WORKERS=4
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost/fim_agent
 ```

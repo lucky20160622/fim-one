@@ -71,6 +71,7 @@
     "requiredNeedsConfig": "{count} required integration(s) need configuration.",
     "recommendedNeedsConfig": "All required integrations are ready. {count} recommended integration(s) could be configured.",
     "group": {
+      "infrastructure": "Infrastructure",
       "ai": "AI Models",
       "retrieval": "Retrieval & Search",
       "web": "Web Tools",
@@ -78,6 +79,10 @@
       "media": "Media",
       "oauth": "OAuth Login",
       "other": "Other"
+    },
+    "impact": {
+      "database": "SQLite is single-writer; use PostgreSQL for high-concurrency deployments",
+      "redis": "Without Redis, mid-stream interrupt/inject does not work across workers (WORKERS>1)"
     }
   },
 

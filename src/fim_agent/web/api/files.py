@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import fcntl
 import json
 import logging
 import os
 import uuid
-from collections import defaultdict
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, UploadFile
@@ -33,9 +35,6 @@ ALLOWED_EXTENSIONS = {
 }
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}
-
-# Per-user lock to prevent race conditions on file index read-modify-write.
-_index_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 _MIME_MAP: dict[str, str] = {
     # Images
@@ -131,6 +130,20 @@ def _index_path(user_id: str) -> Path:
     return _user_dir(user_id) / "index.json"
 
 
+@asynccontextmanager
+async def _file_lock(user_id: str) -> AsyncGenerator[None, None]:
+    """Cross-process file lock using fcntl.flock()."""
+    lock_path = _user_dir(user_id) / ".lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fd = open(lock_path, "w")
+    try:
+        await asyncio.to_thread(fcntl.flock, fd.fileno(), fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(fd.fileno(), fcntl.LOCK_UN)
+        fd.close()
+
+
 def _load_index(user_id: str) -> dict[str, dict]:
     path = _index_path(user_id)
     if not path.exists():
@@ -197,7 +210,7 @@ async def upload_file(
     # Update index (locked to prevent concurrent read-modify-write races)
     file_url = f"/uploads/user_{current_user.id}/{stored_name}"
     mime_type = _guess_mime(ext)
-    async with _index_locks[current_user.id]:
+    async with _file_lock(current_user.id):
         index = _load_index(current_user.id)
         index[file_id] = {
             "filename": file.filename,
@@ -266,7 +279,7 @@ async def delete_file(
     file_id: str,
     current_user: User = Depends(get_current_user),  # noqa: B008
 ) -> ApiResponse:
-    async with _index_locks[current_user.id]:
+    async with _file_lock(current_user.id):
         index = _load_index(current_user.id)
         meta = index.get(file_id)
         if meta is None:

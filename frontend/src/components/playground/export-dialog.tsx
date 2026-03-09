@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 import { Download, FileText, FileCode, File, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/error-utils"
@@ -39,6 +39,7 @@ export function ExportDialog({ conversationId, open, onOpenChange }: ExportDialo
   const t = useTranslations("playground")
   const tc = useTranslations("common")
   const tError = useTranslations("errors")
+  const locale = useLocale()
   const [format, setFormat] = useState<ExportFormat>("md")
   const [includeDetails, setIncludeDetails] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -46,7 +47,7 @@ export function ExportDialog({ conversationId, open, onOpenChange }: ExportDialo
   const handleExport = async () => {
     setExporting(true)
     try {
-      await conversationApi.export(conversationId, format, includeDetails ? "full" : "summary")
+      await conversationApi.export(conversationId, format, includeDetails ? "full" : "summary", locale)
       onOpenChange(false)
     } catch (err) {
       toast.error(getErrorMessage(err, tError))

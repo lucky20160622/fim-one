@@ -16,8 +16,8 @@ interface IterationHeaderProps {
 export function IterationHeader({ data, summary }: IterationHeaderProps) {
   const t = useTranslations("dag")
   const { data: catalog } = useToolCatalog()
-  const isTool = data.type === "tool_call" || data.type === "tool_start"
-  const isLoading = data.loading || data.type === "tool_start"
+  const isTool = !!data.tool_name
+  const isLoading = !!data.loading
 
   const Icon = isLoading ? Loader2 : isTool ? Wrench : Brain
   const iconCls = isLoading ? "animate-spin" : ""
@@ -38,7 +38,7 @@ export function IterationHeader({ data, summary }: IterationHeaderProps) {
         </span>
       )}
       {!isLoading && data.duration != null && (
-        <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+        <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground shrink-0 font-mono tabular-nums">
           <Clock className="h-2.5 w-2.5" />
           {fmtDuration(data.duration)}
         </span>

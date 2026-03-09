@@ -39,7 +39,7 @@ export function ReactOutput({ items, isStreaming, onSuggestionSelect }: ReactOut
 
   const toolCallCount = stepItems.filter((i) => {
     const step = i.data as ReactStepEvent
-    return step.type === "tool_call"
+    return step.type === "iteration"
   }).length
 
   const elapsed = doneItem ? (doneItem.data as ReactDoneEvent).elapsed : 0
@@ -56,7 +56,7 @@ export function ReactOutput({ items, isStreaming, onSuggestionSelect }: ReactOut
             className="flex w-full items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors text-xs text-muted-foreground rounded-lg"
           >
             <Wrench className="h-3.5 w-3.5 shrink-0" />
-            <span>
+            <span className="font-mono tabular-nums">
               {toolCallCount !== 1 ? t("toolCallCountPlural", { count: toolCallCount }) : t("toolCallCount", { count: toolCallCount })}
               {" \u00b7 "}
               {fmtDuration(elapsed)}
@@ -171,7 +171,7 @@ function ThinkingCard({ iterLabel, duration, reasoning }: { iterLabel: number; d
             {t("iterationLabel", { n: iterLabel })}
           </span>
           {duration != null && (
-            <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground font-mono tabular-nums">
               <Clock className="h-2.5 w-2.5" />
               {fmtDuration(duration)}
             </span>
@@ -194,13 +194,25 @@ function ThinkingCard({ iterLabel, duration, reasoning }: { iterLabel: number; d
 }
 
 function StepCard({ step, duration, displayIteration }: { step: ReactStepEvent; duration?: number; displayIteration?: number }) {
+  const t = useTranslations("playground")
   const iterLabel = displayIteration ?? (step.iteration ?? 0) + 1
 
   if (step.type === "thinking") {
     return <ThinkingCard iterLabel={iterLabel} duration={duration} reasoning={step.reasoning} />
   }
 
-  // Map ReactStepEvent to IterationData for tool_start / tool_call
+  if (step.type === "answer") {
+    return (
+      <Card className="border-green-500/20 py-4">
+        <CardContent className="flex items-center gap-3">
+          <Loader2 className="h-4 w-4 animate-spin text-green-500" />
+          <span className="text-sm shiny-text">{t("answerGenerating")}</span>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // iteration type — map to shared IterationData
   const iterData: IterationData = {
     type: step.type,
     displayIteration: iterLabel,
@@ -210,7 +222,7 @@ function StepCard({ step, duration, displayIteration }: { step: ReactStepEvent; 
     observation: step.observation,
     error: step.error,
     duration,
-    loading: step.type === "tool_start",
+    loading: step.status === "start",
     content_type: step.content_type,
     artifacts: step.artifacts,
   }
@@ -240,12 +252,12 @@ function DoneCard({ done, items, onSuggestionSelect }: { done: ReactDoneEvent; i
               <RefreshCw className="h-2.5 w-2.5" />
               {done.iterations !== 1 ? t("iterationCountPlural", { count: done.iterations }) : t("iterationCount", { count: done.iterations })}
             </span>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 font-mono tabular-nums">
               <Clock className="h-2.5 w-2.5" />
               {fmtDuration(done.elapsed)}
             </span>
             {done.usage && (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 font-mono tabular-nums">
                 <BarChart3 className="h-2.5 w-2.5" />
                 {t("tokenIn", { value: (done.usage.prompt_tokens / 1000).toFixed(1) })} · {t("tokenOut", { value: (done.usage.completion_tokens / 1000).toFixed(1) })}
               </span>

@@ -94,19 +94,24 @@ class TemplateRenderTool(BaseTool):
         else:
             result = self._render_stdlib(template_str, ctx)
 
-        # Wrap HTML output as an artifact for preview
+        if result.startswith("[Error]"):
+            return result
+
+        from ..base import ToolResult
+
+        # HTML → artifact + iframe preview
         if (
             self._artifacts_dir
-            and not result.startswith("[Error]")
             and ("<html" in result.lower() or "<!doctype" in result.lower())
         ):
             from ..artifact_utils import save_content_artifact
-            from ..base import ToolResult
 
             artifact = save_content_artifact(result, "rendered.html", self._artifacts_dir)
             return ToolResult(content=result, content_type="html", artifacts=[artifact])
 
-        return result
+        # Everything else → markdown (GFM is a superset of plain text,
+        # so tables, JSON code blocks, lists, and raw text all render correctly)
+        return ToolResult(content=result, content_type="markdown")
 
     def _render_jinja2(self, template_str: str, ctx: dict) -> str:
         try:

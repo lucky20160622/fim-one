@@ -219,10 +219,16 @@ class TestFormatDateCompact:
 
 class TestModeLabel:
     def test_react(self):
-        assert _mode_label("react") == "Standard (ReAct)"
+        assert _mode_label("react") == "Standard"
 
     def test_dag(self):
-        assert _mode_label("dag") == "DAG (Plan & Execute)"
+        assert _mode_label("dag") == "Planner"
+
+    def test_react_zh(self):
+        assert _mode_label("react", "zh") == "标准"
+
+    def test_dag_zh(self):
+        assert _mode_label("dag", "zh") == "规划"
 
 
 class TestPairMessages:

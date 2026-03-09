@@ -182,6 +182,8 @@ Auto-registers the `email_send` built-in tool when `SMTP_HOST`, `SMTP_USER`, and
 | `MCP_SERVERS` | No | — | JSON array of MCP server configs (requires `uv sync --extra mcp`) |
 | `ALLOW_STDIO_MCP` | No | `true` | Allow stdio MCP servers. Set `false` for public/SaaS deployments |
 | `LOG_LEVEL` | No | `INFO` | Logging level: `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
+| `REDIS_URL` | No | — | Redis connection URL for cross-worker interrupt relay. Auto-configured by Docker Compose. Only needed for local multi-worker setups (`WORKERS>1`). |
+| `WORKERS` | No | `1` | Uvicorn worker processes. `1` is safe and needs no external services. `>1` **requires PostgreSQL** (SQLite is single-writer). Auth, OAuth, and file operations are fully multi-worker safe (JWT-based). **Limitation**: without `REDIS_URL`, mid-stream interrupt/inject only works within the same worker process. Docker Compose auto-configures Redis. |
 
 ---
 

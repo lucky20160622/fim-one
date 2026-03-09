@@ -7,8 +7,11 @@ export interface TokenUsage {
 
 // ReAct events
 export interface ReactStepEvent {
-  type: "thinking" | "tool_call" | "tool_start" | "final_answer"
-  iteration: number
+  /** Step kind. V3: "thinking"/"iteration"/"answer". Legacy: "tool_start"/"tool_call"/"start"/"done". */
+  type: "thinking" | "iteration" | "answer" | "start" | "done" | "tool_start" | "tool_call" | "final_answer"
+  /** Lifecycle status (V3). Legacy events omit this; normalized by the hook. */
+  status?: "start" | "done"
+  iteration?: number
   tool_name?: string
   tool_args?: Record<string, unknown>
   reasoning?: string

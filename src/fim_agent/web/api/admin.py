@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import math
 import os
 import re
@@ -789,6 +790,7 @@ SETTING_ANNOUNCEMENT_TEXT = "announcement_text"
 SETTING_REGISTRATION_MODE = "registration_mode"
 SETTING_DEFAULT_TOKEN_QUOTA = "default_token_quota"
 SETTING_EMAIL_VERIFICATION_ENABLED = "email_verification_enabled"
+SETTING_DISABLED_BUILTIN_TOOLS = "disabled_builtin_tools"
 
 
 # ---------------------------------------------------------------------------
@@ -805,6 +807,7 @@ class SystemSettingsResponse(BaseModel):
     default_token_quota: int
     email_verification_enabled: bool
     smtp_configured: bool
+    disabled_builtin_tools: list[str] = []
 
 
 class UpdateSystemSettingsRequest(BaseModel):
@@ -815,6 +818,7 @@ class UpdateSystemSettingsRequest(BaseModel):
     announcement_text: str | None = None
     default_token_quota: int | None = None
     email_verification_enabled: bool | None = None
+    disabled_builtin_tools: list[str] | None = None
 
 
 async def _load_all_settings(db: AsyncSession) -> SystemSettingsResponse:
@@ -1219,6 +1223,29 @@ async def get_system_health(
     has_db_fast = "fast" in _db_roles
 
     checks: list[IntegrationHealth] = []
+
+    # ── Infrastructure ────────────────────────────────────────────────
+    db_url = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///./data/fim_agent.db")
+    is_postgres = "postgresql" in db_url or "asyncpg" in db_url
+    db_type = "PostgreSQL" if is_postgres else "SQLite"
+    checks.append(IntegrationHealth(
+        key="database",
+        label="Database",
+        configured=True,
+        detail=f"{db_type} · {_host(db_url) if is_postgres else 'File-based'}",
+        impact=None if is_postgres else "SQLite is single-writer; use PostgreSQL for high-concurrency deployments",
+        level="recommended",
+    ))
+
+    redis_url = os.environ.get("REDIS_URL", "")
+    checks.append(IntegrationHealth(
+        key="redis",
+        label="Redis",
+        configured=bool(redis_url),
+        detail=_host(redis_url) if redis_url else None,
+        impact=None if redis_url else "Without Redis, mid-stream interrupt/inject does not work across workers (WORKERS>1)",
+        level="optional",
+    ))
 
     # ── AI Models ────────────────────────────────────────────────────────
     llm_model = os.environ.get("LLM_MODEL", "").strip('"')

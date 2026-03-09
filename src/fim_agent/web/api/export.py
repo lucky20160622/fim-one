@@ -61,8 +61,86 @@ def _format_date_compact(dt: datetime | None) -> str:
     return dt.strftime("%Y%m%d") if dt else "export"
 
 
-def _mode_label(mode: str) -> str:
-    return "DAG (Plan & Execute)" if mode == "dag" else "Standard (ReAct)"
+# ---------------------------------------------------------------------------
+# I18n — export label translations
+# ---------------------------------------------------------------------------
+
+_I18N: dict[str, dict[str, str]] = {
+    "en": {
+        "mode": "Mode",
+        "mode_standard": "Standard",
+        "mode_planner": "Planner",
+        "created": "Created",
+        "total_tokens": "Total Tokens",
+        "turn": "Turn",
+        "user": "User",
+        "assistant": "Assistant",
+        "execution_details": "Execution Details",
+        "iteration": "iteration",
+        "iterations": "iterations",
+        "iteration_label": "Iteration",
+        "step": "Step",
+        "tool": "Tool",
+        "duration": "Duration",
+        "reasoning": "Reasoning",
+        "arguments": "Arguments",
+        "result": "Result",
+        "plan": "Plan",
+        "round": "Round",
+        "task": "Task",
+        "dependencies": "Dependencies",
+        "none": "none",
+        "goal_achieved": "Goal Achieved",
+        "goal_not_achieved": "Goal Not Achieved",
+        "analysis": "Analysis",
+        "confidence": "confidence",
+        "step_result": "Step Result",
+        "empty_conversation": "(empty conversation)",
+        "untitled": "Untitled Conversation",
+    },
+    "zh": {
+        "mode": "模式",
+        "mode_standard": "标准",
+        "mode_planner": "规划",
+        "created": "创建时间",
+        "total_tokens": "总 Token 数",
+        "turn": "轮次",
+        "user": "用户",
+        "assistant": "助手",
+        "execution_details": "执行详情",
+        "iteration": "次迭代",
+        "iterations": "次迭代",
+        "iteration_label": "迭代",
+        "step": "步骤",
+        "tool": "工具",
+        "duration": "耗时",
+        "reasoning": "推理",
+        "arguments": "参数",
+        "result": "结果",
+        "plan": "计划",
+        "round": "轮",
+        "task": "任务",
+        "dependencies": "依赖",
+        "none": "无",
+        "goal_achieved": "目标已达成",
+        "goal_not_achieved": "目标未达成",
+        "analysis": "分析",
+        "confidence": "置信度",
+        "step_result": "步骤结果",
+        "empty_conversation": "（空对话）",
+        "untitled": "无标题对话",
+    },
+}
+
+
+def _t(key: str, locale: str) -> str:
+    """Get a translated string for the given locale."""
+    strings = _I18N.get(locale, _I18N["en"])
+    return strings.get(key, _I18N["en"].get(key, key))
+
+
+def _mode_label(mode: str, locale: str = "en") -> str:
+    return _t("mode_planner", locale) if mode == "dag" else _t("mode_standard", locale)
 
 
 def _pair_messages(messages: list[Message]) -> list[dict[str, Any]]:
@@ -219,22 +297,22 @@ def _extract_dag_rounds(events: list[dict[str, Any]]) -> list[int]:
 # ---------------------------------------------------------------------------
 
 
-def _render_md(conv: Conversation, messages: list[Message], detail: DetailLevel) -> str:
+def _render_md(conv: Conversation, messages: list[Message], detail: DetailLevel, locale: str = "en") -> str:
     """Render a conversation as a Markdown document."""
     lines: list[str] = []
-    title = conv.title or "Untitled Conversation"
+    title = conv.title or _t("untitled", locale)
 
     # Header
     lines.append(f"# {title}")
     lines.append("")
     meta_parts = [
-        f"**Mode:** {_mode_label(conv.mode)}",
+        f"**{_t('mode', locale)}:** {_mode_label(conv.mode, locale)}",
     ]
-    meta_parts.append(f"**Created:** {_format_date(conv.created_at)}")
+    meta_parts.append(f"**{_t('created', locale)}:** {_format_date(conv.created_at)}")
     lines.append(" | ".join(meta_parts))
 
     if detail == DetailLevel.FULL and conv.total_tokens:
-        lines.append(f"**Total Tokens:** {conv.total_tokens:,}")
+        lines.append(f"**{_t('total_tokens', locale)}:** {conv.total_tokens:,}")
 
     lines.append("")
     lines.append("---")
@@ -243,13 +321,13 @@ def _render_md(conv: Conversation, messages: list[Message], detail: DetailLevel)
     # Turns
     turns = _pair_messages(messages)
     for idx, turn in enumerate(turns, 1):
-        lines.append(f"## Turn {idx}")
+        lines.append(f"## {_t('turn', locale)} {idx}")
         lines.append("")
 
         # User message
         user_msg: Message | None = turn.get("user")
         if user_msg:
-            lines.append("**User:**")
+            lines.append(f"**{_t('user', locale)}:**")
             lines.append("")
             lines.append(user_msg.content or "")
             lines.append("")
@@ -261,7 +339,7 @@ def _render_md(conv: Conversation, messages: list[Message], detail: DetailLevel)
             lines.append("")
             continue
 
-        lines.append("**Assistant:**")
+        lines.append(f"**{_t('assistant', locale)}:**")
         lines.append("")
 
         if detail == DetailLevel.FULL:
@@ -269,9 +347,9 @@ def _render_md(conv: Conversation, messages: list[Message], detail: DetailLevel)
             done = _extract_done_event(events)
 
             if conv.mode == "dag":
-                _render_md_dag_details(lines, events, done)
+                _render_md_dag_details(lines, events, done, locale)
             else:
-                _render_md_react_details(lines, events, done)
+                _render_md_react_details(lines, events, done, locale)
 
         # Final answer
         answer = asst_msg.content or ""
@@ -289,6 +367,7 @@ def _render_md_react_details(
     lines: list[str],
     events: list[dict[str, Any]],
     done: dict[str, Any] | None,
+    locale: str = "en",
 ) -> None:
     """Append ReAct execution details in Markdown."""
     steps = _extract_react_steps(events)
@@ -298,11 +377,12 @@ def _render_md_react_details(
     iterations = done.get("iterations", len(steps)) if done else len(steps)
     elapsed = done.get("elapsed", 0) if done else 0
 
+    iter_label = _t("iteration" if iterations == 1 else "iterations", locale)
     lines.append(
-        f"> **Execution Details** ({iterations} iteration{'s' if iterations != 1 else ''}, {elapsed:.1f}s)"
+        f"> **{_t('execution_details', locale)}** ({iterations} {iter_label}, {elapsed:.1f}s)"
     )
     lines.append(">")
-    lines.append("> | # | Tool | Duration |")
+    lines.append(f"> | # | {_t('tool', locale)} | {_t('duration', locale)} |")
     lines.append("> |---|------|----------|")
     for i, step in enumerate(steps, 1):
         tool = step.get("tool_name", "unknown")
@@ -314,17 +394,17 @@ def _render_md_react_details(
         tool = step.get("tool_name", "unknown")
         dur = step.get("iter_elapsed", 0)
         lines.append(f"<details>")
-        lines.append(f"<summary>Step {i}: {tool} ({dur:.1f}s)</summary>")
+        lines.append(f"<summary>{_t('step', locale)} {i}: {tool} ({dur:.1f}s)</summary>")
         lines.append("")
 
         reasoning = step.get("reasoning")
         if reasoning:
-            lines.append(f"**Reasoning:** {reasoning}")
+            lines.append(f"**{_t('reasoning', locale)}:** {reasoning}")
             lines.append("")
 
         args = step.get("tool_args")
         if args:
-            lines.append("**Arguments:**")
+            lines.append(f"**{_t('arguments', locale)}:**")
             lines.append("```json")
             lines.append(json.dumps(args, indent=2, ensure_ascii=False))
             lines.append("```")
@@ -332,7 +412,7 @@ def _render_md_react_details(
 
         observation = step.get("observation")
         if observation:
-            lines.append("**Result:**")
+            lines.append(f"**{_t('result', locale)}:**")
             lines.append(str(observation))
             lines.append("")
 
@@ -344,6 +424,7 @@ def _render_md_dag_details(
     lines: list[str],
     events: list[dict[str, Any]],
     done: dict[str, Any] | None,
+    locale: str = "en",
 ) -> None:
     """Append DAG execution details in Markdown."""
     rounds = _extract_dag_rounds(events)
@@ -351,9 +432,9 @@ def _render_md_dag_details(
     for rnd in rounds:
         plan_steps = _extract_dag_plan(events, rnd)
         if plan_steps:
-            lines.append(f"> **Plan** (Round {rnd})")
+            lines.append(f"> **{_t('plan', locale)}** ({_t('round', locale)} {rnd})")
             lines.append(">")
-            lines.append("> | Step | Task | Dependencies |")
+            lines.append(f"> | {_t('step', locale)} | {_t('task', locale)} | {_t('dependencies', locale)} |")
             lines.append("> |------|------|-------------|")
             for ps in plan_steps:
                 sid = ps.get("id", "?")
@@ -375,7 +456,7 @@ def _render_md_dag_details(
 
         iterations = info.get("iterations", [])
         if iterations:
-            lines.append("**Iterations:**")
+            lines.append(f"**{_t('iteration_label', locale)}:**")
             for it in iterations:
                 it_num = it.get("iteration", "?")
                 tool = it.get("tool_name", "unknown")
@@ -383,15 +464,15 @@ def _render_md_dag_details(
                 reasoning = it.get("reasoning", "")
                 observation = it.get("observation", "")
                 lines.append(
-                    f"{it_num}. **{tool}** ({dur:.1f}s) \u2014 Reasoning: {reasoning}"
+                    f"{it_num}. **{tool}** ({dur:.1f}s) \u2014 {_t('reasoning', locale)}: {reasoning}"
                 )
                 if observation:
-                    lines.append(f"   Result: {observation}")
+                    lines.append(f"   {_t('result', locale)}: {observation}")
             lines.append("")
 
         result = completed.get("result", "") if completed else ""
         if result:
-            lines.append(f"**Step Result:** {result}")
+            lines.append(f"**{_t('step_result', locale)}:** {result}")
             lines.append("")
 
         lines.append("</details>")
@@ -402,9 +483,9 @@ def _render_md_dag_details(
         achieved = analysis.get("achieved", False)
         confidence = analysis.get("confidence", 0)
         reasoning = analysis.get("reasoning", "")
-        achieved_label = "Goal Achieved" if achieved else "Goal Not Achieved"
+        achieved_label = _t("goal_achieved", locale) if achieved else _t("goal_not_achieved", locale)
         lines.append(
-            f"> **Analysis:** {achieved_label} ({confidence * 100:.0f}% confidence)"
+            f"> **{_t('analysis', locale)}:** {achieved_label} ({confidence * 100:.0f}% {_t('confidence', locale)})"
         )
         if reasoning:
             lines.append(f"> {reasoning}")
@@ -434,31 +515,31 @@ def _strip_md(text: str) -> str:
     return text
 
 
-def _render_txt(conv: Conversation, messages: list[Message], detail: DetailLevel) -> str:
+def _render_txt(conv: Conversation, messages: list[Message], detail: DetailLevel, locale: str = "en") -> str:
     """Render a conversation as plain text."""
     lines: list[str] = []
-    title = conv.title or "Untitled Conversation"
+    title = conv.title or _t("untitled", locale)
 
     lines.append(title)
     lines.append("=" * len(title))
     lines.append("")
-    lines.append(f"Mode: {_mode_label(conv.mode)}")
-    lines.append(f"Created: {_format_date(conv.created_at)}")
+    lines.append(f"{_t('mode', locale)}: {_mode_label(conv.mode, locale)}")
+    lines.append(f"{_t('created', locale)}: {_format_date(conv.created_at)}")
     if detail == DetailLevel.FULL and conv.total_tokens:
-        lines.append(f"Total Tokens: {conv.total_tokens:,}")
+        lines.append(f"{_t('total_tokens', locale)}: {conv.total_tokens:,}")
     lines.append("")
     lines.append("=" * 60)
     lines.append("")
 
     turns = _pair_messages(messages)
     for idx, turn in enumerate(turns, 1):
-        lines.append(f"Turn {idx}")
+        lines.append(f"{_t('turn', locale)} {idx}")
         lines.append("-" * 40)
         lines.append("")
 
         user_msg: Message | None = turn.get("user")
         if user_msg:
-            lines.append("[User]")
+            lines.append(f"[{_t('user', locale)}]")
             lines.append("")
             lines.append(user_msg.content or "")
             lines.append("")
@@ -469,7 +550,7 @@ def _render_txt(conv: Conversation, messages: list[Message], detail: DetailLevel
             lines.append("")
             continue
 
-        lines.append("[Assistant]")
+        lines.append(f"[{_t('assistant', locale)}]")
         lines.append("")
 
         if detail == DetailLevel.FULL:
@@ -477,9 +558,9 @@ def _render_txt(conv: Conversation, messages: list[Message], detail: DetailLevel
             done = _extract_done_event(events)
 
             if conv.mode == "dag":
-                _render_txt_dag_details(lines, events, done)
+                _render_txt_dag_details(lines, events, done, locale)
             else:
-                _render_txt_react_details(lines, events, done)
+                _render_txt_react_details(lines, events, done, locale)
 
         answer = asst_msg.content or ""
         if not answer and asst_msg.metadata_:
@@ -496,6 +577,7 @@ def _render_txt_react_details(
     lines: list[str],
     events: list[dict[str, Any]],
     done: dict[str, Any] | None,
+    locale: str = "en",
 ) -> None:
     """Append ReAct details as plain text."""
     steps = _extract_react_steps(events)
@@ -505,27 +587,28 @@ def _render_txt_react_details(
     iterations = done.get("iterations", len(steps)) if done else len(steps)
     elapsed = done.get("elapsed", 0) if done else 0
 
+    iter_label = _t("iteration" if iterations == 1 else "iterations", locale)
     lines.append(
-        f"  Execution Details: {iterations} iteration(s), {elapsed:.1f}s"
+        f"  {_t('execution_details', locale)}: {iterations} {iter_label}, {elapsed:.1f}s"
     )
     lines.append("")
 
     for i, step in enumerate(steps, 1):
         tool = step.get("tool_name", "unknown")
         dur = step.get("iter_elapsed", 0)
-        lines.append(f"  Step {i}: {tool} ({dur:.1f}s)")
+        lines.append(f"  {_t('step', locale)} {i}: {tool} ({dur:.1f}s)")
 
         reasoning = step.get("reasoning")
         if reasoning:
-            lines.append(f"    Reasoning: {reasoning}")
+            lines.append(f"    {_t('reasoning', locale)}: {reasoning}")
 
         args = step.get("tool_args")
         if args:
-            lines.append(f"    Arguments: {json.dumps(args, ensure_ascii=False)}")
+            lines.append(f"    {_t('arguments', locale)}: {json.dumps(args, ensure_ascii=False)}")
 
         observation = step.get("observation")
         if observation:
-            lines.append(f"    Result: {observation}")
+            lines.append(f"    {_t('result', locale)}: {observation}")
 
         lines.append("")
 
@@ -534,6 +617,7 @@ def _render_txt_dag_details(
     lines: list[str],
     events: list[dict[str, Any]],
     done: dict[str, Any] | None,
+    locale: str = "en",
 ) -> None:
     """Append DAG details as plain text."""
     rounds = _extract_dag_rounds(events)
@@ -541,12 +625,12 @@ def _render_txt_dag_details(
     for rnd in rounds:
         plan_steps = _extract_dag_plan(events, rnd)
         if plan_steps:
-            lines.append(f"  Plan (Round {rnd}):")
+            lines.append(f"  {_t('plan', locale)} ({_t('round', locale)} {rnd}):")
             for ps in plan_steps:
                 sid = ps.get("id", "?")
                 task = ps.get("task", "")
-                deps = ", ".join(ps.get("deps", [])) or "none"
-                lines.append(f"    {sid}: {task} [deps: {deps}]")
+                deps = ", ".join(ps.get("deps", [])) or _t("none", locale)
+                lines.append(f"    {sid}: {task} [{_t('dependencies', locale)}: {deps}]")
             lines.append("")
 
     step_details = _extract_dag_step_details(events)
@@ -564,15 +648,15 @@ def _render_txt_dag_details(
             dur = it.get("iter_elapsed", 0)
             reasoning = it.get("reasoning", "")
             observation = it.get("observation", "")
-            lines.append(f"    Iteration {it_num}: {tool} ({dur:.1f}s)")
+            lines.append(f"    {_t('iteration_label', locale)} {it_num}: {tool} ({dur:.1f}s)")
             if reasoning:
-                lines.append(f"      Reasoning: {reasoning}")
+                lines.append(f"      {_t('reasoning', locale)}: {reasoning}")
             if observation:
-                lines.append(f"      Result: {observation}")
+                lines.append(f"      {_t('result', locale)}: {observation}")
 
         result = completed.get("result", "") if completed else ""
         if result:
-            lines.append(f"    Step Result: {result}")
+            lines.append(f"    {_t('step_result', locale)}: {result}")
         lines.append("")
 
     analysis = _extract_dag_analysis(events)
@@ -580,8 +664,8 @@ def _render_txt_dag_details(
         achieved = analysis.get("achieved", False)
         confidence = analysis.get("confidence", 0)
         reasoning = analysis.get("reasoning", "")
-        label = "Goal Achieved" if achieved else "Goal Not Achieved"
-        lines.append(f"  Analysis: {label} ({confidence * 100:.0f}% confidence)")
+        label = _t("goal_achieved", locale) if achieved else _t("goal_not_achieved", locale)
+        lines.append(f"  {_t('analysis', locale)}: {label} ({confidence * 100:.0f}% {_t('confidence', locale)})")
         if reasoning:
             lines.append(f"    {reasoning}")
         lines.append("")
@@ -798,7 +882,18 @@ class _DocxMarkdownRenderer(HTMLParser):
         n_cols = max(len(r) for r in self._table_rows) if self._table_rows else 1
         table = self._doc.add_table(rows=len(self._table_rows), cols=n_cols)
         table.style = "Table Grid"
-        for r_idx, row in enumerate(self._table_rows):
+        table.autofit = True
+
+        # Bold header row
+        for c_idx, cell_text in enumerate(self._table_rows[0] if self._table_rows else []):
+            if c_idx < n_cols:
+                cell = table.rows[0].cells[c_idx]
+                cell.text = ""
+                run = cell.paragraphs[0].add_run(cell_text)
+                run.bold = True
+
+        # Data rows
+        for r_idx, row in enumerate(self._table_rows[1:], 1):
             for c_idx, cell_text in enumerate(row):
                 if c_idx < n_cols:
                     table.rows[r_idx].cells[c_idx].text = cell_text
@@ -817,7 +912,7 @@ def _md_to_docx(doc: Any, text: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _render_docx(conv: Conversation, messages: list[Message], detail: DetailLevel) -> bytes:
+def _render_docx(conv: Conversation, messages: list[Message], detail: DetailLevel, locale: str = "en") -> bytes:
     """Render a conversation as a DOCX file and return the raw bytes."""
     try:
         from docx import Document
@@ -840,42 +935,42 @@ def _render_docx(conv: Conversation, messages: list[Message], detail: DetailLeve
         style = doc.styles[f"Heading {level}"]
         style.font.color.rgb = _heading_color
 
-    title = _strip_emoji(conv.title or "Untitled Conversation")
+    title = _strip_emoji(conv.title or _t("untitled", locale))
 
     # Title
     doc.add_heading(title, level=1)
 
     # Metadata
-    meta_text = f"Mode: {_mode_label(conv.mode)}"
-    meta_text += f"  |  Created: {_format_date(conv.created_at)}"
+    meta_text = f"{_t('mode', locale)}: {_mode_label(conv.mode, locale)}"
+    meta_text += f"  |  {_t('created', locale)}: {_format_date(conv.created_at)}"
     if detail == DetailLevel.FULL and conv.total_tokens:
-        meta_text += f"  |  Total Tokens: {conv.total_tokens:,}"
+        meta_text += f"  |  {_t('total_tokens', locale)}: {conv.total_tokens:,}"
     doc.add_paragraph(meta_text)
 
     # Turns
     turns = _pair_messages(messages)
     for idx, turn in enumerate(turns, 1):
-        doc.add_heading(f"Turn {idx}", level=2)
+        doc.add_heading(f"{_t('turn', locale)} {idx}", level=2)
 
         user_msg: Message | None = turn.get("user")
         if user_msg:
-            doc.add_heading("User", level=3)
+            doc.add_heading(_t("user", locale), level=3)
             doc.add_paragraph(_strip_emoji(user_msg.content or ""))
 
         asst_msg: Message | None = turn.get("assistant")
         if asst_msg is None:
             continue
 
-        doc.add_heading("Assistant", level=3)
+        doc.add_heading(_t("assistant", locale), level=3)
 
         if detail == DetailLevel.FULL:
             events = _extract_sse_events(asst_msg)
             done = _extract_done_event(events)
 
             if conv.mode == "dag":
-                _render_docx_dag_details(doc, events, done)
+                _render_docx_dag_details(doc, events, done, locale)
             else:
-                _render_docx_react_details(doc, events, done)
+                _render_docx_react_details(doc, events, done, locale)
 
         # Final answer
         answer = asst_msg.content or ""
@@ -907,6 +1002,7 @@ def _render_docx_react_details(
     doc: Any,
     events: list[dict[str, Any]],
     done: dict[str, Any] | None,
+    locale: str = "en",
 ) -> None:
     """Add ReAct execution details to a DOCX document."""
     steps = _extract_react_steps(events)
@@ -916,8 +1012,9 @@ def _render_docx_react_details(
     iterations = done.get("iterations", len(steps)) if done else len(steps)
     elapsed = done.get("elapsed", 0) if done else 0
 
+    iter_label = _t("iteration" if iterations == 1 else "iterations", locale)
     doc.add_paragraph(
-        f"Execution Details: {iterations} iteration(s), {elapsed:.1f}s"
+        f"{_t('execution_details', locale)}: {iterations} {iter_label}, {elapsed:.1f}s"
     )
 
     for i, step in enumerate(steps, 1):
@@ -925,12 +1022,12 @@ def _render_docx_react_details(
         dur = step.get("iter_elapsed", 0)
 
         doc.add_paragraph(
-            f"Step {i}: {tool} ({dur:.1f}s)", style="List Bullet"
+            f"{_t('step', locale)} {i}: {tool} ({dur:.1f}s)", style="List Bullet"
         )
 
         reasoning = step.get("reasoning")
         if reasoning:
-            doc.add_paragraph(f"Reasoning: {_strip_emoji(reasoning)}", style="List Bullet 2")
+            doc.add_paragraph(f"{_t('reasoning', locale)}: {_strip_emoji(reasoning)}", style="List Bullet 2")
 
         args = step.get("tool_args")
         if args:
@@ -938,13 +1035,14 @@ def _render_docx_react_details(
 
         observation = step.get("observation")
         if observation:
-            doc.add_paragraph(f"Result: {_strip_emoji(str(observation)[:500])}", style="List Bullet 2")
+            doc.add_paragraph(f"{_t('result', locale)}: {_strip_emoji(str(observation)[:500])}", style="List Bullet 2")
 
 
 def _render_docx_dag_details(
     doc: Any,
     events: list[dict[str, Any]],
     done: dict[str, Any] | None,
+    locale: str = "en",
 ) -> None:
     """Add DAG execution details to a DOCX document."""
     rounds = _extract_dag_rounds(events)
@@ -952,13 +1050,13 @@ def _render_docx_dag_details(
     for rnd in rounds:
         plan_steps = _extract_dag_plan(events, rnd)
         if plan_steps:
-            doc.add_paragraph(f"Plan (Round {rnd}):")
+            doc.add_paragraph(f"{_t('plan', locale)} ({_t('round', locale)} {rnd}):")
             for ps in plan_steps:
                 sid = _strip_emoji(ps.get("id", "?"))
                 task = _strip_emoji(ps.get("task", ""))
-                deps = ", ".join(ps.get("deps", [])) or "none"
+                deps = ", ".join(ps.get("deps", [])) or _t("none", locale)
                 doc.add_paragraph(
-                    f"{sid}: {task} [deps: {deps}]", style="List Bullet"
+                    f"{sid}: {task} [{_t('dependencies', locale)}: {deps}]", style="List Bullet"
                 )
 
     step_details = _extract_dag_step_details(events)
@@ -976,27 +1074,27 @@ def _render_docx_dag_details(
             dur = it.get("iter_elapsed", 0)
             reasoning = _strip_emoji(it.get("reasoning", ""))
             doc.add_paragraph(
-                f"Iteration {it_num}: {tool} ({dur:.1f}s) - {reasoning}",
+                f"{_t('iteration_label', locale)} {it_num}: {tool} ({dur:.1f}s) - {reasoning}",
                 style="List Bullet",
             )
 
             observation = it.get("observation", "")
             if observation:
                 doc.add_paragraph(
-                    f"Result: {_strip_emoji(str(observation)[:500])}", style="List Bullet 2"
+                    f"{_t('result', locale)}: {_strip_emoji(str(observation)[:500])}", style="List Bullet 2"
                 )
 
         result = completed.get("result", "") if completed else ""
         if result:
-            doc.add_paragraph(f"Step Result: {_strip_emoji(result)}", style="List Bullet")
+            doc.add_paragraph(f"{_t('step_result', locale)}: {_strip_emoji(result)}", style="List Bullet")
 
     analysis = _extract_dag_analysis(events)
     if analysis:
         achieved = analysis.get("achieved", False)
         confidence = analysis.get("confidence", 0)
         reasoning = _strip_emoji(analysis.get("reasoning", ""))
-        label = "Goal Achieved" if achieved else "Goal Not Achieved"
-        doc.add_paragraph(f"Analysis: {label} ({confidence * 100:.0f}% confidence)")
+        label = _t("goal_achieved", locale) if achieved else _t("goal_not_achieved", locale)
+        doc.add_paragraph(f"{_t('analysis', locale)}: {label} ({confidence * 100:.0f}% {_t('confidence', locale)})")
         if reasoning:
             doc.add_paragraph(reasoning)
 
@@ -1272,25 +1370,35 @@ class _PdfMarkdownRenderer(HTMLParser):
 
     def _emit_table(self) -> None:
         from reportlab.lib import colors
+        from reportlab.lib.units import inch
         from reportlab.platypus import Paragraph, Table, TableStyle
 
         if not self._table_rows:
             return
 
         n_cols = max(len(r) for r in self._table_rows)
+
+        # Calculate available width (A4 width minus margins)
+        available_width = 6.5 * inch  # A4 width ~8.27in - 2*0.75in margins
+        col_width = available_width / n_cols
+        col_widths = [col_width] * n_cols
+
         table_data: list[list[Any]] = []
-        for row in self._table_rows:
+        for r_idx, row in enumerate(self._table_rows):
             cells = []
             for i in range(n_cols):
                 cell_text = row[i] if i < len(row) else ""
                 safe = cell_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                # Bold header row
+                if r_idx == 0:
+                    safe = f"<b>{safe}</b>"
                 cells.append(Paragraph(safe, self._styles["body"]))
             table_data.append(cells)
 
         if not table_data:
             return
 
-        table = Table(table_data, repeatRows=1)
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
         table.setStyle(TableStyle([
             ("GRID", (0, 0), (-1, -1), 0.5, colors.Color(0.78, 0.72, 0.60)),
             ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.96, 0.93, 0.87)),
@@ -1317,7 +1425,7 @@ def _md_to_pdf_flowables(text: str, styles: dict[str, Any], font_name: str) -> l
     return renderer.flowables
 
 
-def _render_pdf(conv: Conversation, messages: list[Message], detail: DetailLevel) -> bytes:
+def _render_pdf(conv: Conversation, messages: list[Message], detail: DetailLevel, locale: str = "en") -> bytes:
     """Render a conversation as a PDF file and return the raw bytes."""
     try:
         from reportlab.lib.pagesizes import A4
@@ -1346,17 +1454,17 @@ def _render_pdf(conv: Conversation, messages: list[Message], detail: DetailLevel
     )
 
     flowables: list[Any] = []
-    title = _strip_emoji(conv.title or "Untitled Conversation")
+    title = _strip_emoji(conv.title or _t("untitled", locale))
 
     # Title
     safe_title = title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     flowables.append(Paragraph(safe_title, styles["title"]))
 
     # Metadata
-    meta_text = f"Mode: {_mode_label(conv.mode)}"
-    meta_text += f"  |  Created: {_format_date(conv.created_at)}"
+    meta_text = f"{_t('mode', locale)}: {_mode_label(conv.mode, locale)}"
+    meta_text += f"  |  {_t('created', locale)}: {_format_date(conv.created_at)}"
     if detail == DetailLevel.FULL and conv.total_tokens:
-        meta_text += f"  |  Total Tokens: {conv.total_tokens:,}"
+        meta_text += f"  |  {_t('total_tokens', locale)}: {conv.total_tokens:,}"
     safe_meta = meta_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     flowables.append(Paragraph(safe_meta, styles["meta"]))
     flowables.append(Spacer(1, 12))
@@ -1366,11 +1474,11 @@ def _render_pdf(conv: Conversation, messages: list[Message], detail: DetailLevel
     # Turns
     turns = _pair_messages(messages)
     for idx, turn in enumerate(turns, 1):
-        flowables.append(Paragraph(f"Turn {idx}", styles["heading2"]))
+        flowables.append(Paragraph(f"{_t('turn', locale)} {idx}", styles["heading2"]))
 
         user_msg: Message | None = turn.get("user")
         if user_msg:
-            flowables.append(Paragraph("User", styles["heading3"]))
+            flowables.append(Paragraph(_t("user", locale), styles["heading3"]))
             user_text = _strip_emoji(user_msg.content or "")
             safe_user = user_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             flowables.append(Paragraph(safe_user, styles["body"]))
@@ -1382,16 +1490,16 @@ def _render_pdf(conv: Conversation, messages: list[Message], detail: DetailLevel
             flowables.append(Spacer(1, 8))
             continue
 
-        flowables.append(Paragraph("Assistant", styles["heading3"]))
+        flowables.append(Paragraph(_t("assistant", locale), styles["heading3"]))
 
         if detail == DetailLevel.FULL:
             events = _extract_sse_events(asst_msg)
             done = _extract_done_event(events)
 
             if conv.mode == "dag":
-                _render_pdf_dag_details(flowables, events, done, styles, font_name)
+                _render_pdf_dag_details(flowables, events, done, styles, font_name, locale)
             else:
-                _render_pdf_react_details(flowables, events, done, styles, font_name)
+                _render_pdf_react_details(flowables, events, done, styles, font_name, locale)
 
         # Final answer
         answer = asst_msg.content or ""
@@ -1407,7 +1515,7 @@ def _render_pdf(conv: Conversation, messages: list[Message], detail: DetailLevel
 
     # Guard against empty document (ReportLab raises on no flowables)
     if not flowables:
-        flowables.append(Paragraph("(empty conversation)", styles["body"]))
+        flowables.append(Paragraph(_t("empty_conversation", locale), styles["body"]))
 
     doc.build(flowables)
     return buf.getvalue()
@@ -1419,6 +1527,7 @@ def _render_pdf_react_details(
     done: dict[str, Any] | None,
     styles: dict[str, Any],
     font_name: str,
+    locale: str = "en",
 ) -> None:
     """Add ReAct execution details as PDF flowables."""
     from reportlab.platypus import Paragraph, Preformatted, Spacer
@@ -1430,8 +1539,9 @@ def _render_pdf_react_details(
     iterations = done.get("iterations", len(steps)) if done else len(steps)
     elapsed = done.get("elapsed", 0) if done else 0
 
+    iter_label = _t("iteration" if iterations == 1 else "iterations", locale)
     flowables.append(Paragraph(
-        f"<b>Execution Details:</b> {iterations} iteration(s), {elapsed:.1f}s",
+        f"<b>{_t('execution_details', locale)}:</b> {iterations} {iter_label}, {elapsed:.1f}s",
         styles["meta"],
     ))
 
@@ -1441,14 +1551,14 @@ def _render_pdf_react_details(
         safe_tool = tool.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
         flowables.append(Paragraph(
-            f"\u2022 Step {i}: <b>{safe_tool}</b> ({dur:.1f}s)",
+            f"\u2022 {_t('step', locale)} {i}: <b>{safe_tool}</b> ({dur:.1f}s)",
             styles["bullet"],
         ))
 
         reasoning = step.get("reasoning")
         if reasoning:
             safe_r = _strip_emoji(str(reasoning)).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            flowables.append(Paragraph(f"Reasoning: {safe_r}", styles["quote"]))
+            flowables.append(Paragraph(f"{_t('reasoning', locale)}: {safe_r}", styles["quote"]))
 
         args = step.get("tool_args")
         if args:
@@ -1460,7 +1570,7 @@ def _render_pdf_react_details(
         if observation:
             obs_text = _strip_emoji(str(observation)[:500])
             safe_obs = obs_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            flowables.append(Paragraph(f"Result: {safe_obs}", styles["quote"]))
+            flowables.append(Paragraph(f"{_t('result', locale)}: {safe_obs}", styles["quote"]))
 
     flowables.append(Spacer(1, 8))
 
@@ -1471,9 +1581,11 @@ def _render_pdf_dag_details(
     done: dict[str, Any] | None,
     styles: dict[str, Any],
     font_name: str,
+    locale: str = "en",
 ) -> None:
     """Add DAG execution details as PDF flowables."""
     from reportlab.lib import colors
+    from reportlab.lib.units import inch
     from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
     rounds = _extract_dag_rounds(events)
@@ -1481,13 +1593,15 @@ def _render_pdf_dag_details(
     for rnd in rounds:
         plan_steps = _extract_dag_plan(events, rnd)
         if plan_steps:
-            flowables.append(Paragraph(f"<b>Plan (Round {rnd}):</b>", styles["meta"]))
+            flowables.append(Paragraph(
+                f"<b>{_t('plan', locale)} ({_t('round', locale)} {rnd}):</b>", styles["meta"]
+            ))
 
             # Build table: Step | Task | Dependencies
             header = [
-                Paragraph("<b>Step</b>", styles["body"]),
-                Paragraph("<b>Task</b>", styles["body"]),
-                Paragraph("<b>Dependencies</b>", styles["body"]),
+                Paragraph(f"<b>{_t('step', locale)}</b>", styles["body"]),
+                Paragraph(f"<b>{_t('task', locale)}</b>", styles["body"]),
+                Paragraph(f"<b>{_t('dependencies', locale)}</b>", styles["body"]),
             ]
             table_data = [header]
             for ps in plan_steps:
@@ -1503,7 +1617,11 @@ def _render_pdf_dag_details(
                     Paragraph(safe_deps, styles["body"]),
                 ])
 
-            table = Table(table_data, repeatRows=1)
+            # Weighted column widths: Step narrow, Task wide, Dependencies medium
+            available_width = 6.5 * inch
+            col_widths = [available_width * 0.12, available_width * 0.60, available_width * 0.28]
+
+            table = Table(table_data, colWidths=col_widths, repeatRows=1)
             table.setStyle(TableStyle([
                 ("GRID", (0, 0), (-1, -1), 0.5, colors.Color(0.78, 0.72, 0.60)),
                 ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.96, 0.93, 0.87)),
@@ -1512,6 +1630,8 @@ def _render_pdf_dag_details(
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("TOPPADDING", (0, 0), (-1, -1), 4),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
             ]))
             flowables.append(table)
             flowables.append(Spacer(1, 8))
@@ -1541,19 +1661,19 @@ def _render_pdf_dag_details(
             safe_reason = str(reasoning).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
             flowables.append(Paragraph(
-                f"\u2022 Iteration {it_num}: <b>{safe_tool}</b> ({dur:.1f}s) \u2014 {safe_reason}",
+                f"\u2022 {_t('iteration_label', locale)} {it_num}: <b>{safe_tool}</b> ({dur:.1f}s) \u2014 {safe_reason}",
                 styles["bullet"],
             ))
 
             if observation:
                 obs_text = _strip_emoji(str(observation)[:500])
                 safe_obs = obs_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                flowables.append(Paragraph(f"Result: {safe_obs}", styles["quote"]))
+                flowables.append(Paragraph(f"{_t('result', locale)}: {safe_obs}", styles["quote"]))
 
         result = completed.get("result", "") if completed else ""
         if result:
             safe_result = _strip_emoji(str(result)).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            flowables.append(Paragraph(f"Step Result: {safe_result}", styles["bullet"]))
+            flowables.append(Paragraph(f"{_t('step_result', locale)}: {safe_result}", styles["bullet"]))
         flowables.append(Spacer(1, 4))
 
     analysis = _extract_dag_analysis(events)
@@ -1561,9 +1681,9 @@ def _render_pdf_dag_details(
         achieved = analysis.get("achieved", False)
         confidence = analysis.get("confidence", 0)
         reasoning = _strip_emoji(analysis.get("reasoning", ""))
-        label = "Goal Achieved" if achieved else "Goal Not Achieved"
+        label = _t("goal_achieved", locale) if achieved else _t("goal_not_achieved", locale)
         flowables.append(Paragraph(
-            f"<b>Analysis:</b> {label} ({confidence * 100:.0f}% confidence)",
+            f"<b>{_t('analysis', locale)}:</b> {label} ({confidence * 100:.0f}% {_t('confidence', locale)})",
             styles["meta"],
         ))
         if reasoning:
@@ -1594,6 +1714,7 @@ async def export_conversation(
     detail: DetailLevel = Query(
         DetailLevel.FULL, description="Detail level: full or summary"
     ),
+    locale: str = Query("en", description="Locale for labels: en or zh"),
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> StreamingResponse:
@@ -1628,16 +1749,16 @@ async def export_conversation(
 
     # Render content
     if format == ExportFormat.PDF:
-        content_bytes = _render_pdf(conv, messages, detail)
+        content_bytes = _render_pdf(conv, messages, detail, locale)
         stream = io.BytesIO(content_bytes)
     elif format == ExportFormat.DOCX:
-        content_bytes = _render_docx(conv, messages, detail)
+        content_bytes = _render_docx(conv, messages, detail, locale)
         stream = io.BytesIO(content_bytes)
     elif format == ExportFormat.TXT:
-        text = _render_txt(conv, messages, detail)
+        text = _render_txt(conv, messages, detail, locale)
         stream = io.BytesIO(text.encode("utf-8"))
     else:  # MD
-        text = _render_md(conv, messages, detail)
+        text = _render_md(conv, messages, detail, locale)
         stream = io.BytesIO(text.encode("utf-8"))
 
     content_type = _CONTENT_TYPES[format]

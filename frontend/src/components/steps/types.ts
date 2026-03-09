@@ -6,7 +6,7 @@ export interface ArtifactInfo {
 }
 
 export interface IterationData {
-  type?: string              // "tool_call" | "tool_start" | "thinking"
+  type?: string              // "iteration" | "thinking" | "answer"
   iteration?: number
   displayIteration?: number
   tool_name?: string
@@ -15,7 +15,7 @@ export interface IterationData {
   observation?: string
   error?: string
   duration?: number          // seconds
-  loading?: boolean          // DAG tool_start equivalent
+  loading?: boolean          // true when tool is executing
   content_type?: string      // "text" | "html" | "markdown" | "json"
   artifacts?: ArtifactInfo[]
 }

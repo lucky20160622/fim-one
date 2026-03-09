@@ -85,14 +85,39 @@ For a complete list of all configuration options, see the [Environment Variables
 
 ## Production Deployment
 
-Both options work in production:
+### Docker (Recommended)
 
-| Method | Command | Best for |
-|--------|---------|----------|
-| **Docker** | `docker compose up -d` | Hands-off deployment, easy updates |
-| **Script** | `./start.sh` | Bare-metal servers, custom process managers |
+`docker compose up -d` brings up everything you need — **no manual service configuration required**:
 
-For either method, put an Nginx reverse proxy in front for HTTPS and custom domain:
+| Service | Purpose | Configured by |
+|---------|---------|---------------|
+| **fim-agent** | API + Frontend | `.env` (your LLM keys, etc.) |
+| **Redis** | Cross-worker interrupt relay | Auto-configured by compose |
+
+```bash
+docker compose up --build -d   # first time / after code changes
+docker compose up -d           # subsequent starts
+docker compose logs -f         # view logs
+docker compose down            # stop all services
+```
+
+#### Scaling with Workers
+
+By default, the API runs with a single worker process. To handle more concurrent users, increase workers via `.env`:
+
+```bash
+WORKERS=4   # number of Uvicorn worker processes
+```
+
+Multi-worker requirements:
+- **PostgreSQL** — SQLite is single-writer and does not support concurrent writes. Set `DATABASE_URL` to a PostgreSQL connection string.
+- **Redis** — already included in Docker Compose (auto-configured). Handles cross-worker interrupt/inject relay.
+
+With `WORKERS=1` (default), no Redis or PostgreSQL is needed — SQLite works fine.
+
+#### Nginx Reverse Proxy
+
+For HTTPS and custom domain, put an Nginx reverse proxy in front:
 
 ```
 User → Nginx (443/HTTPS) → localhost:3000
@@ -100,10 +125,36 @@ User → Nginx (443/HTTPS) → localhost:3000
 
 The API runs internally on port 8000 — Next.js proxies `/api/*` requests automatically. Only port 3000 needs to be exposed.
 
+#### Code Execution Sandbox
+
 If you use the code execution sandbox (`CODE_EXEC_BACKEND=docker`), mount the Docker socket:
 
 ```yaml
 # docker-compose.yml
 volumes:
   - /var/run/docker.sock:/var/run/docker.sock
+```
+
+### Script Deployment (Bare Metal)
+
+For bare-metal servers or custom process managers, use `./start.sh` directly:
+
+```bash
+./start.sh           # production mode
+./start.sh portal    # same as above (explicit)
+./start.sh api       # API only (headless)
+```
+
+In this mode, Redis is **not** included automatically. The system runs in single-worker, in-process mode by default — suitable for low-traffic deployments.
+
+To enable multi-worker with Redis locally:
+
+```bash
+# Start a Redis instance (Docker or system package)
+docker run -d --name redis -p 6379:6379 redis:7-alpine
+
+# Add to .env
+REDIS_URL=redis://localhost:6379/0
+WORKERS=4
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost/fim_agent
 ```

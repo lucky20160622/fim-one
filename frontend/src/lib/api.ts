@@ -385,12 +385,12 @@ export const conversationApi = {
       { method: "DELETE", body: JSON.stringify({ ids }) },
     ),
 
-  export: async (id: string, format: "md" | "txt" | "docx" | "pdf", detail: "full" | "summary" = "full"): Promise<void> => {
+  export: async (id: string, format: "md" | "txt" | "docx" | "pdf", detail: "full" | "summary" = "full", locale: string = "en"): Promise<void> => {
     const token = getAccessToken()
     const headers: Record<string, string> = {}
     if (token) headers["Authorization"] = `Bearer ${token}`
     const res = await fetch(
-      `${getApiBaseUrl()}/api/conversations/${id}/export?format=${format}&detail=${detail}`,
+      `${getApiBaseUrl()}/api/conversations/${id}/export?format=${format}&detail=${detail}&locale=${locale}`,
       { headers },
     )
     if (!res.ok) {

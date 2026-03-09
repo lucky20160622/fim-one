@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import secrets
-import time
 from datetime import UTC, datetime, timedelta
 from urllib.parse import quote
 
@@ -39,25 +37,6 @@ from fim_agent.web.oauth import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth/oauth", tags=["oauth"])
-
-# In-memory CSRF state store
-# Each entry: {"expiry": float, "action": "login"|"bind", "user_id": str|None}
-_oauth_states: dict[str, dict] = {}
-_STATE_TTL = 300  # 5 minutes
-
-# ---------------------------------------------------------------------------
-# OAuth bind ticket store  (ticket → (user_id, expires_at))
-# One-time tickets replace raw JWTs in the /authorize?ticket=... bind flow.
-# ---------------------------------------------------------------------------
-_bind_tickets: dict[str, tuple[str, float]] = {}
-_BIND_TICKET_TTL = 60  # 60 seconds
-
-
-def _cleanup_expired_states() -> None:
-    now = time.time()
-    expired = [s for s, entry in _oauth_states.items() if entry["expiry"] < now]
-    for s in expired:
-        del _oauth_states[s]
 
 
 def _get_callback_url(provider_name: str) -> str:
@@ -99,41 +78,20 @@ async def authorize(
             detail_args={"provider": provider_name},
         )
 
-    _cleanup_expired_states()
-    state = secrets.token_urlsafe(32)
-
-    state_entry: dict = {
-        "expiry": time.time() + _STATE_TTL,
-        "action": "login",
-        "user_id": None,
-    }
+    action_value = "login"
+    user_id: str | None = None
 
     if action == "bind":
-        user_id: str | None = None
-
         # Prefer ticket over raw JWT token
         if ticket:
-            now = time.time()
-            # Purge expired bind tickets
-            expired = [k for k, (_, exp) in _bind_tickets.items() if exp < now]
-            for k in expired:
-                _bind_tickets.pop(k, None)
-
-            entry = _bind_tickets.pop(ticket, None)
-            if entry is None:
+            from fim_agent.web.auth import verify_bind_ticket
+            user_id = verify_bind_ticket(ticket)
+            if user_id is None:
                 frontend_url = _get_frontend_url()
                 return RedirectResponse(
                     url=f"{frontend_url}/settings?tab=account&bind_error=invalid_ticket",
                     status_code=302,
                 )
-            uid, exp = entry
-            if exp < now:
-                frontend_url = _get_frontend_url()
-                return RedirectResponse(
-                    url=f"{frontend_url}/settings?tab=account&bind_error=ticket_expired",
-                    status_code=302,
-                )
-            user_id = uid
         elif token:
             # Deprecated: raw JWT in query param
             logger.warning("OAuth bind using deprecated raw JWT token param — use ticket instead")
@@ -151,10 +109,10 @@ async def authorize(
 
         if not user_id:
             raise AppError("oauth_bind_credentials_required", status_code=400)
-        state_entry["action"] = "bind"
-        state_entry["user_id"] = user_id
+        action_value = "bind"
 
-    _oauth_states[state] = state_entry
+    from fim_agent.web.auth import create_oauth_state
+    state = create_oauth_state(action=action_value, user_id=user_id)
 
     redirect_uri = _get_callback_url(provider_name)
     url = build_authorize_url(provider, state, redirect_uri)
@@ -180,12 +138,12 @@ async def callback(
     if not code or not state:
         return RedirectResponse(url=f"{frontend_url}/auth/callback?error=oauth_failed")
 
-    # Validate CSRF state
-    _cleanup_expired_states()
-    if state not in _oauth_states:
+    # Validate CSRF state (JWT-signed)
+    from fim_agent.web.auth import verify_oauth_state
+    state_entry = verify_oauth_state(state)
+    if not state_entry:
         logger.warning("Invalid or expired OAuth state")
         return RedirectResponse(url=f"{frontend_url}/auth/callback?error=oauth_failed")
-    state_entry = _oauth_states.pop(state)
 
     # Helper: error redirect based on action (bind → settings, login → auth/callback)
     def _error_redirect(error_code: str = "oauth_failed") -> RedirectResponse:
@@ -230,11 +188,11 @@ async def _handle_bind(
 
     # Load the current user by user_id stored in the state
     user_result = await db.execute(
-        select(User).where(User.id == state_entry["user_id"])
+        select(User).where(User.id == state_entry["sub"])
     )
     user = user_result.scalar_one_or_none()
     if user is None:
-        logger.warning("Bind flow: user_id %s not found", state_entry["user_id"])
+        logger.warning("Bind flow: user_id %s not found", state_entry["sub"])
         return RedirectResponse(
             url=f"{settings_url}&bind_error=user_not_found", status_code=302
         )
@@ -453,13 +411,10 @@ async def _handle_login(
 async def issue_bind_ticket(
     current_user: User = Depends(get_current_user),  # noqa: B008
 ) -> dict[str, str]:
-    """Generate a single-use OAuth bind ticket.
+    """Generate a short-lived JWT bind ticket.
 
     The ticket is valid for 60 seconds and should be passed as the ``ticket``
     query parameter to ``/{provider}/authorize?action=bind&ticket=...``.
-    It is consumed on first use so it cannot be replayed.
     """
-    ticket = secrets.token_urlsafe(32)
-    expires_at = time.time() + _BIND_TICKET_TTL
-    _bind_tickets[ticket] = (str(current_user.id), expires_at)
-    return {"ticket": ticket}
+    from fim_agent.web.auth import create_bind_ticket
+    return {"ticket": create_bind_ticket(str(current_user.id))}

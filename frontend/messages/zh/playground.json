@@ -30,6 +30,7 @@
   "statusAnalyzing": "分析中...",
   "statusAnalyzingRound": "分析中（第 {round} 轮）...",
   "statusProcessing": "处理中...",
+  "answerGenerating": "正在生成回答...",
   "standardMode": "标准模式",
   "plannerMode": "规划模式",
   "suggestedPrompts": "建议提示",

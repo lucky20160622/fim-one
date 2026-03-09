@@ -116,7 +116,7 @@ def create_app() -> FastAPI:
     #         /api/admin/* (admins can turn maintenance off), /api/system/*
     _MAINTENANCE_PASS = ("/api/auth/", "/api/admin/", "/api/system/")
     _maintenance_cache: list[tuple[bool, float] | None] = [None]
-    _MAINTENANCE_TTL = 30.0
+    _MAINTENANCE_TTL = 5.0
 
     @app.middleware("http")
     async def maintenance_mode_gate(request: Request, call_next):

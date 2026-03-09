@@ -4,7 +4,7 @@ Both endpoints stream Server-Sent Events with the following event names:
 
 - ``step``           – ReAct iteration progress (tool calls, thinking).
 - ``step_progress``  – DAG per-step progress (started / iteration / completed).
-- ``phase``          – DAG pipeline phase transitions (planning / executing / analyzing).
+- ``phase``          – Pipeline phase transitions (selecting_tools / planning / executing / analyzing).
 - ``compact``        – Context compaction occurred (original_messages, kept_messages).
 - ``done``           – Final result payload (always the last event).
 
@@ -23,12 +23,10 @@ import base64
 import json
 import logging
 import os
-import secrets
 import time
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import suppress
-from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -104,80 +102,14 @@ async def _check_sensitive_words(text: str, db: AsyncSession) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# SSE one-time ticket store  (ticket → (user_id, expires_at))
+# Interrupt broker
 # ---------------------------------------------------------------------------
 
-_sse_tickets: dict[str, tuple[str, datetime]] = {}
-
-
-# ---------------------------------------------------------------------------
-# Interrupt queue infrastructure
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class InjectedMessage:
-    """A user message injected mid-stream into a running agent execution."""
-
-    id: str  # unique id for recall/edit
-    content: str
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-
-
-class InterruptQueue:
-    """Async-safe interrupt queue that supports recall (cancel) of pending messages."""
-
-    def __init__(self) -> None:
-        self._queue: asyncio.Queue[InjectedMessage] = asyncio.Queue()
-        self._recalled: set[str] = set()  # ids of recalled messages
-        self._lock = asyncio.Lock()
-
-    def put(self, msg: InjectedMessage) -> None:
-        self._queue.put_nowait(msg)
-
-    async def recall(self, msg_id: str) -> bool:
-        """Mark a message as recalled. Returns True if the id was not already recalled."""
-        async with self._lock:
-            if msg_id in self._recalled:
-                return False
-            self._recalled.add(msg_id)
-            return True
-
-    async def drain(self) -> list[InjectedMessage]:
-        """Drain all non-recalled messages from the queue."""
-        async with self._lock:
-            result: list[InjectedMessage] = []
-            while not self._queue.empty():
-                try:
-                    msg = self._queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    break
-                if msg.id not in self._recalled:
-                    result.append(msg)
-            return result
-
-    def empty(self) -> bool:
-        return self._queue.empty()
-
-
-_interrupt_queues: dict[str, InterruptQueue] = {}
-
-
-def register_interrupt_queue(conversation_id: str) -> InterruptQueue:
-    """Create and register an interrupt queue for a conversation."""
-    q = InterruptQueue()
-    _interrupt_queues[conversation_id] = q
-    return q
-
-
-def unregister_interrupt_queue(conversation_id: str) -> None:
-    """Remove the interrupt queue for a conversation."""
-    _interrupt_queues.pop(conversation_id, None)
-
-
-def get_interrupt_queue(conversation_id: str) -> InterruptQueue | None:
-    """Get the interrupt queue for a conversation, or None if not active."""
-    return _interrupt_queues.get(conversation_id)
+from fim_agent.web.interrupt import (
+    InjectedMessage,
+    InterruptQueue,
+    get_broker,
+)
 
 router = APIRouter(prefix="/api")
 
@@ -353,7 +285,7 @@ async def _generate_title(
 async def _resolve_user(
     token: str | None,
 ) -> tuple[str | None, str | None, str | None]:
-    """Validate a JWT query-param token (or one-time SSE ticket) and return
+    """Validate a JWT query-param token (or SSE ticket JWT) and return
     ``(user_id, system_instructions, preferred_language)``.
 
     Returns ``(None, None, None)`` when *token* is not provided.
@@ -362,28 +294,21 @@ async def _resolve_user(
     if not token:
         return None, None, None
 
-    # -- Purge expired tickets on every call --------------------------------
-    now_utc = datetime.now(UTC)
-    expired_keys = [k for k, (_, exp) in _sse_tickets.items() if exp < now_utc]
-    for k in expired_keys:
-        _sse_tickets.pop(k, None)
+    import jwt as pyjwt
+    from fim_agent.web.auth import SECRET_KEY, ALGORITHM
 
-    # -- Check if token is a one-time SSE ticket ----------------------------
-    if token in _sse_tickets:
-        _uid, _exp = _sse_tickets.pop(token)
-        if _exp < now_utc:
-            raise AppError("sse_ticket_expired", status_code=401)
-        # Ticket is valid — fall through to DB lookup with _uid
-        user_id: str | None = _uid
-        payload: dict = {}
-    else:
-        # -- Normal JWT path ------------------------------------------------
-        from fim_agent.web.auth import decode_token
+    # Decode the JWT — works for both SSE tickets and normal access tokens
+    try:
+        payload = pyjwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except pyjwt.ExpiredSignatureError:
+        raise AppError("token_expired", status_code=401)
+    except pyjwt.InvalidTokenError:
+        raise AppError("invalid_token", status_code=401)
 
-        payload = decode_token(token)  # raises 401 on bad/expired token
-        user_id = payload.get("sub")
-        if not user_id:
-            raise AppError("invalid_token_payload", status_code=401)
+    # SSE ticket or normal access token — both have "sub" as user_id
+    user_id: str | None = payload.get("sub")
+    if not user_id:
+        raise AppError("invalid_token_payload", status_code=401)
 
     # -- Fetch full user record from DB ------------------------------------
     system_instructions: str | None = None
@@ -405,7 +330,7 @@ async def _resolve_user(
                 return None, None, None
 
             # Fix #11b: reject tokens issued before a force-logout event
-            if user.tokens_invalidated_at is not None and payload:
+            if user.tokens_invalidated_at is not None:
                 iat = payload.get("iat")
                 if iat is None:
                     return None, None, None
@@ -896,16 +821,13 @@ async def _load_image_data_urls(
 async def issue_sse_ticket(
     current_user: User = Depends(get_current_user),  # noqa: B008
 ) -> dict[str, str]:
-    """Generate a single-use SSE authentication ticket.
+    """Generate a short-lived JWT ticket for SSE authentication.
 
     The ticket is valid for 60 seconds and can be passed as the ``token``
     field in the JSON body of ``POST /api/react`` or ``POST /api/dag``.
-    It is consumed on first use so it cannot be replayed.
     """
-    ticket = secrets.token_urlsafe(32)
-    expires_at = datetime.now(UTC) + timedelta(seconds=60)
-    _sse_tickets[ticket] = (str(current_user.id), expires_at)
-    return {"ticket": ticket}
+    from fim_agent.web.auth import create_sse_ticket
+    return {"ticket": create_sse_ticket(str(current_user.id))}
 
 
 # ---------------------------------------------------------------------------
@@ -954,10 +876,6 @@ async def inject_message(
     if _conv_owner is None or str(_conv_owner) != str(current_user.id):
         raise AppError("forbidden", status_code=403)
 
-    q = get_interrupt_queue(body.conversation_id)
-    if q is None:
-        raise AppError("no_active_execution", status_code=404)
-
     # Sensitive word check — block before persisting or queuing
     matched = await _check_sensitive_words(body.content, db)
     if matched:
@@ -968,7 +886,13 @@ async def inject_message(
         )
 
     msg_id = uuid.uuid4().hex[:12]
-    q.put(InjectedMessage(id=msg_id, content=body.content))
+    broker = get_broker()
+    delivered = await broker.inject(
+        body.conversation_id,
+        InjectedMessage(id=msg_id, content=body.content),
+    )
+    if not delivered:
+        raise AppError("no_active_execution", status_code=404)
 
     # Persist the injected message to DB immediately.
     try:
@@ -1016,10 +940,7 @@ async def recall_inject(
     if _conv_owner is None or str(_conv_owner) != str(current_user.id):
         raise AppError("forbidden", status_code=403)
 
-    q = get_interrupt_queue(body.conversation_id)
-    if q is None:
-        raise AppError("no_active_execution", status_code=404)
-    recalled = await q.recall(body.inject_id)
+    recalled = await get_broker().recall(body.conversation_id, body.inject_id)
     return {"success": recalled}
 
 
@@ -1115,7 +1036,7 @@ async def react_endpoint(
     async def generate() -> AsyncGenerator[str, None]:  # noqa: C901
         t0 = time.time()
         sse_events: list[dict[str, Any]] = []
-        yield _emit(sse_events, "step", {"type": "thinking", "iteration": 0})
+        yield _emit(sse_events, "step", {"type": "thinking", "status": "start", "iteration": 1})
 
         # -- MCP connection (must happen inside generator for anyio cancel scope) --
         user_mcp_client = await _connect_pending_mcp_servers(tools)
@@ -1161,11 +1082,21 @@ async def react_endpoint(
         # Register interrupt queue for mid-stream injection.
         interrupt_queue: InterruptQueue | None = None
         if conversation_id:
-            interrupt_queue = register_interrupt_queue(conversation_id)
+            interrupt_queue = await get_broker().register(conversation_id)
 
         progress_queue: asyncio.Queue[str] = asyncio.Queue(maxsize=1000)
         done_event = asyncio.Event()
         iter_start = time.time()
+        thinking_done_iter = 0  # track which iteration's thinking-done was emitted
+        answer_started = False
+
+        def _emit_step(payload: dict[str, Any]) -> None:
+            """Emit a step SSE event to both persistence list and queue."""
+            sse_events.append({"event": "step", "data": payload})
+            try:
+                progress_queue.put_nowait(_sse("step", payload))
+            except asyncio.QueueFull:
+                logger.warning("SSE progress queue full, dropping event")
 
         def on_iteration(
             iteration: int,
@@ -1174,10 +1105,10 @@ async def react_endpoint(
             error: str | None,
             step_result: Any = None,
         ) -> None:
-            nonlocal iter_start
+            nonlocal iter_start, thinking_done_iter, answer_started
 
             # Handle injected user messages as a special SSE event.
-            if action.tool_name == "__inject__":
+            if getattr(action, "tool_name", None) == "__inject__":
                 inject_payload: dict[str, Any] = {
                     "type": "inject",
                     "content": action.tool_args.get("content", ""),
@@ -1191,44 +1122,101 @@ async def react_endpoint(
                     logger.warning("SSE progress queue full, dropping event")
                 return
 
-            if action.type == "tool_call":
-                is_starting = observation is None and error is None
-                now = time.time()
-                iter_elapsed: float | None = None
-                if is_starting:
-                    iter_start = now
-                else:
-                    iter_elapsed = round(now - iter_start, 2)
-                payload: dict[str, Any] = {
-                    "type": "tool_start" if is_starting else "tool_call",
-                    "iteration": iteration,
-                    "tool_name": action.tool_name,
-                    "tool_args": action.tool_args,
-                    "reasoning": action.reasoning,
-                    "observation": observation,
-                    "error": error,
+            # Handle tool selection phase indicator.
+            if getattr(action, "tool_name", None) == "__selecting_tools__":
+                phase_payload: dict[str, Any] = {
+                    "phase": "selecting_tools",
+                    "total_tools": action.tool_args.get("total", 0),
                 }
-                if iter_elapsed is not None:
-                    payload["iter_elapsed"] = iter_elapsed
-                # Attach artifact metadata for completed tool calls
-                if not is_starting and step_result is not None:
-                    if getattr(step_result, "content_type", None):
-                        payload["content_type"] = step_result.content_type
-                    if getattr(step_result, "artifacts", None):
-                        payload["artifacts"] = [
-                            {
-                                "name": a["name"],
-                                "url": f"/api/conversations/{conversation_id}/artifacts/{a['path'].split('/')[-1].split('_', 1)[0]}",
-                                "mime_type": a["mime_type"],
-                                "size": a["size"],
-                            }
-                            for a in step_result.artifacts
-                        ] if conversation_id else step_result.artifacts
-                sse_events.append({"event": "step", "data": payload})
+                sse_events.append({"event": "phase", "data": phase_payload})
                 try:
-                    progress_queue.put_nowait(_sse("step", payload))
+                    progress_queue.put_nowait(_sse("phase", phase_payload))
                 except asyncio.QueueFull:
                     logger.warning("SSE progress queue full, dropping event")
+                return
+
+            # -- Thinking start signal (emitted by agent before LLM call) --
+            if action.type == "thinking":
+                # Iteration 1 already emitted as the initial event above.
+                if iteration > 1:
+                    _emit_step({
+                        "type": "thinking",
+                        "status": "start",
+                        "iteration": iteration,
+                    })
+                return
+
+            # -- Tool call lifecycle --
+            if action.type == "tool_call":
+                is_starting = observation is None and error is None
+
+                if is_starting:
+                    # Emit thinking done (once per iteration, before first tool)
+                    if thinking_done_iter < iteration:
+                        _emit_step({
+                            "type": "thinking",
+                            "status": "done",
+                            "iteration": iteration,
+                            "reasoning": action.reasoning,
+                        })
+                        thinking_done_iter = iteration
+
+                    # Emit iteration start
+                    iter_start = time.time()
+                    _emit_step({
+                        "type": "iteration",
+                        "status": "start",
+                        "iteration": iteration,
+                        "tool_name": action.tool_name,
+                        "tool_args": action.tool_args,
+                        "reasoning": action.reasoning,
+                    })
+                else:
+                    # Emit iteration done
+                    iter_elapsed = round(time.time() - iter_start, 2)
+                    payload: dict[str, Any] = {
+                        "type": "iteration",
+                        "status": "done",
+                        "iteration": iteration,
+                        "tool_name": action.tool_name,
+                        "tool_args": action.tool_args,
+                        "reasoning": action.reasoning,
+                        "observation": observation,
+                        "error": error,
+                        "iter_elapsed": iter_elapsed,
+                    }
+                    if step_result is not None:
+                        if getattr(step_result, "content_type", None):
+                            payload["content_type"] = step_result.content_type
+                        if getattr(step_result, "artifacts", None):
+                            payload["artifacts"] = [
+                                {
+                                    "name": a["name"],
+                                    "url": f"/api/conversations/{conversation_id}/artifacts/{a['path'].split('/')[-1].split('_', 1)[0]}",
+                                    "mime_type": a["mime_type"],
+                                    "size": a["size"],
+                                }
+                                for a in step_result.artifacts
+                            ] if conversation_id else step_result.artifacts
+                    _emit_step(payload)
+                return
+
+            # -- Final answer --
+            if action.type == "final_answer":
+                if thinking_done_iter < iteration:
+                    _emit_step({
+                        "type": "thinking",
+                        "status": "done",
+                        "iteration": iteration,
+                        "reasoning": action.reasoning,
+                    })
+                    thinking_done_iter = iteration
+
+                # Signal answer generation phase start
+                iter_start = time.time()
+                _emit_step({"type": "answer", "status": "start"})
+                answer_started = True
+                return
 
         try:
             fast_usage_tracker = UsageTracker()
@@ -1304,6 +1292,11 @@ async def react_endpoint(
                 return
 
             result = run_task.result()
+
+            # Emit answer start if callback didn't (e.g. max iterations exceeded)
+            if not answer_started:
+                yield _emit(sse_events, "step", {"type": "answer", "status": "start"})
+                iter_start = time.time()
 
             # Notify frontend if context was compacted
             if memory and memory.was_compacted:
@@ -1451,7 +1444,7 @@ async def react_endpoint(
             if user_mcp_client:
                 await user_mcp_client.disconnect_all()
             if conversation_id:
-                unregister_interrupt_queue(conversation_id)
+                await get_broker().unregister(conversation_id)
             if db_session:
                 await db_session.close()
 
@@ -1593,7 +1586,7 @@ async def dag_endpoint(
         # Register interrupt queue for mid-stream injection.
         dag_interrupt_queue: InterruptQueue | None = None
         if conversation_id:
-            dag_interrupt_queue = register_interrupt_queue(conversation_id)
+            dag_interrupt_queue = await get_broker().register(conversation_id)
 
         fast_usage_tracker = UsageTracker()
 
@@ -2148,7 +2141,7 @@ async def dag_endpoint(
             if dag_user_mcp_client:
                 await dag_user_mcp_client.disconnect_all()
             if conversation_id:
-                unregister_interrupt_queue(conversation_id)
+                await get_broker().unregister(conversation_id)
             if db_session:
                 await db_session.close()
 

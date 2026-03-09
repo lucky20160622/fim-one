@@ -87,13 +87,13 @@ function AssistantMessage({
               </span>
             )}
             {elapsed != null && (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 font-mono tabular-nums">
                 <Clock className="h-2.5 w-2.5" />
                 {fmtDuration(elapsed)}
               </span>
             )}
             {usage && (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 font-mono tabular-nums">
                 <BarChart3 className="h-2.5 w-2.5" />
                 {t("tokenIn", { value: (usage.prompt_tokens / 1000).toFixed(1) })} · {t("tokenOut", { value: (usage.completion_tokens / 1000).toFixed(1) })}
               </span>

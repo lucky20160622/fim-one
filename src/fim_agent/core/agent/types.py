@@ -25,7 +25,7 @@ class Action:
         answer: The final textual answer (only for ``final_answer``).
     """
 
-    type: Literal["tool_call", "final_answer"]
+    type: Literal["tool_call", "final_answer", "thinking"]
     reasoning: str
     tool_name: str | None = None
     tool_args: dict[str, Any] | None = None

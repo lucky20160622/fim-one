@@ -89,6 +89,25 @@ class ToolRegistry:
                 filtered.register(tool)
         return filtered
 
+    def filter_by_names(self, names: list[str]) -> ToolRegistry:
+        """Return a new ToolRegistry containing only tools with the given names.
+
+        Unknown names are silently ignored so that stale LLM selections
+        never cause a crash.
+
+        Args:
+            names: List of tool names to include.
+
+        Returns:
+            A new ``ToolRegistry`` with only the matching tools.
+        """
+        name_set = set(names)
+        filtered = ToolRegistry()
+        for tool in self._tools.values():
+            if tool.name in name_set:
+                filtered.register(tool)
+        return filtered
+
     def to_catalog(self) -> list[dict[str, Any]]:
         """Return metadata for all registered tools (for frontend display)."""
         result = []
@@ -104,6 +123,70 @@ class ToolRegistry:
             if reason:
                 entry["unavailable_reason"] = reason
             result.append(entry)
+        return result
+
+    # ------------------------------------------------------------------
+    # Compact serialisation (for tool selection phase)
+    # ------------------------------------------------------------------
+
+    def to_compact_catalog(self) -> str:
+        """Return a minimal text listing of all tools for LLM selection.
+
+        Each line contains just the tool name and a truncated one-line
+        description (max ~80 chars), suitable for a tool-selection prompt
+        that avoids injecting full parameter schemas.
+
+        Returns:
+            A newline-separated string of ``- name: description`` entries.
+        """
+        lines: list[str] = []
+        for t in self._tools.values():
+            desc = t.description.replace("\n", " ").strip()
+            if len(desc) > 80:
+                desc = desc[:77] + "..."
+            lines.append(f"- {t.name}: {desc}")
+        return "\n".join(lines)
+
+    def to_openai_tools_compact(self) -> list[dict[str, Any]]:
+        """Convert tools to OpenAI format with compressed descriptions.
+
+        Compared to ``to_openai_tools()``, this variant:
+        - Truncates the main description to 200 characters.
+        - Strips ``description`` from non-required parameters.
+
+        This is useful when many tools must be included but context budget
+        is tight.
+
+        Returns:
+            A list of OpenAI tool definition dicts with reduced verbosity.
+        """
+        import copy
+
+        tools = list(self._tools.values())
+        tools = [
+            t for t in tools
+            if not hasattr(t, "availability") or t.availability()[0]
+        ]
+        result: list[dict[str, Any]] = []
+        for tool in tools:
+            desc = tool.description.replace("\n", " ").strip()
+            if len(desc) > 200:
+                desc = desc[:197] + "..."
+            # Deep-copy schema so we don't mutate the original
+            schema = copy.deepcopy(tool.parameters_schema)
+            required = set(schema.get("required", []))
+            props = schema.get("properties", {})
+            for param_name, param_def in props.items():
+                if param_name not in required and "description" in param_def:
+                    del param_def["description"]
+            result.append({
+                "type": "function",
+                "function": {
+                    "name": tool.name,
+                    "description": desc,
+                    "parameters": schema,
+                },
+            })
         return result
 
     # ------------------------------------------------------------------

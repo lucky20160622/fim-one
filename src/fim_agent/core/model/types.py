@@ -30,6 +30,7 @@ class ChatMessage:
     tool_calls: list[ToolCallRequest] | None = None
     name: str | None = None
     pinned: bool = False
+    reasoning_content: str | None = None
 
     # ------------------------------------------------------------------
     # Vision helpers

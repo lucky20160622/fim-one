@@ -42,7 +42,7 @@ export function StepDetailPanel({ state, onClose }: StepDetailPanelProps) {
                 {state.task}
               </p>
               {state.duration != null && (
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-mono tabular-nums">
                   <Clock className="h-2.5 w-2.5" />
                   <span>{fmtDuration(state.duration)}</span>
                 </div>

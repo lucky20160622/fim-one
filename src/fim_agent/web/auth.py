@@ -129,6 +129,63 @@ def create_refresh_token(user_id: str, email: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Stateless tickets (multi-worker safe)
+# ---------------------------------------------------------------------------
+
+
+def create_sse_ticket(user_id: str, ttl: int = 60) -> str:
+    """Create a short-lived JWT ticket for SSE authentication."""
+    now = datetime.now(UTC)
+    payload = {"sub": user_id, "type": "sse_ticket",
+               "exp": now + timedelta(seconds=ttl), "iat": now}
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def verify_sse_ticket(token: str) -> str:
+    """Verify an SSE ticket JWT. Returns user_id or raises."""
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    if payload.get("type") != "sse_ticket":
+        raise jwt.InvalidTokenError("wrong token type")
+    return payload["sub"]
+
+
+def create_oauth_state(action: str, user_id: str | None, ttl: int = 300) -> str:
+    """Create a JWT-signed OAuth CSRF state token."""
+    now = datetime.now(UTC)
+    payload: dict = {"type": "oauth_state", "action": action,
+                     "exp": now + timedelta(seconds=ttl), "iat": now}
+    if user_id is not None:
+        payload["sub"] = user_id
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def verify_oauth_state(token: str) -> dict | None:
+    """Verify an OAuth state JWT. Returns payload dict or None on failure."""
+    try:
+        p = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return p if p.get("type") == "oauth_state" else None
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        return None
+
+
+def create_bind_ticket(user_id: str, ttl: int = 60) -> str:
+    """Create a short-lived JWT ticket for OAuth bind flow."""
+    now = datetime.now(UTC)
+    payload = {"sub": user_id, "type": "bind_ticket",
+               "exp": now + timedelta(seconds=ttl), "iat": now}
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def verify_bind_ticket(token: str) -> str | None:
+    """Verify a bind ticket JWT. Returns user_id or None on failure."""
+    try:
+        p = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return p["sub"] if p.get("type") == "bind_ticket" else None
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Token decoding
 # ---------------------------------------------------------------------------
 

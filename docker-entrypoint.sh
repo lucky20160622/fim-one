@@ -13,12 +13,16 @@ alembic upgrade head
 # Normalise LOG_LEVEL to lowercase for uvicorn
 LOG_LEVEL=$(echo "${LOG_LEVEL:-info}" | tr '[:upper:]' '[:lower:]')
 
+# Number of uvicorn worker processes (default: 1)
+WORKERS="${WORKERS:-1}"
+
 # Start API backend in background
-echo "Starting API backend on :8000..."
+echo "Starting API backend on :8000 (workers=$WORKERS)..."
 uvicorn fim_agent.web:create_app \
   --factory \
   --host 0.0.0.0 \
   --port 8000 \
+  --workers "$WORKERS" \
   --log-level "$LOG_LEVEL" &
 API_PID=$!
 

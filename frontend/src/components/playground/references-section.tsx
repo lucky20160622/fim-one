@@ -22,7 +22,7 @@ export function ReferencesSection({ items }: ReferencesSectionProps) {
     for (const item of items) {
       if (item.event === "step") {
         const step = item.data as ReactStepEvent
-        if (step.type === "tool_call" && step.observation) {
+        if (step.type === "iteration" && step.observation) {
           const parsed = parseEvidence(step.observation) ?? parseSimpleEvidence(step.observation)
           if (parsed) blocks.push(parsed)
         }

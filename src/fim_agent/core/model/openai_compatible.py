@@ -45,6 +45,7 @@ class OpenAICompatibleLLM(BaseLLM):
         default_max_tokens: int = 64000,
         retry_config: RetryConfig | None = RetryConfig(),
         rate_limit_config: RateLimitConfig | None = RateLimitConfig(),
+        reasoning_effort: str | None = None,
     ) -> None:
         self._client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         self._model = model
@@ -54,6 +55,7 @@ class OpenAICompatibleLLM(BaseLLM):
         self._rate_limiter: TokenBucketRateLimiter | None = (
             TokenBucketRateLimiter(rate_limit_config) if rate_limit_config else None
         )
+        self._reasoning_effort = reasoning_effort
 
     @property
     def model_id(self) -> str:
@@ -296,6 +298,8 @@ class OpenAICompatibleLLM(BaseLLM):
                 kwargs["tool_choice"] = tool_choice
         if response_format is not None:
             kwargs["response_format"] = response_format
+        if self._reasoning_effort:
+            kwargs["reasoning_effort"] = self._reasoning_effort
         return kwargs
 
     @staticmethod
@@ -329,10 +333,13 @@ class OpenAICompatibleLLM(BaseLLM):
         tool_calls: list[ToolCallRequest] | None = None
         if msg.tool_calls:
             tool_calls = OpenAICompatibleLLM._parse_tool_calls(msg.tool_calls)
+        # Extract extended thinking / reasoning content (DeepSeek R1, OpenAI o-series)
+        reasoning_content = getattr(msg, "reasoning_content", None)
         return ChatMessage(
             role=msg.role,
             content=msg.content,
             tool_calls=tool_calls,
+            reasoning_content=reasoning_content,
         )
 
     @staticmethod
