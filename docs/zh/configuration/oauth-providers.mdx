@@ -101,6 +101,12 @@ DISCORD_CLIENT_SECRET=...
   ## Feishu (Lark)
 </div>
 
+<Warning>
+**仅限同一租户使用。** 飞书自建应用只能认证**创建该应用的企业租户内的用户**。其他飞书租户的用户登录时会看到"无权限"错误。这意味着飞书 OAuth **不适用于公开 SaaS 部署**（用户来自不同组织的场景）。它适合**私有部署 / 单组织部署**，即所有用户都属于同一飞书租户的场景。
+
+如需支持跨租户飞书登录，需将应用发布到[飞书应用商店](https://open.feishu.cn/document/store-v1/overview)并通过飞书审核——流程较为复杂，且有严格要求。
+</Warning>
+
 **开发者控制台：** https://open.feishu.cn/app
 
 1. 点击 **Create App** → **In-house app** (自建应用)。需要使用公司/企业账户，个人账户无法使用 Feishu OAuth。

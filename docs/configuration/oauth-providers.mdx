@@ -93,6 +93,12 @@ DISCORD_CLIENT_SECRET=...
 
 ## Feishu (Lark)
 
+<Warning>
+**Tenant-scoped only.** Feishu in-house apps (自建应用) can only authenticate users within the **same enterprise tenant** that created the app. Users from other Feishu tenants will see a "no permission" error. This means Feishu OAuth is **not suitable for public SaaS deployments** where users come from different organizations. It works well for **private / single-organization deployments** where all users belong to the same Feishu tenant.
+
+To support cross-tenant Feishu login, you would need to publish the app to the [Feishu App Directory](https://open.feishu.cn/document/store-v1/overview) (应用商店) and pass Feishu's review process — which is complex and has strict requirements.
+</Warning>
+
 **Developer console:** https://open.feishu.cn/app
 
 1. Click **Create App** → **In-house app** (自建应用). Company/enterprise accounts are required — Feishu OAuth is not available for personal accounts.
