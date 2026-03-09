@@ -1453,7 +1453,14 @@ async def react_endpoint(
             if db_session:
                 await db_session.close()
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache, no-store",
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -2143,4 +2150,11 @@ async def dag_endpoint(
             if db_session:
                 await db_session.close()
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache, no-store",
+        },
+    )
