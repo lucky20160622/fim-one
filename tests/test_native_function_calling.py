@@ -69,7 +69,24 @@ class NativeToolFakeLLM(BaseLLM):
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> AsyncIterator[StreamChunk]:
-        yield StreamChunk(delta_content="fake", finish_reason="stop")
+        # Convert the pre-configured LLMResult into StreamChunks so that
+        # tests using _native_final_answer / _native_tool_call work with
+        # the stream_chat-based _run_native().
+        self.received_tools = tools
+        self.all_messages.append(list(messages))
+        idx = min(self._call_count, len(self._responses) - 1)
+        self._call_count += 1
+        resp = self._responses[idx]
+        if resp.message.content:
+            yield StreamChunk(delta_content=resp.message.content)
+        if resp.message.tool_calls:
+            yield StreamChunk(
+                tool_calls=resp.message.tool_calls,
+                finish_reason="tool_calls",
+                usage=resp.usage or None,
+            )
+        else:
+            yield StreamChunk(finish_reason="stop", usage=resp.usage or None)
 
     @property
     def abilities(self) -> dict[str, bool]:
@@ -245,7 +262,7 @@ class TestNativeImmediateFinalAnswer:
         assert llm.received_tools[0]["function"]["name"] == "echo"
 
     async def test_tool_choice_auto(self) -> None:
-        """Verify tool_choice='auto' is passed to the LLM."""
+        """Verify tools are passed to the LLM (stream_chat uses auto by default)."""
         llm = NativeToolFakeLLM(
             responses=[_native_final_answer("done")]
         )
@@ -255,7 +272,9 @@ class TestNativeImmediateFinalAnswer:
 
         await agent.run("test")
 
-        assert llm.received_tool_choice == "auto"
+        # stream_chat() doesn't take tool_choice — the OpenAI API
+        # defaults to "auto" when tools are present.
+        assert llm.received_tools is not None
 
 
 class TestNativeSingleToolCall:
