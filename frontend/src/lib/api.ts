@@ -33,7 +33,7 @@ import type {
   AIActionResult,
   AICreateConnectorResult,
 } from "@/types/connector"
-import type { AdminUser, AdminConversation, AdminMessage, StorageStats, InviteCode, AdminMCPServer, IntegrationHealth, AdminModelsResponse, AdminModelCreate, AdminModelUpdate, AdminUserFile, AdminGlobalAgentInfo, AdminAllMcpServer } from "@/types/admin"
+import type { AdminUser, AdminConversation, AdminMessage, StorageStats, InviteCode, AdminMCPServer, IntegrationHealth, AdminModelsResponse, AdminModelCreate, AdminModelUpdate, AdminUserFile, AdminGlobalAgentInfo, AdminAllMcpServer, AdminOrganization, OrgMember } from "@/types/admin"
 import type { MCPServerResponse, MCPServerCreate, MCPServerUpdate } from "@/types/mcp-server"
 import type { ModelConfigResponse, ModelConfigCreate, ModelConfigUpdate } from "@/types/model_config"
 
@@ -1093,6 +1093,33 @@ export const adminApi = {
     if (q) sp.set('q', q)
     return apiFetch<{ items: AdminAllMcpServer[]; total: number; page: number; size: number; pages: number }>(`/api/admin/all-mcp-servers?${sp}`)
   },
+
+  // --- Organizations (admin) ---
+  listOrganizations: (page = 1, size = 20, q?: string) => {
+    const sp = new URLSearchParams({ page: String(page), size: String(size) })
+    if (q) sp.set('q', q)
+    return apiFetch<{ items: AdminOrganization[]; total: number; page: number; size: number; pages: number }>(`/api/admin/organizations?${sp}`)
+  },
+  adminDeleteOrganization: (orgId: string) =>
+    apiFetch(`/api/admin/organizations/${orgId}`, { method: 'DELETE' }),
+
+  // --- Organizations (regular CRUD) ---
+  createOrganization: (data: { name: string; description?: string; icon?: string }) =>
+    apiFetch<AdminOrganization>('/api/orgs', { method: 'POST', body: JSON.stringify(data) }),
+  updateOrganization: (orgId: string, data: { name?: string; description?: string; icon?: string }) =>
+    apiFetch<AdminOrganization>(`/api/orgs/${orgId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteOrganization: (orgId: string) =>
+    apiFetch(`/api/orgs/${orgId}`, { method: 'DELETE' }),
+
+  // --- Organization members ---
+  listOrgMembers: (orgId: string) =>
+    apiFetch<OrgMember[]>(`/api/orgs/${orgId}/members`),
+  addOrgMember: (orgId: string, data: { username_or_email: string; role: string }) =>
+    apiFetch<OrgMember>(`/api/orgs/${orgId}/members`, { method: 'POST', body: JSON.stringify(data) }),
+  updateOrgMemberRole: (orgId: string, userId: string, data: { role: string }) =>
+    apiFetch<OrgMember>(`/api/orgs/${orgId}/members/${userId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  removeOrgMember: (orgId: string, userId: string) =>
+    apiFetch(`/api/orgs/${orgId}/members/${userId}`, { method: 'DELETE' }),
 }
 
 // --- MCP Server API ---

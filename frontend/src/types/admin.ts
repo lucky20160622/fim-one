@@ -165,3 +165,31 @@ export interface AdminAllMcpServer {
   email: string | null
   created_at: string
 }
+
+// Organization types
+export interface AdminOrganization {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  icon: string | null
+  owner_id: string
+  owner_username: string | null
+  owner_email: string
+  parent_id: string | null
+  is_active: boolean
+  member_count: number
+  created_at: string
+  updated_at: string | null
+}
+
+export interface OrgMember {
+  id: string
+  user_id: string
+  username: string | null
+  display_name: string | null
+  email: string
+  role: "owner" | "admin" | "member"
+  invited_by: string | null
+  created_at: string
+}

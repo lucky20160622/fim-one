@@ -3,7 +3,7 @@
 import { useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTranslations } from "next-intl"
-import { LayoutDashboard, Activity, Plug, Settings, Shield, Users, MessageSquare, HardDrive, Server, Cpu, Lock, Key, BookOpen, FileText, BarChart3, Wrench, Globe } from "lucide-react"
+import { LayoutDashboard, Activity, Plug, Settings, Shield, Users, MessageSquare, HardDrive, Server, Cpu, Lock, Key, BookOpen, FileText, BarChart3, Wrench, Globe, Building2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { AdminOverview } from "@/components/admin/admin-overview"
@@ -23,13 +23,15 @@ import { AdminContent } from "@/components/admin/admin-content"
 import { AdminAnalytics } from "@/components/admin/admin-analytics"
 import { AdminTools } from "@/components/admin/admin-tools"
 import { AdminGlobalAgents } from "@/components/admin/admin-global-agents"
+import { AdminOrganizations } from "@/components/admin/admin-organizations"
 
-const TAB_KEYS = ["overview", "health", "users", "conversations", "connectors", "mcp", "globalAgents", "models", "tools", "audit", "storage", "security", "apikeys", "resources", "content", "analytics", "settings"] as const
+const TAB_KEYS = ["overview", "health", "users", "organizations", "conversations", "connectors", "mcp", "globalAgents", "models", "tools", "audit", "storage", "security", "apikeys", "resources", "content", "analytics", "settings"] as const
 
 const TAB_ICONS = {
   overview: LayoutDashboard,
   health: Activity,
   users: Users,
+  organizations: Building2,
   conversations: MessageSquare,
   connectors: Plug,
   mcp: Server,
@@ -117,6 +119,7 @@ function AdminPanelContent() {
           {activeTab === "overview" && <AdminOverview />}
           {activeTab === "health" && <AdminHealth />}
           {activeTab === "users" && <AdminUsers />}
+          {activeTab === "organizations" && <AdminOrganizations />}
           {activeTab === "conversations" && <AdminConversations />}
           {activeTab === "connectors" && <AdminConnectors />}
           {activeTab === "storage" && <AdminStorage />}
