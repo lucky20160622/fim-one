@@ -3,6 +3,7 @@ services:
     build: .
     ports:
       - "3000:3000"   # Next.js frontend (API is proxied internally via rewrites)
+      - "8000:8000"   # Python API backend (for direct SSE streaming via NGINX)
     volumes:
       - ./data:/app/data             # Vector store (lancedb) + misc data
       - ./uploads:/app/uploads       # User-uploaded files (REQUIRED)
