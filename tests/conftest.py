@@ -25,11 +25,18 @@ class FakeLLM(BaseLLM):
 
     Args:
         responses: Ordered list of ``LLMResult`` objects to return.
+        abilities: Optional dict to override the default abilities.
     """
 
-    def __init__(self, responses: list[LLMResult] | None = None) -> None:
+    def __init__(
+        self,
+        responses: list[LLMResult] | None = None,
+        *,
+        abilities: dict[str, bool] | None = None,
+    ) -> None:
         self._responses: list[LLMResult] = responses or []
         self._call_count: int = 0
+        self._abilities = abilities
 
     @property
     def call_count(self) -> int:
@@ -61,6 +68,8 @@ class FakeLLM(BaseLLM):
 
     @property
     def abilities(self) -> dict[str, bool]:
+        if self._abilities is not None:
+            return self._abilities
         return {
             "tool_call": False,
             "json_mode": False,
