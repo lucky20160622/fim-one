@@ -13,7 +13,7 @@
       {
         "tabs": [
           {
-            "tab": "Documentation",
+            "tab": "Guides",
             "groups": [
               {
                 "group": "Getting Started",
@@ -21,23 +21,6 @@
                 "pages": [
                   "index",
                   "quickstart"
-                ]
-              },
-              {
-                "group": "Concepts",
-                "icon": "lightbulb",
-                "pages": [
-                  "concepts/execution-modes"
-                ]
-              },
-              {
-                "group": "Architecture",
-                "icon": "sitemap",
-                "pages": [
-                  "architecture/philosophy",
-                  "architecture/context-management",
-                  "architecture/connector-architecture",
-                  "architecture/planning-landscape"
                 ]
               },
               {
@@ -51,27 +34,51 @@
                 ]
               },
               {
+                "group": "Features",
+                "icon": "puzzle-piece",
+                "pages": [
+                  "concepts/execution-modes",
+                  "concepts/ai-builder"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "Concepts",
+            "groups": [
+              {
+                "group": "Architecture",
+                "icon": "sitemap",
+                "pages": [
+                  "architecture/philosophy",
+                  "architecture/context-management",
+                  "architecture/connector-architecture",
+                  "architecture/planning-landscape"
+                ]
+              },
+              {
                 "group": "Strategy",
                 "icon": "chess",
                 "pages": [
                   "strategy/competitive-landscape",
                   "strategy/orthogonality-strategy"
                 ]
-              },
-              {
-                "group": "Project",
-                "icon": "map",
-                "pages": [
-                  "roadmap"
-                ]
               }
             ]
           },
           {
-            "tab": "Changelog",
+            "tab": "Updates",
             "groups": [
               {
+                "group": "Roadmap",
+                "icon": "map",
+                "pages": [
+                  "roadmap"
+                ]
+              },
+              {
                 "group": "Changelog",
+                "icon": "clock-rotate-left",
                 "pages": [
                   "changelog"
                 ]
@@ -84,7 +91,7 @@
       {
         "tabs": [
           {
-            "tab": "文档",
+            "tab": "开发指南",
             "groups": [
               {
                 "group": "快速入门",
@@ -92,23 +99,6 @@
                 "pages": [
                   "zh/index",
                   "zh/quickstart"
-                ]
-              },
-              {
-                "group": "概念",
-                "icon": "lightbulb",
-                "pages": [
-                  "zh/concepts/execution-modes"
-                ]
-              },
-              {
-                "group": "架构",
-                "icon": "sitemap",
-                "pages": [
-                  "zh/architecture/philosophy",
-                  "zh/architecture/context-management",
-                  "zh/architecture/connector-architecture",
-                  "zh/architecture/planning-landscape"
                 ]
               },
               {
@@ -122,27 +112,51 @@
                 ]
               },
               {
+                "group": "功能",
+                "icon": "puzzle-piece",
+                "pages": [
+                  "zh/concepts/execution-modes",
+                  "zh/concepts/ai-builder"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "概念与架构",
+            "groups": [
+              {
+                "group": "架构",
+                "icon": "sitemap",
+                "pages": [
+                  "zh/architecture/philosophy",
+                  "zh/architecture/context-management",
+                  "zh/architecture/connector-architecture",
+                  "zh/architecture/planning-landscape"
+                ]
+              },
+              {
                 "group": "策略",
                 "icon": "chess",
                 "pages": [
                   "zh/strategy/competitive-landscape",
                   "zh/strategy/orthogonality-strategy"
                 ]
-              },
-              {
-                "group": "项目",
-                "icon": "map",
-                "pages": [
-                  "zh/roadmap"
-                ]
               }
             ]
           },
           {
-            "tab": "变更日志",
+            "tab": "项目动态",
             "groups": [
               {
+                "group": "路线图",
+                "icon": "map",
+                "pages": [
+                  "zh/roadmap"
+                ]
+              },
+              {
                 "group": "变更日志",
+                "icon": "clock-rotate-left",
                 "pages": [
                   "zh/changelog"
                 ]
