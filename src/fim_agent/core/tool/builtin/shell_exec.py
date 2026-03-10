@@ -144,11 +144,20 @@ _METACHAR_EVASION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r'\$\('), "command substitution $()"),
     (re.compile(r'`'), "backtick substitution"),
     (re.compile(r'\$\{'), "variable expansion ${}"),
-    (re.compile(r'\$[A-Za-z_]'), "variable reference $VAR"),
     (re.compile(r'\w""\w'), 'empty quote insertion (e.g. su""do)'),
     (re.compile(r"\w''\w"), "empty quote insertion (e.g. su''do)"),
     (re.compile(r'base64\s+(-d|--decode)', re.IGNORECASE), "base64 decode obfuscation"),
 ]
+
+# Known-safe shell variables that may appear in legitimate commands
+# (e.g. `echo $HOME`, `ls $PWD`).  Any $VAR not in this set is blocked
+# to prevent command-blocklist bypass via variable expansion (e.g. $SHELL).
+_SAFE_SHELL_VARS: frozenset[str] = frozenset({
+    "HOME", "USER", "PWD", "OLDPWD", "LANG", "LC_ALL", "LC_CTYPE",
+    "TERM", "COLUMNS", "LINES", "TMPDIR", "HOSTNAME", "PATH",
+    "SHLVL", "LOGNAME",
+})
+_DOLLAR_VAR_RE = re.compile(r'\$([A-Za-z_]\w*)')
 
 
 def _check_shell_metacharacters(command: str) -> str | None:
@@ -160,6 +169,10 @@ def _check_shell_metacharacters(command: str) -> str | None:
     for pattern, reason in _METACHAR_EVASION_PATTERNS:
         if pattern.search(command):
             return reason
+    # Fine-grained $VAR check: allow known-safe variables, block the rest.
+    for m in _DOLLAR_VAR_RE.finditer(command):
+        if m.group(1) not in _SAFE_SHELL_VARS:
+            return f"variable reference ${m.group(1)}"
     return None
 
 
@@ -224,7 +237,7 @@ def _build_safe_env(sandbox_dir: str) -> dict[str, str]:
     # Prevent any lingering credentials from leaking.
     for key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
                 "AWS_SESSION_TOKEN", "OPENAI_API_KEY",
-                "ANTHROPIC_API_KEY", "DATABASE_URL"):
+                "ANTHROPIC_API_KEY", "DATABASE_URL", "SHELL"):
         env.pop(key, None)
     return env
 
