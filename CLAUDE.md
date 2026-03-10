@@ -28,6 +28,8 @@ frontend/            # Next.js portal (shadcn/ui)
 - **Atomic commits**: always split unrelated changes into separate commits, even if user says "commit all"
 - **NEVER `git stash --include-untracked`** with important untracked files — `git add` them first; use `git stash pop` not `apply` + `drop`
 - **Worktrees**: clean working tree before starting; agents MUST commit on their branch; merge via `git merge`/`git cherry-pick`, not file copying
+- **Worktree + DB migration**: worktree agents MUST NOT run `alembic upgrade head` or any migration command — only write migration files + ORM model changes + business code. Migrations are applied after merging back to main (via `start.sh` auto-upgrade or manual `alembic upgrade head`). Reason: worktree shares the same SQLite dev DB; running migrations there will break the running main process and desync `alembic_version`.
+- **Worktree merge-back**: after a worktree agent completes, the orchestrator (main conversation) MUST merge the feature branch back to the current branch via `git merge <branch>` — do NOT leave orphan branches or ask the user to merge manually
 
 ## Frontend Build Safety
 
