@@ -57,12 +57,16 @@ class AgentResult:
     """Final result from an agent run.
 
     Attributes:
-        answer: The agent's final textual answer.
+        answer: The agent's final textual answer (brief/fallback from the
+            last iteration; the real answer is produced by ``stream_answer``).
         steps: The full trace of intermediate steps taken.
         iterations: Total number of reasoning iterations consumed.
+        messages: The full conversation history from the agent run.  Used by
+            ``ReActAgent.stream_answer()`` to build a synthesis prompt.
     """
 
     answer: str
     steps: list[StepResult] = field(default_factory=list)
     iterations: int = 0
     usage: UsageSummary | None = None
+    messages: list = field(default_factory=list)

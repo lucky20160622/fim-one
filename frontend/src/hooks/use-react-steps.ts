@@ -164,11 +164,27 @@ export function useReactSteps(messages: SSEMessage[], isRunning: boolean): React
 
     // After completion: drop transient items but keep thinking-done (has reasoning)
     if (hasDone) {
+      // Collect displayIterations that contain at least one tool call
+      const itersWithToolCalls = new Set<number>()
+      for (const item of result) {
+        if (item.event !== "step") continue
+        const step = item.data as ReactStepEvent
+        if (step.type === "iteration" && item.displayIteration != null) {
+          itersWithToolCalls.add(item.displayIteration)
+        }
+      }
+
       const items = result.filter(item => {
         if (item.event !== "step") return true
         const step = item.data as ReactStepEvent
         if (step.type === "thinking" && step.status === "start") return false
         if (step.type === "answer") return false
+        // Drop empty thinking rounds (no reasoning and no tool call in that iteration)
+        if (step.type === "thinking" && !step.reasoning
+            && item.displayIteration != null
+            && !itersWithToolCalls.has(item.displayIteration)) {
+          return false
+        }
         return true
       })
       return { items, streamingAnswer, answerDone, suggestions, title }

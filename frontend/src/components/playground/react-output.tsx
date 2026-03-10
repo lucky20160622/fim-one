@@ -238,6 +238,8 @@ function StepCard({ step, duration, displayIteration }: { step: ReactStepEvent; 
   const iterLabel = displayIteration ?? (step.iteration ?? 0) + 1
 
   if (step.type === "thinking") {
+    // Skip empty thinking rounds (final iteration that went straight to answer)
+    if (!step.reasoning && step.status === "done") return null
     return <ThinkingCard iterLabel={iterLabel} duration={duration} reasoning={step.reasoning} />
   }
 
@@ -274,6 +276,17 @@ function DoneCard({ done, items, suggestions, onSuggestionSelect }: { done: Reac
   const t = useTranslations("playground")
   const tDag = useTranslations("dag")
 
+  // Effective iterations: count unique displayIterations remaining in the items
+  // (empty thinking rounds have been filtered out by useReactSteps)
+  const effectiveIterations = items
+    ? new Set(
+        items
+          .filter(i => i.event === "step")
+          .map(i => i.displayIteration)
+          .filter(Boolean)
+      ).size || done.iterations
+    : done.iterations
+
   // Collect all artifacts from step events
   const allArtifacts = (items ?? [])
     .filter(i => i.event === "step")
@@ -290,7 +303,7 @@ function DoneCard({ done, items, suggestions, onSuggestionSelect }: { done: Reac
           <div className="ml-auto flex items-center gap-3 text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1">
               <RefreshCw className="h-2.5 w-2.5" />
-              {done.iterations !== 1 ? t("iterationCountPlural", { count: done.iterations }) : t("iterationCount", { count: done.iterations })}
+              {effectiveIterations !== 1 ? t("iterationCountPlural", { count: effectiveIterations }) : t("iterationCount", { count: effectiveIterations })}
             </span>
             <span className="flex items-center gap-1 tabular-nums">
               <Clock className="h-2.5 w-2.5" />

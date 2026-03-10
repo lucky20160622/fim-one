@@ -1223,49 +1223,6 @@ async def react_endpoint(
         thinking_done_iter = 0  # track which iteration's thinking-done was emitted
         current_iteration = 1  # track the current iteration for _on_answer_token
         answer_started = False
-        answer_streaming_started = False  # True when real streaming via on_answer_token
-
-        def _on_answer_token(token: str, reasoning: str = "") -> None:
-            """Push real-time answer tokens to the SSE progress queue.
-
-            Called from ReAct native mode when streaming the final answer
-            token-by-token.  Emits answer:start once, then answer:delta
-            for each token.
-
-            Args:
-                token: The answer text delta.
-                reasoning: Accumulated reasoning/thinking content from the
-                    model (e.g. DeepSeek R1).  Used on the first call to
-                    populate the thinking:done event.
-            """
-            nonlocal answer_streaming_started, thinking_done_iter
-            if not answer_streaming_started:
-                answer_streaming_started = True
-
-                # Close the thinking phase BEFORE starting the answer stream,
-                # so the UI doesn't show a loading spinner on the thinking card
-                # while answer tokens are already rendering.
-                if thinking_done_iter < current_iteration:
-                    _emit_step({
-                        "type": "thinking",
-                        "status": "done",
-                        "iteration": current_iteration,
-                        "reasoning": reasoning,
-                    })
-                    thinking_done_iter = current_iteration
-
-                evt_start = {"status": "start"}
-                sse_events.append({"event": "answer", "data": evt_start})
-                try:
-                    progress_queue.put_nowait(_sse("answer", evt_start))
-                except asyncio.QueueFull:
-                    pass
-            evt_delta = {"status": "delta", "content": token}
-            sse_events.append({"event": "answer", "data": evt_delta})
-            try:
-                progress_queue.put_nowait(_sse("answer", evt_delta))
-            except asyncio.QueueFull:
-                logger.warning("SSE progress queue full, dropping answer token")
 
         def _emit_step(payload: dict[str, Any]) -> None:
             """Emit a step SSE event to both persistence list and queue."""
@@ -1390,11 +1347,8 @@ async def react_endpoint(
                     })
                     thinking_done_iter = iteration
 
-                # Signal answer generation phase start (skip if real
-                # streaming via on_answer_token already emitted these).
-                if not answer_streaming_started:
-                    iter_start = time.time()
-                    _emit_step({"type": "answer", "status": "start"})
+                iter_start = time.time()
+                _emit_step({"type": "answer", "status": "start"})
                 answer_started = True
                 return
 
@@ -1438,7 +1392,6 @@ async def react_endpoint(
                     return await agent.run(
                         q, on_iteration=on_iteration, image_urls=image_urls,
                         interrupt_queue=interrupt_queue,
-                        on_answer_token=_on_answer_token,
                     )
                 finally:
                     done_event.set()
@@ -1475,10 +1428,11 @@ async def react_endpoint(
 
             result = run_task.result()
 
-            # Emit answer start if callback didn't (e.g. max iterations exceeded)
+            # Emit answer start step event if the on_iteration callback
+            # didn't (e.g. max iterations exceeded, no final_answer action).
             if not answer_started:
                 yield _emit(sse_events, "step", {"type": "answer", "status": "start"})
-                iter_start = time.time()
+            iter_start = time.time()
 
             # Notify frontend if context was compacted
             if memory and memory.was_compacted:
@@ -1488,22 +1442,36 @@ async def react_endpoint(
                 }
                 yield _emit(sse_events, "compact", compact_payload)
 
-            # -- Stream answer to client -----------------------------------
-            if answer_streaming_started:
-                # Real streaming already happened via on_answer_token — just
-                # close the answer stream.  Events are already in sse_events.
-                yield _emit(sse_events, "answer", {"status": "done"})
-            else:
-                # JSON mode or non-streaming fallback — fake chunking.
-                yield _emit(sse_events, "answer", {"status": "start"})
-                for _ans_chunk in _chunk_answer(result.answer):
-                    yield _emit(sse_events, "answer", {"status": "delta", "content": _ans_chunk})
-                yield _emit(sse_events, "answer", {"status": "done"})
+            # -- Stream answer to client (DAG-style) -----------------------
+            yield _emit(sse_events, "answer", {"status": "start"})
+            answer_chunks: list[str] = []
+            try:
+                async for _token in agent.stream_answer(
+                    q, result, language_directive=lang_directive,
+                ):
+                    answer_chunks.append(_token)
+                    yield _emit(
+                        sse_events, "answer",
+                        {"status": "delta", "content": _token},
+                    )
+                answer = "".join(answer_chunks)
+            except Exception:
+                logger.warning(
+                    "stream_answer failed, falling back to result.answer",
+                    exc_info=True,
+                )
+                answer = result.answer
+                for _ans_chunk in _chunk_answer(answer):
+                    yield _emit(
+                        sse_events, "answer",
+                        {"status": "delta", "content": _ans_chunk},
+                    )
+            yield _emit(sse_events, "answer", {"status": "done"})
 
             elapsed = round(time.time() - t0, 2)
             last_iter_elapsed = round(time.time() - iter_start, 2)
             done_payload: dict[str, Any] = {
-                "answer": result.answer,
+                "answer": answer,
                 "iterations": result.iterations,
                 "elapsed": elapsed,
                 "iter_elapsed": last_iter_elapsed,
@@ -1540,7 +1508,7 @@ async def react_endpoint(
                     assistant_msg = MessageModel(
                         conversation_id=conversation_id,
                         role="assistant",
-                        content=result.answer,
+                        content=answer,
                         message_type="done",
                         metadata_={**done_payload, "sse_events": sse_events},
                     )
