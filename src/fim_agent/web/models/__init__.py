@@ -8,6 +8,7 @@ from .api_key import ApiKey
 from .audit_log import AuditLog
 from .connector import Connector, ConnectorAction
 from .connector_call_log import ConnectorCallLog
+from .database_schema import DatabaseSchema, SchemaColumn
 from .conversation import Conversation
 from .email_verification import EmailVerification
 from .invite_code import InviteCode
@@ -31,6 +32,7 @@ __all__ = [
     "ConnectorAction",
     "ConnectorCallLog",
     "Conversation",
+    "DatabaseSchema",
     "EmailVerification",
     "InviteCode",
     "IpRule",
@@ -40,6 +42,7 @@ __all__ = [
     "MCPServer",
     "Message",
     "ModelConfig",
+    "SchemaColumn",
     "SensitiveWord",
     "SystemSetting",
     "User",
