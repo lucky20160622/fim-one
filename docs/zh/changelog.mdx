@@ -82,6 +82,28 @@ description: "FIM Agent 的所有重要变更。"
 * **导出：PDF 可读性**：增加了所有 PDF 样式的行距 (leading) 和单元格内边距，提升文本可读性
 * **导出：移除表情符号过滤**：移除了 DOCX 和 PDF 导出中对最终回答内容不必要的 `_strip_emoji()` 调用，保留原始内容
 * **管理后台：统计页面 PG 崩溃**：修复管理后台统计页面在 PostgreSQL 上崩溃的问题 — `GROUP BY` 中使用参数化的 `coalesce()` 导致 `GroupingError`；已改用 `literal()` 列默认值
+* **组织系统**：组织的完整 CRUD，支持基于角色的成员管理 (owner/admin/member)；认证辅助函数 (`get_user_org_ids`、`require_org_member/admin/owner`)；管理端点 `/api/admin/organizations`；前端管理员组织组件，含成员管理 UI
+* **三级资源可见性**：智能体、连接器、知识库和 MCP 服务器新增 `visibility` 列 (personal/org/global) 及 `org_id`；统一的 `build_visibility_filter()` 查询辅助函数；用户可见资源 = 个人 + 组织共享 + 全局
+* **发布/取消发布 API**：四种资源类型均新增 `POST /api/{resource}/{id}/publish` 和 `POST /api/{resource}/{id}/unpublish` 端点，用于组织/全局共享
+* **所有者委托**：已发布的智能体在聊天中可透明访问所有者的连接器和知识库，消费者无需自行持有凭据
+* **管理员设置可见性端点**：替代旧版"克隆为全局"工作流；管理员可直接设置任意资源的可见性
+* **组织管理 UI**：管理面板组织表格，含创建/编辑/删除对话框、成员管理 (添加/移除/角色变更)，完整国际化 (中英文)
+
+<div id="changed">
+  ### 变更
+</div>
+
+* 资源列表查询现在通过 `build_visibility_filter()` 使用统一的可见性过滤器 (个人 + 组织共享 + 全局)
+* 全局资源现在使用引用模型替代克隆模型——源资源直接以 `visibility='global'` 发布
+* 智能体、连接器、知识库和 MCP 服务器的响应 Schema 现在包含 `visibility` 和 `org_id` 字段
+
+<div id="fixed">
+  ### 已修复
+</div>
+
+* 旧版克隆智能体 (`user_id=NULL`) 已通过数据迁移回填转为引用模型
+* 可见性迁移回填中的 SQLite 布尔字面量处理修复
+* 移除了 auth.py 中重复的 `get_user_org_ids` 辅助函数
 
 * **导出：RFC 5987 文件名支持**：优先使用 Content-Disposition 头中 UTF-8 编码的 `filename*`，而非普通 `filename`，修复导出对话时中日韩文件名乱码问题
 * **Docker i18n 失效**：将 `messages/` 目录复制到独立输出中，并添加 `outputFileTracingIncludes`，以便 next-intl 在运行时发现 locale JSON 文件

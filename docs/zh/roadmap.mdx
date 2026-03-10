@@ -170,13 +170,17 @@ flowchart LR
 * AI Builder 扩展：7 个新构建器工具（连接器端 GetSettings、TestConnection、ImportOpenAPI；智能体端 ListConnectors、AddConnector、RemoveConnector、SetModel），智能体新增 `is_builder` 标志，构建器提示词自动刷新，SSRF 防护
 * SSE v2 前端：点脉冲流式光标、DAG 重新规划轮次快照显示为可折叠卡片、DAG 布局与步骤状态解耦
 * AI Builder 概念文档页面，含连接器和智能体构建器指南
+* 组织系统：完整 CRUD，支持基于角色的成员管理 (owner/admin/member)，管理端管理 UI
+* 三级资源可见性 (personal/org/global)，适用于智能体、连接器、知识库、MCP 服务器
+* 所有资源类型的发布/取消发布 API；已发布智能体的所有者委托
+* 管理员设置可见性端点 (替代克隆为全局)；统一的 `build_visibility_filter()` 查询辅助函数
 
 <div id="planned-versions">
   ## 规划版本
 </div>
 
-<div id="v08-connector-declarative-config-rbac">
-  ### v0.8 — 连接器声明式配置 + RBAC
+<div id="v08-connector-declarative-config-enterprise">
+  ### v0.8 — 连接器声明式配置 + 企业级功能
 </div>
 
 **目标**：让连接器定义更简单，无需编写 Python 代码。
@@ -186,7 +190,7 @@ flowchart LR
 * **连接器分叉**：复制并自定义现有连接器
 * **数据库连接器**：直接访问 SQL (PostgreSQL、MySQL、Oracle)
 * **消息推送**：Lark、WeCom、Slack、Email 通知动作
-* **RBAC**：按用户/角色控制连接器访问权限
+* ~~**RBAC**：按用户/角色控制连接器访问权限~~ *(已在 v0.7.x 发布——组织系统 + 三级可见性)*
 * **操作审计**：详细记录谁执行了哪些操作
 
 **影响**：实施工程师 (无需 Python) 可在 1-2 小时内新增连接器。
@@ -195,7 +199,7 @@ flowchart LR
   ### v0.9 — 可观测性 + 生产环境加固
 </div>
 
-**目标**：实现面向生产环境的运维、调试与跨会话智能。
+**目标**：实现面向生产环境的运维、调试与监控。
 
 * **分布式追踪**：集成 OpenTelemetry
 * **熔断机制**：指数退避、故障检测
@@ -204,15 +208,8 @@ flowchart LR
 * **沙箱加固**：代码执行隔离的 v2 改进
 * **Docker Compose**：完整部署栈
 * **性能测试**：并发负载基准测试
-* **跨会话长期记忆**：用户级持久化记忆，跨对话记住关键事实、偏好和决策；包含重要性评分、带时间衰减的语义检索，以及会话结束时的静默摘要；与现有 RAG 嵌入流水线集成
-  * `user_memories` 表 (ORM + Alembic 迁移)，含嵌入向量存储
-  * 记忆写入代理：重要性评分 (1–5)、自动分类
-  * 会话开始时语义检索 (注入系统提示词)
-  * 时间衰减 (30 天半衰期，近期记忆权重更高)
-  * 手动触发关键词 ("remember this"、"记住这个")
-  * 记忆管理 UI (查看 / 编辑 / 删除记忆)
 
-**影响**：让 FIM Agent 能够自信地实现大规模运行。用户受益于持久化上下文，使每次对话都比上一次更智能。
+**影响**：让 FIM Agent 能够自信地实现大规模运行。
 
 <div id="v10-hot-plug-embeddable">
   ### v1.0 — 热插拔 + 可嵌入式
@@ -229,8 +226,6 @@ flowchart LR
 * **批量执行**：通过 DAG 处理 1000+ 条数据
 * **管理控制台**：完整的管理界面
 * **企业级安全**：IP 白名单、静态数据加密、SSO
-* **记忆生命周期 v2**：TTL 策略、管理员管理的记忆配额、组织级共享记忆 (基于 v0.9 跨会话记忆构建)
-
 **影响**：企业可在数天内完成 FIM Agent 从零到多系统编排的部署。
 
 <div id="frozen-features-shipped-maintain-only">
@@ -257,8 +252,8 @@ flowchart LR
 | 功能 | 推迟原因 |
 | ------- | ---------------------------------------------------------- |
 | 多智能体编排 | 提供商正在原生构建相关能力 (OpenAI Swarm、Claude Code Teams、Google A2A) |
-| ~~语义记忆存储~~ | **已规划至 v0.9**，作为跨会话长期记忆功能 |
-| ~~记忆生命周期~~ | **已规划至 v0.9** (时间衰减、重要性评分) + **v1.0** (TTL 策略、管理员配额) |
+| 跨会话长期记忆 | 上下文窗口快速增长 (200K–2M)；提供商正在内置记忆功能 (OpenAI memory、Gemini context caching)；实现成本高，差异化价值递减。待企业客户明确提出需求时重新评估 |
+| 记忆生命周期 (TTL、配额) | 依赖跨会话记忆；一并推迟 |
 
 <div id="how-versions-align-with-modes">
   ## 版本与模式的对应关系
