@@ -170,6 +170,9 @@ class SSRFSafeTransport(httpx.AsyncHTTPTransport):
             ip = _resolve_and_pin(host)
             # Rewrite URL to use the pinned IP; preserve original Host header
             request.url = request.url.copy_with(host=ip)
+            # Preserve original hostname for TLS SNI so certificate verification
+            # matches the domain (not the pinned IP).
+            request.extensions["sni_hostname"] = host.encode("ascii")
             # Ensure the original hostname is sent in the Host header
             if "host" not in request.headers:
                 request.headers["host"] = host
