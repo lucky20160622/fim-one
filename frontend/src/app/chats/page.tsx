@@ -315,9 +315,8 @@ export default function ChatsPage() {
                 <input
                   type="checkbox"
                   checked={selectedIds.has(conv.id)}
-                  onChange={() => handleSelect(conv.id)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="h-4 w-4 shrink-0 rounded border-border accent-primary"
+                  readOnly
+                  className="h-4 w-4 shrink-0 rounded border-border accent-primary pointer-events-none"
                 />
               )}
               {conv.starred && (

@@ -31,10 +31,15 @@ export function NavigationProgress() {
       const targetPath = href.split("?")[0].split("#")[0]
       if (targetPath === window.location.pathname) return
 
-      clearTimeout(safetyTimer.current)
-      setPhase("loading")
-      // Safety: auto-cancel if navigation takes too long
-      safetyTimer.current = setTimeout(() => setPhase("idle"), 10000)
+      // Defer to next microtask so React onClick handlers (which may
+      // call e.preventDefault() to suppress navigation) run first.
+      setTimeout(() => {
+        if (e.defaultPrevented) return
+        clearTimeout(safetyTimer.current)
+        setPhase("loading")
+        // Safety: auto-cancel if navigation takes too long
+        safetyTimer.current = setTimeout(() => setPhase("idle"), 10000)
+      }, 0)
     }
 
     document.addEventListener("click", handleClick, true)

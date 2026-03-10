@@ -74,7 +74,7 @@ case "$CMD" in
     touch frontend/.next/static/.metadata_never_index
     touch frontend/.next/static/development/.metadata_never_index
     mdutil -i off frontend/.next &>/dev/null || true
-    uv run uvicorn fim_agent.web:create_app --factory --host 0.0.0.0 --port 8000 --reload --reload-dir src --log-level "$UVICORN_LOG_LEVEL" &
+    uv run uvicorn fim_agent.web:create_app --factory --host 0.0.0.0 --port 8000 --reload --reload-dir src --reload-exclude 'src/tmp/*' --reload-exclude 'uploads/*' --log-level "$UVICORN_LOG_LEVEL" &
     API_PID=$!
     trap "kill $API_PID 2>/dev/null" EXIT
     cd frontend
