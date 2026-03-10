@@ -24,7 +24,7 @@ def upgrade() -> None:
         batch_op.alter_column("username", existing_type=sa.String(50), nullable=True)
     op.add_column(
         "users",
-        sa.Column("onboarding_completed", sa.Boolean(), nullable=False, server_default="0"),
+        sa.Column("onboarding_completed", sa.Boolean(), nullable=False, server_default=sa.text("FALSE")),
     )
 
 

@@ -23,21 +23,15 @@ def upgrade() -> None:
     # --- agents table ---
     with op.batch_alter_table("agents") as batch_op:
         batch_op.alter_column("user_id", existing_type=sa.String(36), nullable=True)
-        batch_op.add_column(sa.Column("is_global", sa.Boolean(), nullable=False, server_default="0"))
+        batch_op.add_column(sa.Column("is_global", sa.Boolean(), nullable=False, server_default=sa.text("FALSE")))
         batch_op.add_column(sa.Column("cloned_from_agent_id", sa.String(36), nullable=True))
         batch_op.add_column(sa.Column("cloned_from_user_id", sa.String(36), nullable=True))
 
-    # --- mcp_servers table ---
-    with op.batch_alter_table("mcp_servers") as batch_op:
-        batch_op.add_column(sa.Column("cloned_from_server_id", sa.String(36), nullable=True))
-        batch_op.add_column(sa.Column("cloned_from_user_id", sa.String(36), nullable=True))
+    # mcp_servers.cloned_from_* columns are created in
+    # a1d2e3f4g567_create_missing_tables (table didn't exist before).
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("mcp_servers") as batch_op:
-        batch_op.drop_column("cloned_from_user_id")
-        batch_op.drop_column("cloned_from_server_id")
-
     with op.batch_alter_table("agents") as batch_op:
         batch_op.drop_column("cloned_from_user_id")
         batch_op.drop_column("cloned_from_agent_id")

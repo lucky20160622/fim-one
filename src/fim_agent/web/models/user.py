@@ -30,7 +30,7 @@ class User(UUIDPKMixin, TimestampMixin, Base):
     display_name: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="TRUE")
     refresh_token: Mapped[str | None] = mapped_column(String(500), nullable=True)
     refresh_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     tokens_invalidated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -39,7 +39,7 @@ class User(UUIDPKMixin, TimestampMixin, Base):
     preferred_language: Mapped[str] = mapped_column(
         String(10), nullable=False, default="auto", server_default="auto"
     )
-    onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    onboarding_completed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="FALSE")
     oauth_provider: Mapped[str | None] = mapped_column(String(20), nullable=True)
     oauth_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False)

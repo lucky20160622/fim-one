@@ -22,10 +22,10 @@ class Agent(UUIDPKMixin, TimestampMixin, Base):
         String(36), ForeignKey("users.id"), nullable=True, index=True
     )
     is_global: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False, server_default="0"
+        Boolean, default=False, nullable=False, server_default="FALSE"
     )
     is_builder: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False, server_default="0"
+        Boolean, default=False, nullable=False, server_default="FALSE"
     )
     cloned_from_agent_id: Mapped[str | None] = mapped_column(
         String(36), nullable=True

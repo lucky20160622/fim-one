@@ -20,4 +20,4 @@ class InviteCode(UUIDPKMixin, TimestampMixin, Base):
     max_uses: Mapped[int] = mapped_column(Integer, default=1, nullable=False, server_default="1")
     use_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="1")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, server_default="TRUE")
