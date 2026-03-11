@@ -38,15 +38,15 @@ def upgrade() -> None:
             )
 
         # Add org_id column
+        # SQLite cannot add a column with FK constraint via ALTER TABLE,
+        # so only include the FK on PostgreSQL.
         if not table_has_column(bind, table, "org_id"):
+            col_args: list = [sa.String(36)]
+            if bind.dialect.name != "sqlite":
+                col_args.append(sa.ForeignKey("organizations.id"))
             op.add_column(
                 table,
-                sa.Column(
-                    "org_id",
-                    sa.String(36),
-                    sa.ForeignKey("organizations.id"),
-                    nullable=True,
-                ),
+                sa.Column("org_id", *col_args, nullable=True),
             )
 
         # Add indexes
@@ -62,7 +62,7 @@ def upgrade() -> None:
     # Agents and MCP servers have is_global column
     for table in ["agents", "mcp_servers"]:
         if table_has_column(bind, table, "is_global"):
-            op.execute(
+            bind.execute(
                 sa.text(
                     f"UPDATE {table} SET visibility = 'global' "
                     f"WHERE is_global = :val AND visibility = 'personal'"

@@ -35,5 +35,19 @@ def _register_drivers() -> None:
     except ImportError:
         pass
 
+    try:
+        from .kingbasees import KingbaseESDriver
+
+        DRIVER_REGISTRY["kingbasees"] = KingbaseESDriver
+    except ImportError:
+        pass
+
+    try:
+        from .highgo import HighGoDriver
+
+        DRIVER_REGISTRY["highgo"] = HighGoDriver
+    except ImportError:
+        pass
+
 
 _register_drivers()

@@ -21,13 +21,13 @@ import type { ConnectorResponse, DbConnectionConfig } from "@/types/connector"
 const DB_DRIVERS = [
   { value: "postgresql", labelKey: "dbTypePostgresql", port: 5432 },
   { value: "mysql", labelKey: "dbTypeMysql", port: 3306 },
-  { value: "oracle", labelKey: "dbTypeOracle", port: 1521 },
-  { value: "sqlserver", labelKey: "dbTypeSqlserver", port: 1433 },
-  { value: "dm8", labelKey: "dbTypeDm8", port: 5236 },
+  { value: "oracle", labelKey: "dbTypeOracle", port: 1521, disabled: true },
+  { value: "sqlserver", labelKey: "dbTypeSqlserver", port: 1433, disabled: true },
+  { value: "dm8", labelKey: "dbTypeDm8", port: 5236, disabled: true },
   { value: "kingbasees", labelKey: "dbTypeKingbasees", port: 54321 },
-  { value: "gbase", labelKey: "dbTypeGbase", port: 5258 },
+  { value: "gbase", labelKey: "dbTypeGbase", port: 5258, disabled: true },
   { value: "highgo", labelKey: "dbTypeHighgo", port: 5866 },
-] as const
+]
 
 // Drivers that support schema field (PG-compatible)
 const SCHEMA_DRIVERS = new Set(["postgresql", "oracle", "kingbasees", "highgo"])
@@ -289,8 +289,8 @@ export function DbConnectorSettingsForm({
               </SelectTrigger>
               <SelectContent>
                 {DB_DRIVERS.map((d) => (
-                  <SelectItem key={d.value} value={d.value}>
-                    {t(d.labelKey)}
+                  <SelectItem key={d.value} value={d.value} disabled={d.disabled}>
+                    {t(d.labelKey)}{d.disabled ? ` (${t("comingSoon")})` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>

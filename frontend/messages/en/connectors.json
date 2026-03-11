@@ -158,6 +158,7 @@
 
   "tableCount": "{count} tables",
 
+  "comingSoon": "Coming soon",
   "schemaImportTitle": "Import Schema",
   "schemaImportComingSoon": "Coming soon — Excel/CSV import and AI extraction."
 }
