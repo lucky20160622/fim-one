@@ -58,5 +58,17 @@
   "namePlaceholder": "e.g. Math Skills Test",
   "descriptionPlaceholder": "Optional description",
   "promptPlaceholder": "Enter the prompt to send to the agent...",
-  "expectedBehaviorPlaceholder": "Describe what the agent should do or say..."
+  "expectedBehaviorPlaceholder": "Describe what the agent should do or say...",
+  "executionMode": "Execution mode: ReAct (multi-step reasoning)",
+  "executionModeHint": "Each test case runs through the full ReAct agent loop with tool access. DAG mode is not supported yet.",
+  "statsOverview": "Overview",
+  "passed": "Passed",
+  "failed": "Failed",
+  "errors": "Errors",
+  "casesTotal": "Total Cases",
+  "latencyMin": "Min",
+  "latencyMax": "Max",
+  "latencyAvg": "Avg",
+  "distribution": "Result Distribution",
+  "latencyDistribution": "Latency (ms)"
 }

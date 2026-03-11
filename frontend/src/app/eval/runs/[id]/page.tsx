@@ -5,7 +5,13 @@ import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
-import { ArrowLeft, Loader2, ChevronDown, ChevronUp } from "lucide-react"
+import { ArrowLeft, Loader2, ChevronDown, ChevronUp, Info } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useAuth } from "@/contexts/auth-context"
 import { evalApi } from "@/lib/api"
 import { getErrorMessage } from "@/lib/error-utils"
@@ -62,6 +68,108 @@ function RunStatusBadge({ status }: { status: string }) {
       {status === "running" && <Loader2 className="h-3 w-3 animate-spin" />}
       {labels[status] ?? status}
     </span>
+  )
+}
+
+function StatsPanel({ results }: { results: EvalCaseResultResponse[] }) {
+  const t = useTranslations("eval")
+  if (results.length === 0) return null
+
+  const passed = results.filter((r) => r.status === "pass").length
+  const failed = results.filter((r) => r.status === "fail").length
+  const errors = results.filter((r) => r.status === "error").length
+  const total = results.length
+
+  const latencies = results
+    .map((r) => r.latency_ms)
+    .filter((v): v is number => v != null && v > 0)
+  const minLatency = latencies.length > 0 ? Math.min(...latencies) : 0
+  const maxLatency = latencies.length > 0 ? Math.max(...latencies) : 0
+  const avgLatency =
+    latencies.length > 0 ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : 0
+
+  const totalTokens = results.reduce(
+    (sum, r) => sum + (r.prompt_tokens ?? 0) + (r.completion_tokens ?? 0),
+    0,
+  )
+
+  // Percentages for stacked bar
+  const pPass = total > 0 ? (passed / total) * 100 : 0
+  const pFail = total > 0 ? (failed / total) * 100 : 0
+  const pError = total > 0 ? (errors / total) * 100 : 0
+
+  return (
+    <div className="mb-6 space-y-4">
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-lg border p-3">
+          <div className="text-xs font-medium text-muted-foreground">{t("passed")}</div>
+          <div className="mt-1 text-2xl font-semibold text-green-600 dark:text-green-400">
+            {passed}
+            <span className="ml-1 text-sm font-normal text-muted-foreground">/ {total}</span>
+          </div>
+        </div>
+        <div className="rounded-lg border p-3">
+          <div className="text-xs font-medium text-muted-foreground">{t("failed")}</div>
+          <div className="mt-1 text-2xl font-semibold text-red-600 dark:text-red-400">
+            {failed}
+            {errors > 0 && (
+              <span className="ml-1 text-sm font-normal text-orange-500">+{errors} {t("errors").toLowerCase()}</span>
+            )}
+          </div>
+        </div>
+        <div className="rounded-lg border p-3">
+          <div className="text-xs font-medium text-muted-foreground">{t("latencyDistribution")}</div>
+          <div className="mt-1 text-sm tabular-nums">
+            <span className="text-muted-foreground">{t("latencyMin")} </span>
+            <span className="font-medium">{minLatency.toLocaleString()}</span>
+            <span className="mx-1 text-muted-foreground">/</span>
+            <span className="text-muted-foreground">{t("latencyAvg")} </span>
+            <span className="font-medium">{avgLatency.toLocaleString()}</span>
+            <span className="mx-1 text-muted-foreground">/</span>
+            <span className="text-muted-foreground">{t("latencyMax")} </span>
+            <span className="font-medium">{maxLatency.toLocaleString()}</span>
+          </div>
+        </div>
+        <div className="rounded-lg border p-3">
+          <div className="text-xs font-medium text-muted-foreground">{t("totalTokens")}</div>
+          <div className="mt-1 text-2xl font-semibold tabular-nums">
+            {totalTokens.toLocaleString()}
+          </div>
+        </div>
+      </div>
+
+      {/* Stacked distribution bar */}
+      <div>
+        <div className="mb-1.5 flex items-center justify-between text-xs text-muted-foreground">
+          <span>{t("distribution")}</span>
+          <span>
+            {Math.round(pPass)}% {t("verdictPass")} / {Math.round(pFail)}% {t("verdictFail")}
+            {errors > 0 && ` / ${Math.round(pError)}% ${t("verdictError")}`}
+          </span>
+        </div>
+        <div className="flex h-3 overflow-hidden rounded-full bg-muted">
+          {pPass > 0 && (
+            <div
+              className="bg-green-500 transition-all"
+              style={{ width: `${pPass}%` }}
+            />
+          )}
+          {pFail > 0 && (
+            <div
+              className="bg-red-500 transition-all"
+              style={{ width: `${pFail}%` }}
+            />
+          )}
+          {pError > 0 && (
+            <div
+              className="bg-orange-400 transition-all"
+              style={{ width: `${pError}%` }}
+            />
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -208,6 +316,19 @@ export default function RunResultsPage() {
                 {run.dataset_name ?? run.dataset_id}
               </h1>
               <RunStatusBadge status={run.status} />
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-900 dark:text-violet-300">
+                      ReAct
+                      <Info className="h-3 w-3" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p>{t("executionModeHint")}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span>
@@ -246,6 +367,7 @@ export default function RunResultsPage() {
       </div>
 
       <div className="flex-1 overflow-auto p-6">
+        <StatsPanel results={run.results} />
         {run.results.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             {run.status === "pending" || run.status === "running" ? (

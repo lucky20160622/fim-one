@@ -608,6 +608,7 @@ function EvalPageContent() {
               </Select>
             </div>
           </div>
+          <p className="text-xs text-muted-foreground mt-1">{t("executionMode")}</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStartRunOpen(false)}>
               {tc("cancel")}

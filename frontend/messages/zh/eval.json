@@ -58,5 +58,17 @@
   "namePlaceholder": "例如：数学技能测试",
   "descriptionPlaceholder": "可选描述",
   "promptPlaceholder": "输入要发送给智能体的提示词...",
-  "expectedBehaviorPlaceholder": "描述智能体应该做什么或说什么..."
+  "expectedBehaviorPlaceholder": "描述智能体应该做什么或说什么...",
+  "executionMode": "执行模式：ReAct（多步推理）",
+  "executionModeHint": "每条测试用例通过完整的 ReAct 代理循环运行，支持工具调用。暂不支持 DAG 模式。",
+  "statsOverview": "概览",
+  "passed": "通过",
+  "failed": "未通过",
+  "errors": "错误",
+  "casesTotal": "总用例数",
+  "latencyMin": "最小",
+  "latencyMax": "最大",
+  "latencyAvg": "平均",
+  "distribution": "结果分布",
+  "latencyDistribution": "延迟 (ms)"
 }
