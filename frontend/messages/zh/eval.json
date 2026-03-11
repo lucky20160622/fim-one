@@ -14,7 +14,7 @@
   "assertions": "断言",
   "addAssertion": "添加断言",
   "removeAssertion": "删除断言",
-  "assertionPlaceholder": "例如：回答中包含"你好"",
+  "assertionPlaceholder": "例如：回答中包含「你好」",
   "startEval": "开始评测",
   "selectAgent": "选择智能体",
   "selectDataset": "选择数据集",
