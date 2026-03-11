@@ -101,7 +101,7 @@ export default function AgentsPage() {
       const updated = await agentApi.publish(id, {
         scope: publishScope,
         org_id: publishScope === "org" ? publishOrgId : undefined,
-      } as { scope: "personal" | "org" | "global"; org_id?: string })
+      })
       setAgents((prev) => prev.map((a) => (a.id === id ? updated : a)))
       toast.success(t("agentPublished"))
     } catch {

@@ -463,7 +463,7 @@ export const agentApi = {
       method: "DELETE",
     }),
 
-  publish: (id: string, body: { scope: "org" | "global"; org_id?: string }) =>
+  publish: (id: string, body: { scope: "personal" | "org" | "global"; org_id?: string }) =>
     apiFetch<ApiResponse<AgentResponse>>(`/api/agents/${id}/publish`, {
       method: "POST",
       body: JSON.stringify(body),
