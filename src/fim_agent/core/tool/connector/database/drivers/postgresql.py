@@ -152,16 +152,21 @@ class PostgreSQLDriver(DatabaseDriver):
                     stmt = await asyncio.wait_for(
                         conn.prepare(sql), timeout=timeout_s
                     )
-                    # Fetch max_rows + 1 to detect truncation
-                    records = await asyncio.wait_for(
-                        stmt.fetch(max_rows + 1), timeout=timeout_s
-                    )
+                    columns = [a.name for a in stmt.get_attributes()]
+
+                    # Use cursor to cap rows without fetching everything.
+                    # asyncpg's stmt.fetch(n) treats n as a bind param, not a limit.
+                    records: list[asyncpg.Record] = []
+                    async with conn.transaction():
+                        async for record in stmt.cursor():
+                            records.append(record)
+                            if len(records) > max_rows:
+                                break
 
                     truncated = len(records) > max_rows
                     if truncated:
                         records = records[:max_rows]
 
-                    columns = [a.name for a in stmt.get_attributes()]
                     rows = [list(r.values()) for r in records]
 
                     elapsed = (time.monotonic() - start) * 1000
