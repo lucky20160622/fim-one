@@ -92,12 +92,12 @@ export function DbConnectorSettingsForm({
       setDescription(connector.description || "")
       const cfg = connector.db_config
       if (cfg) {
-        setDriver(cfg.driver)
-        setHost(cfg.host)
-        setPort(cfg.port)
-        setDatabase(cfg.database)
+        setDriver(cfg.driver || "postgresql")
+        setHost(cfg.host || "")
+        setPort(cfg.port || 5432)
+        setDatabase(cfg.database || "")
         setDbSchema(cfg.schema || "")
-        setUsername(cfg.username)
+        setUsername(cfg.username || "")
         setPassword(cfg.password || "")
         setSsl(cfg.ssl)
         setReadOnly(cfg.read_only)
@@ -196,7 +196,7 @@ export function DbConnectorSettingsForm({
     const trimmedName = name.trim()
     const trimmedHost = host.trim()
     const trimmedDatabase = database.trim()
-    if (!trimmedName || !trimmedHost || !trimmedDatabase) return
+    if (!trimmedName || !trimmedHost || !trimmedDatabase || !username.trim()) return
 
     setIsSubmitting(true)
     try {
@@ -322,7 +322,7 @@ export function DbConnectorSettingsForm({
             </div>
             <div className="space-y-1.5">
               <label htmlFor="db-connector-port" className="text-sm font-medium">
-                {t("port")}
+                {t("port")} <span className="text-destructive">*</span>
               </label>
               <Input
                 id="db-connector-port"
@@ -369,7 +369,7 @@ export function DbConnectorSettingsForm({
           {/* Username */}
           <div className="space-y-1.5">
             <label htmlFor="db-connector-username" className="text-sm font-medium">
-              {t("username")}
+              {t("username")} <span className="text-destructive">*</span>
             </label>
             <Input
               id="db-connector-username"
@@ -377,6 +377,7 @@ export function DbConnectorSettingsForm({
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="admin"
+              required
             />
           </div>
 
@@ -505,7 +506,7 @@ export function DbConnectorSettingsForm({
       <div className="flex justify-end pt-4">
         <Button
           type="submit"
-          disabled={isSubmitting || !name.trim() || !host.trim() || !database.trim()}
+          disabled={isSubmitting || !name.trim() || !host.trim() || !database.trim() || !username.trim()}
         >
           {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
           {tc("save")}

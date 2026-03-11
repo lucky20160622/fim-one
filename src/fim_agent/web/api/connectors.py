@@ -223,7 +223,17 @@ async def update_connector(
     if "db_config" in update_data and update_data["db_config"]:
         from fim_agent.core.security.encryption import encrypt_db_config
 
-        update_data["db_config"] = encrypt_db_config(update_data["db_config"])
+        new_config = update_data["db_config"]
+        # If password is the masked sentinel "***", preserve existing
+        # encrypted password instead of encrypting the literal "***".
+        if new_config.get("password") == "***" and connector.db_config:
+            new_config.pop("password")
+            existing_encrypted = connector.db_config.get("encrypted_password")
+            if existing_encrypted:
+                new_config["encrypted_password"] = existing_encrypted
+            update_data["db_config"] = new_config
+        else:
+            update_data["db_config"] = encrypt_db_config(new_config)
         # Close any existing driver pool for this connector
         from fim_agent.core.tool.connector.database.pool import ConnectionPoolManager
 
