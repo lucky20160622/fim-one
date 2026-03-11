@@ -19,7 +19,7 @@ class DbConnectionConfig(BaseModel):
     schema_name: str | None = Field(default=None, max_length=200, alias="schema")
     username: str = Field(min_length=1, max_length=200)
     password: str = Field(default="", max_length=1000)
-    driver: str = Field(default="postgresql", pattern=r"^(postgresql|mysql)$")
+    driver: str = Field(default="postgresql", pattern=r"^(postgresql|mysql|kingbasees|highgo)$")
     ssl: bool = False
     ca_cert: str | None = None
     read_only: bool = True
@@ -45,9 +45,9 @@ class DbConnectorCreate(BaseModel):
 
 
 class TestConnectionRequest(BaseModel):
-    """Request body for connection test (empty — uses stored config)."""
+    """Request body for ad-hoc connection test (no saved connector needed)."""
 
-    pass
+    db_config: DbConnectionConfig
 
 
 class TestConnectionResponse(BaseModel):

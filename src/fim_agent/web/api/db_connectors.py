@@ -36,6 +36,7 @@ from fim_agent.web.schemas.db_connector import (
     SchemaColumnUpdate,
     SchemaTableResponse,
     SchemaTableUpdate,
+    TestConnectionRequest,
     TestConnectionResponse,
 )
 
@@ -109,6 +110,41 @@ def _schema_table_to_response(table: DatabaseSchema) -> SchemaTableResponse:
 # ---------------------------------------------------------------------------
 # Test Connection
 # ---------------------------------------------------------------------------
+
+
+@router.post("/test-connection", response_model=ApiResponse)
+async def test_connection_adhoc(
+    body: TestConnectionRequest,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+) -> ApiResponse:
+    """Test database connectivity with provided config (no saved connector needed)."""
+    from fim_agent.core.tool.connector.database.drivers import DRIVER_REGISTRY
+
+    config = body.db_config.model_dump(by_alias=True)
+    driver_name = config.get("driver", "postgresql")
+    driver_cls = DRIVER_REGISTRY.get(driver_name)
+    if not driver_cls:
+        return ApiResponse(
+            data=TestConnectionResponse(
+                success=False, error=f"Unsupported driver: {driver_name}"
+            ).model_dump()
+        )
+
+    driver = driver_cls(config)
+    try:
+        success, version = await driver.test_connection()
+        resp = TestConnectionResponse(
+            success=success,
+            db_version=version if success else None,
+            error=version if not success else None,
+        )
+        return ApiResponse(data=resp.model_dump())
+    except Exception as exc:
+        return ApiResponse(
+            data=TestConnectionResponse(success=False, error=str(exc)).model_dump()
+        )
+    finally:
+        await driver.disconnect()
 
 
 @router.post("/{connector_id}/test-connection", response_model=ApiResponse)

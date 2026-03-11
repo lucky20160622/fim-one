@@ -723,6 +723,12 @@ export const connectorApi = {
       { method: "POST" },
     ).then((r) => r.data),
 
+  testConnectionAdhoc: (dbConfig: Record<string, unknown>) =>
+    apiFetch<ApiResponse<TestConnectionResponse>>(
+      `/api/connectors/test-connection`,
+      { method: "POST", body: JSON.stringify({ db_config: dbConfig }) },
+    ).then((r) => r.data),
+
   introspect: (connectorId: string) =>
     apiFetch<ApiResponse<IntrospectResponse>>(
       `/api/connectors/${connectorId}/introspect`,

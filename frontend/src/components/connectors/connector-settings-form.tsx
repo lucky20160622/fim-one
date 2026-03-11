@@ -49,7 +49,7 @@ export function ConnectorSettingsForm({
       setName(connector.name)
       setIcon(connector.icon || null)
       setDescription(connector.description || "")
-      setBaseUrl(connector.base_url)
+      setBaseUrl(connector.base_url || "")
       setAuthType(connector.auth_type)
       const cfg = connector.auth_config || {}
       setTokenPrefix(typeof cfg.token_prefix === "string" ? cfg.token_prefix : "Bearer")

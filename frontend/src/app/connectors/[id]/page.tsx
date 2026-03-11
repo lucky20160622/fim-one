@@ -186,7 +186,7 @@ function ConnectorEditorPageInner() {
             </TabsList>
 
             {/* Settings tab: swap form based on type */}
-            <TabsContent value="connector" className="flex-1 min-h-0 px-4 py-4">
+            <TabsContent value="connector" className="flex-1 min-h-0 px-4 py-4 overflow-hidden flex flex-col">
               {isDatabase ? (
                 <DbConnectorSettingsForm
                   connector={connector}

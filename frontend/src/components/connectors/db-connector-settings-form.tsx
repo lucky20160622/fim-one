@@ -163,11 +163,20 @@ export function DbConnectorSettingsForm({
   }
 
   const handleTestConnection = async () => {
-    if (!connector?.id) return
+    if (!host.trim() || !database.trim() || !username.trim()) return
     setIsTesting(true)
     setTestResult(null)
     try {
-      const result = await connectorApi.testConnection(connector.id)
+      const dbConfig = {
+        driver, host: host.trim(), port,
+        database: database.trim(), username: username.trim(), password,
+        schema: dbSchema || undefined,
+        ssl, read_only: readOnly, max_rows: maxRows, query_timeout: queryTimeout,
+      }
+      // Use saved connector endpoint if available, otherwise ad-hoc
+      const result = connector?.id
+        ? await connectorApi.testConnection(connector.id)
+        : await connectorApi.testConnectionAdhoc(dbConfig)
       setTestResult(result)
       if (result.success) {
         toast.success(t("connectionSuccess"))
@@ -448,49 +457,47 @@ export function DbConnectorSettingsForm({
             />
           </div>
 
-          {/* Test Connection */}
-          {connector?.id && (
-            <div className="space-y-2 rounded-md border border-border p-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleTestConnection}
-                disabled={isTesting}
-                className="gap-1.5"
-              >
-                {isTesting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {t("testConnection")}
-              </Button>
-              {testResult && (
-                <div className="text-sm">
-                  {testResult.success ? (
-                    <p className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4 shrink-0" />
-                      {t("connectionSuccess")}
-                      {testResult.db_version && (
-                        <span className="text-muted-foreground">
-                          {" \u2014 "}{t("dbVersion")}: {testResult.db_version}
+          {/* Test Connection — available before and after save */}
+          <div className="space-y-2 rounded-md border border-border p-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleTestConnection}
+              disabled={isTesting || !host.trim() || !database.trim() || !username.trim()}
+              className="gap-1.5"
+            >
+              {isTesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plug className="h-3.5 w-3.5" />}
+              {t("testConnection")}
+            </Button>
+            {testResult && (
+              <div className="text-sm">
+                {testResult.success ? (
+                  <p className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    {t("connectionSuccess")}
+                    {testResult.db_version && (
+                      <span className="text-muted-foreground">
+                        {" \u2014 "}{t("dbVersion")}: {testResult.db_version}
+                      </span>
+                    )}
+                  </p>
+                ) : (
+                  <p className="text-destructive flex items-start gap-1.5">
+                    <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>
+                      {t("connectionFailed")}
+                      {testResult.error && (
+                        <span className="block text-xs text-muted-foreground mt-0.5">
+                          {testResult.error}
                         </span>
                       )}
-                    </p>
-                  ) : (
-                    <p className="text-destructive flex items-start gap-1.5">
-                      <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                      <span>
-                        {t("connectionFailed")}
-                        {testResult.error && (
-                          <span className="block text-xs text-muted-foreground mt-0.5">
-                            {testResult.error}
-                          </span>
-                        )}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </ScrollArea>
 
