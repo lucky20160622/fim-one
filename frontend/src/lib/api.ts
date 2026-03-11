@@ -40,10 +40,23 @@ import type {
   IntrospectResponse,
   QueryResponse,
   AIAnnotateResponse,
+  AIAnnotateJobStarted,
+  AIAnnotateJobStatus,
 } from "@/types/connector"
-import type { AdminUser, AdminConversation, AdminMessage, StorageStats, InviteCode, AdminMCPServer, IntegrationHealth, AdminModelsResponse, AdminModelCreate, AdminModelUpdate, AdminUserFile, AdminGlobalAgentInfo, AdminAllMcpServer, AdminOrganization, OrgMember } from "@/types/admin"
+import type { AdminUser, AdminConversation, AdminMessage, StorageStats, InviteCode, AdminMCPServer, IntegrationHealth, AdminModelsResponse, AdminModelCreate, AdminModelUpdate, AdminUserFile, AdminGlobalAgentInfo, AdminAllMcpServer, AdminOrganization, OrgMember as AdminOrgMember } from "@/types/admin"
 import type { MCPServerResponse, MCPServerCreate, MCPServerUpdate } from "@/types/mcp-server"
 import type { ModelConfigResponse, ModelConfigCreate, ModelConfigUpdate } from "@/types/model_config"
+import type {
+  EvalDatasetResponse,
+  EvalDatasetCreate,
+  EvalDatasetUpdate,
+  EvalCaseResponse,
+  EvalCaseCreate,
+  EvalCaseUpdate,
+  EvalRunResponse,
+  EvalRunCreate,
+  EvalRunDetailResponse,
+} from "@/types/eval"
 
 // --- Auth failure callback ---
 let authFailureCallback: (() => void) | null = null
@@ -450,9 +463,10 @@ export const agentApi = {
       method: "DELETE",
     }),
 
-  publish: (id: string) =>
+  publish: (id: string, body: { scope: "org" | "global"; org_id?: string }) =>
     apiFetch<ApiResponse<AgentResponse>>(`/api/agents/${id}/publish`, {
       method: "POST",
+      body: JSON.stringify(body),
     }).then((r) => r.data),
 
   unpublish: (id: string) =>
@@ -466,7 +480,7 @@ export const agentApi = {
       body: JSON.stringify(body),
     }).then((r) => r.data),
 
-  aiRefineAgent: (agentId: string, body: { instruction: string }) =>
+  aiRefineAgent: (agentId: string, body: { instruction: string; history?: Array<{ role: string; content: string }> }) =>
     apiFetch<ApiResponse<AIRefineAgentResult>>(`/api/agents/${agentId}/ai/refine`, {
       method: "POST",
       body: JSON.stringify(body),
@@ -625,6 +639,16 @@ export const kbApi = {
         body: JSON.stringify({ query, top_k: topK }),
       },
     ).then((r) => r.data),
+
+  // AI Chat
+  aiChat: (kbId: string, message: string, history?: Array<{ role: string; content: string }>) =>
+    apiFetch<{ ok: boolean; message: string; action: string }>(
+      `/api/knowledge-bases/${kbId}/ai/chat`,
+      {
+        method: "POST",
+        body: JSON.stringify({ message, history: history ?? [] }),
+      },
+    ),
 }
 
 // --- Connector API ---
@@ -697,7 +721,7 @@ export const connectorApi = {
       { method: "POST", body: JSON.stringify(body) },
     ).then((r) => r.data),
 
-  aiRefineAction: (connectorId: string, body: AIRefineActionRequest) =>
+  aiRefineAction: (connectorId: string, body: AIRefineActionRequest & { history?: Array<{ role: string; content: string }> }) =>
     apiFetch<ApiResponse<AIActionResult>>(
       `/api/connectors/${connectorId}/ai/refine-action`,
       { method: "POST", body: JSON.stringify(body) },
@@ -775,11 +799,31 @@ export const connectorApi = {
       { method: "POST", body: JSON.stringify(body) },
     ).then((r) => r.data),
 
-  aiAnnotate: (connectorId: string, body?: { table_ids?: string[] }) =>
+  // Single-table annotate (sync, fast)
+  aiAnnotate: (connectorId: string, body: { table_ids: string[] }) =>
     apiFetch<ApiResponse<AIAnnotateResponse>>(
       `/api/connectors/${connectorId}/ai/annotate`,
-      { method: "POST", body: JSON.stringify(body || {}) },
+      { method: "POST", body: JSON.stringify(body) },
     ).then((r) => r.data),
+
+  // Full-schema annotate — returns job_id immediately, runs in background
+  aiAnnotateAll: (connectorId: string) =>
+    apiFetch<ApiResponse<AIAnnotateJobStarted>>(
+      `/api/connectors/${connectorId}/ai/annotate`,
+      { method: "POST", body: JSON.stringify({}) },
+    ).then((r) => r.data),
+
+  // Poll job status
+  getAnnotateStatus: (connectorId: string, jobId: string) =>
+    apiFetch<ApiResponse<AIAnnotateJobStatus>>(
+      `/api/connectors/${connectorId}/ai/annotate/status/${jobId}`,
+    ).then((r) => r.data),
+
+  aiDbChat: (connectorId: string, message: string, history?: Array<{ role: string; content: string }>) =>
+    apiFetch<{ ok: boolean; message: string; changes: number; connector: ConnectorResponse | null }>(
+      `/api/connectors/${connectorId}/ai/db-chat`,
+      { method: "POST", body: JSON.stringify({ message, history: history ?? [] }) },
+    ),
 }
 
 // --- Chat API ---
@@ -1193,11 +1237,11 @@ export const adminApi = {
 
   // --- Organization members ---
   listOrgMembers: (orgId: string) =>
-    apiFetch<{ data: OrgMember[] }>(`/api/orgs/${orgId}/members`).then(r => r.data ?? []),
+    apiFetch<{ data: AdminOrgMember[] }>(`/api/orgs/${orgId}/members`).then(r => r.data ?? []),
   addOrgMember: (orgId: string, data: { username_or_email: string; role: string }) =>
-    apiFetch<OrgMember>(`/api/orgs/${orgId}/members`, { method: 'POST', body: JSON.stringify(data) }),
+    apiFetch<AdminOrgMember>(`/api/orgs/${orgId}/members`, { method: 'POST', body: JSON.stringify(data) }),
   updateOrgMemberRole: (orgId: string, userId: string, data: { role: string }) =>
-    apiFetch<OrgMember>(`/api/orgs/${orgId}/members/${userId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    apiFetch<AdminOrgMember>(`/api/orgs/${orgId}/members/${userId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   removeOrgMember: (orgId: string, userId: string) =>
     apiFetch(`/api/orgs/${orgId}/members/${userId}`, { method: 'DELETE' }),
 }
@@ -1292,7 +1336,7 @@ export interface UserOrg {
   is_active: boolean
   member_count: number
   created_at: string
-  my_role: "owner" | "admin" | "member"
+  role: "owner" | "admin" | "member"
 }
 
 export interface OrgMember {
@@ -1309,7 +1353,7 @@ export const orgApi = {
   list: () =>
     apiFetch<{ data: UserOrg[] }>("/api/orgs").then(r => r.data ?? []),
 
-  create: (body: { name: string; slug: string; description?: string | null; icon?: string | null }) =>
+  create: (body: { name: string; slug?: string; description?: string | null; icon?: string | null }) =>
     apiFetch<{ data: UserOrg }>("/api/orgs", {
       method: "POST",
       body: JSON.stringify(body),
@@ -1327,11 +1371,16 @@ export const orgApi = {
   listMembers: (orgId: string) =>
     apiFetch<{ data: OrgMember[] }>(`/api/orgs/${orgId}/members`).then(r => r.data ?? []),
 
-  addMember: (orgId: string, body: { username_or_email: string; role: string }) =>
-    apiFetch<{ data: OrgMember }>(`/api/orgs/${orgId}/members`, {
+  addMember: (orgId: string, body: { username_or_email: string; role: string }) => {
+    const isEmail = body.username_or_email.includes("@")
+    const payload = isEmail
+      ? { email: body.username_or_email, role: body.role }
+      : { username: body.username_or_email, role: body.role }
+    return apiFetch<{ data: OrgMember }>(`/api/orgs/${orgId}/members`, {
       method: "POST",
-      body: JSON.stringify(body),
-    }).then(r => r.data),
+      body: JSON.stringify(payload),
+    }).then(r => r.data)
+  },
 
   changeRole: (orgId: string, userId: string, role: string) =>
     apiFetch<{ data: OrgMember }>(`/api/orgs/${orgId}/members/${userId}`, {
@@ -1341,4 +1390,61 @@ export const orgApi = {
 
   removeMember: (orgId: string, userId: string) =>
     apiFetch<void>(`/api/orgs/${orgId}/members/${userId}`, { method: "DELETE" }),
+}
+
+// --- Eval API ---
+export const evalApi = {
+  // Datasets
+  listDatasets: (page = 1, size = 20) =>
+    apiFetch<PaginatedResponse<EvalDatasetResponse>>(`/api/eval/datasets?page=${page}&size=${size}`),
+  createDataset: (body: EvalDatasetCreate) =>
+    apiFetch<ApiResponse<EvalDatasetResponse>>("/api/eval/datasets", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).then((r) => (r as ApiResponse<EvalDatasetResponse>).data),
+  getDataset: (id: string) =>
+    apiFetch<ApiResponse<EvalDatasetResponse>>(`/api/eval/datasets/${id}`).then(
+      (r) => (r as ApiResponse<EvalDatasetResponse>).data,
+    ),
+  updateDataset: (id: string, body: EvalDatasetUpdate) =>
+    apiFetch<ApiResponse<EvalDatasetResponse>>(`/api/eval/datasets/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }).then((r) => (r as ApiResponse<EvalDatasetResponse>).data),
+  deleteDataset: (id: string) =>
+    apiFetch<ApiResponse<{ deleted: string }>>(`/api/eval/datasets/${id}`, { method: "DELETE" }),
+  // Cases
+  listCases: (datasetId: string, page = 1, size = 50) =>
+    apiFetch<PaginatedResponse<EvalCaseResponse>>(
+      `/api/eval/datasets/${datasetId}/cases?page=${page}&size=${size}`,
+    ),
+  createCase: (datasetId: string, body: EvalCaseCreate) =>
+    apiFetch<ApiResponse<EvalCaseResponse>>(`/api/eval/datasets/${datasetId}/cases`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).then((r) => (r as ApiResponse<EvalCaseResponse>).data),
+  updateCase: (datasetId: string, caseId: string, body: EvalCaseUpdate) =>
+    apiFetch<ApiResponse<EvalCaseResponse>>(`/api/eval/datasets/${datasetId}/cases/${caseId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }).then((r) => (r as ApiResponse<EvalCaseResponse>).data),
+  deleteCase: (datasetId: string, caseId: string) =>
+    apiFetch<ApiResponse<{ deleted: string }>>(
+      `/api/eval/datasets/${datasetId}/cases/${caseId}`,
+      { method: "DELETE" },
+    ),
+  // Runs
+  listRuns: (page = 1, size = 20) =>
+    apiFetch<PaginatedResponse<EvalRunResponse>>(`/api/eval/runs?page=${page}&size=${size}`),
+  createRun: (body: EvalRunCreate) =>
+    apiFetch<ApiResponse<EvalRunResponse>>("/api/eval/runs", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).then((r) => (r as ApiResponse<EvalRunResponse>).data),
+  getRun: (id: string) =>
+    apiFetch<ApiResponse<EvalRunDetailResponse>>(`/api/eval/runs/${id}`).then(
+      (r) => (r as ApiResponse<EvalRunDetailResponse>).data,
+    ),
+  deleteRun: (id: string) =>
+    apiFetch<ApiResponse<{ deleted: string }>>(`/api/eval/runs/${id}`, { method: "DELETE" }),
 }

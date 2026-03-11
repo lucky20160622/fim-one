@@ -11,6 +11,7 @@
   "tools": "Tools",
   "artifacts": "Artifacts",
   "allChats": "All Chats",
+  "eval": "Eval Center",
   "newChatTooltipMac": "New chat ({shortcut})",
   "newChatTooltipWin": "New chat ({shortcut})",
   "searchTooltipMac": "Search ({shortcut})",

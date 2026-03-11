@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
-import { Bot, Layers, Library, Loader2, MessagesSquare, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, Search, Sun, Wrench, X } from "lucide-react"
+import { Bot, FlaskConical, Layers, Library, Loader2, MessagesSquare, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, Search, Sun, Wrench, X } from "lucide-react"
 import { getApiBaseUrl } from "@/lib/constants"
 import { setMaintenanceCallback } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -82,8 +82,9 @@ function SidebarNewChat({ collapsed }: { collapsed: boolean }) {
     return (
       <div className="flex flex-col items-center gap-1 px-2 py-2 shrink-0">
         <SidebarTooltip label={isMac ? t("newChatTooltipMac", { shortcut: "⇧⌘O" }) : t("newChatTooltipWin", { shortcut: "Ctrl+Shift+O" })} collapsed>
-          <button
-            onClick={handleNewChat}
+          <Link
+            href="/new"
+            onClick={clearActive}
             className={cn(
               "flex h-9 w-9 items-center justify-center rounded-md transition-colors",
               isActive
@@ -92,7 +93,7 @@ function SidebarNewChat({ collapsed }: { collapsed: boolean }) {
             )}
           >
             <Plus className="h-4 w-4" />
-          </button>
+          </Link>
         </SidebarTooltip>
         <SidebarTooltip label={isMac ? t("searchTooltipMac", { shortcut: "⌘K" }) : t("searchTooltipWin", { shortcut: "Ctrl+K" })} collapsed>
           <button
@@ -464,6 +465,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <MessagesSquare className="h-4 w-4" />
                 {!collapsed && <span>{t("allChats")}</span>}
+              </Link>
+            </SidebarTooltip>
+            <SidebarTooltip label={t("eval")} collapsed={collapsed}>
+              <Link
+                href="/eval"
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                  pathname === "/eval" || pathname.startsWith("/eval/")
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground",
+                  collapsed && "h-9 w-9 justify-center px-0"
+                )}
+              >
+                <FlaskConical className="h-4 w-4" />
+                {!collapsed && <span>{t("eval")}</span>}
               </Link>
             </SidebarTooltip>
           </div>
