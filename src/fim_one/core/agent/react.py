@@ -615,6 +615,15 @@ class ReActAgent:
             step = await self._execute_tool_call(action)
             steps.append(step)
 
+            # Feed the tool result/error back into the conversation so the LLM
+            # can observe and adapt on the next iteration (Observe step of ReAct).
+            obs_content = (
+                f"Observation: Error: {step.error}"
+                if step.error
+                else f"Observation: {step.observation or '(no output)'}"
+            )
+            messages.append(ChatMessage(role="user", content=obs_content))
+
             if on_iteration is not None:
                 on_iteration(iteration, action, step.observation, step.error, step)
 
