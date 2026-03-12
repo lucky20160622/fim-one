@@ -12,14 +12,11 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from fim_one.web.auth import decode_token, get_current_user
+from fim_one.web.auth import get_current_user
 from fim_one.web.exceptions import AppError
 from fim_one.web.models import User
 from fim_one.web.schemas.common import ApiResponse, PaginatedResponse
-
-_bearer_optional = HTTPBearer(auto_error=False)
 
 logger = logging.getLogger(__name__)
 
@@ -103,24 +100,14 @@ async def list_artifacts(
 async def download_artifact(
     conversation_id: str,
     artifact_id: str,
-    token: str | None = Query(None, description="JWT token (for img src auth)"),
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_optional),
 ) -> FileResponse:
     """Download a specific artifact.
 
-    Supports authentication via either:
-    - ``Authorization: Bearer <token>`` header (standard API calls)
-    - ``?token=<jwt>`` query parameter (for ``<img src>`` tags that cannot
-      carry custom headers)
+    Public capability endpoint — access is controlled by the unguessable
+    conversation_id (UUID v4, 122 bits of entropy).  No explicit auth token
+    is required so that ``<img src>`` and direct browser navigation work
+    without extra round-trips.
     """
-    jwt_token = (credentials.credentials if credentials else None) or token
-    if not jwt_token:
-        raise AppError("not_authenticated", status_code=401)
-    payload = decode_token(jwt_token)
-    user_id = payload.get("sub")
-    if not user_id:
-        raise AppError("not_authenticated", status_code=401)
-    await _validate_conversation_ownership(conversation_id, user_id)
     d = _artifacts_dir(conversation_id)
     if not d.exists():
         raise AppError("artifact_not_found", status_code=404)
