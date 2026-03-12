@@ -42,6 +42,8 @@ import type {
   AIAnnotateResponse,
   AIAnnotateJobStarted,
   AIAnnotateJobStatus,
+  CredentialUpsertRequest,
+  MyCredentialStatus,
 } from "@/types/connector"
 import type { AdminUser, AdminConversation, AdminMessage, StorageStats, InviteCode, AdminMCPServer, IntegrationHealth, AdminModelsResponse, AdminModelCreate, AdminModelUpdate, AdminUserFile, AdminGlobalAgentInfo, AdminAllMcpServer, AdminOrganization, OrgMember as AdminOrgMember } from "@/types/admin"
 import type { MCPServerResponse, MCPServerCreate, MCPServerUpdate } from "@/types/mcp-server"
@@ -824,6 +826,24 @@ export const connectorApi = {
       `/api/connectors/${connectorId}/ai/db-chat`,
       { method: "POST", body: JSON.stringify({ message, history: history ?? [] }) },
     ),
+
+  // Per-user credential overrides
+  getMyCredentials: (connectorId: string) =>
+    apiFetch<ApiResponse<MyCredentialStatus>>(
+      `/api/connectors/${connectorId}/my-credentials`,
+    ).then((r) => r.data),
+
+  upsertMyCredentials: (connectorId: string, body: CredentialUpsertRequest) =>
+    apiFetch<ApiResponse<void>>(
+      `/api/connectors/${connectorId}/my-credentials`,
+      { method: "PUT", body: JSON.stringify(body) },
+    ).then(() => undefined),
+
+  deleteMyCredentials: (connectorId: string) =>
+    apiFetch<ApiResponse<void>>(
+      `/api/connectors/${connectorId}/my-credentials`,
+      { method: "DELETE" },
+    ).then(() => undefined),
 }
 
 // --- Chat API ---

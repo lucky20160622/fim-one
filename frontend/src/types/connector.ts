@@ -67,6 +67,9 @@ export interface ConnectorResponse {
   version: number
   visibility: string // "personal" | "org" | "global"
   org_id: string | null
+  user_id: string // connector owner id
+  has_default_credentials: boolean
+  allow_fallback: boolean
   actions: ConnectorActionResponse[]
   created_at: string
   updated_at: string | null
@@ -91,6 +94,20 @@ export interface ConnectorUpdate {
   auth_type?: string
   auth_config?: Record<string, unknown> | null
   db_config?: DbConnectionConfig | null
+  allow_fallback?: boolean
+}
+
+export interface CredentialUpsertRequest {
+  token?: string | null
+  api_key?: string | null
+  username?: string | null
+  password?: string | null
+}
+
+export interface MyCredentialStatus {
+  has_credentials: boolean
+  auth_type: string
+  allow_fallback: boolean
 }
 
 export interface OpenAPIImportRequest {

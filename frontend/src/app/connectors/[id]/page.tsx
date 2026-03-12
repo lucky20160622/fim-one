@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useAuth } from "@/contexts/auth-context"
 import { connectorApi } from "@/lib/api"
 import { ConnectorSettingsForm } from "@/components/connectors/connector-settings-form"
+import { MyCredentialsForm } from "@/components/connectors/my-credentials-form"
 import { DbConnectorSettingsForm } from "@/components/connectors/db-connector-settings-form"
 import { ActionManager } from "@/components/connectors/action-manager"
 import { SchemaManager } from "@/components/connectors/schema-manager"
@@ -199,7 +200,7 @@ function ConnectorEditorPageInner() {
             </TabsList>
 
             {/* Settings tab: swap form based on type */}
-            <TabsContent forceMount value="connector" className="flex-1 min-h-0 px-4 py-4 overflow-hidden flex flex-col data-[state=inactive]:hidden">
+            <TabsContent forceMount value="connector" className="flex-1 min-h-0 px-4 py-4 overflow-auto flex flex-col data-[state=inactive]:hidden">
               {isDatabase ? (
                 <DbConnectorSettingsForm
                   connector={connector}
@@ -212,6 +213,11 @@ function ConnectorEditorPageInner() {
                   onSaved={handleConnectorSaved}
                   onDirtyChange={setFormDirty}
                 />
+              )}
+              {connector && user && connector.user_id !== user.id
+                && connector.visibility !== "personal"
+                && connector.auth_type !== "none" && (
+                <MyCredentialsForm connector={connector} />
               )}
             </TabsContent>
 

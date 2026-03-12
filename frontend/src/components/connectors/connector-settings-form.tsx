@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Switch } from "@/components/ui/switch"
 import { EmojiPickerPopover } from "@/components/ui/emoji-picker-popover"
 import { connectorApi } from "@/lib/api"
 import type { ConnectorCreate, ConnectorResponse } from "@/types/connector"
@@ -40,6 +41,8 @@ export function ConnectorSettingsForm({
   const [defaultApiKey, setDefaultApiKey] = useState("")
   const [defaultUsername, setDefaultUsername] = useState("")
   const [defaultPassword, setDefaultPassword] = useState("")
+  // Allow fallback setting
+  const [allowFallback, setAllowFallback] = useState(true)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -54,10 +57,13 @@ export function ConnectorSettingsForm({
       const cfg = connector.auth_config || {}
       setTokenPrefix(typeof cfg.token_prefix === "string" ? cfg.token_prefix : "Bearer")
       setHeaderName(typeof cfg.header_name === "string" ? cfg.header_name : "X-API-Key")
+      // After encryption migration, default credentials are no longer stored in auth_config.
+      // Fields stay empty; placeholder text indicates stored values when has_default_credentials is true.
       setDefaultToken(typeof cfg.default_token === "string" ? cfg.default_token : "")
       setDefaultApiKey(typeof cfg.default_api_key === "string" ? cfg.default_api_key : "")
       setDefaultUsername(typeof cfg.default_username === "string" ? cfg.default_username : "")
       setDefaultPassword(typeof cfg.default_password === "string" ? cfg.default_password : "")
+      setAllowFallback(connector.allow_fallback ?? true)
     } else {
       setName("")
       setIcon(null)
@@ -70,6 +76,7 @@ export function ConnectorSettingsForm({
       setDefaultApiKey("")
       setDefaultUsername("")
       setDefaultPassword("")
+      setAllowFallback(true)
     }
   }, [connector])
 
@@ -93,9 +100,10 @@ export function ConnectorSettingsForm({
       defaultToken !== (typeof cfg.default_token === "string" ? cfg.default_token : "") ||
       defaultApiKey !== (typeof cfg.default_api_key === "string" ? cfg.default_api_key : "") ||
       defaultUsername !== (typeof cfg.default_username === "string" ? cfg.default_username : "") ||
-      defaultPassword !== (typeof cfg.default_password === "string" ? cfg.default_password : "")
+      defaultPassword !== (typeof cfg.default_password === "string" ? cfg.default_password : "") ||
+      allowFallback !== (connector.allow_fallback ?? true)
     onDirtyChange(dirty)
-  }, [connector, name, icon, description, baseUrl, authType, tokenPrefix, headerName, defaultToken, defaultApiKey, defaultUsername, defaultPassword, onDirtyChange])
+  }, [connector, name, icon, description, baseUrl, authType, tokenPrefix, headerName, defaultToken, defaultApiKey, defaultUsername, defaultPassword, allowFallback, onDirtyChange])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -109,6 +117,8 @@ export function ConnectorSettingsForm({
       if (authType === "bearer") {
         authConfig = {
           token_prefix: tokenPrefix.trim() || "Bearer",
+          // Only include default_token if user typed a value.
+          // If the field is empty and has_default_credentials is true, omit so backend keeps existing encrypted credential.
           ...(defaultToken.trim() && { default_token: defaultToken.trim() }),
         }
       } else if (authType === "api_key") {
@@ -136,7 +146,10 @@ export function ConnectorSettingsForm({
 
       let result: ConnectorResponse
       if (connector) {
-        result = await connectorApi.update(connector.id, data)
+        result = await connectorApi.update(connector.id, {
+          ...data,
+          ...(connector.visibility !== "personal" && authType !== "none" && { allow_fallback: allowFallback }),
+        })
       } else {
         result = await connectorApi.create(data)
       }
@@ -152,6 +165,11 @@ export function ConnectorSettingsForm({
       setIsSubmitting(false)
     }
   }
+
+  // Whether credentials are already stored (edit mode only)
+  const hasStoredCredentials = !!(connector?.has_default_credentials)
+  const credentialPlaceholder = hasStoredCredentials ? "••••••••" : undefined
+  const credentialHint = hasStoredCredentials ? t("credentialsHelpOwner") : undefined
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -254,10 +272,10 @@ export function ConnectorSettingsForm({
                   type="password"
                   value={defaultToken}
                   onChange={(e) => setDefaultToken(e.target.value)}
-                  placeholder="ghp_xxxxxxxxxxxx"
+                  placeholder={credentialPlaceholder ?? "ghp_xxxxxxxxxxxx"}
                 />
                 <p className="text-xs text-muted-foreground">
-                  {t("defaultTokenHelp")}
+                  {credentialHint ?? t("defaultTokenHelp")}
                 </p>
               </div>
             </div>
@@ -290,10 +308,10 @@ export function ConnectorSettingsForm({
                   type="password"
                   value={defaultApiKey}
                   onChange={(e) => setDefaultApiKey(e.target.value)}
-                  placeholder="sk-xxxxxxxxxxxx"
+                  placeholder={credentialPlaceholder ?? "sk-xxxxxxxxxxxx"}
                 />
                 <p className="text-xs text-muted-foreground">
-                  {t("defaultApiKeyHelp")}
+                  {credentialHint ?? t("defaultApiKeyHelp")}
                 </p>
               </div>
             </div>
@@ -323,12 +341,26 @@ export function ConnectorSettingsForm({
                   type="password"
                   value={defaultPassword}
                   onChange={(e) => setDefaultPassword(e.target.value)}
-                  placeholder="********"
+                  placeholder={credentialPlaceholder ?? "********"}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                {t("basicAuthHelp")}
+                {credentialHint ?? t("basicAuthHelp")}
               </p>
+            </div>
+          )}
+
+          {/* Allow Fallback — only shown in edit mode for non-personal connectors with auth */}
+          {connector && connector.visibility !== "personal" && authType !== "none" && (
+            <div className="flex items-center justify-between rounded-md border border-border p-3">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">{t("allowFallback")}</p>
+                <p className="text-xs text-muted-foreground">{t("allowFallbackHelp")}</p>
+              </div>
+              <Switch
+                checked={allowFallback}
+                onCheckedChange={setAllowFallback}
+              />
             </div>
           )}
         </div>

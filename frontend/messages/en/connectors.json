@@ -171,5 +171,16 @@
 
   "comingSoon": "Coming soon",
   "schemaImportTitle": "Import Schema",
-  "schemaImportComingSoon": "Coming soon — Excel/CSV import and AI extraction."
+  "schemaImportComingSoon": "Coming soon — Excel/CSV import and AI extraction.",
+
+  "allowFallback": "Allow fallback to default credentials",
+  "allowFallbackHelp": "When enabled, users without personal credentials will use the connector owner's default token",
+  "myCredentials": "My Credentials",
+  "myCredentialsSet": "You have personal credentials saved for this connector.",
+  "myCredentialsHelpWithFallback": "Set your own credentials for this connector. If not set, the owner's default credentials will be used.",
+  "myCredentialsHelpRequired": "This connector requires you to provide your own credentials to use it.",
+  "myCredentialsSaved": "Credentials saved successfully",
+  "myCredentialsSaveFailed": "Failed to save credentials",
+  "myCredentialsDeleted": "Credentials deleted",
+  "credentialsHelpOwner": "Stored securely. Leave blank to keep existing credentials."
 }

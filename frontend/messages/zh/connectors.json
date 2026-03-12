@@ -171,5 +171,16 @@
 
   "comingSoon": "即将推出",
   "schemaImportTitle": "导入表结构",
-  "schemaImportComingSoon": "即将推出 — Excel/CSV 导入和 AI 提取。"
+  "schemaImportComingSoon": "即将推出 — Excel/CSV 导入和 AI 提取。",
+
+  "allowFallback": "允许回退到默认凭据",
+  "allowFallbackHelp": "启用后，没有个人凭据的用户将使用连接器所有者的默认令牌",
+  "myCredentials": "我的凭据",
+  "myCredentialsSet": "您已为此连接器保存了个人凭据。",
+  "myCredentialsHelpWithFallback": "为此连接器设置您自己的凭据。如果未设置，将使用所有者的默认凭据。",
+  "myCredentialsHelpRequired": "使用此连接器需要您提供自己的凭据。",
+  "myCredentialsSaved": "凭据保存成功",
+  "myCredentialsSaveFailed": "凭据保存失败",
+  "myCredentialsDeleted": "凭据已删除",
+  "credentialsHelpOwner": "已安全存储。留空以保留现有凭据。"
 }
