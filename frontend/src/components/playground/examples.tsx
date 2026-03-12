@@ -93,8 +93,7 @@ export function Examples({
   agentIcon,
 }: ExamplesProps) {
   const t = useTranslations("playground")
-  // Auto mode doesn't have its own examples; fall back to react examples
-  const examplesKey = mode === "auto" ? "react" : mode
+  const examplesKey = mode
   const allExamples = t.raw(`examples.${examplesKey}`) as ExampleItem[]
   const examples = useMemo(
     () => pickExamples(allExamples, DISPLAY_COUNT),

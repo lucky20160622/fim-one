@@ -134,6 +134,14 @@
       { "text": "Compute the first 50 Fibonacci numbers, first 50 primes, and first 50 triangular numbers in parallel, then find which numbers appear in multiple sequences", "category": "code" },
       { "text": "Get the current time in New York, London, Tokyo, Sydney, and Dubai in parallel, then use template_render to create a styled HTML world clock dashboard", "category": "hybrid" },
       { "text": "Find a public REST API with posts and todos, fetch both in parallel, then write Python to correlate: do the most prolific posters also complete the most todos?", "category": "hybrid" }
+    ],
+    "auto": [
+      { "text": "Fetch the Node.js LTS changelog and summarize the 5 most impactful changes for a typical backend developer", "category": "web" },
+      { "text": "Simulate rolling two dice 50,000 times — print a frequency table of every possible sum and identify the most and least common outcomes", "category": "code" },
+      { "text": "Fetch 100 posts from JSONPlaceholder, rank the top 5 most active users by post count, and use template_render to display their stats as a styled leaderboard card", "category": "hybrid" },
+      { "text": "Look up GPT-4 and Claude 3 on Wikipedia — compare their release dates, context windows, and flagship capabilities — then produce a clean markdown comparison table", "category": "web" },
+      { "text": "Research React, Vue, and Svelte simultaneously — for each fetch npm weekly downloads, GitHub stars, and latest version — then rank them and produce a styled HTML scorecard with medal badges", "category": "hybrid" },
+      { "text": "In parallel: (1) implement merge sort and quick sort, benchmark both on 10,000 random integers; (2) find all Fibonacci numbers up to index 50 that are also prime; (3) solve N-Queens for N=8 and count all solutions — compile everything into one styled HTML report", "category": "code" }
     ]
   }
 }

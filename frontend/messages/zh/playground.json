@@ -134,6 +134,14 @@
       { "text": "并行计算前 50 个斐波那契数、前 50 个素数和前 50 个三角数，找出哪些数字同时出现在多个数列中", "category": "code" },
       { "text": "并行获取纽约、伦敦、东京、悉尼、迪拜五座城市的当前时间，然后用 template_render 创建一个美观的 HTML 世界时钟面板", "category": "hybrid" },
       { "text": "找一个公开的 REST API，并行获取帖子和待办事项数据，然后用 Python 分析：发帖最多的用户，他们的待办完成率也最高吗？", "category": "hybrid" }
+    ],
+    "auto": [
+      { "text": "获取 Node.js LTS 最新版本的更新日志，总结对后端开发者最重要的 5 项变化", "category": "web" },
+      { "text": "模拟掷两颗骰子 50,000 次——打印每种点数之和的频率表，并找出最常见和最罕见的结果", "category": "code" },
+      { "text": "从 JSONPlaceholder 获取 100 篇帖子，找出发帖最多的前 5 位用户，然后用 template_render 将他们的数据展示为一张样式精美的排行榜卡片", "category": "hybrid" },
+      { "text": "分别查找维基百科上 GPT-4 和 Claude 3 的页面——比较发布日期、上下文窗口和核心能力——整理为简洁的 Markdown 对比表", "category": "web" },
+      { "text": "同时调研 React、Vue 和 Svelte——分别获取 npm 周下载量、GitHub Star 数和最新版本——排名并生成带奖牌徽章的 HTML 评分卡", "category": "hybrid" },
+      { "text": "并行完成三项任务：（1）实现归并排序与快速排序并在 10,000 个随机整数上做基准测试；（2）找出索引 50 以内既是斐波那契数又是素数的所有数；（3）求解 N=8 的 N 皇后问题并统计全部解——汇总为一份样式精美的 HTML 报告", "category": "code" }
     ]
   }
 }
