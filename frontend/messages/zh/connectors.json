@@ -69,6 +69,7 @@
   "requiresConfirmation": "执行前需要用户确认",
   "advancedBuilder": "高级构建器",
   "advancedBuilderDesc": "适用于海量 API 文档导入、复杂接口配置、多步骤 API 调试。",
+  "advancedBuilderDescDb": "适用于策略性 Schema 标注、批量可见性管理、大型数据库的多步骤分析。",
   "builderInitFailed": "构建器初始化失败",
   "backToAssistant": "返回 AI 助手",
   "aiAssistant": "AI 助手",

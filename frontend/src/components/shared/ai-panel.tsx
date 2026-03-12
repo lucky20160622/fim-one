@@ -92,7 +92,7 @@ export function AIPanel({
   }, [id])
 
   // Builder is only available for agent and connector-api modes
-  const hasBuilder = mode === "agent" || mode === "connector-api"
+  const hasBuilder = mode === "agent" || mode === "connector-api" || mode === "connector-db"
 
   const openBuilder = async () => {
     if (!id || !hasBuilder) return
@@ -104,7 +104,7 @@ export function AIPanel({
     }
     setBuilderLoading(true)
     try {
-      const targetType = mode === "agent" ? "agent" : "connector"
+      const targetType = mode === "agent" ? "agent" : mode === "connector-db" ? "connector_db" : "connector"
       const res = await builderApi.createSession({ target_type: targetType, target_id: id })
       setBuilderAgentId(res.builder_agent_id)
       setBuilderMode(true)
@@ -371,6 +371,8 @@ export function AIPanel({
               onTurnComplete={() => {
                 if (mode === "agent" && id) {
                   agentApi.get(id).then((agent) => onAgentUpdated?.(agent)).catch(() => {})
+                } else if (mode === "connector-db" && id) {
+                  onSchemaChanged?.()
                 } else {
                   onActionsChanged?.()
                 }
@@ -405,7 +407,7 @@ export function AIPanel({
                 {t("advancedBuilder")}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={5}>{t("advancedBuilderDesc")}</TooltipContent>
+            <TooltipContent side="bottom" sideOffset={5}>{mode === "connector-db" ? t("advancedBuilderDescDb") : t("advancedBuilderDesc")}</TooltipContent>
           </Tooltip>
         )}
       </div>

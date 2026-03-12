@@ -69,6 +69,7 @@
   "requiresConfirmation": "Requires user confirmation before execution",
   "advancedBuilder": "Advanced Builder",
   "advancedBuilderDesc": "Best for bulk API doc imports, complex endpoint configuration, and multi-step API debugging.",
+  "advancedBuilderDescDb": "Best for strategic schema annotation, bulk visibility management, and multi-step analysis for large databases.",
   "builderInitFailed": "Failed to initialize builder",
   "backToAssistant": "Back to AI Assistant",
   "aiAssistant": "AI Assistant",
