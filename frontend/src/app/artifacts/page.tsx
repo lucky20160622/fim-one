@@ -381,7 +381,7 @@ function ArtifactsContent() {
   const [selected, setSelected] = useState<ArtifactItem | null>(null)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
-  const pageSize = 20
+  const pageSize = 24
   const totalPages = Math.ceil(total / pageSize)
 
   useEffect(() => {
@@ -479,7 +479,7 @@ function ArtifactsContent() {
 
           {/* Grid */}
           {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className={cn("grid gap-4", selected ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4" : "grid-cols-2 md:grid-cols-4 lg:grid-cols-6")}>
               {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton.ArtifactCard key={i} />
               ))}
@@ -496,7 +496,7 @@ function ArtifactsContent() {
               <p className="text-sm text-muted-foreground">{t("noResults")}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className={cn("grid gap-4", selected ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4" : "grid-cols-2 md:grid-cols-4 lg:grid-cols-6")}>
               {filtered.map((artifact) => {
                 const isActive =
                   selected?.id === artifact.id &&
