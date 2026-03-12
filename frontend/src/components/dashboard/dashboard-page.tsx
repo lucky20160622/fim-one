@@ -292,7 +292,7 @@ export function DashboardPage() {
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {/* Conversations */}
             <Card>
-              <CardContent className="p-4 space-y-1.5">
+              <CardContent className="px-5 py-3 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <MessageSquare className="h-3.5 w-3.5" />
                   <span className="text-xs font-medium uppercase tracking-wide">
@@ -310,7 +310,7 @@ export function DashboardPage() {
 
             {/* Agents */}
             <Card>
-              <CardContent className="p-4 space-y-1.5">
+              <CardContent className="px-5 py-3 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <Bot className="h-3.5 w-3.5" />
                   <span className="text-xs font-medium uppercase tracking-wide">
@@ -325,7 +325,7 @@ export function DashboardPage() {
 
             {/* Tokens */}
             <Card>
-              <CardContent className="p-4 space-y-1.5">
+              <CardContent className="px-5 py-3 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <Database className="h-3.5 w-3.5" />
                   <span className="text-xs font-medium uppercase tracking-wide">
@@ -343,7 +343,7 @@ export function DashboardPage() {
 
             {/* Active Connectors */}
             <Card>
-              <CardContent className="p-4 space-y-1.5">
+              <CardContent className="px-5 py-3 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <Plug className="h-3.5 w-3.5" />
                   <span className="text-xs font-medium uppercase tracking-wide">
@@ -363,14 +363,14 @@ export function DashboardPage() {
           <div className="h-[260px] rounded-xl bg-muted animate-pulse" />
         ) : (
           <Card>
-            <CardHeader className="px-4 pt-4 pb-2">
+            <CardHeader className="px-5 pt-3 pb-2">
               <CardTitle className="flex items-center gap-2 text-base font-medium">
                 <Activity className="h-4 w-4 text-muted-foreground" />
                 {t("activityTitle")}
               </CardTitle>
               <p className="text-sm text-muted-foreground">{t("activitySubtitle")}</p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-5 pb-4 pt-0">
               {allZero || activityData.length === 0 ? (
                 <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
                   {t("activityEmpty")}
@@ -430,7 +430,7 @@ export function DashboardPage() {
 
               {/* Recent Conversations */}
               <Card>
-                <CardHeader className="px-4 pt-4 pb-2">
+                <CardHeader className="px-5 pt-3 pb-2">
                   <CardTitle className="flex items-center gap-2 text-base font-medium">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     {t("recentTitle")}
@@ -447,7 +447,7 @@ export function DashboardPage() {
                   ) : (
                     <ul className="divide-y divide-border">
                       {stats.recent_conversations.slice(0, 6).map((conv) => (
-                        <li key={conv.id} className="flex items-center gap-3 px-4 py-3">
+                        <li key={conv.id} className="flex items-center gap-3 px-5 py-2">
                           <div className="flex-1 min-w-0">
                             <p className="truncate text-sm font-medium text-foreground">
                               {conv.title || t("untitled")}
@@ -486,13 +486,13 @@ export function DashboardPage() {
 
               {/* My Agents */}
               <Card>
-                <CardHeader className="px-4 pt-4 pb-2">
+                <CardHeader className="px-5 pt-3 pb-2">
                   <CardTitle className="flex items-center gap-2 text-base font-medium">
                     <Bot className="h-4 w-4 text-muted-foreground" />
                     {t("agentsTitle")}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="px-4 pb-4 pt-0">
+                <CardContent className="px-5 pb-4 pt-0">
                   {!stats?.top_agents.length ? (
                     <div className="flex flex-col items-center gap-3 py-6 text-sm text-muted-foreground">
                       <p>{t("agentsEmpty")}</p>
@@ -538,13 +538,13 @@ export function DashboardPage() {
 
               {/* Knowledge Bases */}
               <Card>
-                <CardHeader className="px-4 pt-4 pb-2">
+                <CardHeader className="px-5 pt-3 pb-2">
                   <CardTitle className="flex items-center gap-2 text-base font-medium">
                     <Library className="h-4 w-4 text-muted-foreground" />
                     {t("kbTitle")}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="px-4 pb-4 pt-0">
+                <CardContent className="px-5 pb-4 pt-0">
                   {!stats?.top_kbs.length ? (
                     <div className="py-6 text-center text-sm text-muted-foreground">
                       {t("kbEmpty")}
@@ -580,7 +580,7 @@ export function DashboardPage() {
 
               {/* Connector Health */}
               <Card>
-                <CardHeader className="px-4 pt-4 pb-2">
+                <CardHeader className="px-5 pt-3 pb-2">
                   <CardTitle className="flex items-center gap-2 text-base font-medium">
                     <Zap className="h-4 w-4 text-muted-foreground" />
                     {t("connectorsTitle")}
@@ -597,7 +597,7 @@ export function DashboardPage() {
                         <li key={connector.id}>
                           <Link
                             href={`/connectors/${connector.id}`}
-                            className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                            className="flex items-center gap-3 px-5 py-2 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                           >
                             <Plug className="h-4 w-4 shrink-0 text-muted-foreground" />
                             <div className="min-w-0 flex-1">
