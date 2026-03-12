@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useTranslations, useLocale } from "next-intl"
-import { Loader2, MessageSquare, Bot, Database, Plug, TrendingUp, TrendingDown, Minus, ExternalLink } from "lucide-react"
+import { Loader2, MessageSquare, Bot, Database, Plug, TrendingUp, TrendingDown, Minus, ExternalLink, Activity, Library, Zap, Clock } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN, enUS } from "date-fns/locale"
 import {
@@ -167,10 +167,19 @@ function AgentIcon({ icon, name }: { icon: string | null; name: string }) {
   )
 }
 
-// ---- User avatar initials ----
-function UserAvatar({ name }: { name: string }) {
+// ---- User avatar (real image with initials fallback) ----
+function UserAvatar({ name, avatar }: { name: string; avatar: string | null }) {
   const initials = name.slice(0, 2).toUpperCase()
   const hue = (name.charCodeAt(0) * 37) % 360
+  if (avatar) {
+    return (
+      <img
+        src={avatar}
+        alt={name}
+        className="h-12 w-12 shrink-0 rounded-full object-cover"
+      />
+    )
+  }
   return (
     <span
       className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white"
@@ -256,13 +265,13 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-6xl space-y-6 p-6">
+      <div className="w-full space-y-6 p-6">
 
         {/* ---- 1. Welcome Banner ---- */}
         <div className="rounded-xl bg-gradient-to-br from-primary/10 via-background to-background border border-border px-6 py-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <UserAvatar name={displayName} />
+              <UserAvatar name={displayName} avatar={user.avatar ?? null} />
               <div>
                 <h1 className="text-xl font-semibold text-foreground">
                   {t("welcomeTitle", { name: displayName })}
@@ -370,7 +379,10 @@ export function DashboardPage() {
         ) : (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium">{t("activityTitle")}</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base font-medium">
+                <Activity className="h-4 w-4 text-muted-foreground" />
+                {t("activityTitle")}
+              </CardTitle>
               <p className="text-sm text-muted-foreground">{t("activitySubtitle")}</p>
             </CardHeader>
             <CardContent>
@@ -434,7 +446,10 @@ export function DashboardPage() {
               {/* Recent Conversations */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium">{t("recentTitle")}</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base font-medium">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    {t("recentTitle")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                   {!stats?.recent_conversations.length ? (
@@ -487,7 +502,10 @@ export function DashboardPage() {
               {/* My Agents */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium">{t("agentsTitle")}</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base font-medium">
+                    <Bot className="h-4 w-4 text-muted-foreground" />
+                    {t("agentsTitle")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {!stats?.top_agents.length ? (
@@ -536,7 +554,10 @@ export function DashboardPage() {
               {/* Knowledge Bases */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium">{t("kbTitle")}</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base font-medium">
+                    <Library className="h-4 w-4 text-muted-foreground" />
+                    {t("kbTitle")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                   {!stats?.top_kbs.length ? (
@@ -576,7 +597,10 @@ export function DashboardPage() {
               {/* Connector Health */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium">{t("connectorsTitle")}</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base font-medium">
+                    <Zap className="h-4 w-4 text-muted-foreground" />
+                    {t("connectorsTitle")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                   {!stats?.connector_health.length ? (
@@ -590,7 +614,7 @@ export function DashboardPage() {
                           key={connector.id}
                           className="flex items-center gap-3 px-4 py-3"
                         >
-                          <StatusDot status={connector.status} />
+                          <Plug className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-medium text-foreground">
                               {connector.name}
