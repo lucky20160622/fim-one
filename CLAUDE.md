@@ -107,13 +107,23 @@ Dev uses SQLite, production uses PostgreSQL. One set of migration files must wor
 
 After every commit, update docs silently (do NOT ask the user). Run ALL applicable items as a checklist:
 
-- [ ] **`docs/changelog.mdx`** — append under `[Unreleased]` (`### Added/Changed/Fixed/Removed`). Applies to ALL commit types.
-- [ ] *(feat only)* **`docs/roadmap.mdx`** — check off completed items; add new user-facing items under current version (never retroactively add to already-shipped versions)
+- [ ] **`docs/changelog.mdx`** — append under `[Unreleased]` (`### Added/Changed/Fixed/Removed`). Applies to ALL commit types. CHANGELOG is the detailed record of everything.
+- [ ] *(feat only)* **`docs/roadmap.mdx`** — ROADMAP is the intent list (what's planned). Three rules:
+  1. **Check off**: if this commit satisfies a `- [ ]` planned item → change it to `- [x]`
+  2. **Insert new**: if this is a significant new feature NOT in the roadmap → add it under the most fitting planned version as `- [x]` (just shipped) or `- [ ]` if it spawns follow-up work. Use judgment — don't add every small thing; only user-facing features worth planning around
+  3. **Never touch** shipped (date-stamped) versions retroactively
 - [ ] *(feat only)* **`example.env`** — add any new env keys with placeholder + comment; then **sync `docs/configuration/environment-variables.mdx`** — add the new variable(s) to the correct section table
 - [ ] *(feat only)* **`README.md`** — update Key Features and Project Structure if needed
 - [ ] **Chinese sync** — translate the staged English doc diff into the corresponding `docs/zh/` and `README.zh.md` files. Commit EN + ZH together.
 
-**Version alignment**: CHANGELOG `[Unreleased]` and Roadmap must use the same version numbers.
+## Cut Release (triggered by user asking "what's next")
+
+When the user asks "what's next on the roadmap?" or "接下来做什么", BEFORE answering:
+
+1. **Archive**: move all content from `CHANGELOG [Unreleased]` → `CHANGELOG [vX.Y] (YYYY-MM-DD)`
+2. **Mark shipped**: in ROADMAP, add the date to the version heading and move it under **Shipped Versions**
+3. **Fresh start**: open a new empty `[Unreleased]` section in CHANGELOG
+4. **Then answer**: suggest the next priorities from the first unfinished planned version's `- [ ]` items
 
 <!-- GT I18N RULES START -->
 

@@ -155,16 +155,16 @@ flowchart LR
 
 **Goal**: Make it easier to define connectors without writing Python code, and optimize how tools are exposed to the LLM.
 
-- **Connector Progressive Disclosure (Phase 1-2)**: single `ConnectorMetaTool` replaces per-action tools; Tier 1 connector catalog in system prompt (~30 tokens/connector vs ~250 tokens/action); `discover` + `execute` subcommands; feature flag for backward compatibility
-- **YAML/JSON connector config**: platform auto-generates MCP server
-- **Connector import/export**: share connector templates
-- **Connector fork**: clone + customize existing connectors
-- ~~**Database connectors**: direct SQL access (PostgreSQL, MySQL, Oracle)~~ *(shipped in v0.7.x — Phase 1-3)*
-- **Database connectors Phase 4**: enterprise drivers — Oracle (`oracledb`), SQL Server (`aioodbc`), 达梦 DM8 (`aioodbc` + DM ODBC), 南大通用 GBase (`aioodbc` + GBase ODBC)
-- **Message push**: Lark, WeCom, Slack, Email notification actions
-- ~~**RBAC**: per-user/role connector access control~~ *(shipped in v0.7.x — org system + three-tier visibility)*
-- **Operation audit**: detailed logging of who did what
-- **Semantic Schema Annotations**: extend connector schema fields with `semantic_tag`, `description`, and `pii` flags; annotations surfaced in LLM tool descriptions so the agent understands field intent without guessing from column names
+- [x] ~~**Database connectors**: direct SQL access (PostgreSQL, MySQL, Oracle)~~ *(shipped in v0.7.x — Phase 1-3)*
+- [x] ~~**RBAC**: per-user/role connector access control~~ *(shipped in v0.7.x — org system + three-tier visibility)*
+- [ ] **Connector Progressive Disclosure (Phase 1-2)**: single `ConnectorMetaTool` replaces per-action tools; Tier 1 connector catalog in system prompt (~30 tokens/connector vs ~250 tokens/action); `discover` + `execute` subcommands; feature flag for backward compatibility
+- [ ] **YAML/JSON connector config**: platform auto-generates MCP server
+- [ ] **Connector import/export**: share connector templates
+- [ ] **Connector fork**: clone + customize existing connectors
+- [ ] **Database connectors Phase 4**: enterprise drivers — Oracle (`oracledb`), SQL Server (`aioodbc`), 达梦 DM8 (`aioodbc` + DM ODBC), 南大通用 GBase (`aioodbc` + GBase ODBC)
+- [ ] **Message push**: Lark, WeCom, Slack, Email notification actions
+- [ ] **Operation audit**: detailed logging of who did what
+- [ ] **Semantic Schema Annotations**: extend connector schema fields with `semantic_tag`, `description`, and `pii` flags; annotations surfaced in LLM tool descriptions so the agent understands field intent without guessing from column names
 
 **Impact**: Implementation engineers (no Python required) can add connectors in 1-2 hours. Token cost for tool definitions drops by 93%+ at scale.
 
@@ -172,16 +172,15 @@ flowchart LR
 
 **Goal**: Production-grade operations, debugging, and monitoring.
 
-- **Connector Progressive Disclosure (Phase 3-4)**: unified `ConnectorExecutor` interface (API/DB/MCP behind one abstraction); action parameter validation with `jsonschema`; protocol-agnostic discover/execute
-- **Distributed tracing**: OpenTelemetry integration
-- **Circuit breaker**: exponential backoff, failure detection
-- **Observability**: metrics (latency, success rate, token usage)
-- **Connector analytics**: usage patterns, failure modes
-- **Sandbox hardening**: v2 improvements to code execution isolation
-- **Docker Compose**: full deployment stack
-- **Performance testing**: concurrent load benchmarks
-- **Scheduled jobs (Loop)**: cron-like background task triggers; `scheduled_jobs` + `job_runs` DB tables; APScheduler integration; job CRUD API + job history UI; result notification via message push connectors
-- **DB Schema Advanced Builder**: AI-driven schema management agent for large-scale databases — strategic table annotation (pattern-based, SQL-execution-informed), bulk visibility management by domain prefix, iterative multi-round annotation for 1K–7K+ table deployments; complements existing batch-annotation job with selectivity and business-context reasoning
+- [ ] **Connector Progressive Disclosure (Phase 3-4)**: unified `ConnectorExecutor` interface (API/DB/MCP behind one abstraction); action parameter validation with `jsonschema`; protocol-agnostic discover/execute
+- [ ] **Distributed tracing**: OpenTelemetry integration
+- [ ] **Circuit breaker**: exponential backoff, failure detection
+- [ ] **Observability**: metrics (latency, success rate, token usage)
+- [ ] **Connector analytics**: usage patterns, failure modes
+- [ ] **Sandbox hardening**: v2 improvements to code execution isolation
+- [ ] **Performance testing**: concurrent load benchmarks
+- [ ] **Scheduled jobs (Loop)**: cron-like background task triggers; `scheduled_jobs` + `job_runs` DB tables; APScheduler integration; job CRUD API + job history UI; result notification via message push connectors
+- [ ] **DB Schema Advanced Builder**: AI-driven schema management agent for large-scale databases — strategic table annotation (pattern-based, SQL-execution-informed), bulk visibility management by domain prefix, iterative multi-round annotation for 1K–7K+ table deployments; complements existing batch-annotation job with selectivity and business-context reasoning
 
 **Impact**: Run FIM One at scale with confidence — scheduled automations + observability form a complete production background-automation story.
 
@@ -189,17 +188,16 @@ flowchart LR
 
 **Goal**: Zero-restart connector addition and embedded delivery.
 
-- **Connector Progressive Disclosure (Phase 5)**: ~~heuristic preloading~~ → **Semantic-Guided Tool Selection** (entity extraction from query → Ontology Registry lookup → connector set reduction; 90%+ token reduction for 50+ connector deployments); Scale mode for batch/ETL connectors; CLI-style universal `connector <name> <action> <params>` interface
-- **Cross-Connector Entity Alignment (Ontology Registry)**: define shared entity types (Customer, Order, Asset) with field mappings across connectors; DAGPlanner auto-resolves cross-system JOIN keys; enables cross-connector queries (e.g., "customers in Salesforce who ordered in Shopify") without hardcoded field names
-- **Hot-plug connectors**: upload OpenAPI spec, AI generates config, live in 5 minutes (no restart)
-- **Connector marketplace**: community-shared templates
-- **Embeddable widget**: `<script src="fim-one.js">` injected into host page
-- **Page context injection**: widget reads host page context (current ID, URL, DOM selectors)
-- **Advanced triggers**: Webhook inbound events; scheduled job enhancements (multi-timezone, calendar-aware)
-- **Batch execution**: process 1000+ items via DAG
-- **Admin dashboard**: full management UI
-- **Enterprise security**: IP whitelisting, encryption at rest, SSO
-- **KB Advanced Editor**: Builder-mode agent for power users managing large knowledge bases — bulk URL ingestion, duplicate detection, gap analysis, document lifecycle management; extends existing KB AI chat with ReAct tool loop
+- [ ] **Connector Progressive Disclosure (Phase 5)**: **Semantic-Guided Tool Selection** (entity extraction from query → Ontology Registry lookup → connector set reduction; 90%+ token reduction for 50+ connector deployments); Scale mode for batch/ETL connectors; CLI-style universal `connector <name> <action> <params>` interface
+- [ ] **Cross-Connector Entity Alignment (Ontology Registry)**: define shared entity types (Customer, Order, Asset) with field mappings across connectors; DAGPlanner auto-resolves cross-system JOIN keys; enables cross-connector queries (e.g., "customers in Salesforce who ordered in Shopify") without hardcoded field names
+- [ ] **Hot-plug connectors**: upload OpenAPI spec, AI generates config, live in 5 minutes (no restart)
+- [ ] **Connector marketplace**: community-shared templates
+- [ ] **Embeddable widget**: `<script src="fim-one.js">` injected into host page
+- [ ] **Page context injection**: widget reads host page context (current ID, URL, DOM selectors)
+- [ ] **Advanced triggers**: Webhook inbound events; scheduled job enhancements (multi-timezone, calendar-aware)
+- [ ] **Batch execution**: process 1000+ items via DAG
+- [ ] **Enterprise security**: IP whitelisting, encryption at rest, SSO
+- [ ] **KB Advanced Editor**: Builder-mode agent for power users managing large knowledge bases — bulk URL ingestion, duplicate detection, gap analysis, document lifecycle management; extends existing KB AI chat with ReAct tool loop
 
 **Impact**: Enterprises deploy FIM One from zero to multi-system orchestration in days.
 
