@@ -20,6 +20,28 @@ LLM_REASONING_EFFORT : Extended thinking level — ``low``, ``medium``, or
 LLM_REASONING_BUDGET_TOKENS : Explicit token budget for Anthropic thinking
                     (minimum 1024).  Only effective when
                     ``LLM_REASONING_EFFORT`` is set.
+FAST_LLM_API_KEY : API key for the fast model provider (default: falls
+                    back to ``LLM_API_KEY``).
+FAST_LLM_BASE_URL : Base URL for the fast model (default: falls back to
+                    ``LLM_BASE_URL``).
+FAST_LLM_TEMPERATURE : Temperature for the fast model (default: falls
+                    back to ``LLM_TEMPERATURE``).
+REASONING_LLM_MODEL : Model identifier for the reasoning model (default:
+                    falls back to ``LLM_MODEL``).
+REASONING_LLM_API_KEY : API key for the reasoning model provider (default:
+                    falls back to ``LLM_API_KEY``).
+REASONING_LLM_BASE_URL : Base URL for the reasoning model (default: falls
+                    back to ``LLM_BASE_URL``).
+REASONING_LLM_TEMPERATURE : Temperature for the reasoning model (default:
+                    falls back to ``LLM_TEMPERATURE``).
+REASONING_LLM_CONTEXT_SIZE : Context window for the reasoning model
+                    (default: falls back to ``LLM_CONTEXT_SIZE``).
+REASONING_LLM_MAX_OUTPUT_TOKENS : Max output tokens for the reasoning model
+                    (default: falls back to ``LLM_MAX_OUTPUT_TOKENS``).
+REASONING_LLM_EFFORT : Reasoning effort for the reasoning model (default:
+                    falls back to ``LLM_REASONING_EFFORT``).
+REASONING_LLM_BUDGET : Reasoning budget for the reasoning model (default:
+                    falls back to ``LLM_REASONING_BUDGET_TOKENS``).
 MAX_CONCURRENCY  : Max parallel steps in DAG executor (default: ``5``).
 LLM_CONTEXT_SIZE : Effective context cap for the main LLM in tokens
                     (default: ``128000`` — sweet spot for attention quality).
@@ -75,6 +97,19 @@ def _fast_model() -> str:
     return os.environ.get("FAST_LLM_MODEL", "") or _main_model()
 
 
+def _fast_api_key() -> str:
+    return os.getenv("FAST_LLM_API_KEY", "") or _api_key()
+
+
+def _fast_base_url() -> str:
+    return os.getenv("FAST_LLM_BASE_URL", "") or _base_url()
+
+
+def _fast_temperature() -> float:
+    raw = os.getenv("FAST_LLM_TEMPERATURE", "")
+    return float(raw) if raw else _temperature()
+
+
 def _temperature() -> float:
     return float(os.environ.get("LLM_TEMPERATURE", "0.7"))
 
@@ -89,6 +124,52 @@ def _reasoning_budget_tokens() -> int | None:
     """Return the reasoning budget token cap, or None."""
     raw = os.environ.get("LLM_REASONING_BUDGET_TOKENS", "").strip()
     return int(raw) if raw else None
+
+
+# -- Reasoning-tier helpers (fall back to general config) --
+
+
+def _reasoning_model() -> str:
+    return os.getenv("REASONING_LLM_MODEL", "") or _main_model()
+
+
+def _reasoning_api_key() -> str:
+    return os.getenv("REASONING_LLM_API_KEY", "") or _api_key()
+
+
+def _reasoning_base_url() -> str:
+    return os.getenv("REASONING_LLM_BASE_URL", "") or _base_url()
+
+
+def _reasoning_temperature() -> float:
+    raw = os.getenv("REASONING_LLM_TEMPERATURE", "")
+    return float(raw) if raw else _temperature()
+
+
+def _reasoning_context_size() -> int:
+    raw = os.getenv("REASONING_LLM_CONTEXT_SIZE", "")
+    return int(raw) if raw else int(os.environ.get("LLM_CONTEXT_SIZE", "128000"))
+
+
+def _reasoning_max_output() -> int:
+    raw = os.getenv("REASONING_LLM_MAX_OUTPUT_TOKENS", "")
+    return int(raw) if raw else _main_max_output()
+
+
+def _reasoning_tier_effort() -> str | None:
+    """Return the reasoning-tier effort level, falling back to general."""
+    val = os.getenv("REASONING_LLM_EFFORT", "").strip().lower()
+    if val in ("low", "medium", "high"):
+        return val
+    return _reasoning_effort()
+
+
+def _reasoning_tier_budget() -> int | None:
+    """Return the reasoning-tier budget, falling back to general."""
+    raw = os.getenv("REASONING_LLM_BUDGET", "").strip()
+    if raw:
+        return int(raw)
+    return _reasoning_budget_tokens()
 
 
 def _json_mode_enabled() -> bool:
@@ -183,22 +264,51 @@ def get_llm() -> OpenAICompatibleLLM:
 def get_fast_llm() -> OpenAICompatibleLLM:
     """Create the fast LLM for DAG step execution.
 
-    Falls back to the main model if ``FAST_LLM_MODEL`` is not set.
+    Falls back to the main model config if ``FAST_LLM_*`` vars are not set.
+    Fast models never have reasoning enabled.
     """
     return OpenAICompatibleLLM(
-        api_key=_api_key(),
-        base_url=_base_url(),
+        api_key=_fast_api_key(),
+        base_url=_fast_base_url(),
         model=_fast_model(),
-        default_temperature=_temperature(),
+        default_temperature=_fast_temperature(),
         default_max_tokens=_fast_max_output(),
-        reasoning_effort=_reasoning_effort(),
-        reasoning_budget_tokens=_reasoning_budget_tokens(),
+        reasoning_effort=None,
+        reasoning_budget_tokens=None,
         json_mode_enabled=_json_mode_enabled(),
     )
 
 
+def get_reasoning_llm() -> OpenAICompatibleLLM:
+    """Create the reasoning LLM for steps requiring deep analysis.
+
+    Falls back to the main model config if ``REASONING_LLM_*`` vars are not set.
+    Reasoning effort and budget ARE enabled for this tier.
+    """
+    return OpenAICompatibleLLM(
+        api_key=_reasoning_api_key(),
+        base_url=_reasoning_base_url(),
+        model=_reasoning_model(),
+        default_temperature=_reasoning_temperature(),
+        default_max_tokens=_reasoning_max_output(),
+        reasoning_effort=_reasoning_tier_effort(),
+        reasoning_budget_tokens=_reasoning_tier_budget(),
+        json_mode_enabled=_json_mode_enabled(),
+    )
+
+
+def get_reasoning_context_budget() -> int:
+    """Return the input token budget for the reasoning LLM.
+
+    Computed from ``REASONING_LLM_CONTEXT_SIZE`` and
+    ``REASONING_LLM_MAX_OUTPUT_TOKENS``.  Falls back to the main LLM
+    values when not set.
+    """
+    return _compute_input_budget(_reasoning_context_size(), _reasoning_max_output())
+
+
 def get_model_registry() -> ModelRegistry:
-    """Create a :class:`ModelRegistry` with main and fast models."""
+    """Create a :class:`ModelRegistry` with main, fast, and reasoning models."""
     registry = ModelRegistry()
 
     registry.register(
@@ -207,6 +317,7 @@ def get_model_registry() -> ModelRegistry:
         roles=["general", "planning", "analysis"],
     )
 
+    # -- Fast model --
     fast = get_fast_llm()
     # Only register as a separate entry if it's actually a different model.
     if _fast_model() != _main_model():
@@ -215,6 +326,14 @@ def get_model_registry() -> ModelRegistry:
         # Same model — register the "fast" role on the main entry.
         registry._roles.setdefault("fast", []).append("main")
         registry._roles.setdefault("execution", []).append("main")
+
+    # -- Reasoning model --
+    reasoning = get_reasoning_llm()
+    if _reasoning_model() != _main_model():
+        registry.register("reasoning", reasoning, roles=["reasoning"])
+    else:
+        # Same model — register the "reasoning" role on the main entry.
+        registry._roles.setdefault("reasoning", []).append("main")
 
     return registry
 

@@ -169,10 +169,11 @@ def _format_replan_context(plan: ExecutionPlan, analysis: AnalysisResult) -> str
     for step in plan.steps:
         status_info = f"[{step.id}] status={step.status}"
         if step.result:
-            result_preview = step.result[:500] + "..." if len(step.result) > 500 else step.result
+            result = step.result.summary if step.result else "(no output)"
+            result_preview = result[:500] + "..." if len(result) > 500 else result
             lines.append(f"  {status_info}: {result_preview}")
         else:
-            lines.append(f"  {status_info}: (no result)")
+            lines.append(f"  {status_info}: (no output)")
     lines.append("")
     lines.append("Please create a revised plan that addresses the gaps identified above.")
     return "\n".join(lines)

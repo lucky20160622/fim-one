@@ -39,11 +39,13 @@ Each step must have:
 can start.  Use an empty list for steps that have no prerequisites.
 - "tool_hint": (optional) the name of a tool that would be useful for this \
 step, or null if no specific tool is needed.
-- "model_hint": set to "fast" for simple, deterministic steps that require \
-minimal reasoning (e.g. data lookup, format conversion, simple calculation, \
-straightforward retrieval).  Set to null for steps that require deep reasoning, \
-multi-step synthesis, complex analysis, or creative problem-solving.  When in \
-doubt, use null — it is always safer to use the more capable model.
+- "model_hint": one of "fast", "reasoning", or null.  Set to "fast" for \
+simple, deterministic steps that require minimal reasoning (e.g. data lookup, \
+format conversion, simple calculation, straightforward retrieval).  Set to \
+"reasoning" for steps that require deep analysis, complex multi-step reasoning, \
+mathematical proofs, or strategic decision-making.  Set to null for normal \
+steps that need a capable model but not extended thinking.  When in doubt, \
+use null — it is always safer to use the default model.
 
 Rules:
 1. Steps MUST form a valid directed acyclic graph (DAG) -- no circular \
@@ -74,7 +76,8 @@ Respond with a single JSON object:
 {{
   "steps": [
     {{"id": "step_1", "task": "...", "dependencies": [], "tool_hint": null, "model_hint": null}},
-    {{"id": "step_2", "task": "...", "dependencies": ["step_1"], "tool_hint": "some_tool", "model_hint": "fast"}}
+    {{"id": "step_2", "task": "...", "dependencies": ["step_1"], "tool_hint": "some_tool", "model_hint": "fast"}},
+    {{"id": "step_3", "task": "...", "dependencies": ["step_2"], "tool_hint": null, "model_hint": "reasoning"}}
   ]
 }}
 """
@@ -95,7 +98,10 @@ _PLAN_SCHEMA: dict[str, Any] = {
                         "items": {"type": "string"},
                     },
                     "tool_hint": {"type": ["string", "null"]},
-                    "model_hint": {"type": ["string", "null"]},
+                    "model_hint": {
+                        "type": ["string", "null"],
+                        "enum": ["fast", "reasoning", None],
+                    },
                 },
                 "required": ["id", "task"],
             },
@@ -228,14 +234,25 @@ class DAGPlanner:
                     f"Got keys: {list(data.keys())}"
                 )
 
+        _VALID_MODEL_HINTS = {"fast", "reasoning"}
+
         steps: list[PlanStep] = []
         for raw in raw_steps:
+            raw_hint = raw.get("model_hint")
+            if raw_hint is not None and raw_hint not in _VALID_MODEL_HINTS:
+                logger.warning(
+                    "Step '%s' has unknown model_hint '%s' — normalizing to None",
+                    raw.get("id", "?"),
+                    raw_hint,
+                )
+                raw_hint = None
+
             step = PlanStep(
                 id=str(raw.get("id", "")),
                 task=str(raw.get("task", "")),
                 dependencies=[str(d) for d in raw.get("dependencies", [])],
                 tool_hint=raw.get("tool_hint"),
-                model_hint=raw.get("model_hint"),
+                model_hint=raw_hint,
             )
             steps.append(step)
 

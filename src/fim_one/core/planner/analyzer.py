@@ -237,7 +237,7 @@ class PlanAnalyzer:
         for step in plan.steps:
             deps = ", ".join(step.dependencies) if step.dependencies else "none"
             hint = step.tool_hint or "none"
-            result_text = step.result or "(no result)"
+            result_text = step.result.summary if step.result else "(no result)"
             if len(result_text) > max_result_chars:
                 result_text = result_text[:max_result_chars] + "\n  [Result truncated]"
             lines.append(

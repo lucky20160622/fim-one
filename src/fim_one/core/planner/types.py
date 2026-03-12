@@ -6,6 +6,22 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from fim_one.core.model.usage import UsageSummary
+from fim_one.core.tool.base import Artifact
+
+
+@dataclass
+class StepOutput:
+    """Structured output from a completed DAG step."""
+
+    summary: str
+    data: dict | None = None  # reserved for future structured data
+    artifacts: list[Artifact] = field(default_factory=list)
+
+    def __str__(self) -> str:
+        return self.summary  # backward compat for string formatting
+
+    def __bool__(self) -> bool:
+        return bool(self.summary)  # if step.result: still works
 
 
 @dataclass
@@ -30,7 +46,7 @@ class PlanStep:
     dependencies: list[str] = field(default_factory=list)
     tool_hint: str | None = None
     model_hint: str | None = None
-    result: str | None = None
+    result: StepOutput | None = None
     status: Literal["pending", "running", "completed", "failed"] = "pending"
     started_at: float | None = None
     completed_at: float | None = None

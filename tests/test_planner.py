@@ -16,6 +16,7 @@ from fim_one.core.planner import (
     ExecutionPlan,
     PlanAnalyzer,
     PlanStep,
+    StepOutput,
 )
 
 from .conftest import FakeLLM
@@ -82,9 +83,53 @@ class TestPlannerTypes:
         step.status = "running"
         assert step.status == "running"
         step.status = "completed"
-        step.result = "done"
+        step.result = StepOutput(summary="done")
         assert step.status == "completed"
-        assert step.result == "done"
+        assert step.result.summary == "done"
+
+
+# ======================================================================
+# StepOutput
+# ======================================================================
+
+
+class TestStepOutput:
+    """Verify StepOutput dataclass behaviour."""
+
+    def test_str_returns_summary(self) -> None:
+        out = StepOutput(summary="The answer is 42.")
+        assert str(out) == "The answer is 42."
+
+    def test_bool_empty_summary_is_false(self) -> None:
+        out = StepOutput(summary="")
+        assert bool(out) is False
+
+    def test_bool_nonempty_summary_is_true(self) -> None:
+        out = StepOutput(summary="hello")
+        assert bool(out) is True
+
+    def test_data_and_artifacts(self) -> None:
+        from fim_one.core.tool.base import Artifact
+
+        artifact = Artifact(
+            name="report.pdf",
+            path="/uploads/report.pdf",
+            mime_type="application/pdf",
+            size=1024,
+        )
+        out = StepOutput(
+            summary="Generated report",
+            data={"pages": 5},
+            artifacts=[artifact],
+        )
+        assert out.data == {"pages": 5}
+        assert len(out.artifacts) == 1
+        assert out.artifacts[0].name == "report.pdf"
+
+    def test_defaults(self) -> None:
+        out = StepOutput(summary="test")
+        assert out.data is None
+        assert out.artifacts == []
 
 
 # ======================================================================
@@ -305,7 +350,7 @@ class TestDAGExecutorBuildStepContext:
 
     def test_single_dependency(self) -> None:
         dep = PlanStep(
-            id="s1", task="fetch data", status="completed", result="data here"
+            id="s1", task="fetch data", status="completed", result=StepOutput(summary="data here")
         )
         step = PlanStep(id="s2", task="process", dependencies=["s1"])
         step_index = {"s1": dep, "s2": step}
@@ -317,8 +362,8 @@ class TestDAGExecutorBuildStepContext:
         assert "fetch data" in ctx
 
     def test_multiple_dependencies(self) -> None:
-        dep1 = PlanStep(id="s1", task="task A", status="completed", result="res A")
-        dep2 = PlanStep(id="s2", task="task B", status="completed", result="res B")
+        dep1 = PlanStep(id="s1", task="task A", status="completed", result=StepOutput(summary="res A"))
+        dep2 = PlanStep(id="s2", task="task B", status="completed", result=StepOutput(summary="res B"))
         step = PlanStep(id="s3", task="combine", dependencies=["s1", "s2"])
         step_index = {"s1": dep1, "s2": dep2, "s3": step}
 
@@ -414,7 +459,7 @@ class TestPlanAnalyzer:
                 id="s1",
                 task="Look up capital of France",
                 status="completed",
-                result="Paris",
+                result=StepOutput(summary="Paris"),
             ),
         ]
         plan = ExecutionPlan(goal="What is the capital of France?", steps=steps)
@@ -446,7 +491,7 @@ class TestPlanAnalyzer:
 
         steps = [
             PlanStep(
-                id="s1", task="research", status="failed", result="Error occurred"
+                id="s1", task="research", status="failed", result=StepOutput(summary="Error occurred")
             ),
         ]
         plan = ExecutionPlan(goal="goal", steps=steps)
@@ -624,7 +669,7 @@ class TestPlanAnalyzerFormatStepResults:
         assert result == "(no steps in plan)"
 
     def test_single_completed_step(self) -> None:
-        step = PlanStep(id="s1", task="do X", status="completed", result="done X")
+        step = PlanStep(id="s1", task="do X", status="completed", result=StepOutput(summary="done X"))
         plan = ExecutionPlan(goal="g", steps=[step])
         result = PlanAnalyzer._format_step_results(plan)
         assert "s1" in result
@@ -649,3 +694,137 @@ class TestPlanAnalyzerFormatStepResults:
         plan = ExecutionPlan(goal="g", steps=[step])
         result = PlanAnalyzer._format_step_results(plan)
         assert "(no result)" in result
+
+
+# ======================================================================
+# model_hint parsing and validation
+# ======================================================================
+
+
+class TestModelHintParsing:
+    """Tests for model_hint parsing in _dict_to_steps and schema validation."""
+
+    async def test_parse_reasoning_model_hint(self) -> None:
+        """A step with model_hint='reasoning' should be parsed correctly."""
+        plan_json = json.dumps(
+            {
+                "steps": [
+                    {
+                        "id": "s1",
+                        "task": "deep analysis",
+                        "dependencies": [],
+                        "tool_hint": None,
+                        "model_hint": "reasoning",
+                    },
+                ]
+            }
+        )
+        llm = FakeLLM(
+            responses=[
+                LLMResult(
+                    message=ChatMessage(role="assistant", content=plan_json),
+                )
+            ]
+        )
+        planner = DAGPlanner(llm=llm)
+        plan = await planner.plan("Analyze something deeply")
+
+        assert len(plan.steps) == 1
+        assert plan.steps[0].model_hint == "reasoning"
+
+    async def test_parse_fast_model_hint(self) -> None:
+        """A step with model_hint='fast' should be parsed correctly."""
+        plan_json = json.dumps(
+            {
+                "steps": [
+                    {
+                        "id": "s1",
+                        "task": "quick lookup",
+                        "dependencies": [],
+                        "model_hint": "fast",
+                    },
+                ]
+            }
+        )
+        llm = FakeLLM(
+            responses=[
+                LLMResult(
+                    message=ChatMessage(role="assistant", content=plan_json),
+                )
+            ]
+        )
+        planner = DAGPlanner(llm=llm)
+        plan = await planner.plan("Quick task")
+
+        assert plan.steps[0].model_hint == "fast"
+
+    async def test_parse_null_model_hint(self) -> None:
+        """A step with model_hint=null should be parsed as None."""
+        plan_json = json.dumps(
+            {
+                "steps": [
+                    {
+                        "id": "s1",
+                        "task": "normal task",
+                        "dependencies": [],
+                        "model_hint": None,
+                    },
+                ]
+            }
+        )
+        llm = FakeLLM(
+            responses=[
+                LLMResult(
+                    message=ChatMessage(role="assistant", content=plan_json),
+                )
+            ]
+        )
+        planner = DAGPlanner(llm=llm)
+        plan = await planner.plan("Normal task")
+
+        assert plan.steps[0].model_hint is None
+
+    def test_invalid_model_hint_normalized(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Unknown model_hint values should be normalized to None with a warning."""
+        data = {
+            "steps": [
+                {
+                    "id": "s1",
+                    "task": "task with bad hint",
+                    "dependencies": [],
+                    "model_hint": "turbo_ultra",
+                },
+            ]
+        }
+        with caplog.at_level(logging.WARNING, logger="fim_one.core.planner.planner"):
+            steps = DAGPlanner._dict_to_steps(data)
+
+        assert len(steps) == 1
+        assert steps[0].model_hint is None
+        assert any("turbo_ultra" in record.message for record in caplog.records)
+
+    def test_valid_model_hints_not_normalized(self) -> None:
+        """'fast' and 'reasoning' should pass through without normalization."""
+        data = {
+            "steps": [
+                {"id": "s1", "task": "quick", "model_hint": "fast"},
+                {"id": "s2", "task": "deep", "model_hint": "reasoning"},
+                {"id": "s3", "task": "normal", "model_hint": None},
+            ]
+        }
+        steps = DAGPlanner._dict_to_steps(data)
+        assert steps[0].model_hint == "fast"
+        assert steps[1].model_hint == "reasoning"
+        assert steps[2].model_hint is None
+
+    def test_schema_enum_constraint(self) -> None:
+        """The _PLAN_SCHEMA should include model_hint with enum constraint."""
+        from fim_one.core.planner.planner import _PLAN_SCHEMA
+
+        model_hint_schema = _PLAN_SCHEMA["properties"]["steps"]["items"][
+            "properties"
+        ]["model_hint"]
+        assert "enum" in model_hint_schema
+        assert set(model_hint_schema["enum"]) == {"fast", "reasoning", None}

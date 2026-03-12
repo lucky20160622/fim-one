@@ -304,7 +304,7 @@ class TestDAGExecutorModelSelection:
         )
         result = await executor.execute(plan)
         assert result.steps[0].status == "completed"
-        assert result.steps[0].result == "default-answer"
+        assert result.steps[0].result.summary == "default-answer"
 
     async def test_registry_with_matching_hint(self) -> None:
         """When a step has model_hint and registry has a matching role,
@@ -330,7 +330,7 @@ class TestDAGExecutorModelSelection:
         result = await executor.execute(plan)
         assert result.steps[0].status == "completed"
         # The fast LLM should have been used.
-        assert result.steps[0].result == "fast-answer"
+        assert result.steps[0].result.summary == "fast-answer"
         # Verify the fast LLM was actually called.
         assert fast_llm.call_count == 1
         # Default LLM should not have been called for this step.
@@ -359,7 +359,7 @@ class TestDAGExecutorModelSelection:
         result = await executor.execute(plan)
         assert result.steps[0].status == "completed"
         # Should fall back to default agent's LLM.
-        assert result.steps[0].result == "default-answer"
+        assert result.steps[0].result.summary == "default-answer"
         assert default_llm.call_count == 1
 
     async def test_mixed_hints_across_steps(self) -> None:
@@ -391,9 +391,9 @@ class TestDAGExecutorModelSelection:
         result = await executor.execute(plan)
 
         step_results = {s.id: s for s in result.steps}
-        assert step_results["s1"].result == "fast-answer"
-        assert step_results["s2"].result == "vision-answer"
-        assert step_results["s3"].result == "default-answer"
+        assert step_results["s1"].result.summary == "fast-answer"
+        assert step_results["s2"].result.summary == "vision-answer"
+        assert step_results["s3"].result.summary == "default-answer"
 
         assert fast_llm.call_count == 1
         assert vision_llm.call_count == 1
@@ -418,7 +418,108 @@ class TestDAGExecutorModelSelection:
             steps=[PlanStep(id="s1", task="normal task", model_hint=None)],
         )
         result = await executor.execute(plan)
-        assert result.steps[0].result == "default-answer"
+        assert result.steps[0].result.summary == "default-answer"
+        assert default_llm.call_count == 1
+
+
+# ======================================================================
+# Reasoning Model Role
+# ======================================================================
+
+
+class TestReasoningModelRole:
+    """Verify reasoning model registration and role-based lookup."""
+
+    def test_reasoning_model_registration(self) -> None:
+        """Reasoning model should be registered and retrievable by name."""
+        registry = ModelRegistry()
+        llm_general = _make_fake_llm("general")
+        llm_reasoning = _make_fake_llm("reasoning")
+        registry.register("main", llm_general, roles=["general"])
+        registry.register("reasoning", llm_reasoning, roles=["reasoning"])
+        assert len(registry) == 2
+        assert registry.get("reasoning") is llm_reasoning
+
+    def test_reasoning_role_lookup(self) -> None:
+        """get_by_role('reasoning') should return the reasoning LLM."""
+        registry = ModelRegistry()
+        llm_general = _make_fake_llm("general")
+        llm_reasoning = _make_fake_llm("reasoning")
+        registry.register("main", llm_general, roles=["general"])
+        registry.register("reasoning", llm_reasoning, roles=["reasoning"])
+        assert registry.get_by_role("reasoning") is llm_reasoning
+
+    def test_reasoning_same_model_dedup(self) -> None:
+        """When reasoning model == main model, 'reasoning' role maps to main entry."""
+        registry = ModelRegistry()
+        llm = _make_fake_llm("shared")
+        registry.register("main", llm, roles=["general"])
+        # Simulate same-model dedup (as done in get_model_registry)
+        registry._roles.setdefault("reasoning", []).append("main")
+        # Should resolve 'reasoning' to the main LLM
+        assert registry.get_by_role("reasoning") is llm
+
+    async def test_executor_selects_reasoning_llm(self) -> None:
+        """DAGExecutor should use reasoning LLM for steps with model_hint='reasoning'."""
+        default_llm = _make_fake_llm("default-answer")
+        reasoning_llm = _make_fake_llm("reasoning-answer")
+        tools = _make_tool_registry()
+
+        default_agent = ReActAgent(llm=default_llm, tools=tools, max_iterations=5)
+        registry = ModelRegistry()
+        registry.register("default-model", default_llm, roles=["general"])
+        registry.register("reasoning-model", reasoning_llm, roles=["reasoning"])
+
+        executor = DAGExecutor(
+            agent=default_agent,
+            max_concurrency=2,
+            model_registry=registry,
+        )
+        plan = ExecutionPlan(
+            goal="test",
+            steps=[PlanStep(id="s1", task="deep analysis", model_hint="reasoning")],
+        )
+        result = await executor.execute(plan)
+        assert result.steps[0].status == "completed"
+        assert result.steps[0].result.summary == "reasoning-answer"
+        assert reasoning_llm.call_count == 1
+        assert default_llm.call_count == 0
+
+    async def test_mixed_fast_reasoning_default(self) -> None:
+        """Steps with fast, reasoning, and no hint use the correct LLMs."""
+        default_llm = _make_fake_llm("default-answer")
+        fast_llm = _make_fake_llm("fast-answer")
+        reasoning_llm = _make_fake_llm("reasoning-answer")
+        tools = _make_tool_registry()
+
+        default_agent = ReActAgent(llm=default_llm, tools=tools, max_iterations=5)
+        registry = ModelRegistry()
+        registry.register("default-model", default_llm, roles=["general"])
+        registry.register("fast-model", fast_llm, roles=["fast"])
+        registry.register("reasoning-model", reasoning_llm, roles=["reasoning"])
+
+        executor = DAGExecutor(
+            agent=default_agent,
+            max_concurrency=3,
+            model_registry=registry,
+        )
+        plan = ExecutionPlan(
+            goal="three-tier test",
+            steps=[
+                PlanStep(id="s1", task="quick lookup", model_hint="fast"),
+                PlanStep(id="s2", task="deep analysis", model_hint="reasoning"),
+                PlanStep(id="s3", task="normal task"),  # no hint
+            ],
+        )
+        result = await executor.execute(plan)
+
+        step_results = {s.id: s for s in result.steps}
+        assert step_results["s1"].result.summary == "fast-answer"
+        assert step_results["s2"].result.summary == "reasoning-answer"
+        assert step_results["s3"].result.summary == "default-answer"
+
+        assert fast_llm.call_count == 1
+        assert reasoning_llm.call_count == 1
         assert default_llm.call_count == 1
 
 

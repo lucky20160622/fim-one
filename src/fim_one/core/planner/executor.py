@@ -19,7 +19,7 @@ from fim_one.core.memory.context_guard import ContextGuard
 from fim_one.core.model.registry import ModelRegistry
 from fim_one.core.model.usage import UsageSummary
 
-from .types import ExecutionPlan, PlanStep
+from .types import ExecutionPlan, PlanStep, StepOutput
 
 # Type alias for the optional progress callback.
 # Called with (step_id, event, data) where event is "started", "completed",
@@ -139,8 +139,8 @@ class DAGExecutor:
                         )
                         for sid in pending_ids:
                             step_index[sid].status = "failed"
-                            step_index[sid].result = (
-                                "Step could not run: one or more dependencies failed."
+                            step_index[sid].result = StepOutput(
+                                summary="Step could not run: one or more dependencies failed."
                             )
                         pending_ids.clear()
                     break
@@ -162,14 +162,14 @@ class DAGExecutor:
                             "Unexpected error in step '%s'", sid, exc_info=exc,
                         )
                         step_index[sid].status = "failed"
-                        step_index[sid].result = f"Unexpected error: {exc}"
+                        step_index[sid].result = StepOutput(summary=f"Unexpected error: {exc}")
 
                     completed_ids.add(sid)
                     step = step_index[sid]
                     completed_data: dict[str, Any] = {
                         "task": step.task,
                         "status": step.status,
-                        "result": step.result,
+                        "result": step.result.summary if step.result else None,
                         "started_at": step.started_at,
                         "completed_at": step.completed_at,
                         "duration": step.duration,
@@ -242,7 +242,7 @@ class DAGExecutor:
                 )
             except asyncio.TimeoutError:
                 step.status = "failed"
-                step.result = f"Step execution timed out after {self._step_timeout}s"
+                step.result = StepOutput(summary=f"Step execution timed out after {self._step_timeout}s")
                 step.completed_at = time.time()
                 if step.started_at is not None:
                     step.duration = round(step.completed_at - step.started_at, 2)
@@ -350,7 +350,7 @@ class DAGExecutor:
                 query, on_iteration=_on_iteration,
             )
             step.status = "completed"
-            step.result = agent_result.answer
+            step.result = StepOutput(summary=agent_result.answer)
             step.usage = agent_result.usage
             logger.info(
                 "Step '%s' completed in %d iterations",
@@ -361,7 +361,7 @@ class DAGExecutor:
             raise
         except Exception as exc:
             step.status = "failed"
-            step.result = f"{type(exc).__name__}: {exc}"
+            step.result = StepOutput(summary=f"{type(exc).__name__}: {exc}")
             logger.exception("Step '%s' failed", step.id)
         finally:
             step.completed_at = time.time()
@@ -419,7 +419,7 @@ class DAGExecutor:
                 continue
 
             status_label = dep_step.status
-            result_text = dep_step.result or "(no result)"
+            result_text = dep_step.result.summary if dep_step.result else "(no result)"
             context_parts.append(
                 f"[{dep_id}] ({status_label}) {dep_step.task}\n"
                 f"Result: {result_text}"

@@ -3,7 +3,7 @@
 from .analyzer import PlanAnalyzer
 from .executor import DAGExecutor
 from .planner import DAGPlanner
-from .types import AnalysisResult, ExecutionPlan, PlanStep
+from .types import AnalysisResult, ExecutionPlan, PlanStep, StepOutput
 
 __all__ = [
     "AnalysisResult",
@@ -12,4 +12,5 @@ __all__ = [
     "ExecutionPlan",
     "PlanAnalyzer",
     "PlanStep",
+    "StepOutput",
 ]
