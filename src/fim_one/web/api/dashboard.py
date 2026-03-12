@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fim_one.db import get_session
@@ -49,6 +49,7 @@ class DashboardKB(BaseModel):
 class DashboardConnectorHealth(BaseModel):
     id: str
     name: str
+    icon: str | None = None
     type: str
     status: str  # "active" | "inactive" | "error"
     call_count_today: int
@@ -65,6 +66,9 @@ class DashboardStatsResponse(BaseModel):
     total_agents: int
     total_tokens: int
     active_connectors: int
+    # secondary metrics for stat cards
+    agent_conversations_today: int  # conversations using agents, created today
+    connector_calls_today: int      # total connector calls today
     # week-over-week trends (% change, can be negative)
     conversations_week_trend: float  # e.g. 12.5 means +12.5%
     tokens_week_trend: float
@@ -143,10 +147,39 @@ async def get_dashboard_stats(
     active_connectors: int = active_conn_result.scalar_one()
 
     # ------------------------------------------------------------------
-    # 2. Week-over-week trends
+    # 1b. Secondary stat-card metrics
     # ------------------------------------------------------------------
 
     now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # agent_conversations_today: conversations with an agent, created today
+    agent_conv_today_result = await db.execute(
+        select(func.count())
+        .select_from(Conversation)
+        .where(
+            Conversation.user_id == current_user.id,
+            Conversation.agent_id.isnot(None),
+            Conversation.created_at >= today_start,
+        )
+    )
+    agent_conversations_today: int = agent_conv_today_result.scalar_one()
+
+    # connector_calls_today: total call-log entries today across visible connectors
+    connector_calls_today_result = await db.execute(
+        select(func.count())
+        .select_from(ConnectorCallLog)
+        .where(
+            ConnectorCallLog.user_id == current_user.id,
+            ConnectorCallLog.created_at >= today_start,
+        )
+    )
+    connector_calls_today: int = connector_calls_today_result.scalar_one()
+
+    # ------------------------------------------------------------------
+    # 2. Week-over-week trends
+    # ------------------------------------------------------------------
+
     week_start = now - timedelta(days=7)   # last 7 days
     two_weeks_start = now - timedelta(days=14)  # previous 7 days (days 8–14 ago)
 
@@ -214,11 +247,11 @@ async def get_dashboard_stats(
             Agent.name.label("agent_name"),
         )
         .outerjoin(Agent, Agent.id == Conversation.agent_id)
-        .where(Conversation.user_id == current_user.id)
-        .order_by(
-            Conversation.updated_at.desc().nullslast(),
-            Conversation.created_at.desc(),
+        .where(
+            Conversation.user_id == current_user.id,
+            or_(Conversation.agent_id.is_(None), Agent.is_builder == False),
         )
+        .order_by(Conversation.created_at.desc())
         .limit(6)
     )
     recent_conversations = [
@@ -307,6 +340,7 @@ async def get_dashboard_stats(
         select(
             Connector.id,
             Connector.name,
+            Connector.icon,
             Connector.type,
             Connector.status,
         )
@@ -337,6 +371,7 @@ async def get_dashboard_stats(
         DashboardConnectorHealth(
             id=r.id,
             name=r.name,
+            icon=r.icon,
             type=r.type,
             status=r.status,
             call_count_today=call_count_map.get(r.id, 0),
@@ -385,6 +420,8 @@ async def get_dashboard_stats(
         total_agents=total_agents,
         total_tokens=total_tokens,
         active_connectors=active_connectors,
+        agent_conversations_today=agent_conversations_today,
+        connector_calls_today=connector_calls_today,
         conversations_week_trend=conversations_week_trend,
         tokens_week_trend=tokens_week_trend,
         recent_conversations=recent_conversations,

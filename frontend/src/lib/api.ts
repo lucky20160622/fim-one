@@ -1497,6 +1497,7 @@ export interface DashboardKB {
 export interface DashboardConnectorHealth {
   id: string
   name: string
+  icon: string | null
   type: string
   status: string // "active" | "inactive" | "error"
   call_count_today: number
@@ -1512,6 +1513,8 @@ export interface DashboardStats {
   total_agents: number
   total_tokens: number
   active_connectors: number
+  agent_conversations_today: number
+  connector_calls_today: number
   conversations_week_trend: number // percentage, e.g. 12.5 = +12.5%
   tokens_week_trend: number
   recent_conversations: DashboardConversation[]

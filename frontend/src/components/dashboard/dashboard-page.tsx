@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useTranslations, useLocale } from "next-intl"
-import { Loader2, MessageSquare, Bot, Database, Plug, TrendingUp, TrendingDown, Minus, Activity, Library, Zap, Clock } from "lucide-react"
+import { Loader2, MessageSquare, Bot, Database, Plug, TrendingUp, TrendingDown, Minus, Activity, Library, Clock, ChevronRight } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN, enUS } from "date-fns/locale"
 import {
@@ -23,15 +23,6 @@ import { useAuth } from "@/contexts/auth-context"
 import { UserAvatar as SharedUserAvatar } from "@/components/shared/user-avatar"
 import { dashboardApi, type DashboardStats } from "@/lib/api"
 import { formatTokens, cn } from "@/lib/utils"
-
-// Reuse chart colors from admin-overview
-const CHART_COLORS = [
-  "hsl(217, 91%, 60%)",
-  "hsl(217, 91%, 72%)",
-  "hsl(217, 91%, 50%)",
-  "hsl(199, 89%, 60%)",
-  "hsl(245, 75%, 65%)",
-]
 
 const TICK_STYLE = { fill: "currentColor", fontSize: 11 } as const
 
@@ -132,26 +123,11 @@ function TrendBadge({ value, t }: { value: number; t: ReturnType<typeof useTrans
   )
 }
 
-// ---- Status dot for connector health ----
-function StatusDot({ status }: { status: string }) {
-  return (
-    <span
-      className={cn(
-        "inline-block h-2 w-2 rounded-full shrink-0",
-        status === "active" && "bg-emerald-500",
-        status === "inactive" && "bg-amber-400",
-        status === "error" && "bg-red-500",
-        status !== "active" && status !== "inactive" && status !== "error" && "bg-muted-foreground",
-      )}
-    />
-  )
-}
-
 // ---- Agent icon circle ----
 function AgentIcon({ icon, name }: { icon: string | null; name: string }) {
   if (icon && /^\p{Emoji}/u.test(icon)) {
     return (
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-base">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-base">
         {icon}
       </span>
     )
@@ -160,7 +136,7 @@ function AgentIcon({ icon, name }: { icon: string | null; name: string }) {
   const hue = (name.charCodeAt(0) * 37) % 360
   return (
     <span
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-white"
       style={{ background: `hsl(${hue}, 55%, 52%)` }}
     >
       {initials}
@@ -242,9 +218,49 @@ export function DashboardPage() {
     )
   }
 
+  // Stat card config
+  const statCards = [
+    {
+      Icon: MessageSquare,
+      label: t("statsConversations"),
+      value: (stats?.total_conversations ?? 0).toLocaleString(),
+      trend: stats ? <TrendBadge value={stats.conversations_week_trend} t={t} /> : null,
+    },
+    {
+      Icon: Bot,
+      label: t("statsAgents"),
+      value: (stats?.total_agents ?? 0).toLocaleString(),
+      trend: stats ? (
+        <span className="text-xs text-muted-foreground">
+          {stats.agent_conversations_today > 0
+            ? t("agentChatsToday", { count: stats.agent_conversations_today })
+            : t("agentChatsNoneToday")}
+        </span>
+      ) : null,
+    },
+    {
+      Icon: Database,
+      label: t("statsTokens"),
+      value: formatTokens(stats?.total_tokens ?? 0),
+      trend: stats ? <TrendBadge value={stats.tokens_week_trend} t={t} /> : null,
+    },
+    {
+      Icon: Plug,
+      label: t("statsConnectors"),
+      value: (stats?.active_connectors ?? 0).toLocaleString(),
+      trend: stats ? (
+        <span className="text-xs text-muted-foreground">
+          {stats.connector_calls_today > 0
+            ? t("connectorCallsTodayTotal", { count: stats.connector_calls_today })
+            : t("connectorCallsNoneToday")}
+        </span>
+      ) : null,
+    },
+  ]
+
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
-      <div className="w-full space-y-6 p-6">
+      <div className="w-full space-y-4 p-6">
 
         {/* ---- 1. Welcome Banner ---- */}
         <div className="rounded-xl bg-gradient-to-br from-primary/10 via-background to-background border border-border px-6 py-8">
@@ -281,7 +297,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* ---- 2. Stats Row ---- */}
+        {/* ---- 2. Stats Row (watermark icon design) ---- */}
         {loading ? (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -290,71 +306,19 @@ export function DashboardPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {/* Conversations */}
-            <Card>
-              <CardContent className="px-5 py-3 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium uppercase tracking-wide">
-                    {t("statsConversations")}
+            {statCards.map((card, i) => (
+              <Card key={i} className="overflow-hidden relative py-3 gap-0">
+                <CardContent className="px-5 space-y-1.5 relative z-10">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {card.label}
                   </span>
-                </div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {(stats?.total_conversations ?? 0).toLocaleString()}
-                </p>
-                {stats && (
-                  <TrendBadge value={stats.conversations_week_trend} t={t} />
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Agents */}
-            <Card>
-              <CardContent className="px-5 py-3 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <Bot className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium uppercase tracking-wide">
-                    {t("statsAgents")}
-                  </span>
-                </div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {(stats?.total_agents ?? 0).toLocaleString()}
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Tokens */}
-            <Card>
-              <CardContent className="px-5 py-3 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <Database className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium uppercase tracking-wide">
-                    {t("statsTokens")}
-                  </span>
-                </div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {formatTokens(stats?.total_tokens ?? 0)}
-                </p>
-                {stats && (
-                  <TrendBadge value={stats.tokens_week_trend} t={t} />
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Active Connectors */}
-            <Card>
-              <CardContent className="px-5 py-3 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <Plug className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium uppercase tracking-wide">
-                    {t("statsConnectors")}
-                  </span>
-                </div>
-                <p className="text-2xl font-semibold text-foreground">
-                  {(stats?.active_connectors ?? 0).toLocaleString()}
-                </p>
-              </CardContent>
-            </Card>
+                  <p className="text-2xl font-semibold text-foreground">{card.value}</p>
+                  {card.trend}
+                </CardContent>
+                {/* Watermark icon — large, faded, bottom-right */}
+                <card.Icon className="absolute -bottom-3 -right-3 h-20 w-20 text-muted-foreground/[0.06] pointer-events-none" />
+              </Card>
+            ))}
           </div>
         )}
 
@@ -362,15 +326,15 @@ export function DashboardPage() {
         {loading ? (
           <div className="h-[260px] rounded-xl bg-muted animate-pulse" />
         ) : (
-          <Card>
-            <CardHeader className="px-5 pt-3 pb-2">
+          <Card className="gap-1 py-3">
+            <CardHeader className="px-5">
               <CardTitle className="flex items-center gap-2 text-base font-medium">
                 <Activity className="h-4 w-4 text-muted-foreground" />
                 {t("activityTitle")}
               </CardTitle>
               <p className="text-sm text-muted-foreground">{t("activitySubtitle")}</p>
             </CardHeader>
-            <CardContent className="px-5 pb-4 pt-0">
+            <CardContent className="px-5 pb-1">
               {allZero || activityData.length === 0 ? (
                 <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
                   {t("activityEmpty")}
@@ -382,6 +346,12 @@ export function DashboardPage() {
                       data={activityData}
                       margin={{ top: 4, right: 4, left: 0, bottom: 4 }}
                     >
+                      <defs>
+                        <linearGradient id="barGold" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#c89a3d" stopOpacity={0.9} />
+                          <stop offset="95%" stopColor="#8b6520" stopOpacity={0.75} />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid
                         strokeDasharray="3 3"
                         className="stroke-border"
@@ -407,7 +377,7 @@ export function DashboardPage() {
                       <Bar
                         dataKey="count"
                         name={t("statsConversations")}
-                        fill={CHART_COLORS[0]}
+                        fill="url(#barGold)"
                         radius={[4, 4, 0, 0]}
                       />
                     </BarChart>
@@ -426,17 +396,20 @@ export function DashboardPage() {
         ) : (
           <>
             {/* Row A: Recent Conversations + My Agents */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 
               {/* Recent Conversations */}
-              <Card>
-                <CardHeader className="px-5 pt-3 pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base font-medium">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    {t("recentTitle")}
-                  </CardTitle>
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Link href="/chats" className="group flex items-center justify-between rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                    <CardTitle className="flex items-center gap-2 text-base font-medium">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      {t("recentTitle")}
+                    </CardTitle>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </Link>
                 </CardHeader>
-                <CardContent className="p-0">
+                <CardContent className="px-0 pb-1">
                   {!stats?.recent_conversations.length ? (
                     <div className="flex flex-col items-center gap-3 px-6 py-8 text-sm text-muted-foreground">
                       <p>{t("recentEmpty")}</p>
@@ -450,26 +423,17 @@ export function DashboardPage() {
                         <li key={conv.id}>
                           <Link
                             href={`/?c=${conv.id}`}
-                            className="flex items-center gap-3 px-5 py-1.5 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                            className="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                           >
-                            <div className="flex-1 min-w-0">
-                              <p className="truncate text-sm font-medium text-foreground">
-                                {conv.title || t("untitled")}
-                              </p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                {conv.agent_name && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="h-4 px-1.5 text-[10px] font-normal"
-                                  >
-                                    {conv.agent_name}
-                                  </Badge>
-                                )}
-                                <span className="text-xs text-muted-foreground">
-                                  {relativeTime(conv.updated_at ?? conv.created_at, locale)}
-                                </span>
-                              </div>
-                            </div>
+                            <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-muted">
+                              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                            </span>
+                            <p className="flex-1 min-w-0 truncate text-sm font-medium text-foreground">
+                              {conv.title || t("untitled")}
+                            </p>
+                            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                              {relativeTime(conv.updated_at ?? conv.created_at, locale)}
+                            </span>
                           </Link>
                         </li>
                       ))}
@@ -479,14 +443,17 @@ export function DashboardPage() {
               </Card>
 
               {/* My Agents */}
-              <Card>
-                <CardHeader className="px-5 pt-3 pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base font-medium">
-                    <Bot className="h-4 w-4 text-muted-foreground" />
-                    {t("agentsTitle")}
-                  </CardTitle>
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Link href="/agents" className="group flex items-center justify-between rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                    <CardTitle className="flex items-center gap-2 text-base font-medium">
+                      <Bot className="h-4 w-4 text-muted-foreground" />
+                      {t("agentsTitle")}
+                    </CardTitle>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </Link>
                 </CardHeader>
-                <CardContent className="px-5 pb-4 pt-0">
+                <CardContent className="px-5 pb-4 pt-1">
                   {!stats?.top_agents.length ? (
                     <div className="flex flex-col items-center gap-3 py-6 text-sm text-muted-foreground">
                       <p>{t("agentsEmpty")}</p>
@@ -507,11 +474,6 @@ export function DashboardPage() {
                             <p className="truncate text-sm font-medium text-foreground">
                               {agent.name}
                             </p>
-                            {agent.description && (
-                              <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                                {agent.description}
-                              </p>
-                            )}
                             <Badge
                               variant="secondary"
                               className="mt-1.5 h-4 px-1.5 text-[10px] font-normal"
@@ -527,18 +489,21 @@ export function DashboardPage() {
               </Card>
             </div>
 
-            {/* Row B: Knowledge Bases + Connector Health */}
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {/* Row B: Knowledge Bases + Connectors */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 
               {/* Knowledge Bases */}
-              <Card>
-                <CardHeader className="px-5 pt-3 pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base font-medium">
-                    <Library className="h-4 w-4 text-muted-foreground" />
-                    {t("kbTitle")}
-                  </CardTitle>
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Link href="/kb" className="group flex items-center justify-between rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                    <CardTitle className="flex items-center gap-2 text-base font-medium">
+                      <Library className="h-4 w-4 text-muted-foreground" />
+                      {t("kbTitle")}
+                    </CardTitle>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </Link>
                 </CardHeader>
-                <CardContent className="px-5 pb-4 pt-0">
+                <CardContent className="px-5 pb-4 pt-1">
                   {!stats?.top_kbs.length ? (
                     <div className="py-6 text-center text-sm text-muted-foreground">
                       {t("kbEmpty")}
@@ -551,12 +516,9 @@ export function DashboardPage() {
                           href={`/kb/${kb.id}`}
                           className="flex flex-col gap-2 rounded-lg border border-border p-3 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                         >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Library className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            <span className="truncate text-sm font-medium text-foreground">
-                              {kb.name}
-                            </span>
-                          </div>
+                          <span className="truncate text-sm font-medium text-foreground">
+                            {kb.name}
+                          </span>
                           <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="text-xs font-normal">
                               {t("kbDocs", { count: kb.document_count })}
@@ -572,15 +534,18 @@ export function DashboardPage() {
                 </CardContent>
               </Card>
 
-              {/* Connector Health */}
-              <Card>
-                <CardHeader className="px-5 pt-3 pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base font-medium">
-                    <Zap className="h-4 w-4 text-muted-foreground" />
-                    {t("connectorsTitle")}
-                  </CardTitle>
+              {/* Connectors */}
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Link href="/connectors" className="group flex items-center justify-between rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                    <CardTitle className="flex items-center gap-2 text-base font-medium">
+                      <Plug className="h-4 w-4 text-muted-foreground" />
+                      {t("connectorsTitle")}
+                    </CardTitle>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </Link>
                 </CardHeader>
-                <CardContent className="p-0">
+                <CardContent className="px-0 pb-1">
                   {!stats?.connector_health.length ? (
                     <div className="px-6 py-8 text-center text-sm text-muted-foreground">
                       {t("connectorsEmpty")}
@@ -591,22 +556,27 @@ export function DashboardPage() {
                         <li key={connector.id}>
                           <Link
                             href={`/connectors/${connector.id}`}
-                            className="flex items-center gap-3 px-5 py-1.5 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                            className="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                           >
-                            <Plug className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-muted">
+                              {connector.icon ? (
+                                <span className="text-base leading-none">{connector.icon}</span>
+                              ) : (
+                                <Plug className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                            </span>
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-medium text-foreground">
                                 {connector.name}
                               </p>
-                              <Badge
-                                variant="outline"
-                                className="mt-0.5 h-4 px-1.5 text-[10px] font-normal"
-                              >
+                              <span className="text-xs text-muted-foreground">
                                 {connector.type}
-                              </Badge>
+                              </span>
                             </div>
                             <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                              {t("connectorCallsToday", { count: connector.call_count_today })}
+                              {connector.call_count_today === 0
+                                ? t("connectorNoCallsRecently")
+                                : t("connectorCallsToday", { count: connector.call_count_today })}
                             </span>
                           </Link>
                         </li>
