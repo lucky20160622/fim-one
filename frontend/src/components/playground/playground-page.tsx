@@ -121,7 +121,7 @@ export function PlaygroundPage({ isNewChat, embedded, onClose, initialAgentId, o
     clearActive,
   } = useConversation()
 
-  const [mode, setMode] = useState<AgentMode>("react")
+  const [mode, setMode] = useState<AgentMode>("auto")
   const [selectedAgent, setSelectedAgent] = useState<AgentResponse | null>(null)
   const [query, setQuery] = useState("")
   const [sourceMode, setSourceMode] = useState<AgentMode | null>(null)
@@ -514,7 +514,7 @@ function HistoryTurn({ userContent, userMetadata, sseMessages, mode, hideDagGrap
 
   // For auto mode, detect which renderer to use from routing event
   const resolvedMode = mode === "auto"
-    ? (sseMessages.find(m => m.event === "routing")?.data as { chosen_mode?: string } | undefined)?.chosen_mode === "dag" ? "dag" : "react"
+    ? (sseMessages.find(m => m.event === "routing")?.data as { mode?: string } | undefined)?.mode === "dag" ? "dag" : "react"
     : mode
 
   // Detect clip metadata in user message
@@ -722,11 +722,11 @@ function PlaygroundContent({
   const routingEvent = useMemo(() => {
     if (mode !== "auto") return null
     const evt = messages.find(m => m.event === "routing")
-    return evt?.data as { chosen_mode: string; reason?: string } | null
+    return evt?.data as { mode: string; reasoning?: string } | null
   }, [mode, messages])
   // Resolved mode: the actual renderer mode to use for live output
   const resolvedLiveMode: "react" | "dag" = mode === "auto"
-    ? (routingEvent?.chosen_mode === "dag" ? "dag" : "react")
+    ? (routingEvent?.mode === "dag" ? "dag" : "react")
     : mode === "dag" ? "dag" : "react"
 
   // Reconstruct all persisted execution steps from conversation messages.
@@ -1240,7 +1240,7 @@ function PlaygroundContent({
               {routingEvent && (
                 <span className="inline-flex items-center gap-1 ml-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-400">
                   <Sparkles className="h-2.5 w-2.5" />
-                  {t("autoRoutedTo", { mode: routingEvent.chosen_mode === "dag" ? t("modePlanner") : t("modeStandard") })}
+                  {t("autoRoutedTo", { mode: routingEvent.mode === "dag" ? t("modePlanner") : t("modeStandard") })}
                 </span>
               )}
               {retryQuery && (

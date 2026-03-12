@@ -54,7 +54,7 @@ export function AgentSettingsForm({
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([])
   const [selectedKBs, setSelectedKBs] = useState<string[]>([])
   const [selectedConnectors, setSelectedConnectors] = useState<string[]>([])
-  const [executionMode, setExecutionMode] = useState<"react" | "dag" | "auto">("react")
+  const [executionMode, setExecutionMode] = useState<"react" | "dag" | "auto">("auto")
   const [confidenceThreshold, setConfidenceThreshold] = useState<number | null>(null)
   const [temperature, setTemperature] = useState<number | null>(null)
   const [sandboxMemory, setSandboxMemory] = useState<string>("")
@@ -80,7 +80,7 @@ export function AgentSettingsForm({
       setSuggestedPrompts(agent.suggested_prompts || [])
       setSelectedKBs(agent.kb_ids || [])
       setSelectedConnectors(agent.connector_ids || [])
-      setExecutionMode(agent.execution_mode || "react")
+      setExecutionMode(agent.execution_mode || "auto")
       const ct = agent.grounding_config?.confidence_threshold
       setConfidenceThreshold(typeof ct === "number" ? ct : null)
       const rawTemp = agent.model_config_json?.temperature
@@ -95,7 +95,7 @@ export function AgentSettingsForm({
       setIcon(null)
       setDescription("")
       setInstructions("")
-      setExecutionMode("react")
+      setExecutionMode("auto")
       setToolCategories([])
       setSuggestedPrompts([])
       setSelectedKBs([])
@@ -140,7 +140,7 @@ export function AgentSettingsForm({
       JSON.stringify(suggestedPrompts) !== JSON.stringify(agent.suggested_prompts || []) ||
       JSON.stringify(selectedKBs) !== JSON.stringify(agent.kb_ids || []) ||
       JSON.stringify(selectedConnectors) !== JSON.stringify(agent.connector_ids || []) ||
-      executionMode !== (agent.execution_mode || "react") ||
+      executionMode !== (agent.execution_mode || "auto") ||
       (() => {
         const ct = agent.grounding_config?.confidence_threshold
         const origCt = typeof ct === "number" ? ct : null
