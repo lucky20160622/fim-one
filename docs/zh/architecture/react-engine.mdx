@@ -20,6 +20,8 @@ flowchart TD
 
 工具循环产生一个 `AgentResult`，包含完整的对话历史——系统提示词、用户查询、每条 assistant 消息、每个工具返回结果。`stream_answer()` 方法将这个执行轨迹提炼为简洁连贯的答案。合成上下文中，每个工具结果被截断到 2,000 字符，即使经历了复杂的多工具流程，提示词也保持精简。
 
+**模型绑定。** LLM 在 `ReActAgent.__init__()` 时注入并存储为 `self._llm`。单次 `run()` 调用内的所有操作——工具循环的每轮迭代和最终答案合成——都使用这同一个实例。迭代之间模型不会切换。如需使用不同的模型，必须构造一个新的 `ReActAgent`。在 DAG 模式中，`DAGExecutor._resolve_agent()` 正是利用了这一模式：在每个 Step 的 ReAct 循环开始**之前**，根据 `step.model_hint` 从 `ModelRegistry` 中选取对应模型并创建一个全新的智能体。详见 [DAG 引擎 — 每步覆盖](/zh/architecture/dag-engine#双-llm-架构)。
+
 ## 双模式执行
 
 ReAct 引擎在工具循环中支持两种与 LLM 交互的模式。
