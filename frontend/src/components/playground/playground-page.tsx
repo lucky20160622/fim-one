@@ -6,7 +6,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Send, Loader2, PanelRightOpen, PanelRightClose, ArrowDown, Square, Zap, GitBranch, Bot, Paperclip, X, Plus, ChevronsUpDown, Check, Undo2, RotateCcw, Download, FileText, ChevronDown, ChevronUp } from "lucide-react"
+import { Send, Loader2, PanelRightOpen, PanelRightClose, ArrowDown, Square, Zap, GitBranch, Bot, Paperclip, X, Plus, ChevronsUpDown, Check, Undo2, RotateCcw, Download, FileText, ChevronDown, ChevronUp, Sparkles } from "lucide-react"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/error-utils"
@@ -320,7 +320,7 @@ export function PlaygroundPage({ isNewChat, embedded, onClose, initialAgentId, o
         await selectConversation(convId)
       }
 
-      const endpoint = mode === "react" ? "react" : "dag"
+      const endpoint = mode === "auto" ? "auto" : mode === "react" ? "react" : "dag"
       // SSE connects directly to backend via POST, bypassing Next.js
       // rewrite proxy which buffers streaming responses.
       const url = `${getApiDirectUrl()}/api/${endpoint}`
@@ -407,7 +407,7 @@ export function PlaygroundPage({ isNewChat, embedded, onClose, initialAgentId, o
       <Dialog open={pendingMode !== null} onOpenChange={(open) => { if (!open) setPendingMode(null) }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>{t("switchModeTitle", { mode: pendingMode === "react" ? t("modeStandard") : t("modePlanner") })}</DialogTitle>
+            <DialogTitle>{t("switchModeTitle", { mode: pendingMode === "auto" ? t("modeAuto") : pendingMode === "react" ? t("modeStandard") : t("modePlanner") })}</DialogTitle>
             <DialogDescription>
               {t("switchModeDescription")}
             </DialogDescription>
@@ -504,13 +504,18 @@ function HistoryTurn({ userContent, userMetadata, sseMessages, mode, hideDagGrap
   userContent: string | null
   userMetadata?: Record<string, unknown> | null
   sseMessages: SSEMessage[]
-  mode: "react" | "dag"
+  mode: "react" | "dag" | "auto"
   hideDagGraph: boolean
 }) {
   const { user } = useAuth()
   const userFallback = (user?.display_name || user?.email || "U").charAt(0).toUpperCase()
   const { items: reactItems, streamingAnswer: reactStreamingAnswer, suggestions: reactSuggestions } = useReactSteps(sseMessages, false)
   const dagData = useDagSteps(sseMessages, false)
+
+  // For auto mode, detect which renderer to use from routing event
+  const resolvedMode = mode === "auto"
+    ? (sseMessages.find(m => m.event === "routing")?.data as { chosen_mode?: string } | undefined)?.chosen_mode === "dag" ? "dag" : "react"
+    : mode
 
   // Detect clip metadata in user message
   const hasClipMeta = Array.isArray(userMetadata?.clips) && (userMetadata.clips as unknown[]).length > 0
@@ -542,7 +547,7 @@ function HistoryTurn({ userContent, userMetadata, sseMessages, mode, hideDagGrap
           </div>
         </div>
       )}
-      {mode === "react" ? (
+      {resolvedMode === "react" ? (
         <ReactOutput items={reactItems} streamingAnswer={reactStreamingAnswer} suggestions={reactSuggestions} />
       ) : (
         <DagOutput
@@ -713,6 +718,17 @@ function PlaygroundContent({
   const dagData = useDagSteps(messages, isRunning)
   const { items: reactItems, streamingAnswer: reactStreamingAnswer, suggestions: reactSuggestions } = useReactSteps(messages, isRunning)
 
+  // For auto mode: detect which backend mode was chosen via routing SSE event
+  const routingEvent = useMemo(() => {
+    if (mode !== "auto") return null
+    const evt = messages.find(m => m.event === "routing")
+    return evt?.data as { chosen_mode: string; reason?: string } | null
+  }, [mode, messages])
+  // Resolved mode: the actual renderer mode to use for live output
+  const resolvedLiveMode: "react" | "dag" = mode === "auto"
+    ? (routingEvent?.chosen_mode === "dag" ? "dag" : "react")
+    : mode === "dag" ? "dag" : "react"
+
   // Reconstruct all persisted execution steps from conversation messages.
   // Available during BOTH live mode (shows previous turns) and history mode (shows all turns).
   const allHistoryTurns = useMemo(() => {
@@ -749,7 +765,7 @@ function PlaygroundContent({
   const hasRichHistory = !hasLiveMessages && allHistoryTurns !== null
 
   // Sidebar only shown during live DAG streaming (React mode no longer uses sidebar)
-  const showSidebar = hasLiveMessages && sidebarOpen && isWideScreen && mode === "dag"
+  const showSidebar = hasLiveMessages && sidebarOpen && isWideScreen && resolvedLiveMode === "dag"
 
   // Scroll the ScrollArea viewport to bottom (avoids scrollIntoView cascading to parent containers)
   const scrollViewportToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
@@ -1152,7 +1168,9 @@ function PlaygroundContent({
 
   const statusText = (() => {
     if (!isRunning || !modeMatches) return null
-    if (mode === "dag") {
+    // For auto mode, show routing status until routed, then delegate to resolved mode
+    if (mode === "auto" && !routingEvent) return t("statusRouting")
+    if (resolvedLiveMode === "dag") {
       if (dagData.doneEvent) return null
       if (dagData.currentPhase === "replanning") return t("statusReplanning")
       if (dagData.currentPhase === "planning") return dagData.currentRound > 1 ? t("statusPlanningRound", { round: dagData.currentRound }) : t("statusPlanning")
@@ -1168,7 +1186,7 @@ function PlaygroundContent({
   // True when a task was submitted but aborted/errored before completing (current session)
   const wasStopped = !isRunning && !!pendingQuery && (
     isError || (hasLiveMessages && (
-      mode === "dag"
+      resolvedLiveMode === "dag"
         ? !dagData.doneEvent
         : !reactItems.some(i => i.event === "done")
     ))
@@ -1219,6 +1237,12 @@ function PlaygroundContent({
                   <span className="shiny-text">{statusText}</span>
                 </span>
               )}
+              {routingEvent && (
+                <span className="inline-flex items-center gap-1 ml-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-400">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  {t("autoRoutedTo", { mode: routingEvent.chosen_mode === "dag" ? t("modePlanner") : t("modeStandard") })}
+                </span>
+              )}
               {retryQuery && (
                 <Button
                   variant="ghost"
@@ -1241,7 +1265,7 @@ function PlaygroundContent({
                   <Download className="h-3.5 w-3.5" />
                 </Button>
               )}
-              {hasLiveMessages && isWideScreen && mode === "dag" && (
+              {hasLiveMessages && isWideScreen && resolvedLiveMode === "dag" && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1309,9 +1333,9 @@ function PlaygroundContent({
                       </div>
                     </div>
                   )}
-                  {(hasLiveMessages || (isRunning && pendingQuery && mode === "react")) && (
+                  {(hasLiveMessages || (isRunning && pendingQuery && resolvedLiveMode === "react")) && (
                     <div data-live-output>
-                      {mode === "react" ? (
+                      {resolvedLiveMode === "react" ? (
                         <ReactOutput items={reactItems} isStreaming={isRunning && modeMatches} streamingAnswer={reactStreamingAnswer} suggestions={reactSuggestions} onSuggestionSelect={handleSuggestionSelect} />
                       ) : (
                         <DagOutput
@@ -1551,9 +1575,11 @@ function PlaygroundContent({
             placeholder={
               isRunning
                 ? t("placeholderInterrupt")
-                : mode === "react"
-                  ? t("placeholderReact")
-                  : t("placeholderDag")
+                : mode === "auto"
+                  ? t("placeholderAuto")
+                  : mode === "react"
+                    ? t("placeholderReact")
+                    : t("placeholderDag")
             }
             className="min-h-[72px] max-h-[160px] resize-none"
           />
@@ -1599,37 +1625,60 @@ function PlaygroundContent({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  disabled={isRunning}
-                  onClick={() => onModeChange(mode === "react" ? "dag" : "react")}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                    "border select-none",
-                    isRunning && "opacity-50 cursor-not-allowed",
-                    mode === "react"
-                      ? "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                      : "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-                  )}
-                >
-                  {mode === "react" ? (
-                    <Zap className="h-3 w-3" />
-                  ) : (
-                    <GitBranch className="h-3 w-3" />
-                  )}
-                  {mode === "react" ? t("modeStandard") : t("modePlanner")}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                {mode === "react"
-                  ? t("modeStandardTooltip")
-                  : t("modePlannerTooltip")}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <DropdownMenu>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      disabled={isRunning}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                        "border select-none",
+                        isRunning && "opacity-50 cursor-not-allowed",
+                        mode === "auto"
+                          ? "border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
+                          : mode === "dag"
+                            ? "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                            : "border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                      )}
+                    >
+                      {mode === "auto" ? (
+                        <Sparkles className="h-3 w-3" />
+                      ) : mode === "react" ? (
+                        <Zap className="h-3 w-3" />
+                      ) : (
+                        <GitBranch className="h-3 w-3" />
+                      )}
+                      {mode === "auto" ? t("modeAuto") : mode === "react" ? t("modeStandard") : t("modePlanner")}
+                    </button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {mode === "auto"
+                    ? t("modeAutoTooltip")
+                    : mode === "react"
+                      ? t("modeStandardTooltip")
+                      : t("modePlannerTooltip")}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <DropdownMenuContent side="top" align="start">
+              <DropdownMenuItem onClick={() => onModeChange("auto")} className={cn(mode === "auto" && "bg-accent")}>
+                <Sparkles className="h-4 w-4" />
+                {t("modeAuto")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onModeChange("react")} className={cn(mode === "react" && "bg-accent")}>
+                <Zap className="h-4 w-4" />
+                {t("modeStandard")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onModeChange("dag")} className={cn(mode === "dag" && "bg-accent")}>
+                <GitBranch className="h-4 w-4" />
+                {t("modePlanner")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {/* Agent selector — hidden in embedded/builder mode */}
           {!embedded && agents.length > 0 && (
             <Popover open={agentSelectorOpen} onOpenChange={setAgentSelectorOpen}>

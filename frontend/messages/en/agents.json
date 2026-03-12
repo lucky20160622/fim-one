@@ -42,6 +42,8 @@
 
   "executionMode": "Execution Mode",
   "executionModeDescription": "Sets the default mode for new conversations. You can still switch modes anytime during a chat.",
+  "autoMode": "Auto",
+  "autoModeDescription": "Auto-selects ReAct or DAG",
   "reactMode": "Standard (ReAct)",
   "reactModeDescription": "Quick response, flexible handling",
   "dagMode": "Planner (DAG)",

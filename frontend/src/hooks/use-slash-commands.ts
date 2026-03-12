@@ -18,11 +18,11 @@ interface UseSlashCommandsOptions {
   query: string
   isComposing: boolean
   agents: { id: string; name: string; icon?: string | null }[]
-  mode: "react" | "dag"
+  mode: "react" | "dag" | "auto"
   isRunning: boolean
   onNewChat: () => void
   onAgentChange: (agentId: string | null) => void
-  onModeChange: (mode: "react" | "dag") => void
+  onModeChange: (mode: "react" | "dag" | "auto") => void
   onQueryChange: (q: string) => void
   onAbort?: () => void
 }
@@ -100,6 +100,7 @@ export function useSlashCommands({
     }
     if (subMenuCommand === "mode") {
       const items: SlashSubItem[] = [
+        { id: "auto", label: `${t("modeAuto")} (Auto)` },
         { id: "react", label: `${t("modeStandard")} (ReAct)` },
         { id: "dag", label: `${t("modePlanner")} (DAG)` },
       ]
@@ -149,7 +150,7 @@ export function useSlashCommands({
           }
           break
         case "mode":
-          if (subValue === "react" || subValue === "dag") {
+          if (subValue === "react" || subValue === "dag" || subValue === "auto") {
             onModeChange(subValue)
           }
           break

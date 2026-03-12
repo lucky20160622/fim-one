@@ -42,6 +42,8 @@
 
   "executionMode": "执行模式",
   "executionModeDescription": "设置新对话的默认模式。你可以在对话中随时切换模式。",
+  "autoMode": "自动",
+  "autoModeDescription": "自动选择 ReAct 或 DAG",
   "reactMode": "标准模式 (ReAct)",
   "reactModeDescription": "快速响应，灵活处理",
   "dagMode": "规划模式 (DAG)",

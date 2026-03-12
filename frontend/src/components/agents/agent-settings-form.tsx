@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useTranslations } from "next-intl"
-import { Bot, Check, Loader2, Zap, GitBranch } from "lucide-react"
+import { Bot, Check, Loader2, Zap, GitBranch, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,7 +54,7 @@ export function AgentSettingsForm({
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([])
   const [selectedKBs, setSelectedKBs] = useState<string[]>([])
   const [selectedConnectors, setSelectedConnectors] = useState<string[]>([])
-  const [executionMode, setExecutionMode] = useState<"react" | "dag">("react")
+  const [executionMode, setExecutionMode] = useState<"react" | "dag" | "auto">("react")
   const [confidenceThreshold, setConfidenceThreshold] = useState<number | null>(null)
   const [temperature, setTemperature] = useState<number | null>(null)
   const [sandboxMemory, setSandboxMemory] = useState<string>("")
@@ -282,7 +282,25 @@ export function AgentSettingsForm({
             <p className="text-xs text-muted-foreground">
               {t("executionModeDescription")}
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setExecutionMode("auto")}
+                className={cn(
+                  "flex flex-col items-start gap-0.5 rounded-md border p-3 text-left text-sm transition-colors",
+                  executionMode === "auto"
+                    ? "border-primary bg-primary/5"
+                    : "border-input hover:border-muted-foreground/50"
+                )}
+              >
+                <div className="flex items-center gap-1.5 font-medium">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {t("autoMode")}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {t("autoModeDescription")}
+                </span>
+              </button>
               <button
                 type="button"
                 onClick={() => setExecutionMode("react")}
@@ -326,9 +344,9 @@ export function AgentSettingsForm({
           {systemModels.length > 0 && (
             <div className="space-y-1.5">
               <label className="text-sm font-medium">
-                {executionMode === "dag" ? t("generalModel") : t("model")}
+                {executionMode === "dag" || executionMode === "auto" ? t("generalModel") : t("model")}
               </label>
-              {executionMode === "dag" && (
+              {(executionMode === "dag" || executionMode === "auto") && (
                 <p className="text-xs text-muted-foreground">{t("generalModelDesc")}</p>
               )}
               <Select
@@ -354,7 +372,7 @@ export function AgentSettingsForm({
           )}
 
           {/* Fast Model — only for DAG mode */}
-          {systemModels.length > 0 && executionMode === "dag" && (
+          {systemModels.length > 0 && (executionMode === "dag" || executionMode === "auto") && (
             <div className="space-y-1.5">
               <label className="text-sm font-medium">{t("fastModel")}</label>
               <p className="text-xs text-muted-foreground">{t("fastModelDesc")}</p>

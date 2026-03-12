@@ -27,7 +27,7 @@ interface ConversationContextValue {
   loadConversations: () => Promise<void>
   selectConversation: (id: string) => Promise<void>
   createConversation: (
-    mode: "react" | "dag",
+    mode: "react" | "dag" | "auto",
     title?: string,
     agentId?: string,
   ) => Promise<ConversationResponse>
@@ -103,7 +103,7 @@ export function ConversationProvider({
   }, [])
 
   const createConversation = useCallback(
-    async (mode: "react" | "dag", title?: string, agentId?: string) => {
+    async (mode: "react" | "dag" | "auto", title?: string, agentId?: string) => {
       const conv = await conversationApi.create({ mode, title, agent_id: agentId })
       setConversations((prev) => [conv, ...prev])
       setActiveId(conv.id)

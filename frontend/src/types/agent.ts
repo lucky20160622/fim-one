@@ -17,7 +17,7 @@ export interface AgentResponse {
   connector_ids: string[] | null
   grounding_config: Record<string, unknown> | null
   sandbox_config: SandboxConfig | null
-  execution_mode: "react" | "dag"
+  execution_mode: "react" | "dag" | "auto"
   status: string
   is_global?: boolean
   is_builder?: boolean
@@ -38,7 +38,7 @@ export interface AgentCreate {
   connector_ids?: string[]
   grounding_config?: Record<string, unknown>
   sandbox_config?: SandboxConfig
-  execution_mode?: "react" | "dag"
+  execution_mode?: "react" | "dag" | "auto"
 }
 
 export interface AgentUpdate {
@@ -53,7 +53,7 @@ export interface AgentUpdate {
   connector_ids?: string[]
   grounding_config?: Record<string, unknown>
   sandbox_config?: SandboxConfig
-  execution_mode?: "react" | "dag"
+  execution_mode?: "react" | "dag" | "auto"
 }
 
 export interface AICreateAgentResult {

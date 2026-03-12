@@ -2,9 +2,9 @@
 
 import { useCallback, useMemo } from "react"
 import { useTranslations } from "next-intl"
-import { Globe, Code, Sparkles, GitBranch, ArrowRight } from "lucide-react"
+import { Globe, Code, Sparkles, GitBranch, ArrowRight, Zap } from "lucide-react"
 
-type AgentMode = "react" | "dag"
+type AgentMode = "react" | "dag" | "auto"
 
 interface ExamplesProps {
   mode: AgentMode
@@ -93,7 +93,9 @@ export function Examples({
   agentIcon,
 }: ExamplesProps) {
   const t = useTranslations("playground")
-  const allExamples = t.raw(`examples.${mode}`) as ExampleItem[]
+  // Auto mode doesn't have its own examples; fall back to react examples
+  const examplesKey = mode === "auto" ? "react" : mode
+  const allExamples = t.raw(`examples.${examplesKey}`) as ExampleItem[]
   const examples = useMemo(
     () => pickExamples(allExamples, DISPLAY_COUNT),
     [allExamples]
@@ -161,7 +163,7 @@ export function Examples({
             {t("tryExample")}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {mode === "react" ? t("reactSubtitle") : t("dagSubtitle")}
+            {mode === "auto" ? t("autoSubtitle") : mode === "react" ? t("reactSubtitle") : t("dagSubtitle")}
           </p>
         </div>
       </div>
@@ -169,12 +171,14 @@ export function Examples({
       {/* Mode indicator */}
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-          {mode === "react" ? (
+          {mode === "auto" ? (
             <Sparkles className="h-3 w-3" />
+          ) : mode === "react" ? (
+            <Zap className="h-3 w-3" />
           ) : (
             <GitBranch className="h-3 w-3" />
           )}
-          {mode === "react" ? t("standardMode") : t("plannerMode")}
+          {mode === "auto" ? t("autoMode") : mode === "react" ? t("standardMode") : t("plannerMode")}
         </div>
       </div>
 

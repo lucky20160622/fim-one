@@ -26,7 +26,7 @@ export interface ConversationDetail extends ConversationResponse {
 
 export interface ConversationCreate {
   title?: string
-  mode: "react" | "dag"
+  mode: "react" | "dag" | "auto"
   agent_id?: string
   model_name?: string
 }

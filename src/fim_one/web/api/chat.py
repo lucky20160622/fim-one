@@ -60,6 +60,7 @@ from fim_one.core.tool import ToolRegistry
 from fim_one.core.utils import extract_json_value, get_language_directive
 
 from ..deps import (
+    get_auto_routing_enabled,
     get_context_budget,
     get_dag_max_replan_rounds,
     get_dag_replan_stop_confidence,
@@ -2508,6 +2509,82 @@ async def dag_endpoint(
 
     return StreamingResponse(
         generate(),
+        media_type="text/event-stream",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache, no-store",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Auto-routing endpoint
+# ---------------------------------------------------------------------------
+
+
+@router.post("/auto")
+async def auto_endpoint(
+    request: Request,
+    body: ChatStreamRequest,
+) -> StreamingResponse:
+    """Auto-route a query to ReAct or DAG based on LLM classification.
+
+    Emits a ``routing`` SSE event with ``{"mode": "react"|"dag", "reasoning": ...}``
+    before delegating to the corresponding generation logic.
+
+    When ``AUTO_ROUTING`` is disabled (env var), skips classification and
+    defaults to ReAct mode.
+
+    Parameters
+    ----------
+    request : Request
+        The incoming HTTP request; used to detect client disconnects.
+    body : ChatStreamRequest
+        JSON request body containing the query and optional parameters.
+    """
+    q = body.q
+    token = body.token
+
+    # -- Pre-stream: resolve auth to get fast_llm for classification --------
+    current_user_id, _, _ = await _resolve_user(token)
+    if current_user_id is None:
+        raise AppError("authentication_required", status_code=401)
+
+    # Determine execution mode
+    auto_routing_enabled = get_auto_routing_enabled()
+
+    if auto_routing_enabled:
+        from fim_one.core.planner.router import classify_execution_mode
+
+        from fim_one.db import create_session as _create_session
+        async with _create_session() as _llm_db:
+            fast_llm = await _resolve_fast_llm(
+                await _resolve_agent_config(body.agent_id, body.conversation_id, user_id=current_user_id),
+                _llm_db,
+            )
+
+        decision = await classify_execution_mode(q, fast_llm)
+        mode = decision.mode
+        reasoning = decision.reasoning
+    else:
+        mode = "react"
+        reasoning = "Auto-routing disabled, defaulting to react"
+
+    # Wrap the inner endpoint's StreamingResponse to prepend the routing event
+    if mode == "dag":
+        inner_response = await dag_endpoint(request, body)
+    else:
+        inner_response = await react_endpoint(request, body)
+
+    async def auto_generate() -> AsyncGenerator[str, None]:
+        # Emit routing decision first
+        yield _sse("routing", {"mode": mode, "reasoning": reasoning})
+        # Then delegate to the inner endpoint's generator
+        async for chunk in inner_response.body_iterator:
+            yield chunk
+
+    return StreamingResponse(
+        auto_generate(),
         media_type="text/event-stream",
         headers={
             "X-Accel-Buffering": "no",
