@@ -10,6 +10,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 ## [Unreleased]
 
 ### Added
+- **Free mode switching + per-turn mode tracking**: Users can now freely switch between Auto/React/DAG mid-conversation without starting a new chat. Each assistant message stores its actual execution mode in `metadata.mode`. History turns are rendered with the correct engine per-turn (detected from metadata or SSE event fingerprinting). Sidebar mode icons removed. Per-turn mode badge shows which engine processed each turn.
 - **Three model roles (F5)**: Independent environment config for General, Fast, and Reasoning model tiers. Fast model no longer inherits reasoning settings from the main model. New env vars: `FAST_LLM_API_KEY`, `FAST_LLM_BASE_URL`, `FAST_LLM_TEMPERATURE`, `REASONING_LLM_MODEL`, `REASONING_LLM_API_KEY`, `REASONING_LLM_BASE_URL`, `REASONING_LLM_TEMPERATURE`, `REASONING_LLM_CONTEXT_SIZE`, `REASONING_LLM_MAX_OUTPUT_TOKENS`, `REASONING_LLM_EFFORT`, `REASONING_LLM_BUDGET`
 - **Structured step output (F2)**: `StepOutput` dataclass replaces plain string results in DAG steps, enabling future support for structured data and artifact passing between steps
 - **Tool cache (F3)**: Identical tool calls within a single DAG execution are cached to avoid redundant API calls. Per-key async locks prevent thundering herd. Configurable via `DAG_TOOL_CACHE` (default: on)
@@ -27,6 +28,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Changed
 - Mode toggle labels now include engine name: "Standard (ReAct)", "Planner (DAG)" for clarity
+- **Skeleton screens** — All list/grid pages now show layout-aware skeleton placeholders during initial load instead of a centered spinner. Affected pages: `/agents` (3-col `AgentCard` × 6), `/chats` (`ListRow` × 8), `/kb` (3-col `KbCard` × 6), `/kb/[id]` (structural skeleton with header + toolbar + `TableRow` × 5), `/connectors` connectors tab (3-col `ConnectorCard` × 6), `/artifacts` (4-col `ArtifactCard` × 8). Three new composites added to `skeleton.tsx`: `ConnectorCard`, `ArtifactCard`, `TableRow`. Tab-switch and secondary loading states (show-more, search, dialogs) retain Loader2 spinners.
 
 ## [v0.7.4] - 2026-03-12
 
