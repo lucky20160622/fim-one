@@ -16,9 +16,12 @@ from typing import Any
 from fim_one.core.agent import ReActAgent
 from fim_one.core.agent.types import Action
 from fim_one.core.memory.context_guard import ContextGuard
+from fim_one.core.model.base import BaseLLM
 from fim_one.core.model.registry import ModelRegistry
 from fim_one.core.model.usage import UsageSummary
+from fim_one.core.tool import ToolRegistry
 
+from .tool_cache import ToolCache, wrap_tools_with_cache
 from .types import ExecutionPlan, PlanStep, StepOutput
 
 # Type alias for the optional progress callback.
@@ -56,6 +59,8 @@ class DAGExecutor:
         original_goal: str | None = None,
         stop_event: asyncio.Event | None = None,
         step_timeout: float = 600,
+        enable_tool_cache: bool = True,
+        verify_llm: BaseLLM | None = None,
     ) -> None:
         self._agent = agent
         self._max_concurrency = max_concurrency
@@ -64,6 +69,9 @@ class DAGExecutor:
         self._original_goal = original_goal
         self._stop_event = stop_event
         self._step_timeout = step_timeout
+        self._enable_tool_cache = enable_tool_cache
+        self._cached_tool_registry: ToolRegistry | None = None
+        self._verify_llm = verify_llm
         self._usage_lock = asyncio.Lock()
 
     async def execute(
@@ -87,6 +95,20 @@ class DAGExecutor:
             statuses updated.
         """
         self._on_progress = on_progress
+
+        # Tool cache for this execution — scoped to one execute() call.
+        tool_cache: ToolCache | None = None
+        if self._enable_tool_cache:
+            tool_cache = ToolCache()
+            original_tools = self._agent.tools.list_tools()
+            cached_tools = wrap_tools_with_cache(original_tools, tool_cache)
+            cached_registry = ToolRegistry()
+            for tool in cached_tools:
+                cached_registry.register(tool)
+            self._cached_tool_registry = cached_registry
+        else:
+            self._cached_tool_registry = None
+
         semaphore = asyncio.Semaphore(self._max_concurrency)
         step_index = {step.id: step for step in plan.steps}
         pending_ids = {step.id for step in plan.steps}
@@ -210,6 +232,12 @@ class DAGExecutor:
                 else:
                     plan.total_usage = step_usage
 
+        if tool_cache:
+            logger.info(
+                "ToolCache stats: %d hits, %d misses",
+                tool_cache.hits, tool_cache.misses,
+            )
+
         return plan
 
     # ------------------------------------------------------------------
@@ -263,7 +291,24 @@ class DAGExecutor:
         Returns:
             A ``ReActAgent`` instance to execute the step.
         """
+        # Use cached tool registry if available for this execution.
+        tools_to_use = (
+            self._cached_tool_registry
+            if self._cached_tool_registry is not None
+            else self._agent.tools
+        )
+
         if self._model_registry is None or not step.model_hint:
+            # Still need to swap tools if cache is enabled.
+            if self._cached_tool_registry is not None:
+                return ReActAgent(
+                    llm=self._agent._llm,
+                    tools=tools_to_use,
+                    system_prompt=self._agent.system_prompt_override,
+                    extra_instructions=self._agent.extra_instructions,
+                    max_iterations=self._agent.max_iterations,
+                    context_guard=self._agent.context_guard,
+                )
             return self._agent
 
         try:
@@ -273,11 +318,20 @@ class DAGExecutor:
                 "No model registered for role '%s', using default agent",
                 step.model_hint,
             )
+            if self._cached_tool_registry is not None:
+                return ReActAgent(
+                    llm=self._agent._llm,
+                    tools=tools_to_use,
+                    system_prompt=self._agent.system_prompt_override,
+                    extra_instructions=self._agent.extra_instructions,
+                    max_iterations=self._agent.max_iterations,
+                    context_guard=self._agent.context_guard,
+                )
             return self._agent
 
         return ReActAgent(
             llm=llm,
-            tools=self._agent.tools,
+            tools=tools_to_use,
             system_prompt=self._agent.system_prompt_override,
             extra_instructions=self._agent.extra_instructions,
             max_iterations=self._agent.max_iterations,
@@ -357,6 +411,56 @@ class DAGExecutor:
                 step.id,
                 agent_result.iterations,
             )
+
+            # Post-step verification (opt-in via verify_llm)
+            if self._verify_llm and step.status == "completed" and step.result:
+                from fim_one.core.planner.step_verifier import verify_step
+
+                verification = await verify_step(
+                    task=step.task,
+                    result_summary=step.result.summary,
+                    llm=self._verify_llm,
+                )
+                self._notify(step.id, "verification", {
+                    "passed": verification.passed,
+                    "reason": verification.reason,
+                })
+                if not verification.passed:
+                    logger.warning(
+                        "Step %s failed verification: %s -- retrying",
+                        step.id,
+                        verification.reason,
+                    )
+                    retry_query = (
+                        f"{query}\n\n"
+                        f"[VERIFICATION FEEDBACK] Your previous answer was "
+                        f"rejected: {verification.reason}\n"
+                        f"Please try again and address this feedback."
+                    )
+                    try:
+                        agent_result = await agent.run(
+                            retry_query, on_iteration=_on_iteration,
+                        )
+                        step.result = StepOutput(summary=agent_result.answer)
+                        if agent_result.usage and step.usage:
+                            step.usage += agent_result.usage
+                        elif agent_result.usage:
+                            step.usage = agent_result.usage
+
+                        re_verification = await verify_step(
+                            task=step.task,
+                            result_summary=step.result.summary if step.result else "",
+                            llm=self._verify_llm,
+                        )
+                        self._notify(step.id, "re_verification", {
+                            "passed": re_verification.passed,
+                            "reason": re_verification.reason,
+                        })
+                    except Exception as retry_exc:
+                        logger.warning(
+                            "Retry after verification failure also failed: %s",
+                            retry_exc,
+                        )
         except asyncio.CancelledError:
             raise
         except Exception as exc:

@@ -64,6 +64,8 @@ from ..deps import (
     get_dag_max_replan_rounds,
     get_dag_replan_stop_confidence,
     get_dag_step_max_iterations,
+    get_dag_step_verification,
+    get_dag_tool_cache_enabled,
     get_effective_context_budget,
     get_effective_fast_context_budget,
     get_effective_fast_llm,
@@ -2088,6 +2090,8 @@ async def dag_endpoint(
                     context_guard=dag_context_guard,
                     original_goal=enriched_query,
                     stop_event=exec_stop_event,
+                    enable_tool_cache=get_dag_tool_cache_enabled(),
+                    verify_llm=fast_llm if get_dag_step_verification() else None,
                 )
 
                 # Capture plan in closure to avoid late-binding issues

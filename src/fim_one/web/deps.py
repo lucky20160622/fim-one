@@ -198,6 +198,23 @@ def get_dag_step_max_iterations() -> int:
     return int(os.environ.get("DAG_STEP_MAX_ITERATIONS", "15"))
 
 
+def get_dag_tool_cache_enabled() -> bool:
+    """Whether to cache identical tool calls within a DAG execution (env: DAG_TOOL_CACHE)."""
+    return os.getenv("DAG_TOOL_CACHE", "true").lower() in ("true", "1", "yes")
+
+
+def get_dag_step_verification() -> bool:
+    """Whether to run LLM-based verification of DAG step results.
+
+    Opt-in via ``DAG_STEP_VERIFICATION=true``.  Disabled by default because
+    it adds latency and cost (one extra LLM call per step, plus a retry on
+    failure).
+    """
+    return os.environ.get("DAG_STEP_VERIFICATION", "false").lower() in (
+        "true", "1", "yes",
+    )
+
+
 def get_react_max_iterations() -> int:
     """Max iterations for ReAct agent mode (env: REACT_MAX_ITERATIONS)."""
     return int(os.environ.get("REACT_MAX_ITERATIONS", "20"))
