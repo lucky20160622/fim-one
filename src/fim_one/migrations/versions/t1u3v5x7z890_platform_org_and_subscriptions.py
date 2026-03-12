@@ -27,14 +27,10 @@ def upgrade() -> None:
     # ── Phase A: Platform org ──────────────────────────────────────────────
 
     # 1. Find first admin user (or first user)
+    # Users table uses is_admin boolean column (not a role column)
     admin_row = bind.execute(
-        sa.text("SELECT id FROM users WHERE role='admin' ORDER BY created_at ASC LIMIT 1")
+        sa.text("SELECT id FROM users WHERE is_admin=1 ORDER BY created_at ASC LIMIT 1")
     ).fetchone()
-    if admin_row is None:
-        # Fall back to is_admin column (actual schema uses is_admin boolean)
-        admin_row = bind.execute(
-            sa.text("SELECT id FROM users WHERE is_admin=1 ORDER BY created_at ASC LIMIT 1")
-        ).fetchone()
     if admin_row is None:
         admin_row = bind.execute(
             sa.text("SELECT id FROM users ORDER BY created_at ASC LIMIT 1")
