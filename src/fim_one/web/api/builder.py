@@ -102,6 +102,39 @@ async def create_builder_session(
             f"- Model config: {target.model_config_json or '(default)'}\n"
             f"- Status: {target.status}\n"
         )
+    elif body.target_type == "connector_db":
+        result = await db.execute(
+            select(Connector)
+            .where(Connector.id == body.target_id, Connector.user_id == current_user.id)
+        )
+        target = result.scalar_one_or_none()
+        if not target or target.type != "database":
+            raise AppError("connector_not_found", status_code=404)
+        agent_name = f"__builder_db_{body.target_id}"
+        db_type = (target.db_config or {}).get("type", "unknown")
+        instructions = (
+            f"You are a DB Schema Builder Agent.\n"
+            f"connector_id={body.target_id}\n"
+            f"Connector name: {target.name}\n"
+            f"Database type: {db_type}\n\n"
+            f"You have specialized tools to manage this database connector's schema:\n"
+            f"- db_get_connector_settings: View current db config (read_only, max_rows, timeout, ssl)\n"
+            f"- db_update_connector_settings: Update safe config fields\n"
+            f"- db_test_connection: Verify the database connection works\n"
+            f"- db_list_tables: List all tables with visibility and annotation status\n"
+            f"- db_get_table_detail: Get columns for a specific table\n"
+            f"- db_annotate_table: Set display_name and description for a table\n"
+            f"- db_annotate_column: Set display_name and description for a specific column\n"
+            f"- db_set_table_visibility: Show or hide a specific table\n"
+            f"- db_batch_set_visibility: Bulk show/hide by prefix list or name list\n"
+            f"- db_run_sample_query: Run a SELECT to understand table content\n\n"
+            f"Recommended workflow:\n"
+            f"1. Call db_test_connection to verify connectivity\n"
+            f"2. Call db_list_tables to see current state\n"
+            f"3. Use db_batch_set_visibility to handle system/framework tables by prefix\n"
+            f"4. Use db_get_table_detail + db_run_sample_query for ambiguous tables\n"
+            f"5. Use db_annotate_table / db_annotate_column to add human-readable names\n"
+        )
     else:
         raise AppError("unsupported_target_type", status_code=400)
 
@@ -122,6 +155,9 @@ async def create_builder_session(
     if body.target_type == "connector":
         description = f"Builder agent for connector {body.target_id}"
         tool_categories = ["builder", "web"]
+    elif body.target_type == "connector_db":
+        description = f"DB Schema Builder for connector {body.target_id}"
+        tool_categories = ["db_builder"]
     else:
         description = f"Builder assistant for agent {body.target_id}"
         tool_categories = ["agent_builder"]

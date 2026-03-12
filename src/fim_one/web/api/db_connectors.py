@@ -529,6 +529,9 @@ Return a JSON object with:
 safe fields are supported: read_only (bool), ssl (bool), max_rows (int 1-10000), \
 query_timeout (int 1-300). Connection credentials (host, port, database, \
 username, password, driver) CANNOT be changed via chat.
+  - "smart_select": user wants AI to intelligently decide which tables have
+    business value and enable only those (hide system/log/framework tables).
+    Keywords: 智能选择, 自动分析, 有价值的表, smart select, filter tables, 有用的
   - "unknown": message is unrelated to any of the above
 - "table_names": list of table names (from the available list) that should be \
 affected by annotate/show/hide. Empty list means ALL tables. Irrelevant for \
@@ -546,7 +549,7 @@ _DB_CHAT_INTENT_SCHEMA: dict[str, Any] = {
     "properties": {
         "intent": {
             "type": "string",
-            "enum": ["annotate", "show", "hide", "update_settings", "unknown"],
+            "enum": ["annotate", "show", "hide", "update_settings", "smart_select", "unknown"],
         },
         "table_names": {"type": "array", "items": {"type": "string"}},
         "settings_updates": {
@@ -614,6 +617,37 @@ _ANNOTATE_SCHEMA: dict[str, Any] = {
 
 _ANNOTATE_BATCH_SIZE = 30  # tables per LLM call
 _ANNOTATE_CONCURRENCY = 5  # parallel LLM calls
+
+_SMART_SELECT_SYSTEM_PROMPT = """\
+You are a database schema expert. Classify each table as "business", "system", or "unknown".
+
+Rules:
+- "business": tables storing domain data (users, orders, products, invoices, etc.)
+  Signs: meaningful column names, has created_at/updated_at, FK relationships
+- "system": framework/infra tables (django_*, alembic_*, flyway_*, auth_*, log_*,
+  *_migration*, *_session*, *_cache*, *_token*, sys_*, tmp_*, temp_*)
+- "unknown": cannot determine (too ambiguous, or table_name is cryptic)
+
+Return JSON: {"tables": [{"table_name": "...", "category": "business"|"system"|"unknown"}]}
+"""
+
+_SMART_SELECT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "tables": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "table_name": {"type": "string"},
+                    "category": {"type": "string", "enum": ["business", "system", "unknown"]},
+                },
+                "required": ["table_name", "category"],
+            },
+        }
+    },
+    "required": ["tables"],
+}
 
 
 @dataclass
@@ -964,6 +998,46 @@ async def db_ai_chat(
                 "changes": len(filtered),
                 "connector": _connector_to_response(connector).model_dump(),
             }
+
+        if intent == "smart_select":
+            # Build compact prompt: table_name + column names (no full schema needed)
+            table_summaries = []
+            for s in target_schemas:
+                col_names = ", ".join(c.column_name for c in (s.columns or [])[:10])
+                table_summaries.append(f"{s.table_name} ({col_names})")
+            prompt = "\n".join(table_summaries)
+
+            classify_result = await structured_llm_call(
+                llm,
+                [
+                    ChatMessage(role="system", content=_SMART_SELECT_SYSTEM_PROMPT),
+                    ChatMessage(role="user", content=prompt),
+                ],
+                schema=_SMART_SELECT_SCHEMA,
+                function_name="classify_tables",
+                parse_fn=lambda d: d.get("tables", []),
+                default_value=[],
+                temperature=0.0,
+            )
+            classified: list[dict] = classify_result.value or []
+            cat_map = {row["table_name"]: row["category"] for row in classified}
+
+            business, hidden, unknown = 0, 0, 0
+            for s in target_schemas:
+                cat = cat_map.get(s.table_name, "unknown")
+                if cat == "business":
+                    s.is_visible = True
+                    business += 1
+                elif cat == "system":
+                    s.is_visible = False
+                    hidden += 1
+                else:
+                    unknown += 1
+            await db.commit()
+            msg = f"智能筛选完成：开启 {business} 张业务表，隐藏 {hidden} 张系统表"
+            if unknown:
+                msg += f"，{unknown} 张待定（保持原状）"
+            return {"ok": True, "message": msg, "changes": business + hidden}
 
         # intent == "show" or "hide"
         should_hide = intent == "hide"

@@ -58,6 +58,18 @@ from .agent_builder import (
     AgentRemoveConnectorTool,
     AgentSetModelTool,
 )
+from .db_builder import (
+    DbGetConnectorSettingsTool,
+    DbUpdateConnectorSettingsTool,
+    DbTestConnectionTool,
+    DbListTablesTool,
+    DbGetTableDetailTool,
+    DbAnnotateTableTool,
+    DbAnnotateColumnTool,
+    DbSetTableVisibilityTool,
+    DbBatchSetVisibilityTool,
+    DbRunSampleQueryTool,
+)
 
 __all__ = [
     "CalculatorTool",
@@ -92,6 +104,16 @@ __all__ = [
     "AgentAddConnectorTool",
     "AgentRemoveConnectorTool",
     "AgentSetModelTool",
+    "DbGetConnectorSettingsTool",
+    "DbUpdateConnectorSettingsTool",
+    "DbTestConnectionTool",
+    "DbListTablesTool",
+    "DbGetTableDetailTool",
+    "DbAnnotateTableTool",
+    "DbAnnotateColumnTool",
+    "DbSetTableVisibilityTool",
+    "DbBatchSetVisibilityTool",
+    "DbRunSampleQueryTool",
     "discover_builtin_tools",
 ]
 
@@ -142,6 +164,16 @@ _SKIP_AUTO_DISCOVER: set[type] = {
     AgentAddConnectorTool,
     AgentRemoveConnectorTool,
     AgentSetModelTool,
+    DbGetConnectorSettingsTool,  # db builder tools — injected by chat.py for db builder agents
+    DbUpdateConnectorSettingsTool,
+    DbTestConnectionTool,
+    DbListTablesTool,
+    DbGetTableDetailTool,
+    DbAnnotateTableTool,
+    DbAnnotateColumnTool,
+    DbSetTableVisibilityTool,
+    DbBatchSetVisibilityTool,
+    DbRunSampleQueryTool,
 }
 
 

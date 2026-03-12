@@ -804,6 +804,40 @@ async def _resolve_tools(
                 "Injected agent builder tools for agent_id=%s", _builder_aid
             )
 
+    # Inject DB Builder tools when this is a DB Builder Agent.
+    if agent_cfg and "db_builder" in (agent_cfg.get("tool_categories") or []):
+        import re as _re3
+        _instructions3 = agent_cfg.get("instructions") or ""
+        _m3 = _re3.search(r"connector_id=([a-f0-9-]{36})", _instructions3)
+        if _m3:
+            _builder_dbid = _m3.group(1)
+            from fim_one.core.tool.builtin.db_builder import (
+                DbGetConnectorSettingsTool,
+                DbUpdateConnectorSettingsTool,
+                DbTestConnectionTool,
+                DbListTablesTool,
+                DbGetTableDetailTool,
+                DbAnnotateTableTool,
+                DbAnnotateColumnTool,
+                DbSetTableVisibilityTool,
+                DbBatchSetVisibilityTool,
+                DbRunSampleQueryTool,
+            )
+            for _BCls3 in [
+                DbGetConnectorSettingsTool,
+                DbUpdateConnectorSettingsTool,
+                DbTestConnectionTool,
+                DbListTablesTool,
+                DbGetTableDetailTool,
+                DbAnnotateTableTool,
+                DbAnnotateColumnTool,
+                DbSetTableVisibilityTool,
+                DbBatchSetVisibilityTool,
+                DbRunSampleQueryTool,
+            ]:
+                tools.register(_BCls3(connector_id=_builder_dbid, user_id=user_id or ""))
+            logger.info("Injected db builder tools for connector_id=%s", _builder_dbid)
+
     # Filter out globally disabled built-in tools (admin setting).
     try:
         from fim_one.db import create_session as _cs_disabled
