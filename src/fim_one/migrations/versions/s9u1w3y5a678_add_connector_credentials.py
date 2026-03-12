@@ -110,6 +110,9 @@ def upgrade() -> None:
         else:
             continue
 
+        if not isinstance(auth_config, dict):
+            continue
+
         cred_blob: dict = {}
         if auth_type == "bearer":
             token = auth_config.get("default_token")
@@ -177,6 +180,9 @@ def upgrade() -> None:
         elif isinstance(auth_config_raw, dict):
             auth_config = dict(auth_config_raw)
         else:
+            continue
+
+        if not isinstance(auth_config, dict):
             continue
 
         fields_to_remove = [
