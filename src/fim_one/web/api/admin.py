@@ -1909,6 +1909,7 @@ async def create_global_mcp_server(
     server = MCPServerModel(
         user_id=None,
         is_global=True,
+        visibility="global",
         name=body.name,
         description=body.description,
         transport=body.transport,
