@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 import mimetypes
@@ -138,6 +139,33 @@ async def download_artifact(
     raise AppError("artifact_not_found", status_code=404)
 
 
+def _scan_conv_artifacts(conv_id: str, conv_title: str) -> list[dict]:
+    """Sync helper: scan one conversation's artifacts dir. Called via to_thread."""
+    artifacts_dir = _artifacts_dir(conv_id)
+    if not artifacts_dir.exists():
+        return []
+    results = []
+    for f in artifacts_dir.iterdir():
+        if not f.is_file():
+            continue
+        parts = f.name.split("_", 1)
+        artifact_id = parts[0]
+        original_name = parts[1] if len(parts) > 1 else f.name
+        stat = f.stat()
+        file_ts = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
+        results.append({
+            "id": artifact_id,
+            "name": original_name,
+            "mime_type": _guess_mime(str(f)),
+            "size": stat.st_size,
+            "url": f"/api/conversations/{conv_id}/artifacts/{artifact_id}",
+            "conversation_id": conv_id,
+            "conversation_title": conv_title or "Untitled",
+            "created_at": file_ts,
+        })
+    return results
+
+
 @global_artifacts_router.get("/artifacts", response_model=PaginatedResponse)
 async def list_all_artifacts(
     page: int = Query(1, ge=1),
@@ -158,31 +186,13 @@ async def list_all_artifacts(
         )
         conversations = result.all()
 
-    artifacts: list[dict] = []
-    for conv_id, conv_title in conversations:
-        artifacts_dir = _artifacts_dir(conv_id)
-        if not artifacts_dir.exists():
-            continue
-        for f in artifacts_dir.iterdir():
-            if not f.is_file():
-                continue
-            parts = f.name.split("_", 1)
-            artifact_id = parts[0]
-            original_name = parts[1] if len(parts) > 1 else f.name
-            stat = f.stat()
-            # Prefer file mtime for accurate per-file ordering; fall back
-            # to conversation creation time only when mtime is missing.
-            file_ts = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat()
-            artifacts.append({
-                "id": artifact_id,
-                "name": original_name,
-                "mime_type": _guess_mime(str(f)),
-                "size": stat.st_size,
-                "url": f"/api/conversations/{conv_id}/artifacts/{artifact_id}",
-                "conversation_id": conv_id,
-                "conversation_title": conv_title or "Untitled",
-                "created_at": file_ts,
-            })
+    # Offload all filesystem scans to the thread pool concurrently so the
+    # event loop is never blocked by Path.iterdir() / f.stat() calls.
+    nested = await asyncio.gather(*[
+        asyncio.to_thread(_scan_conv_artifacts, conv_id, conv_title)
+        for conv_id, conv_title in conversations
+    ])
+    artifacts: list[dict] = [item for sublist in nested for item in sublist]
 
     artifacts.sort(key=lambda a: a["created_at"], reverse=True)
     total = len(artifacts)
