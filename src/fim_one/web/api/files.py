@@ -265,6 +265,8 @@ async def download_file(
         raise AppError("file_not_found", status_code=404)
 
     file_path = _user_dir(current_user.id) / meta["stored_name"]
+    if not file_path.resolve().is_relative_to(_user_dir(current_user.id).resolve()):
+        raise AppError("file_not_found", status_code=404)
     if not file_path.exists():
         raise AppError("file_not_found_disk", status_code=404)
 
@@ -288,6 +290,8 @@ async def delete_file(
 
         # Remove from disk
         file_path = _user_dir(current_user.id) / meta["stored_name"]
+        if not file_path.resolve().is_relative_to(_user_dir(current_user.id).resolve()):
+            raise AppError("file_not_found", status_code=404)
         file_path.unlink(missing_ok=True)
 
         # Remove from index
