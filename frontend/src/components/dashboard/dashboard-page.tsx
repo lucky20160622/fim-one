@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useTranslations, useLocale } from "next-intl"
-import { Loader2, MessageSquare, Bot, Database, Plug, TrendingUp, TrendingDown, Minus, Activity, Library, Clock, ChevronRight } from "lucide-react"
+import { MessageSquare, Bot, Database, Plug, TrendingUp, TrendingDown, Minus, Activity, Library, Clock, ChevronRight } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN, enUS } from "date-fns/locale"
 import {
@@ -17,9 +17,11 @@ import {
   Tooltip,
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/auth-context"
+import { useConversation } from "@/contexts/conversation-context"
 import { UserAvatar as SharedUserAvatar } from "@/components/shared/user-avatar"
 import { dashboardApi, type DashboardStats } from "@/lib/api"
 import { formatTokens, cn } from "@/lib/utils"
@@ -59,19 +61,6 @@ function formatToday(locale: string): string {
   } catch {
     return new Date().toLocaleDateString()
   }
-}
-
-// ---- Skeleton card for loading state ----
-function DashboardSkeletonCard() {
-  return (
-    <Card>
-      <CardContent className="p-6 space-y-3 animate-pulse">
-        <div className="h-4 w-28 rounded bg-muted" />
-        <div className="h-8 w-20 rounded bg-muted" />
-        <div className="h-3 w-24 rounded bg-muted" />
-      </CardContent>
-    </Card>
-  )
 }
 
 // ---- Bar chart tooltip ----
@@ -153,6 +142,7 @@ export function DashboardPage() {
   const t = useTranslations("dashboard")
   const locale = useLocale()
   const { user, isLoading: authLoading } = useAuth()
+  const { conversations } = useConversation()
   const router = useRouter()
 
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -301,7 +291,7 @@ export function DashboardPage() {
         {loading ? (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <DashboardSkeletonCard key={i} />
+              <Skeleton.StatCard key={i} />
             ))}
           </div>
         ) : (
@@ -324,7 +314,15 @@ export function DashboardPage() {
 
         {/* ---- 3. Activity Trend Chart ---- */}
         {loading ? (
-          <div className="h-[260px] rounded-xl bg-muted animate-pulse" />
+          <Card className="gap-1 py-3">
+            <CardHeader className="px-5">
+              <Skeleton className="h-5 w-36" />
+              <Skeleton className="h-4 w-52 mt-1" />
+            </CardHeader>
+            <CardContent className="px-5 pb-1 pt-4">
+              <Skeleton.ChartBars height={200} />
+            </CardContent>
+          </Card>
         ) : (
           <Card className="gap-1 py-3">
             <CardHeader className="px-5">
@@ -390,9 +388,65 @@ export function DashboardPage() {
 
         {/* ---- 4 + 5. Two two-column grids ---- */}
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <>
+            {/* Row A skeleton */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {/* Recent Conversations skeleton */}
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Skeleton className="h-5 w-40" />
+                </CardHeader>
+                <CardContent className="px-0 pb-1">
+                  <ul className="divide-y divide-border">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <li key={i}><Skeleton.ListRow /></li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+
+              {/* My Agents skeleton */}
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Skeleton className="h-5 w-28" />
+                </CardHeader>
+                <CardContent className="px-5 pb-4 pt-1">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {Array.from({ length: 4 }).map((_, i) => <Skeleton.AgentCard key={i} />)}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Row B skeleton */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {/* Knowledge Bases skeleton */}
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Skeleton className="h-5 w-36" />
+                </CardHeader>
+                <CardContent className="px-5 pb-4 pt-1">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {Array.from({ length: 3 }).map((_, i) => <Skeleton.KbCard key={i} />)}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Connectors skeleton */}
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Skeleton className="h-5 w-28" />
+                </CardHeader>
+                <CardContent className="px-0 pb-1">
+                  <ul className="divide-y divide-border">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <li key={i}><Skeleton.ListRow twoLines /></li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+          </>
         ) : (
           <>
             {/* Row A: Recent Conversations + My Agents */}
@@ -410,7 +464,7 @@ export function DashboardPage() {
                   </Link>
                 </CardHeader>
                 <CardContent className="px-0 pb-1">
-                  {!stats?.recent_conversations.length ? (
+                  {!conversations.length ? (
                     <div className="flex flex-col items-center gap-3 px-6 py-8 text-sm text-muted-foreground">
                       <p>{t("recentEmpty")}</p>
                       <Button variant="outline" size="sm" asChild>
@@ -419,7 +473,7 @@ export function DashboardPage() {
                     </div>
                   ) : (
                     <ul className="divide-y divide-border">
-                      {stats.recent_conversations.slice(0, 6).map((conv) => (
+                      {conversations.slice(0, 6).map((conv) => (
                         <li key={conv.id}>
                           <Link
                             href={`/?c=${conv.id}`}

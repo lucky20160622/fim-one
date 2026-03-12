@@ -14,7 +14,6 @@ import { APP_NAME, getApiBaseUrl, getApiDirectUrl } from "@/lib/constants"
 import { authApi, ApiError } from "@/lib/api"
 import { getErrorMessage } from "@/lib/error-utils"
 import { toast } from "sonner"
-import { AnimatedLogo } from "@/components/layout/animated-logo"
 import { useTheme } from "next-themes"
 
 function LoginPageInner() {
@@ -426,8 +425,9 @@ function LoginPageInner() {
         </div>
 
         {/* Top — logo */}
-        <a href="https://one.fim.ai" target="_blank" rel="noopener noreferrer">
-          <AnimatedLogo appName={APP_NAME} />
+        <a href="https://one.fim.ai" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 relative z-10">
+          <img src="/fim-mark.svg" alt="FIM" className="h-6 w-auto shrink-0" />
+          <span className="text-lg font-bold tracking-tight text-white" style={{ fontFamily: 'var(--font-cabinet), sans-serif' }}>{APP_NAME}</span>
         </a>
 
         {/* Middle-lower — tagline */}

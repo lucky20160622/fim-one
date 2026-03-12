@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useTranslations, useLocale } from "next-intl"
 import { Activity, ArrowUpRight, CheckCircle, Clock, Plug } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
 import { adminApi } from "@/lib/api"
 import type { ConnectorStats } from "@/lib/api"
 import {
@@ -60,9 +61,9 @@ function StatCard({
 
 function SkeletonCard() {
   return (
-    <div className="rounded-lg border border-border bg-card p-4 space-y-2 animate-pulse">
-      <div className="h-4 w-24 rounded bg-muted" />
-      <div className="h-8 w-16 rounded bg-muted" />
+    <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+      <Skeleton className="h-4 w-24" />
+      <Skeleton className="h-8 w-16" />
     </div>
   )
 }
@@ -156,7 +157,7 @@ export function AdminConnectors() {
         </div>
 
         {isLoading ? (
-          <div className="h-[200px] rounded bg-muted animate-pulse" />
+          <Skeleton className="h-[200px] rounded" />
         ) : topConnectors.length === 0 ? (
           <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
             {t("noConnectorUsage")}
@@ -186,9 +187,9 @@ export function AdminConnectors() {
         </div>
 
         {isLoading ? (
-          <div className="space-y-2 animate-pulse">
+          <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-10 rounded bg-muted" />
+              <Skeleton key={i} className="h-10 rounded" />
             ))}
           </div>
         ) : !stats?.top_actions?.length ? (
@@ -226,7 +227,15 @@ export function AdminConnectors() {
         </div>
 
         {isLoading ? (
-          <div className="h-[180px] rounded bg-muted animate-pulse" />
+          <div className="h-[180px] flex items-end gap-2 pt-4">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <Skeleton
+                key={i}
+                className="flex-1 rounded-sm"
+                style={{ height: `${20 + Math.sin(i * 0.9) * 40 + 40}px` }}
+              />
+            ))}
+          </div>
         ) : recentDays.length === 0 ? (
           <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
             {t("noRecentActivity")}

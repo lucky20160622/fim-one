@@ -31,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { kbApi } from "@/lib/api"
+import { Skeleton } from "@/components/ui/skeleton"
 import { DocumentTable } from "@/components/kb/document-table"
 import { KBUploadDialog } from "@/components/kb/kb-upload-dialog"
 import { MdCreateDialog } from "@/components/kb/md-create-dialog"
@@ -172,8 +173,39 @@ export default function KBDetailPage() {
 
   if (isLoading || !kb) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="flex h-full overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header skeleton */}
+          <div className="shrink-0 border-b border-border/40 px-6 py-4">
+            <div className="flex items-start gap-3">
+              <Skeleton className="h-7 w-7 shrink-0 rounded-md mt-1" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-3.5 w-80" />
+              </div>
+            </div>
+          </div>
+          {/* Toolbar skeleton */}
+          <div className="shrink-0 flex items-center justify-between gap-2 px-6 py-3 border-b border-border/40">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-8 w-28 rounded-md" />
+              <Skeleton className="h-8 w-24 rounded-md" />
+            </div>
+            <div className="flex items-center gap-1">
+              <Skeleton className="h-7 w-20 rounded-md" />
+              <Skeleton className="h-7 w-20 rounded-md" />
+              <Skeleton className="h-7 w-20 rounded-md" />
+            </div>
+          </div>
+          {/* Documents table skeleton */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="rounded-md border divide-y divide-border">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton.TableRow key={i} />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     )
   }

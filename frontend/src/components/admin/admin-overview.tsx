@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useTranslations, useLocale } from "next-intl"
 import { Users, MessageSquare, Zap, Bot, Database, BookOpen, FileText, Hash, Plug } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
 import { apiFetch } from "@/lib/api"
 import { formatTokens } from "@/lib/utils"
 import {
@@ -96,9 +97,9 @@ function StatCard({
 
 function SkeletonCard() {
   return (
-    <div className="rounded-lg border border-border bg-card p-4 space-y-2 animate-pulse">
-      <div className="h-4 w-24 rounded bg-muted" />
-      <div className="h-8 w-16 rounded bg-muted" />
+    <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+      <div className="h-4 w-24 rounded bg-muted animate-pulse" />
+      <div className="h-8 w-16 rounded bg-muted animate-pulse" />
     </div>
   )
 }
@@ -198,7 +199,15 @@ export function AdminOverview() {
         </div>
 
         {isLoading ? (
-          <div className="h-[180px] rounded bg-muted animate-pulse" />
+          <div className="h-[180px] flex items-end gap-2">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex-1 rounded-sm bg-muted animate-pulse"
+                style={{ height: `${20 + Math.sin(i * 0.9) * 40 + 40}px` }}
+              />
+            ))}
+          </div>
         ) : recentDays.length === 0 ? (
           <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
             {t("noRecentActivity")}
@@ -228,9 +237,9 @@ export function AdminOverview() {
         </div>
 
         {isLoading ? (
-          <div className="space-y-2 animate-pulse">
+          <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-10 rounded bg-muted" />
+              <Skeleton key={i} className="h-10 rounded" />
             ))}
           </div>
         ) : topAgents.length === 0 ? (
@@ -268,7 +277,7 @@ export function AdminOverview() {
           </div>
 
           {isLoading ? (
-            <div className="h-[220px] rounded bg-muted animate-pulse" />
+            <Skeleton className="h-[220px] rounded" />
           ) : topModels.length === 0 ? (
             <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
               {t("noModelUsage")}
@@ -315,7 +324,7 @@ export function AdminOverview() {
           </div>
 
           {isLoading ? (
-            <div className="h-[220px] rounded bg-muted animate-pulse" />
+            <Skeleton className="h-[220px] rounded" />
           ) : !stats?.tokens_by_agent?.length ? (
             <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
               {t("noTokenUsage")}

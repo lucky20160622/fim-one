@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Plus, Loader2, Plug, Trash2, LayoutGrid, Database, Globe, ChevronDown } from "lucide-react"
+import { Plus, Plug, Trash2, LayoutGrid, Database, Globe, ChevronDown } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/contexts/auth-context"
 import { connectorApi } from "@/lib/api"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ConnectorCard } from "@/components/connectors/connector-card"
 import { MCPServersSection, type MCPServersSectionActions } from "@/components/tools/mcp-servers-section"
 import type { ConnectorResponse } from "@/types/connector"
@@ -157,8 +158,10 @@ function ConnectorsPageInner() {
         {/* Connectors tab */}
         <TabsContent value="connectors" className="flex-1 overflow-y-auto p-6 mt-0">
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton.ConnectorCard key={i} />
+              ))}
             </div>
           ) : connectors.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">

@@ -27,6 +27,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { agentApi, orgApi } from "@/lib/api"
 import type { UserOrg } from "@/lib/api"
 import { AgentCard } from "@/components/agents/agent-card"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { AgentResponse } from "@/types/agent"
 
 export default function AgentsPage() {
@@ -148,8 +149,10 @@ export default function AgentsPage() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton.AgentCard key={i} />
+            ))}
           </div>
         ) : agents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">

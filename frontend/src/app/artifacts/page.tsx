@@ -20,6 +20,7 @@ import {
   MoreHorizontal,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Skeleton } from "@/components/ui/skeleton"
 import { apiFetch } from "@/lib/api"
 import { getApiBaseUrl, ACCESS_TOKEN_KEY } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
@@ -478,8 +479,10 @@ function ArtifactsContent() {
 
           {/* Grid */}
           {loading ? (
-            <div className="flex items-center justify-center py-24">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Skeleton.ArtifactCard key={i} />
+              ))}
             </div>
           ) : artifacts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">

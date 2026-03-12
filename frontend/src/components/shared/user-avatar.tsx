@@ -18,6 +18,33 @@ import {
   Cloud,
   Rocket,
   Gamepad2,
+  // Animals
+  Panda,
+  Rat,
+  Snail,
+  Turtle,
+  // Nature
+  TreePine,
+  Mountain,
+  Flame,
+  Snowflake,
+  Waves,
+  Wind,
+  // Symbols & Objects
+  Gem,
+  Crown,
+  Shield,
+  Anchor,
+  Compass,
+  Sparkles,
+  Clover,
+  Diamond,
+  Zap,
+  Target,
+  Trophy,
+  Castle,
+  Telescope,
+  Key,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -30,21 +57,49 @@ export interface AvatarIconConfig {
 }
 
 export const AVATAR_ICONS: AvatarIconConfig[] = [
+  // Animals
   { id: "cat", icon: Cat },
   { id: "dog", icon: Dog },
   { id: "bird", icon: Bird },
   { id: "fish", icon: Fish },
   { id: "rabbit", icon: Rabbit },
   { id: "squirrel", icon: Squirrel },
+  { id: "panda", icon: Panda },
+  { id: "rat", icon: Rat },
+  { id: "snail", icon: Snail },
+  { id: "turtle", icon: Turtle },
   { id: "bug", icon: Bug },
+  // Nature
   { id: "leaf", icon: Leaf },
   { id: "flower", icon: Flower2 },
+  { id: "tree", icon: TreePine },
+  { id: "mountain", icon: Mountain },
+  { id: "flame", icon: Flame },
+  { id: "snowflake", icon: Snowflake },
+  { id: "waves", icon: Waves },
+  { id: "wind", icon: Wind },
+  { id: "cloud", icon: Cloud },
+  // Sky
   { id: "star", icon: Star },
-  { id: "heart", icon: Heart },
+  { id: "sparkles", icon: Sparkles },
   { id: "moon", icon: Moon },
   { id: "sun", icon: Sun },
-  { id: "cloud", icon: Cloud },
+  { id: "telescope", icon: Telescope },
   { id: "rocket", icon: Rocket },
+  // Symbols & Objects
+  { id: "heart", icon: Heart },
+  { id: "gem", icon: Gem },
+  { id: "crown", icon: Crown },
+  { id: "trophy", icon: Trophy },
+  { id: "shield", icon: Shield },
+  { id: "castle", icon: Castle },
+  { id: "anchor", icon: Anchor },
+  { id: "compass", icon: Compass },
+  { id: "key", icon: Key },
+  { id: "target", icon: Target },
+  { id: "clover", icon: Clover },
+  { id: "diamond", icon: Diamond },
+  { id: "zap", icon: Zap },
   { id: "gamepad", icon: Gamepad2 },
 ]
 

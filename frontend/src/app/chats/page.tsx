@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
+import { Skeleton } from "@/components/ui/skeleton"
 import { conversationApi } from "@/lib/api"
 import { useConversation } from "@/contexts/conversation-context"
 import type { ConversationResponse } from "@/types/conversation"
@@ -280,8 +281,10 @@ export default function ChatsPage() {
 
       {/* Conversation list */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <div className="space-y-1">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton.ListRow key={i} />
+          ))}
         </div>
       ) : sorted.length === 0 ? (
         <div className="py-16 text-center text-sm text-muted-foreground">

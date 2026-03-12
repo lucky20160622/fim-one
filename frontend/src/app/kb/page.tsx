@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
-import { Plus, Loader2, Library, Trash2 } from "lucide-react"
+import { Plus, Library, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -17,6 +17,7 @@ import {
 import { useAuth } from "@/contexts/auth-context"
 import { kbApi } from "@/lib/api"
 import { KBCard } from "@/components/kb/kb-card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { KBFormDialog } from "@/components/kb/kb-form-dialog"
 import type { KBResponse, KBCreate } from "@/types/kb"
 
@@ -123,8 +124,10 @@ export default function KBPage() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton.KbCard key={i} />
+            ))}
           </div>
         ) : knowledgeBases.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
