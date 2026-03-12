@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/auth-context"
+import { UserAvatar as SharedUserAvatar } from "@/components/shared/user-avatar"
 import { dashboardApi, type DashboardStats } from "@/lib/api"
 import { formatTokens, cn } from "@/lib/utils"
 
@@ -167,28 +168,6 @@ function AgentIcon({ icon, name }: { icon: string | null; name: string }) {
   )
 }
 
-// ---- User avatar (real image with initials fallback) ----
-function UserAvatar({ name, avatar }: { name: string; avatar: string | null }) {
-  const initials = name.slice(0, 2).toUpperCase()
-  const hue = (name.charCodeAt(0) * 37) % 360
-  if (avatar) {
-    return (
-      <img
-        src={avatar}
-        alt={name}
-        className="h-12 w-12 shrink-0 rounded-full object-cover"
-      />
-    )
-  }
-  return (
-    <span
-      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white"
-      style={{ background: `hsl(${hue}, 55%, 52%)` }}
-    >
-      {initials}
-    </span>
-  )
-}
 
 // ============================================================
 // Main component
@@ -271,7 +250,13 @@ export function DashboardPage() {
         <div className="rounded-xl bg-gradient-to-br from-primary/10 via-background to-background border border-border px-6 py-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <UserAvatar name={displayName} avatar={user.avatar ?? null} />
+              <SharedUserAvatar
+                avatar={user.avatar ?? null}
+                fallback={displayName.slice(0, 2).toUpperCase()}
+                userId={user.id}
+                className="h-12 w-12"
+                iconClassName="h-6 w-6"
+              />
               <div>
                 <h1 className="text-xl font-semibold text-foreground">
                   {t("welcomeTitle", { name: displayName })}
