@@ -32,6 +32,7 @@
   "namePlaceholder": "GitHub API",
   "descriptionPlaceholder": "简要描述此连接器的用途...",
   "baseUrlPlaceholder": "https://api.example.com",
+  "baseUrlInvalid": "请输入以 http:// 或 https:// 开头的有效 URL",
   "tokenPrefix": "Token 前缀",
   "tokenPrefixHelp": "Authorization 请求头中 Token 前的前缀，默认为 Bearer。",
   "defaultToken": "默认 Token",

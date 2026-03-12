@@ -45,6 +45,7 @@ export function ConnectorSettingsForm({
   const [allowFallback, setAllowFallback] = useState(true)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<{ baseUrl?: string }>({})
 
   // Pre-fill when connector prop changes (full sync)
   useEffect(() => {
@@ -110,6 +111,19 @@ export function ConnectorSettingsForm({
     const trimmedName = name.trim()
     const trimmedUrl = baseUrl.trim()
     if (!trimmedName || !trimmedUrl) return
+
+    // Validate URL format before hitting the API
+    try {
+      const u = new URL(trimmedUrl)
+      if (u.protocol !== "http:" && u.protocol !== "https:") {
+        setFieldErrors({ baseUrl: t("baseUrlInvalid") })
+        return
+      }
+    } catch {
+      setFieldErrors({ baseUrl: t("baseUrlInvalid") })
+      return
+    }
+    setFieldErrors({})
 
     setIsSubmitting(true)
     try {
@@ -221,10 +235,17 @@ export function ConnectorSettingsForm({
               id="connector-base-url"
               type="text"
               value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
+              onChange={(e) => {
+                setBaseUrl(e.target.value)
+                if (fieldErrors.baseUrl) setFieldErrors({})
+              }}
               placeholder={t("baseUrlPlaceholder")}
+              aria-invalid={!!fieldErrors.baseUrl}
               required
             />
+            {fieldErrors.baseUrl && (
+              <p className="text-xs text-destructive">{fieldErrors.baseUrl}</p>
+            )}
           </div>
 
           {/* Auth Type */}

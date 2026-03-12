@@ -129,7 +129,7 @@ function ModelFormDialog({ open, onOpenChange, model, onSuccess }: ModelFormDial
   const [showOptional, setShowOptional] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; modelName?: string; apiKey?: string }>({})
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; modelName?: string; apiKey?: string; baseUrl?: string }>({})
 
   useEffect(() => {
     if (open) {
@@ -176,12 +176,21 @@ function ModelFormDialog({ open, onOpenChange, model, onSuccess }: ModelFormDial
   }
 
   const handleSubmit = async () => {
-    const errors: { name?: string; modelName?: string; apiKey?: string } = {}
+    const errors: { name?: string; modelName?: string; apiKey?: string; baseUrl?: string } = {}
     if (!name.trim()) errors.name = t("nameRequired")
     if (!modelName.trim()) errors.modelName = t("modelNameRequired")
     if (!isEdit && !apiKey.trim()) errors.apiKey = t("apiKeyRequired")
+    if (baseUrl.trim()) {
+      try {
+        const u = new URL(baseUrl.trim())
+        if (u.protocol !== "http:" && u.protocol !== "https:") errors.baseUrl = t("baseUrlInvalid")
+      } catch {
+        errors.baseUrl = t("baseUrlInvalid")
+      }
+    }
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors)
+      if (errors.baseUrl) setShowOptional(true)
       return
     }
     setIsSaving(true)
@@ -319,8 +328,15 @@ function ModelFormDialog({ open, onOpenChange, model, onSuccess }: ModelFormDial
                         id="am-base-url"
                         placeholder="https://api.openai.com/v1"
                         value={baseUrl}
-                        onChange={(e) => setBaseUrl(e.target.value)}
+                        onChange={(e) => {
+                          setBaseUrl(e.target.value)
+                          if (fieldErrors.baseUrl) setFieldErrors((prev) => ({ ...prev, baseUrl: undefined }))
+                        }}
+                        aria-invalid={!!fieldErrors.baseUrl}
                       />
+                      {fieldErrors.baseUrl && (
+                        <p className="text-xs text-destructive">{fieldErrors.baseUrl}</p>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="am-provider">{t("provider")}</Label>

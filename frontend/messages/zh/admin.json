@@ -291,6 +291,7 @@
     "nameRequired": "名称为必填项",
     "modelNameRequired": "模型名称为必填项",
     "apiKeyRequired": "新模型需要提供 API 密钥",
+    "baseUrlInvalid": "请输入以 http:// 或 https:// 开头的有效 URL",
     "nameAndModelRequired": "名称和模型名称为必填项",
     "apiKeyRequiredForNew": "新模型需要提供 API 密钥",
     "resolutionChain": "解析：用户偏好 → 管理员模型 → 环境变量",

@@ -288,6 +288,7 @@
     "nameRequired": "Name is required",
     "modelNameRequired": "Model name is required",
     "apiKeyRequired": "API key is required for new models",
+    "baseUrlInvalid": "Must be a valid URL starting with http:// or https://",
     "nameAndModelRequired": "Name and model name are required",
     "apiKeyRequiredForNew": "API key is required for new models",
     "resolutionChain": "Resolution: User Preference → Admin Models → ENV Fallback",

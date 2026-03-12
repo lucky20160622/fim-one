@@ -32,6 +32,7 @@
   "namePlaceholder": "GitHub API",
   "descriptionPlaceholder": "A brief description of this connector...",
   "baseUrlPlaceholder": "https://api.example.com",
+  "baseUrlInvalid": "Must be a valid URL starting with http:// or https://",
   "tokenPrefix": "Token Prefix",
   "tokenPrefixHelp": "Prefix before the token in Authorization header. Default: Bearer.",
   "defaultToken": "Default Token",
