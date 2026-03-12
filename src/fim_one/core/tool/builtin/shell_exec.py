@@ -177,32 +177,6 @@ def _check_shell_metacharacters(command: str) -> str | None:
 
 
 # -----------------------------------------------------------------------
-# Security: environment variable scrubbing
-# -----------------------------------------------------------------------
-
-# Patterns for env var names that should be scrubbed from child processes.
-_SENSITIVE_ENV_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"^AWS_", re.IGNORECASE),
-    re.compile(r"^OPENAI_", re.IGNORECASE),
-    re.compile(r"^ANTHROPIC_", re.IGNORECASE),
-    re.compile(r"^AZURE_", re.IGNORECASE),
-    re.compile(r"^GOOGLE_", re.IGNORECASE),
-    re.compile(r"^JINA_", re.IGNORECASE),
-    re.compile(r"_KEY$", re.IGNORECASE),
-    re.compile(r"_SECRET$", re.IGNORECASE),
-    re.compile(r"_TOKEN$", re.IGNORECASE),
-    re.compile(r"_PASSWORD$", re.IGNORECASE),
-    re.compile(r"^DATABASE_URL$", re.IGNORECASE),
-    re.compile(r"^REDIS_URL$", re.IGNORECASE),
-    re.compile(r"^MONGO_URL$", re.IGNORECASE),
-    re.compile(r"^DSN$", re.IGNORECASE),
-)
-
-# Standard PATH for child processes (no user-specific paths).
-_SAFE_PATH = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-
-
-# -----------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------
 
@@ -216,30 +190,6 @@ def _truncate_output(text: str) -> str:
         truncated
         + f"\n\n[Output truncated — exceeded {_MAX_OUTPUT_BYTES // 1024} KB limit]"
     )
-
-
-def _is_env_sensitive(name: str) -> bool:
-    """Return True if the environment variable *name* looks sensitive."""
-    return any(pat.search(name) for pat in _SENSITIVE_ENV_PATTERNS)
-
-
-def _build_safe_env(sandbox_dir: str) -> dict[str, str]:
-    """Build a restricted environment dict for the child process."""
-    env: dict[str, str] = {}
-    for key, value in os.environ.items():
-        if not _is_env_sensitive(key):
-            env[key] = value
-
-    # Override sensitive defaults regardless of what was inherited.
-    env["HOME"] = sandbox_dir
-    env["PATH"] = _SAFE_PATH
-    env["TMPDIR"] = sandbox_dir
-    # Prevent any lingering credentials from leaking.
-    for key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
-                "AWS_SESSION_TOKEN", "OPENAI_API_KEY",
-                "ANTHROPIC_API_KEY", "DATABASE_URL", "SHELL"):
-        env.pop(key, None)
-    return env
 
 
 def _validate_command(command: str) -> str | None:

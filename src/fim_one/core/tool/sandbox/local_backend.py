@@ -18,14 +18,20 @@ import io
 import logging
 import os
 import sys
+import threading
 import traceback
 import uuid
 from pathlib import Path
 from typing import Any
 
 from .protocol import SandboxResult
+from ._env_utils import build_safe_env
 
 import os as _os
+
+# Serialises global-state mutation in _execute_python_sync so that concurrent
+# asyncio.to_thread calls don't race on os.chdir / sys.stdout / sys.stderr.
+_SANDBOX_EXEC_LOCK = threading.Lock()
 
 logger = logging.getLogger(__name__)
 
@@ -263,7 +269,7 @@ class LocalBackend:
         logger.debug("local run_shell: sandbox_dir=%s timeout=%ds", sandbox_dir, timeout)
 
         # Build a restricted env (local mode only — docker has its own isolation)
-        env = _build_safe_env(str(sandbox_dir))
+        env = build_safe_env(str(sandbox_dir))
 
         try:
             proc = await asyncio.create_subprocess_shell(
@@ -355,10 +361,6 @@ class LocalBackend:
         if ast_error is not None:
             return f"[Sandbox] {ast_error}"
 
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
-        old_cwd = os.getcwd()
-
         import_blocker = _BlockedImportFinder()
         sys.meta_path.insert(0, import_blocker)
 
@@ -369,16 +371,22 @@ class LocalBackend:
                 _saved_modules[mod_name] = sys.modules.pop(mod_name)
 
         try:
-            os.chdir(str(exec_dir))
-            sys.stdout = stdout_capture
-            sys.stderr = stderr_capture
-            exec(code, namespace)
-        except Exception:
-            return traceback.format_exc()
+            with _SANDBOX_EXEC_LOCK:
+                old_stdout = sys.stdout
+                old_stderr = sys.stderr
+                old_cwd = os.getcwd()
+                try:
+                    os.chdir(str(exec_dir))
+                    sys.stdout = stdout_capture
+                    sys.stderr = stderr_capture
+                    exec(code, namespace)
+                except Exception:
+                    return traceback.format_exc()
+                finally:
+                    sys.stdout = old_stdout
+                    sys.stderr = old_stderr
+                    os.chdir(old_cwd)
         finally:
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
-            os.chdir(old_cwd)
             sys.modules.update(_saved_modules)
             try:
                 sys.meta_path.remove(import_blocker)
@@ -438,46 +446,3 @@ class LocalBackend:
         )
         result.script_path = script
         return result
-
-
-# -----------------------------------------------------------------------
-# Local-mode env helper (not used by DockerBackend)
-# -----------------------------------------------------------------------
-
-import re as _re
-
-_SENSITIVE_ENV_PATTERNS: tuple[_re.Pattern[str], ...] = (
-    _re.compile(r"^AWS_", _re.IGNORECASE),
-    _re.compile(r"^OPENAI_", _re.IGNORECASE),
-    _re.compile(r"^ANTHROPIC_", _re.IGNORECASE),
-    _re.compile(r"^AZURE_", _re.IGNORECASE),
-    _re.compile(r"^GOOGLE_", _re.IGNORECASE),
-    _re.compile(r"^JINA_", _re.IGNORECASE),
-    _re.compile(r"_KEY$", _re.IGNORECASE),
-    _re.compile(r"_SECRET$", _re.IGNORECASE),
-    _re.compile(r"_TOKEN$", _re.IGNORECASE),
-    _re.compile(r"_PASSWORD$", _re.IGNORECASE),
-    _re.compile(r"^DATABASE_URL$", _re.IGNORECASE),
-    _re.compile(r"^REDIS_URL$", _re.IGNORECASE),
-    _re.compile(r"^MONGO_URL$", _re.IGNORECASE),
-    _re.compile(r"^DSN$", _re.IGNORECASE),
-)
-
-_SAFE_PATH = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-
-
-def _build_safe_env(sandbox_dir: str) -> dict[str, str]:
-    """Build a restricted environment dict for the child process."""
-    env: dict[str, str] = {}
-    for key, value in os.environ.items():
-        if not any(pat.search(key) for pat in _SENSITIVE_ENV_PATTERNS):
-            env[key] = value
-
-    env["HOME"] = sandbox_dir
-    env["PATH"] = _SAFE_PATH
-    env["TMPDIR"] = sandbox_dir
-    for key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
-                "AWS_SESSION_TOKEN", "OPENAI_API_KEY",
-                "ANTHROPIC_API_KEY", "DATABASE_URL"):
-        env.pop(key, None)
-    return env
