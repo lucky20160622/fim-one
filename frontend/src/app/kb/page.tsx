@@ -243,10 +243,6 @@ export default function KBPage() {
                 currentUserId={user.id}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
-                onPublish={handlePublish}
-                onUnpublish={handleUnpublish}
-                onToggleActive={(isActive) => handleToggleActive(kb.id, isActive)}
-                onResubmit={handleResubmit}
               />
             ))}
           </div>

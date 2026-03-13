@@ -30,7 +30,6 @@ export interface AgentResponse {
   reviewed_by: string | null
   reviewed_at: string | null
   review_note: string | null
-  visibility?: string
   published_at: string | null
   created_at: string
   updated_at: string | null

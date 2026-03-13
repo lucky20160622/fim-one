@@ -205,7 +205,6 @@ export default function AgentsPage() {
                 onDelete={handleDelete}
                 onPublish={handlePublish}
                 onUnpublish={handleUnpublish}
-                onToggleActive={(isActive) => handleToggleActive(agent.id, isActive)}
                 onResubmit={handleResubmit}
               />
             ))}

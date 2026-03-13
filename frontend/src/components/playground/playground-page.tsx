@@ -190,12 +190,6 @@ export function PlaygroundPage({ isNewChat, embedded, onClose, initialAgentId, o
       if (targetUrl !== currentUrl) {
         window.history.replaceState(null, "", targetUrl)
       }
-    } else if (pathname === "/") {
-      // Only clear URL params when on root route and activeId becomes null
-      const currentUrl = window.location.pathname + window.location.search
-      if (currentUrl !== "/new" && currentUrl !== "/") {
-        window.history.replaceState(null, "", "/new")
-      }
     }
   }, [activeId, pathname])
 

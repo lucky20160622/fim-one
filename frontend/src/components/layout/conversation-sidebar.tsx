@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { Plus, Trash2, Loader2, Search, Star, MoreHorizontal, Pencil, MessagesSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -75,6 +76,7 @@ function groupByDate(
 
 export function ConversationSidebar({ collapsed, hideHeader }: ConversationSidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const isNewChat = pathname === "/new"
   const t = useTranslations("layout")
   const tc = useTranslations("common")
@@ -113,8 +115,10 @@ export function ConversationSidebar({ collapsed, hideHeader }: ConversationSideb
   const confirmDelete = async () => {
     if (!pendingDeleteId) return
     const id = pendingDeleteId
+    const wasActive = id === activeId
     setPendingDeleteId(null)
     await deleteConversation(id)
+    if (wasActive) router.push("/")
   }
 
   const openRename = (conv: ConversationResponse) => {

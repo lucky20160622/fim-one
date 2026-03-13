@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, Suspense } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Suspense } from "react"
 import { Building2, Palette, Settings, User } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { cn } from "@/lib/utils"
@@ -37,14 +37,6 @@ function SettingsContent() {
     }
   }, [authLoading, user, router])
 
-  const handleTabChange = (tab: TabKey) => {
-    if (tab === "general") {
-      router.replace("/settings")
-    } else {
-      router.replace(`/settings?tab=${tab}`)
-    }
-  }
-
   if (authLoading || !user) return null
 
   return (
@@ -64,9 +56,9 @@ function SettingsContent() {
           {TAB_KEYS.map((key) => {
             const Icon = TAB_ICONS[key]
             return (
-              <button
+              <Link
                 key={key}
-                onClick={() => handleTabChange(key)}
+                href={key === "general" ? "/settings" : `/settings?tab=${key}`}
                 className={cn(
                   "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
                   activeTab === key
@@ -76,7 +68,7 @@ function SettingsContent() {
               >
                 <Icon className="h-4 w-4" />
                 <span>{t(`tabs.${key}`)}</span>
-              </button>
+              </Link>
             )
           })}
         </nav>

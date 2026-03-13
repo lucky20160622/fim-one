@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, Suspense } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { LayoutDashboard, Activity, Plug, Settings, Shield, Users, MessageSquare, HardDrive, Cpu, Lock, Key, BookOpen, FileText, BarChart3, Wrench, Building2 } from "lucide-react"
@@ -66,14 +67,6 @@ function AdminPanelContent() {
     }
   }, [authLoading, user, router])
 
-  const handleTabChange = (tab: TabKey) => {
-    if (tab === "overview") {
-      router.replace("/admin")
-    } else {
-      router.replace(`/admin?tab=${tab}`)
-    }
-  }
-
   if (authLoading || !user || !user.is_admin) return null
 
   return (
@@ -93,9 +86,9 @@ function AdminPanelContent() {
           {TAB_KEYS.map((key) => {
             const Icon = TAB_ICONS[key]
             return (
-              <button
+              <Link
                 key={key}
-                onClick={() => handleTabChange(key)}
+                href={key === "overview" ? "/admin" : `/admin?tab=${key}`}
                 className={cn(
                   "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
                   activeTab === key
@@ -105,7 +98,7 @@ function AdminPanelContent() {
               >
                 <Icon className="h-4 w-4" />
                 <span>{t(`tabs.${key}`)}</span>
-              </button>
+              </Link>
             )
           })}
         </nav>

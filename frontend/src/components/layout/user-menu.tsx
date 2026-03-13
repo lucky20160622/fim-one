@@ -97,14 +97,14 @@ export function UserMenu({ collapsed }: UserMenuProps) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/settings" target="_blank" rel="noopener noreferrer">
+          <Link href="/settings">
             <Settings className="h-4 w-4" />
             {t("settings")}
           </Link>
         </DropdownMenuItem>
         {user.is_admin && (
           <DropdownMenuItem asChild>
-            <Link href="/admin" target="_blank" rel="noopener noreferrer">
+            <Link href="/admin">
               <LayoutDashboard className="h-4 w-4" />
               {t("adminPanel")}
             </Link>

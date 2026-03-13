@@ -367,15 +367,6 @@ function ArtifactsContent() {
 
   const activeFilter = (searchParams.get("tab") as FilterType) || "all"
 
-  const handleFilterChange = (tab: FilterType) => {
-    setPage(1)
-    if (tab === "all") {
-      router.replace("/artifacts")
-    } else {
-      router.replace(`/artifacts?tab=${tab}`)
-    }
-  }
-
   const [artifacts, setArtifacts] = useState<ArtifactItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<ArtifactItem | null>(null)
@@ -462,9 +453,10 @@ function ArtifactsContent() {
           {/* Filter tabs */}
           <div className="flex flex-wrap gap-1.5 mb-6">
             {filters.map((f) => (
-              <button
+              <Link
                 key={f.key}
-                onClick={() => handleFilterChange(f.key)}
+                href={f.key === "all" ? "/artifacts" : `/artifacts?tab=${f.key}`}
+                onClick={() => setPage(1)}
                 className={cn(
                   "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   activeFilter === f.key
@@ -473,7 +465,7 @@ function ArtifactsContent() {
                 )}
               >
                 {f.label}
-              </button>
+              </Link>
             ))}
           </div>
 

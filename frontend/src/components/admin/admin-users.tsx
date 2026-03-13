@@ -364,9 +364,9 @@ export function AdminUsers() {
                       <div className="flex items-center gap-1.5">
                         {u.username || u.email}
                         {isSelf && (
-                          <span className="text-xs text-muted-foreground">
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
                             {t("you")}
-                          </span>
+                          </Badge>
                         )}
                       </div>
                     </td>
