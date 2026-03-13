@@ -59,7 +59,7 @@ _api_semaphore: threading.Semaphore | None = None
 
 def tprint(*args: Any, **kwargs: Any) -> None:
     with _print_lock:
-        print(*args, **kwargs)
+        print(*args, **kwargs, flush=True)
 
 
 # ---------------------------------------------------------------------------
