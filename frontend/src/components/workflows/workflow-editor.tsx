@@ -799,7 +799,6 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
             nodeStrokeWidth={3}
             pannable
             zoomable
-            nodeColor={(node) => minimapNodeColor[node.type ?? ""] ?? "#6b7280"}
             className="!bg-background/80 !border-border"
           />
         </ReactFlow>

@@ -27,6 +27,7 @@ import {
   UserCheck,
   Cable,
   Wrench,
+  KeyRound,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -68,6 +69,8 @@ const nodeTypeIcons: Record<WorkflowNodeType, React.ReactNode> = {
   humanIntervention: <UserCheck className="h-3 w-3" />,
   mcp: <Cable className="h-3 w-3" />,
   builtinTool: <Wrench className="h-3 w-3" />,
+  subWorkflow: <GitBranch className="h-3 w-3" />,
+  env: <KeyRound className="h-3 w-3" />,
 }
 
 const nodeTypeColors: Record<WorkflowNodeType, string> = {
@@ -94,6 +97,8 @@ const nodeTypeColors: Record<WorkflowNodeType, string> = {
   humanIntervention: "text-sky-500",
   mcp: "text-violet-500",
   builtinTool: "text-zinc-500",
+  subWorkflow: "text-indigo-500",
+  env: "text-amber-600",
 }
 
 // --- Helper: extract output variables from a node ---

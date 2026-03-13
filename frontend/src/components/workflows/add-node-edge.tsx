@@ -42,6 +42,8 @@ const defaultNodeData: Record<WorkflowNodeType, Record<string, unknown>> = {
   humanIntervention: { prompt_message: "", assignee: "", timeout_hours: 24, output_variable: "approval_result" },
   mcp: { server_id: "", tool_name: "", parameters: {}, output_variable: "mcp_result" },
   builtinTool: { tool_id: "", parameters: {}, output_variable: "tool_result" },
+  subWorkflow: { workflow_id: "", input_mapping: {}, output_variable: "sub_result" },
+  env: { env_keys: [], output_variable: "env_result" },
 }
 
 const nodeTypeOptions: { type: WorkflowNodeType; color: string }[] = [
@@ -66,6 +68,8 @@ const nodeTypeOptions: { type: WorkflowNodeType; color: string }[] = [
   { type: "humanIntervention", color: "text-sky-500" },
   { type: "mcp", color: "text-violet-500" },
   { type: "builtinTool", color: "text-zinc-500" },
+  { type: "subWorkflow", color: "text-indigo-500" },
+  { type: "env", color: "text-amber-600" },
 ]
 
 export function AddNodeEdge({
