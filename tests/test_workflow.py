@@ -3606,3 +3606,416 @@ class TestVariableAggregatorNode:
 
         assert result.status == NodeStatus.FAILED
         assert "unknown mode" in (result.error or "")
+
+
+# =========================================================================
+# ParameterExtractor node executor tests
+# =========================================================================
+
+
+class TestParameterExtractorNode:
+    """Test the ParameterExtractor executor with mocked LLM calls."""
+
+    @pytest.mark.asyncio
+    async def test_basic_extraction(self):
+        """ParameterExtractor should parse valid JSON from LLM and return as output."""
+        import sys
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from fim_one.core.workflow.nodes import ParameterExtractorExecutor
+
+        node = WorkflowNodeDef(
+            id="pe_1", type=NodeType.PARAMETER_EXTRACTOR,
+            data={
+                "type": "PARAMETER_EXTRACTOR",
+                "input_text": "My name is Alice and I am 30 years old.",
+                "parameters": [
+                    {"name": "name", "type": "string", "description": "Person's name", "required": True},
+                    {"name": "age", "type": "number", "description": "Person's age", "required": True},
+                ],
+            },
+        )
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        mock_llm = MagicMock()
+        mock_result = MagicMock()
+        mock_result.message.content = '{"name": "Alice", "age": 30}'
+        mock_llm.chat = AsyncMock(return_value=mock_result)
+
+        mock_cm = AsyncMock()
+        mock_cm.__aenter__ = AsyncMock(return_value=AsyncMock())
+        mock_cm.__aexit__ = AsyncMock(return_value=False)
+
+        mock_create_session = MagicMock(return_value=mock_cm)
+        mock_get_fast_llm = AsyncMock(return_value=mock_llm)
+
+        with patch.dict(sys.modules, {
+            "fim_one.db": MagicMock(create_session=mock_create_session),
+            "fim_one.web.deps": MagicMock(get_effective_fast_llm=mock_get_fast_llm),
+        }):
+            executor = ParameterExtractorExecutor()
+            result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.output == {"name": "Alice", "age": 30}
+        # Verify stored in variable store
+        stored = await store.get("pe_1.output")
+        assert stored == {"name": "Alice", "age": 30}
+
+    @pytest.mark.asyncio
+    async def test_missing_input_text_fails(self):
+        """ParameterExtractor with no input_text should fail."""
+        import sys
+        from unittest.mock import MagicMock, patch
+        from fim_one.core.workflow.nodes import ParameterExtractorExecutor
+
+        node = WorkflowNodeDef(
+            id="pe_1", type=NodeType.PARAMETER_EXTRACTOR,
+            data={
+                "type": "PARAMETER_EXTRACTOR",
+                "parameters": [
+                    {"name": "name", "type": "string", "description": "Name"},
+                ],
+            },
+        )
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        with patch.dict(sys.modules, {
+            "fim_one.db": MagicMock(),
+            "fim_one.web.deps": MagicMock(),
+        }):
+            executor = ParameterExtractorExecutor()
+            result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.FAILED
+        assert "no input_text" in (result.error or "").lower()
+
+    @pytest.mark.asyncio
+    async def test_empty_parameters_fails(self):
+        """ParameterExtractor with empty parameters list should fail."""
+        import sys
+        from unittest.mock import MagicMock, patch
+        from fim_one.core.workflow.nodes import ParameterExtractorExecutor
+
+        node = WorkflowNodeDef(
+            id="pe_1", type=NodeType.PARAMETER_EXTRACTOR,
+            data={
+                "type": "PARAMETER_EXTRACTOR",
+                "input_text": "Some text here",
+                "parameters": [],
+            },
+        )
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        with patch.dict(sys.modules, {
+            "fim_one.db": MagicMock(),
+            "fim_one.web.deps": MagicMock(),
+        }):
+            executor = ParameterExtractorExecutor()
+            result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.FAILED
+        assert "no parameters" in (result.error or "").lower()
+
+    @pytest.mark.asyncio
+    async def test_invalid_json_response_fails(self):
+        """ParameterExtractor should fail when LLM returns non-JSON."""
+        import sys
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from fim_one.core.workflow.nodes import ParameterExtractorExecutor
+
+        node = WorkflowNodeDef(
+            id="pe_1", type=NodeType.PARAMETER_EXTRACTOR,
+            data={
+                "type": "PARAMETER_EXTRACTOR",
+                "input_text": "Some text here",
+                "parameters": [
+                    {"name": "name", "type": "string", "description": "Name"},
+                ],
+            },
+        )
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        mock_llm = MagicMock()
+        mock_result = MagicMock()
+        mock_result.message.content = "This is not valid JSON at all"
+        mock_llm.chat = AsyncMock(return_value=mock_result)
+
+        mock_cm = AsyncMock()
+        mock_cm.__aenter__ = AsyncMock(return_value=AsyncMock())
+        mock_cm.__aexit__ = AsyncMock(return_value=False)
+
+        mock_create_session = MagicMock(return_value=mock_cm)
+        mock_get_fast_llm = AsyncMock(return_value=mock_llm)
+
+        with patch.dict(sys.modules, {
+            "fim_one.db": MagicMock(create_session=mock_create_session),
+            "fim_one.web.deps": MagicMock(get_effective_fast_llm=mock_get_fast_llm),
+        }):
+            executor = ParameterExtractorExecutor()
+            result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.FAILED
+        assert "failed to parse" in (result.error or "").lower()
+        assert "This is not valid JSON at all" in (result.error or "")
+
+    @pytest.mark.asyncio
+    async def test_variable_interpolation(self):
+        """ParameterExtractor should interpolate {{ref}} in input_text."""
+        import sys
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from fim_one.core.workflow.nodes import ParameterExtractorExecutor
+
+        node = WorkflowNodeDef(
+            id="pe_1", type=NodeType.PARAMETER_EXTRACTOR,
+            data={
+                "type": "PARAMETER_EXTRACTOR",
+                "input_text": "{{llm_1.output}}",
+                "parameters": [
+                    {"name": "city", "type": "string", "description": "City name"},
+                ],
+            },
+        )
+        store = VariableStore()
+        await store.set("llm_1.output", "I live in Tokyo and love sushi.")
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        mock_llm = MagicMock()
+        mock_result = MagicMock()
+        mock_result.message.content = '{"city": "Tokyo"}'
+        mock_llm.chat = AsyncMock(return_value=mock_result)
+
+        mock_cm = AsyncMock()
+        mock_cm.__aenter__ = AsyncMock(return_value=AsyncMock())
+        mock_cm.__aexit__ = AsyncMock(return_value=False)
+
+        mock_create_session = MagicMock(return_value=mock_cm)
+        mock_get_fast_llm = AsyncMock(return_value=mock_llm)
+
+        with patch.dict(sys.modules, {
+            "fim_one.db": MagicMock(create_session=mock_create_session),
+            "fim_one.web.deps": MagicMock(get_effective_fast_llm=mock_get_fast_llm),
+        }):
+            executor = ParameterExtractorExecutor()
+            result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.output == {"city": "Tokyo"}
+
+        # Verify the LLM was called with the interpolated text, not the raw template
+        call_args = mock_llm.chat.call_args[0][0]
+        user_msg = call_args[1]  # Second message is the user message
+        assert user_msg.content == "I live in Tokyo and love sushi."
+
+    @pytest.mark.asyncio
+    async def test_extraction_prompt_included(self):
+        """ParameterExtractor should include custom extraction_prompt in system message."""
+        import sys
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from fim_one.core.workflow.nodes import ParameterExtractorExecutor
+
+        custom_instruction = "Always prefer metric units for measurements."
+        node = WorkflowNodeDef(
+            id="pe_1", type=NodeType.PARAMETER_EXTRACTOR,
+            data={
+                "type": "PARAMETER_EXTRACTOR",
+                "input_text": "The building is 100 feet tall.",
+                "parameters": [
+                    {"name": "height", "type": "string", "description": "Height of the building"},
+                ],
+                "extraction_prompt": custom_instruction,
+            },
+        )
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        mock_llm = MagicMock()
+        mock_result = MagicMock()
+        mock_result.message.content = '{"height": "30.48 meters"}'
+        mock_llm.chat = AsyncMock(return_value=mock_result)
+
+        mock_cm = AsyncMock()
+        mock_cm.__aenter__ = AsyncMock(return_value=AsyncMock())
+        mock_cm.__aexit__ = AsyncMock(return_value=False)
+
+        mock_create_session = MagicMock(return_value=mock_cm)
+        mock_get_fast_llm = AsyncMock(return_value=mock_llm)
+
+        with patch.dict(sys.modules, {
+            "fim_one.db": MagicMock(create_session=mock_create_session),
+            "fim_one.web.deps": MagicMock(get_effective_fast_llm=mock_get_fast_llm),
+        }):
+            executor = ParameterExtractorExecutor()
+            result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+
+        # Verify the system prompt includes the custom extraction_prompt
+        call_args = mock_llm.chat.call_args[0][0]
+        system_msg = call_args[0]  # First message is the system message
+        assert custom_instruction in system_msg.content
+
+
+# ---------------------------------------------------------------------------
+# LoopExecutor tests
+# ---------------------------------------------------------------------------
+
+
+class TestLoopNode:
+    """Test the LoopExecutor — while-condition loop with safety limits."""
+
+    @pytest.mark.asyncio
+    async def test_basic_loop_counting(self):
+        """Loop should iterate while condition is true, counting correctly."""
+        from fim_one.core.workflow.nodes import LoopExecutor
+
+        node = WorkflowNodeDef(
+            id="loop_1",
+            type=NodeType.LOOP,
+            data={
+                "type": "LOOP",
+                "condition": "loop_index < 5",
+                "max_iterations": 50,
+                "loop_variable": "loop_index",
+            },
+        )
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        executor = LoopExecutor()
+        result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.output["iterations"] == 5
+        assert result.output["completed"] is True
+        assert result.output["loop_variable"] == "loop_index"
+
+    @pytest.mark.asyncio
+    async def test_max_iterations_safety(self):
+        """Loop should stop at max_iterations when condition is always true."""
+        from fim_one.core.workflow.nodes import LoopExecutor
+
+        node = WorkflowNodeDef(
+            id="loop_1",
+            type=NodeType.LOOP,
+            data={
+                "type": "LOOP",
+                "condition": "True",
+                "max_iterations": 10,
+                "loop_variable": "loop_index",
+            },
+        )
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        executor = LoopExecutor()
+        result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.output["iterations"] == 10
+        assert result.output["max_iterations"] == 10
+        assert result.output["completed"] is False
+
+    @pytest.mark.asyncio
+    async def test_zero_iterations(self):
+        """Loop should complete with 0 iterations when condition is false from start."""
+        from fim_one.core.workflow.nodes import LoopExecutor
+
+        node = WorkflowNodeDef(
+            id="loop_1",
+            type=NodeType.LOOP,
+            data={
+                "type": "LOOP",
+                "condition": "loop_index > 100",
+                "max_iterations": 50,
+                "loop_variable": "loop_index",
+            },
+        )
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        executor = LoopExecutor()
+        result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.output["iterations"] == 0
+        assert result.output["completed"] is True
+
+    @pytest.mark.asyncio
+    async def test_empty_condition_fails(self):
+        """Loop should fail if no condition is configured."""
+        from fim_one.core.workflow.nodes import LoopExecutor
+
+        node = WorkflowNodeDef(
+            id="loop_1",
+            type=NodeType.LOOP,
+            data={
+                "type": "LOOP",
+                "max_iterations": 50,
+            },
+        )
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        executor = LoopExecutor()
+        result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.FAILED
+        assert "condition" in (result.error or "").lower()
+
+    @pytest.mark.asyncio
+    async def test_custom_loop_variable_name(self):
+        """Loop should use a custom loop variable name."""
+        from fim_one.core.workflow.nodes import LoopExecutor
+
+        node = WorkflowNodeDef(
+            id="loop_1",
+            type=NodeType.LOOP,
+            data={
+                "type": "LOOP",
+                "condition": "i < 3",
+                "max_iterations": 50,
+                "loop_variable": "i",
+            },
+        )
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        executor = LoopExecutor()
+        result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.output["iterations"] == 3
+        assert result.output["loop_variable"] == "i"
+        # The final value of the loop variable should be the iteration count
+        stored_var = await store.get("loop_1.i")
+        assert stored_var == 3
+
+    @pytest.mark.asyncio
+    async def test_variable_interpolation_in_condition(self):
+        """Loop should interpolate {{ref}} in the condition before eval."""
+        from fim_one.core.workflow.nodes import LoopExecutor
+
+        node = WorkflowNodeDef(
+            id="loop_1",
+            type=NodeType.LOOP,
+            data={
+                "type": "LOOP",
+                "condition": "loop_index < {{counter.output}}",
+                "max_iterations": 50,
+                "loop_variable": "loop_index",
+            },
+        )
+        store = VariableStore()
+        await store.set("counter.output", 4)
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        executor = LoopExecutor()
+        result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.output["iterations"] == 4
+        assert result.output["completed"] is True

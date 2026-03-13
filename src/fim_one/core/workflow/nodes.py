@@ -1383,7 +1383,120 @@ class IteratorExecutor:
 
 
 # ---------------------------------------------------------------------------
-# 14. VariableAggregator node
+# 14. Loop node
+# ---------------------------------------------------------------------------
+
+
+class LoopExecutor:
+    """Evaluate a while-condition loop with a safety iteration limit.
+
+    The executor simulates the loop internally: on each iteration it stores
+    the current loop index in the variable store, interpolates variable
+    references in the condition, and evaluates the expression using
+    ``simpleeval``.  The loop continues while the condition is truthy and
+    the iteration count is below ``max_iterations``.
+
+    The actual "loop back" mechanism (re-executing downstream nodes per
+    iteration) is an engine-level feature for a future PR.  This executor
+    validates the condition and produces iteration metadata so the engine
+    can orchestrate re-execution later.
+    """
+
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        return [
+            {"name": "iterations", "type": "integer", "description": "Number of iterations executed"},
+            {"name": "max_iterations", "type": "integer", "description": "Safety limit for iterations"},
+            {"name": "loop_variable", "type": "string", "description": "Name of the loop index variable"},
+            {"name": "completed", "type": "boolean", "description": "True if the loop finished naturally (condition became false)"},
+        ]
+
+    async def execute(
+        self,
+        node: WorkflowNodeDef,
+        store: VariableStore,
+        context: ExecutionContext,
+    ) -> NodeResult:
+        t0 = time.time()
+        try:
+            from simpleeval import simple_eval
+
+            condition: str = node.data.get("condition", "")
+            max_iterations: int = node.data.get("max_iterations", 50)
+            loop_variable: str = node.data.get("loop_variable", "loop_index")
+
+            if not condition or not condition.strip():
+                return NodeResult(
+                    node_id=node.id,
+                    status=NodeStatus.FAILED,
+                    error="Loop node has no condition configured",
+                    duration_ms=_ms_since(t0),
+                )
+
+            # Simulate the loop internally
+            count = 0
+            while count < max_iterations:
+                # Store the current loop index for variable interpolation
+                await store.set(f"{node.id}.{loop_variable}", count)
+
+                # Interpolate variable references in the condition
+                interpolated = await store.interpolate(condition)
+
+                # Build eval namespace from the store snapshot
+                snapshot = await store.snapshot_safe()
+                eval_names = _flatten_eval_names(snapshot)
+                # Ensure the loop variable is directly accessible by short name
+                eval_names[loop_variable] = count
+
+                try:
+                    result = simple_eval(interpolated, names=eval_names)
+                except Exception as exc:
+                    logger.warning(
+                        "Loop condition '%s' (interpolated: '%s') eval failed: %s",
+                        condition, interpolated, exc,
+                    )
+                    return NodeResult(
+                        node_id=node.id,
+                        status=NodeStatus.FAILED,
+                        error=f"Loop condition evaluation failed: {exc}",
+                        duration_ms=_ms_since(t0),
+                    )
+
+                if not result:
+                    break
+                count += 1
+
+            completed = count < max_iterations
+
+            # Store final metadata
+            output = {
+                "iterations": count,
+                "max_iterations": max_iterations,
+                "loop_variable": loop_variable,
+                "completed": completed,
+            }
+            await store.set(f"{node.id}.output", output)
+            await store.set(f"{node.id}.iterations", count)
+            await store.set(f"{node.id}.{loop_variable}", count)
+
+            return NodeResult(
+                node_id=node.id,
+                status=NodeStatus.COMPLETED,
+                output=output,
+                duration_ms=_ms_since(t0),
+            )
+        except Exception as exc:
+            logger.exception("Loop node %s failed", node.id)
+            return NodeResult(
+                node_id=node.id,
+                status=NodeStatus.FAILED,
+                error=f"Loop error: {exc}",
+                duration_ms=_ms_since(t0),
+            )
+
+
+# ---------------------------------------------------------------------------
+# 15. VariableAggregator node
 # ---------------------------------------------------------------------------
 
 
@@ -1490,6 +1603,149 @@ class VariableAggregatorExecutor:
 
 
 # ---------------------------------------------------------------------------
+# 16. ParameterExtractor node
+# ---------------------------------------------------------------------------
+
+
+class ParameterExtractorExecutor:
+    """Use LLM to extract structured parameters from unstructured text.
+
+    Node data contains:
+    - ``input_text``: Template string referencing upstream output (interpolated
+      via VariableStore).
+    - ``parameters``: List of parameter definitions, each with ``name``,
+      ``type``, ``description``, and optionally ``required`` (default True).
+    - ``extraction_prompt``: Optional additional instructions for the LLM.
+
+    The executor builds a system prompt, calls the fast LLM, and parses the
+    JSON response into a dict stored as the node output.
+    """
+
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        return [
+            {"name": "output", "type": "object", "description": "Extracted parameters as a JSON object"},
+        ]
+
+    async def execute(
+        self,
+        node: WorkflowNodeDef,
+        store: VariableStore,
+        context: ExecutionContext,
+    ) -> NodeResult:
+        t0 = time.time()
+        try:
+            from fim_one.core.model.types import ChatMessage
+            from fim_one.web.deps import get_effective_fast_llm
+            from fim_one.db import create_session
+
+            input_text_template: str = node.data.get("input_text", "")
+            parameters: list[dict] = node.data.get("parameters", [])
+            extraction_prompt: str = node.data.get("extraction_prompt", "")
+
+            # Validate required fields
+            if not input_text_template:
+                return NodeResult(
+                    node_id=node.id,
+                    status=NodeStatus.FAILED,
+                    error="No input_text provided for parameter extraction",
+                    duration_ms=_ms_since(t0),
+                )
+
+            if not parameters:
+                return NodeResult(
+                    node_id=node.id,
+                    status=NodeStatus.FAILED,
+                    error="No parameters defined for extraction",
+                    duration_ms=_ms_since(t0),
+                )
+
+            # Interpolate input text from VariableStore
+            if "{{" in input_text_template:
+                input_text = await store.interpolate(input_text_template)
+            else:
+                input_text = input_text_template
+
+            # Build the parameter description list for the system prompt
+            param_lines: list[str] = []
+            for param in parameters:
+                name = param.get("name", "")
+                ptype = param.get("type", "string")
+                desc = param.get("description", "")
+                required = param.get("required", True)
+                req_label = "required" if required else "optional"
+                param_lines.append(f"- {name} ({ptype}): {desc} [{req_label}]")
+
+            param_description = "\n".join(param_lines)
+
+            system_prompt = (
+                "You are a parameter extraction assistant. Extract the following "
+                "parameters from the given text.\n"
+                "Return ONLY a valid JSON object with the specified keys. "
+                "If a parameter cannot be found, use null for optional parameters.\n\n"
+                f"Parameters to extract:\n{param_description}"
+            )
+
+            if extraction_prompt:
+                system_prompt += f"\n\nAdditional instructions:\n{extraction_prompt}"
+
+            # Call the fast LLM
+            async with create_session() as db:
+                llm = await get_effective_fast_llm(db)
+
+            result = await llm.chat([
+                ChatMessage(role="system", content=system_prompt),
+                ChatMessage(role="user", content=input_text),
+            ])
+
+            raw_response = (result.message.content or "").strip()
+
+            # Parse JSON from response — handle markdown code blocks
+            json_str = raw_response
+            if json_str.startswith("```"):
+                # Strip markdown code fence (```json ... ``` or ``` ... ```)
+                lines = json_str.split("\n")
+                # Remove first line (```json or ```) and last line (```)
+                lines = [ln for ln in lines if not ln.strip().startswith("```")]
+                json_str = "\n".join(lines)
+
+            try:
+                parsed = json.loads(json_str)
+            except json.JSONDecodeError as je:
+                return NodeResult(
+                    node_id=node.id,
+                    status=NodeStatus.FAILED,
+                    error=f"Failed to parse LLM response as JSON: {je}. Raw response: {raw_response}",
+                    duration_ms=_ms_since(t0),
+                )
+
+            if not isinstance(parsed, dict):
+                return NodeResult(
+                    node_id=node.id,
+                    status=NodeStatus.FAILED,
+                    error=f"LLM response is not a JSON object. Raw response: {raw_response}",
+                    duration_ms=_ms_since(t0),
+                )
+
+            await store.set(f"{node.id}.output", parsed)
+
+            return NodeResult(
+                node_id=node.id,
+                status=NodeStatus.COMPLETED,
+                output=parsed,
+                duration_ms=_ms_since(t0),
+            )
+        except Exception as exc:
+            logger.exception("ParameterExtractor node %s failed", node.id)
+            return NodeResult(
+                node_id=node.id,
+                status=NodeStatus.FAILED,
+                error=f"Parameter extraction error: {exc}",
+                duration_ms=_ms_since(t0),
+            )
+
+
+# ---------------------------------------------------------------------------
 # Registry — map NodeType to executor class
 # ---------------------------------------------------------------------------
 
@@ -1508,6 +1764,8 @@ EXECUTOR_REGISTRY: dict[NodeType, type] = {
     NodeType.CODE_EXECUTION: CodeExecutionExecutor,
     NodeType.ITERATOR: IteratorExecutor,
     NodeType.VARIABLE_AGGREGATOR: VariableAggregatorExecutor,
+    NodeType.PARAMETER_EXTRACTOR: ParameterExtractorExecutor,
+    NodeType.LOOP: LoopExecutor,
 }
 
 
