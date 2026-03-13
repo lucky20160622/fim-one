@@ -19,27 +19,20 @@ const categoryColorMap: Record<string, string> = {
   codeExecution: "bg-emerald-500",
 }
 
-const runStatusStyles: Record<NodeRunStatus, { border: string; extra: string }> = {
-  pending: {
-    border: "border-zinc-400/40 dark:border-zinc-600/40",
-    extra: "",
-  },
-  running: {
-    border: "border-blue-500/60",
-    extra: "shadow-[0_0_12px_rgba(59,130,246,0.25)] animate-pulse",
-  },
-  completed: {
-    border: "border-green-500/60",
-    extra: "",
-  },
-  failed: {
-    border: "border-red-500/60",
-    extra: "",
-  },
-  skipped: {
-    border: "border-zinc-400/40 dark:border-zinc-600/40 border-dashed",
-    extra: "opacity-60",
-  },
+const runStatusStyles: Record<NodeRunStatus, { ring: string; extra: string }> = {
+  pending: { ring: "", extra: "" },
+  running: { ring: "ring-2 ring-blue-500/50", extra: "animate-pulse" },
+  completed: { ring: "ring-2 ring-green-500/30", extra: "" },
+  failed: { ring: "ring-2 ring-red-500/30", extra: "" },
+  skipped: { ring: "", extra: "opacity-50" },
+}
+
+const statusDotColor: Record<NodeRunStatus, string> = {
+  pending: "",
+  running: "bg-blue-500",
+  completed: "bg-green-500",
+  failed: "bg-red-500",
+  skipped: "bg-gray-400",
 }
 
 interface BaseWorkflowNodeProps {
@@ -61,16 +54,38 @@ function BaseWorkflowNodeComponent({
 }: BaseWorkflowNodeProps) {
   const barColor = categoryColorMap[nodeType] ?? "bg-muted"
   const statusStyle = runStatus ? runStatusStyles[runStatus] : null
+  const showDot = runStatus && runStatus !== "pending"
 
   return (
     <div
       className={cn(
-        "w-[220px] rounded-md border bg-card shadow-sm transition-all duration-150",
-        statusStyle ? statusStyle.border : "border-border",
+        "relative w-[220px] rounded-md border bg-card shadow-sm transition-all duration-150 overflow-visible",
+        statusStyle ? statusStyle.ring : "",
         statusStyle?.extra,
+        !statusStyle && "border-border",
         selected && "outline-2 outline-offset-1 outline-primary",
       )}
     >
+      {/* Status dot in top-right corner */}
+      {showDot && (
+        <>
+          <span
+            className={cn(
+              "absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full border-2 border-card z-10",
+              statusDotColor[runStatus],
+            )}
+          />
+          {runStatus === "running" && (
+            <span
+              className={cn(
+                "absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full border-2 border-card animate-ping z-10",
+                statusDotColor[runStatus],
+              )}
+            />
+          )}
+        </>
+      )}
+
       <div className="flex flex-row">
         {/* Left color bar */}
         <div className={cn("w-1 shrink-0 rounded-l-md", barColor)} />

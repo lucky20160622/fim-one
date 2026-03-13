@@ -336,34 +336,29 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
     return types
   }, [nodes])
 
-  // Sync node run results into node data
-  useEffect(() => {
-    if (!nodeResults) return
-    setNodes((currentNodes) =>
-      currentNodes.map((node) => {
-        const result = nodeResults[node.id]
-        const prevStatus = node.data.runStatus
-        const newStatus = result?.status
-        if (prevStatus === newStatus) return node
-        return {
-          ...node,
-          data: { ...node.data, runStatus: newStatus },
-        }
-      }),
-    )
-  }, [nodeResults, setNodes])
+  // Derived nodes with run status merged — pure derivation, no state mutation
+  const displayNodes = useMemo(() => {
+    if (!nodeResults || (!runPanelOpen && !isRunning)) return nodes
+    return nodes.map((node) => {
+      const result = nodeResults[node.id]
+      const newStatus = result?.status
+      if (!newStatus) return node
+      if (node.data.runStatus === newStatus) return node
+      return { ...node, data: { ...node.data, runStatus: newStatus } }
+    })
+  }, [nodes, nodeResults, runPanelOpen, isRunning])
 
-  // Clear run status when run panel closes and no run is active
-  useEffect(() => {
-    if (!runPanelOpen && !isRunning) {
-      setNodes((currentNodes) =>
-        currentNodes.map((node) => {
-          if (!node.data.runStatus) return node
-          return { ...node, data: { ...node.data, runStatus: undefined } }
-        }),
-      )
-    }
-  }, [runPanelOpen, isRunning, setNodes])
+  // Derived edges: animate when source is completed and target is running
+  const displayEdges = useMemo(() => {
+    if (!nodeResults || (!runPanelOpen && !isRunning)) return edges
+    return edges.map((edge) => {
+      const sourceStatus = nodeResults[edge.source]?.status
+      const targetStatus = nodeResults[edge.target]?.status
+      const shouldAnimate = sourceStatus === "completed" && targetStatus === "running"
+      if (!shouldAnimate && !edge.animated) return edge
+      return { ...edge, animated: shouldAnimate }
+    })
+  }, [edges, nodeResults, runPanelOpen, isRunning])
 
   // Sync blueprint out when nodes/edges change (debounced)
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -510,8 +505,8 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
       {/* Center: React Flow canvas */}
       <div className="flex-1 min-w-0 relative" ref={reactFlowWrapper}>
         <ReactFlow
-          nodes={nodes}
-          edges={edges}
+          nodes={displayNodes}
+          edges={displayEdges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           defaultEdgeOptions={{ type: "default" }}
