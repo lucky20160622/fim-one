@@ -19,6 +19,8 @@ import {
   RefreshCw,
   Combine,
   FileSearch,
+  ListFilter,
+  ArrowRightLeft,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react"
@@ -80,6 +82,8 @@ const categories: NodePaletteCategory[] = [
       { type: "variableAggregator", icon: <Combine className="h-3.5 w-3.5" />, color: "text-sky-500" },
       { type: "templateTransform", icon: <FileText className="h-3.5 w-3.5" />, color: "text-amber-500" },
       { type: "codeExecution", icon: <Code className="h-3.5 w-3.5" />, color: "text-emerald-500" },
+      { type: "listOperation", icon: <ListFilter className="h-3.5 w-3.5" />, color: "text-lime-500" },
+      { type: "transform", icon: <ArrowRightLeft className="h-3.5 w-3.5" />, color: "text-rose-500" },
     ],
   },
 ]

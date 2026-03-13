@@ -64,6 +64,8 @@ export type WorkflowNodeType =
   | "loop"
   | "variableAggregator"
   | "parameterExtractor"
+  | "listOperation"
+  | "transform"
 
 // --- Per-node data interfaces ---
 
@@ -173,6 +175,24 @@ export interface VariableAggregatorNodeData {
   variables: string[]
   mode: "list" | "concat" | "merge" | "first_non_empty"
   separator: string
+}
+
+export interface ListOperationNodeData {
+  input_variable: string
+  operation: "filter" | "map" | "sort" | "slice" | "flatten" | "unique" | "reverse" | "length"
+  expression: string
+  slice_start?: number
+  slice_end?: number
+  output_variable: string
+}
+
+export interface TransformNodeData {
+  input_variable: string
+  operations: Array<{
+    type: "json_path" | "type_cast" | "format" | "regex_extract" | "string_op" | "math_op"
+    config: Record<string, unknown>
+  }>
+  output_variable: string
 }
 
 export interface ParameterExtractorNodeData {

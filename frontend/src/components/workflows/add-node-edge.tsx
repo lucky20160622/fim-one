@@ -35,6 +35,8 @@ const defaultNodeData: Record<WorkflowNodeType, Record<string, unknown>> = {
   loop: { condition: "", max_iterations: 50, loop_variable: "loop_index" },
   variableAggregator: { variables: [], mode: "list", separator: "\n" },
   parameterExtractor: { input_text: "", parameters: [], extraction_prompt: "" },
+  listOperation: { input_variable: "", operation: "filter", expression: "", output_variable: "list_result" },
+  transform: { input_variable: "", operations: [], output_variable: "transform_result" },
 }
 
 const nodeTypeOptions: { type: WorkflowNodeType; color: string }[] = [
@@ -52,6 +54,8 @@ const nodeTypeOptions: { type: WorkflowNodeType; color: string }[] = [
   { type: "loop", color: "text-orange-500" },
   { type: "variableAggregator", color: "text-sky-500" },
   { type: "parameterExtractor", color: "text-violet-500" },
+  { type: "listOperation", color: "text-lime-500" },
+  { type: "transform", color: "text-rose-500" },
 ]
 
 export function AddNodeEdge({

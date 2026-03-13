@@ -21,6 +21,8 @@ const categoryColorMap: Record<string, string> = {
   loop: "bg-orange-500",
   variableAggregator: "bg-sky-500",
   parameterExtractor: "bg-violet-500",
+  listOperation: "bg-lime-500",
+  transform: "bg-rose-500",
 }
 
 const runStatusStyles: Record<NodeRunStatus, { ring: string; extra: string }> = {

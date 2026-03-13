@@ -63,6 +63,8 @@
   "nodeType_loop": "Loop",
   "nodeType_variableAggregator": "Variable Aggregator",
   "nodeType_parameterExtractor": "Parameter Extractor",
+  "nodeType_listOperation": "List Operation",
+  "nodeType_transform": "Transform",
 
   "nodeDesc_start": "Entry point with input variables",
   "nodeDesc_end": "Output results and end workflow",
@@ -80,6 +82,8 @@
   "nodeDesc_loop": "Repeat until a condition is met",
   "nodeDesc_variableAggregator": "Merge outputs from multiple branches",
   "nodeDesc_parameterExtractor": "Extract structured parameters from text",
+  "nodeDesc_listOperation": "Filter, sort, slice, or transform lists",
+  "nodeDesc_transform": "Apply a pipeline of data transformations",
 
   "categoryFlow": "Flow",
   "categoryAI": "AI",
@@ -351,5 +355,32 @@
   "configParamRequired": "Required",
   "configExtractionPrompt": "Additional instructions",
   "configExtractionPromptHint": "Optional: extra guidance for the LLM extraction",
-  "paramCount": "{count} parameters"
+  "paramCount": "{count} parameters",
+  "operationCount": "{count} operations",
+
+  "configListOperation": "Operation",
+  "configExpression": "Expression",
+  "configExpressionHint": "Use 'item' for current element and 'index' for position",
+  "configSliceStart": "Start",
+  "configSliceEnd": "End",
+  "configInputVariable": "Input variable",
+
+  "listOp_filter": "Filter",
+  "listOp_map": "Map",
+  "listOp_sort": "Sort",
+  "listOp_slice": "Slice",
+  "listOp_flatten": "Flatten",
+  "listOp_unique": "Unique",
+  "listOp_reverse": "Reverse",
+  "listOp_length": "Length",
+
+  "configTransformOps": "Transform pipeline",
+  "configAddTransformOp": "Add a transform operation",
+
+  "transformType_json_path": "JSON Path",
+  "transformType_type_cast": "Type Cast",
+  "transformType_format": "Format",
+  "transformType_regex_extract": "Regex Extract",
+  "transformType_string_op": "String Operation",
+  "transformType_math_op": "Math Operation"
 }

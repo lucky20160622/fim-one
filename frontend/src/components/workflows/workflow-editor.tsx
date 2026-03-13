@@ -53,6 +53,8 @@ import { IteratorNode } from "./nodes/iterator-node"
 import { LoopNode } from "./nodes/loop-node"
 import { VariableAggregatorNode } from "./nodes/variable-aggregator-node"
 import { ParameterExtractorNode } from "./nodes/parameter-extractor-node"
+import { ListOperationNode } from "./nodes/list-operation-node"
+import { TransformNode } from "./nodes/transform-node"
 
 // MUST be defined outside the component to prevent ReactFlow infinite re-renders
 const nodeTypes = {
@@ -72,6 +74,8 @@ const nodeTypes = {
   loop: LoopNode,
   variableAggregator: VariableAggregatorNode,
   parameterExtractor: ParameterExtractorNode,
+  listOperation: ListOperationNode,
+  transform: TransformNode,
 }
 
 // Custom edge types - defined outside component for stability
@@ -97,6 +101,8 @@ const minimapNodeColor: Record<string, string> = {
   loop: "#f97316",
   variableAggregator: "#0ea5e9",
   parameterExtractor: "#8b5cf6",
+  listOperation: "#84cc16",
+  transform: "#f43f5e",
 }
 
 const getMinimapNodeColor = (node: Node) => minimapNodeColor[node.type ?? ""] ?? "#6b7280"
@@ -118,6 +124,8 @@ const defaultNodeData: Record<WorkflowNodeType, Record<string, unknown>> = {
   loop: { condition: "", max_iterations: 50, loop_variable: "loop_index" },
   variableAggregator: { variables: [], mode: "list", separator: "\n" },
   parameterExtractor: { input_text: "", parameters: [], extraction_prompt: "" },
+  listOperation: { input_variable: "", operation: "filter", expression: "", output_variable: "list_result" },
+  transform: { input_variable: "", operations: [], output_variable: "transform_result" },
 }
 
 interface WorkflowEditorProps {

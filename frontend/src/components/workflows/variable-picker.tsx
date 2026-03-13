@@ -20,6 +20,8 @@ import {
   Combine,
   FileSearch,
   Braces,
+  ListFilter,
+  ArrowRightLeft,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -54,6 +56,8 @@ const nodeTypeIcons: Record<WorkflowNodeType, React.ReactNode> = {
   loop: <RefreshCw className="h-3 w-3" />,
   variableAggregator: <Combine className="h-3 w-3" />,
   parameterExtractor: <FileSearch className="h-3 w-3" />,
+  listOperation: <ListFilter className="h-3 w-3" />,
+  transform: <ArrowRightLeft className="h-3 w-3" />,
 }
 
 const nodeTypeColors: Record<WorkflowNodeType, string> = {
@@ -73,6 +77,8 @@ const nodeTypeColors: Record<WorkflowNodeType, string> = {
   loop: "text-orange-500",
   variableAggregator: "text-sky-500",
   parameterExtractor: "text-violet-500",
+  listOperation: "text-lime-500",
+  transform: "text-rose-500",
 }
 
 // --- Helper: extract output variables from a node ---
@@ -132,7 +138,9 @@ export function getNodeOutputVariables(node: Node): NodeVariable[] {
     case "connector":
     case "httpRequest":
     case "templateTransform":
-    case "codeExecution": {
+    case "codeExecution":
+    case "listOperation":
+    case "transform": {
       const outputVar = (data.output_variable ?? "") as string
       if (outputVar) {
         variables.push({

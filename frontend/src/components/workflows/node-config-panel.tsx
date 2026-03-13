@@ -286,6 +286,10 @@ function NodeConfigFields({ nodeType, data, updateField, otherNodes }: NodeConfi
       return <VariableAggregatorConfig data={data} updateField={updateField} t={t} otherNodes={otherNodes} />
     case "parameterExtractor":
       return <ParameterExtractorConfig data={data} updateField={updateField} t={t} otherNodes={otherNodes} />
+    case "listOperation":
+      return <ListOperationConfig data={data} updateField={updateField} t={t} otherNodes={otherNodes} />
+    case "transform":
+      return <TransformConfig data={data} updateField={updateField} t={t} otherNodes={otherNodes} />
     default:
       return <p className="text-xs text-muted-foreground">No configuration available</p>
   }
@@ -1610,4 +1614,316 @@ function ParameterExtractorConfig({ data, updateField, t, otherNodes }: ConfigPr
       </div>
     </div>
   )
+}
+
+// ---------------------------------------------------------------------------
+// 15. ListOperation
+// ---------------------------------------------------------------------------
+
+const LIST_OPERATIONS = ["filter", "map", "sort", "slice", "flatten", "unique", "reverse", "length"] as const
+
+function ListOperationConfig({ data, updateField, t, otherNodes }: ConfigProps) {
+  const operation = (data.operation ?? "filter") as string
+  const needsExpression = ["filter", "map", "sort"].includes(operation)
+  const isSlice = operation === "slice"
+
+  return (
+    <div className="space-y-3">
+      {/* Input variable */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configInputVariable")}</label>
+        <Input
+          className="h-7 text-xs font-mono"
+          placeholder="{{node_id.variable}}"
+          value={(data.input_variable ?? "") as string}
+          onChange={(e) => updateField("input_variable", e.target.value)}
+        />
+        <InsertVariableBar
+          otherNodes={otherNodes}
+          onInsert={(ref) => updateField("input_variable", ((data.input_variable ?? "") as string) + ref)}
+          t={t}
+        />
+      </div>
+
+      {/* Operation select */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configListOperation")}</label>
+        <Select value={operation} onValueChange={(v) => updateField("operation", v)}>
+          <SelectTrigger className="w-full h-7 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {LIST_OPERATIONS.map((op) => (
+              <SelectItem key={op} value={op} className="text-xs">
+                {t(`listOp_${op}` as Parameters<typeof t>[0])}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Expression (for filter/map/sort) */}
+      {needsExpression && (
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">{t("configExpression")}</label>
+          <Input
+            className="h-7 text-xs font-mono"
+            placeholder={operation === "sort" ? "item.name" : "item > 10"}
+            value={(data.expression ?? "") as string}
+            onChange={(e) => updateField("expression", e.target.value)}
+          />
+          <p className="text-[10px] text-muted-foreground/60">{t("configExpressionHint")}</p>
+        </div>
+      )}
+
+      {/* Slice params */}
+      {isSlice && (
+        <div className="flex gap-2">
+          <div className="flex-1 space-y-1">
+            <label className="text-[10px] font-medium">{t("configSliceStart")}</label>
+            <Input
+              type="number"
+              className="h-7 text-xs"
+              value={(data.slice_start ?? 0) as number}
+              onChange={(e) => updateField("slice_start", parseInt(e.target.value) || 0)}
+            />
+          </div>
+          <div className="flex-1 space-y-1">
+            <label className="text-[10px] font-medium">{t("configSliceEnd")}</label>
+            <Input
+              type="number"
+              className="h-7 text-xs"
+              placeholder="end"
+              value={(data.slice_end ?? "") as string}
+              onChange={(e) => updateField("slice_end", e.target.value ? parseInt(e.target.value) : null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Output variable */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configOutputVariable")}</label>
+        <Input
+          className="h-7 text-xs font-mono"
+          value={(data.output_variable ?? "list_result") as string}
+          onChange={(e) => updateField("output_variable", e.target.value)}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// 16. Transform
+// ---------------------------------------------------------------------------
+
+const TRANSFORM_TYPES = ["json_path", "type_cast", "format", "regex_extract", "string_op", "math_op"] as const
+
+function TransformConfig({ data, updateField, t, otherNodes }: ConfigProps) {
+  const operations = (data.operations ?? []) as Array<{
+    type: string
+    config: Record<string, unknown>
+  }>
+
+  const addOperation = () => {
+    updateField("operations", [
+      ...operations,
+      { type: "json_path", config: { path: "$.data" } },
+    ])
+  }
+
+  const removeOperation = (index: number) => {
+    updateField("operations", operations.filter((_, i) => i !== index))
+  }
+
+  const updateOperation = (index: number, field: string, value: unknown) => {
+    const updated = [...operations]
+    if (field === "type") {
+      updated[index] = { type: value as string, config: {} }
+    } else {
+      updated[index] = { ...updated[index], config: { ...updated[index].config, [field]: value } }
+    }
+    updateField("operations", updated)
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Input variable */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configInputVariable")}</label>
+        <Input
+          className="h-7 text-xs font-mono"
+          placeholder="{{node_id.variable}}"
+          value={(data.input_variable ?? "") as string}
+          onChange={(e) => updateField("input_variable", e.target.value)}
+        />
+        <InsertVariableBar
+          otherNodes={otherNodes}
+          onInsert={(ref) => updateField("input_variable", ((data.input_variable ?? "") as string) + ref)}
+          t={t}
+        />
+      </div>
+
+      {/* Transform operations pipeline */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium">{t("configTransformOps")}</label>
+          <Button variant="ghost" size="icon-sm" onClick={addOperation} className="h-5 w-5">
+            <Plus className="h-3 w-3" />
+          </Button>
+        </div>
+        {operations.length === 0 ? (
+          <p className="text-[10px] text-muted-foreground/60">{t("configAddTransformOp")}</p>
+        ) : (
+          <div className="space-y-2">
+            {operations.map((op, i) => (
+              <div key={i} className="rounded-md border border-border/50 p-2 space-y-1.5">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground/50 w-4 shrink-0">{i + 1}</span>
+                  <Select value={op.type} onValueChange={(v) => updateOperation(i, "type", v)}>
+                    <SelectTrigger className="flex-1 h-6 text-[10px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TRANSFORM_TYPES.map((tt) => (
+                        <SelectItem key={tt} value={tt} className="text-xs">
+                          {t(`transformType_${tt}` as Parameters<typeof t>[0])}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => removeOperation(i)}
+                    className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+                {/* Config fields per type */}
+                <TransformOpConfig op={op} index={i} updateOperation={updateOperation} t={t} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Output variable */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configOutputVariable")}</label>
+        <Input
+          className="h-7 text-xs font-mono"
+          value={(data.output_variable ?? "transform_result") as string}
+          onChange={(e) => updateField("output_variable", e.target.value)}
+        />
+      </div>
+    </div>
+  )
+}
+
+function TransformOpConfig({
+  op,
+  index,
+  updateOperation,
+  t,
+}: {
+  op: { type: string; config: Record<string, unknown> }
+  index: number
+  updateOperation: (index: number, field: string, value: unknown) => void
+  t: ReturnType<typeof useTranslations<"workflows">>
+}) {
+  const config = op.config ?? {}
+
+  switch (op.type) {
+    case "json_path":
+      return (
+        <Input
+          className="h-6 text-[10px] font-mono"
+          placeholder="$.data.items[0].name"
+          value={(config.path ?? "") as string}
+          onChange={(e) => updateOperation(index, "path", e.target.value)}
+        />
+      )
+    case "type_cast":
+      return (
+        <Select value={(config.target_type ?? "string") as string} onValueChange={(v) => updateOperation(index, "target_type", v)}>
+          <SelectTrigger className="h-6 text-[10px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {["string", "integer", "float", "boolean", "json"].map((tt) => (
+              <SelectItem key={tt} value={tt} className="text-xs">{tt}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )
+    case "format":
+      return (
+        <Input
+          className="h-6 text-[10px] font-mono"
+          placeholder="Hello {value}"
+          value={(config.template ?? "") as string}
+          onChange={(e) => updateOperation(index, "template", e.target.value)}
+        />
+      )
+    case "regex_extract":
+      return (
+        <div className="flex gap-1">
+          <Input
+            className="h-6 text-[10px] font-mono flex-1"
+            placeholder="\\d+"
+            value={(config.pattern ?? "") as string}
+            onChange={(e) => updateOperation(index, "pattern", e.target.value)}
+          />
+          <Input
+            type="number"
+            className="h-6 text-[10px] w-12"
+            placeholder="0"
+            value={(config.group ?? 0) as number}
+            onChange={(e) => updateOperation(index, "group", parseInt(e.target.value) || 0)}
+          />
+        </div>
+      )
+    case "string_op":
+      return (
+        <Select value={(config.operation ?? "upper") as string} onValueChange={(v) => updateOperation(index, "operation", v)}>
+          <SelectTrigger className="h-6 text-[10px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {["upper", "lower", "strip", "split", "join", "replace"].map((s) => (
+              <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )
+    case "math_op":
+      return (
+        <div className="flex gap-1">
+          <Select value={(config.operation ?? "add") as string} onValueChange={(v) => updateOperation(index, "operation", v)}>
+            <SelectTrigger className="flex-1 h-6 text-[10px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {["add", "subtract", "multiply", "divide", "modulo", "round", "abs"].map((m) => (
+                <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {(config.operation !== "abs") && (
+            <Input
+              type="number"
+              className="h-6 text-[10px] w-16"
+              placeholder="0"
+              value={(config.operand ?? 0) as number}
+              onChange={(e) => updateOperation(index, "operand", parseFloat(e.target.value) || 0)}
+            />
+          )}
+        </div>
+      )
+    default:
+      return null
+  }
 }
