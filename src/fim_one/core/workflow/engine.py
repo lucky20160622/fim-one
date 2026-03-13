@@ -19,6 +19,7 @@ from typing import Any
 from .nodes import EXECUTOR_REGISTRY, get_executor
 from .parser import topological_sort
 from .types import (
+    ErrorStrategy,
     ExecutionContext,
     NodeResult,
     NodeStatus,
@@ -123,6 +124,10 @@ class WorkflowEngine:
 
         def _can_execute(nid: str) -> bool:
             """Check if a node is ready to execute."""
+            # Force-skipped by FAIL_BRANCH?
+            if nid in fail_branch_skipped:
+                return False
+
             # All predecessor nodes must be done (completed, failed, or skipped)
             for pred in predecessors.get(nid, set()):
                 if pred not in completed:
@@ -137,14 +142,97 @@ class WorkflowEngine:
             return any(e.id in active_edges for e in node_incoming)
 
         def _should_skip(nid: str) -> bool:
-            """Check if a node should be skipped because all incoming edges are inactive."""
+            """Check if a node should be skipped."""
+            # FAIL_BRANCH downstream nodes are force-skipped
+            if nid in fail_branch_skipped:
+                return True
+
             node_incoming = incoming_edges.get(nid, [])
             if not node_incoming:
                 return False
             return all(e.id not in active_edges for e in node_incoming)
 
+        def _has_stop_workflow_failure() -> bool:
+            """Return True if any FAILED node used STOP_WORKFLOW strategy."""
+            for nid, st in node_status.items():
+                if st == NodeStatus.FAILED:
+                    n = node_index[nid]
+                    if n.error_strategy == ErrorStrategy.STOP_WORKFLOW:
+                        return True
+            return False
+
+        # Set of nodes that should be force-skipped (populated by FAIL_BRANCH)
+        fail_branch_skipped: set[str] = set()
+
+        def _collect_downstream(start_nid: str) -> set[str]:
+            """Collect all node IDs reachable downstream from *start_nid*."""
+            visited: set[str] = set()
+            queue_ds: list[str] = [start_nid]
+            while queue_ds:
+                current = queue_ds.pop()
+                for edge in outgoing_edges.get(current, []):
+                    if edge.target not in visited:
+                        visited.add(edge.target)
+                        queue_ds.append(edge.target)
+            return visited
+
+        async def _handle_node_failure(
+            nid: str, result: NodeResult
+        ) -> None:
+            """Apply the error strategy for a failed node."""
+            node = node_index[nid]
+            strategy = node.error_strategy
+
+            if strategy == ErrorStrategy.CONTINUE:
+                # Treat as "completed" for dependency resolution — downstream
+                # nodes will still run (they can inspect the failure via the
+                # variable store if they choose to).
+                node_status[nid] = NodeStatus.FAILED
+                await event_queue.put((
+                    "node_failed",
+                    {
+                        "node_id": nid,
+                        "node_type": node.type.value,
+                        "error": result.error,
+                        "duration_ms": result.duration_ms,
+                        "error_strategy": "continue",
+                    },
+                ))
+
+            elif strategy == ErrorStrategy.FAIL_BRANCH:
+                # Mark all downstream nodes as skipped so they never run.
+                node_status[nid] = NodeStatus.FAILED
+                downstream = _collect_downstream(nid)
+                fail_branch_skipped.update(downstream)
+                await event_queue.put((
+                    "node_failed",
+                    {
+                        "node_id": nid,
+                        "node_type": node.type.value,
+                        "error": result.error,
+                        "duration_ms": result.duration_ms,
+                        "error_strategy": "fail_branch",
+                        "skipped_downstream": sorted(downstream),
+                    },
+                ))
+
+            else:
+                # STOP_WORKFLOW (default) — just mark failed; the orchestrator
+                # will detect it and skip all remaining pending nodes.
+                node_status[nid] = NodeStatus.FAILED
+                await event_queue.put((
+                    "node_failed",
+                    {
+                        "node_id": nid,
+                        "node_type": node.type.value,
+                        "error": result.error,
+                        "duration_ms": result.duration_ms,
+                        "error_strategy": "stop_workflow",
+                    },
+                ))
+
         async def _run_node(nid: str) -> None:
-            """Execute a single node with semaphore."""
+            """Execute a single node with semaphore and per-node timeout."""
             async with semaphore:
                 node = node_index[nid]
                 executor = get_executor(node.type)
@@ -161,7 +249,20 @@ class WorkflowEngine:
                 ))
 
                 try:
-                    result = await executor.execute(node, store, ctx)
+                    # Per-node timeout enforcement
+                    timeout_sec = node.timeout_ms / 1000
+                    try:
+                        result = await asyncio.wait_for(
+                            executor.execute(node, store, ctx),
+                            timeout=timeout_sec,
+                        )
+                    except asyncio.TimeoutError:
+                        result = NodeResult(
+                            node_id=node.id,
+                            status=NodeStatus.FAILED,
+                            error=f"Node execution timed out after {node.timeout_ms}ms",
+                        )
+
                     node_results[nid] = result
 
                     if result.status == NodeStatus.COMPLETED:
@@ -185,16 +286,7 @@ class WorkflowEngine:
                             },
                         ))
                     else:
-                        node_status[nid] = NodeStatus.FAILED
-                        await event_queue.put((
-                            "node_failed",
-                            {
-                                "node_id": nid,
-                                "node_type": node.type.value,
-                                "error": result.error,
-                                "duration_ms": result.duration_ms,
-                            },
-                        ))
+                        await _handle_node_failure(nid, result)
 
                 except asyncio.CancelledError:
                     node_status[nid] = NodeStatus.FAILED
@@ -205,10 +297,13 @@ class WorkflowEngine:
                     raise
                 except Exception as exc:
                     node_status[nid] = NodeStatus.FAILED
-                    await event_queue.put((
-                        "node_failed",
-                        {"node_id": nid, "error": str(exc)},
-                    ))
+                    result = NodeResult(
+                        node_id=nid,
+                        status=NodeStatus.FAILED,
+                        error=str(exc),
+                    )
+                    node_results[nid] = result
+                    await _handle_node_failure(nid, result)
 
         async def _orchestrator() -> None:
             """Main orchestration loop — runs until all nodes are done."""
@@ -292,6 +387,22 @@ class WorkflowEngine:
                                 "Unexpected error in node %s", nid, exc_info=exc
                             )
                             node_status[nid] = NodeStatus.FAILED
+
+                    # After processing completed tasks, check if a
+                    # STOP_WORKFLOW failure has occurred.  If so, skip all
+                    # remaining pending nodes immediately.
+                    if _has_stop_workflow_failure() and pending:
+                        for remaining_nid in sorted(pending):
+                            node_status[remaining_nid] = NodeStatus.SKIPPED
+                            completed.add(remaining_nid)
+                            await event_queue.put((
+                                "node_skipped",
+                                {
+                                    "node_id": remaining_nid,
+                                    "reason": "Stopped by upstream node failure (stop_workflow)",
+                                },
+                            ))
+                        pending.clear()
 
                 # Determine final status
                 elapsed_ms = int((time.time() - start_time) * 1000)

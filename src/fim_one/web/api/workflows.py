@@ -585,6 +585,72 @@ async def run_workflow(
 
 
 # ---------------------------------------------------------------------------
+# Variable introspection (for frontend config panels)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{workflow_id}/variables", response_model=ApiResponse)
+async def get_workflow_variables(
+    workflow_id: str,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Analyze the workflow blueprint and return available variables per node.
+
+    Used by the frontend variable-picker dropdowns in node config panels.
+    For each node the response includes the node_type, title, and a list of
+    declared output variables with name and type.
+    """
+    wf = await _get_accessible_workflow(workflow_id, current_user.id, db)
+
+    from fim_one.core.workflow.nodes import EXECUTOR_REGISTRY
+    from fim_one.core.workflow.parser import parse_blueprint
+
+    blueprint = wf.blueprint
+    if not blueprint or not blueprint.get("nodes"):
+        return ApiResponse(data={})
+
+    try:
+        parsed = parse_blueprint(blueprint)
+    except Exception as exc:
+        raise AppError(f"invalid_blueprint: {exc}", status_code=400)
+
+    variables_map: dict[str, Any] = {}
+    for node_def in parsed.nodes:
+        node_data = node_def.data or {}
+        title = node_data.get("title") or node_data.get("label") or node_def.id
+
+        executor_cls = EXECUTOR_REGISTRY.get(node_def.type)
+        declared_outputs: list[dict[str, str]] = []
+        if executor_cls is not None:
+            # Call the static output_schema() if the executor defines one
+            schema_fn = getattr(executor_cls, "output_schema", None)
+            if schema_fn is not None:
+                declared_outputs = schema_fn()
+
+        # For START nodes, also include the individual input variables from
+        # the input_schema so the picker shows them as separate entries.
+        if node_def.type.value == "START":
+            input_schema = node_data.get("input_schema") or node_data.get("schema")
+            if isinstance(input_schema, dict):
+                props = input_schema.get("properties", {})
+                for prop_name, prop_def in props.items():
+                    declared_outputs.append({
+                        "name": prop_name,
+                        "type": prop_def.get("type", "string"),
+                        "description": prop_def.get("description", ""),
+                    })
+
+        variables_map[node_def.id] = {
+            "node_type": node_def.type.value,
+            "title": title,
+            "outputs": declared_outputs,
+        }
+
+    return ApiResponse(data=variables_map)
+
+
+# ---------------------------------------------------------------------------
 # Run history endpoints
 # ---------------------------------------------------------------------------
 

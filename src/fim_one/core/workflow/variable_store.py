@@ -49,15 +49,38 @@ class VariableStore:
     async def interpolate(self, template: str) -> str:
         """Replace ``{{var_name}}`` patterns in *template* with stored values.
 
+        Supports two reference styles (backward-compatible):
+        - ``{{var_name}}``              — flat lookup by key
+        - ``{{node_id.output_name}}``   — explicit two-level reference
+
+        For the flat style, if no exact key matches, a best-effort search is
+        performed against all ``*.var_name`` entries (last segment match).
+
         Unknown variables are left as-is (the ``{{var_name}}`` placeholder
         remains in the output).
         """
         async with self._lock:
             data_snapshot = dict(self._data)
 
+        def _resolve(var_name: str) -> Any:
+            """Resolve a variable name against the data snapshot."""
+            # 1. Exact match (covers both flat and dotted references)
+            if var_name in data_snapshot:
+                return data_snapshot[var_name]
+
+            # 2. Fallback: flat name matches the last segment of a dotted key
+            #    e.g. "output" might match "llm_1.output"
+            if "." not in var_name:
+                for key, val in data_snapshot.items():
+                    parts = key.split(".")
+                    if len(parts) == 2 and parts[1] == var_name:
+                        return val
+
+            return None
+
         def _replace(match: re.Match) -> str:
             var_name = match.group(1)
-            value = data_snapshot.get(var_name)
+            value = _resolve(var_name)
             if value is None:
                 return match.group(0)  # leave placeholder as-is
             if isinstance(value, str):
@@ -81,6 +104,47 @@ class VariableStore:
         """Return a snapshot excluding env.* variables (for expression/template contexts)."""
         async with self._lock:
             return {k: v for k, v in self._data.items() if not k.startswith("env.")}
+
+    async def get_node_outputs(self, node_id: str) -> dict[str, Any]:
+        """Return all output variables for a given node.
+
+        Scans for keys matching ``{node_id}.*`` and returns them as a flat
+        dict with the node_id prefix stripped.  Useful for the frontend
+        variable picker.
+        """
+        prefix = f"{node_id}."
+        async with self._lock:
+            return {
+                k[len(prefix):]: v
+                for k, v in self._data.items()
+                if k.startswith(prefix)
+            }
+
+    async def list_available_variables(self) -> list[dict[str, str]]:
+        """Return a list of all stored variables with metadata.
+
+        Each entry is ``{node_id, var_name, value_type}`` for dotted keys,
+        or ``{node_id: "", var_name: key, value_type}`` for flat keys.
+        Env vars (``env.*``) and raw inputs (``input.*``) are excluded.
+        """
+        async with self._lock:
+            data_copy = dict(self._data)
+
+        results: list[dict[str, str]] = []
+        for key, value in data_copy.items():
+            if key.startswith("env.") or key.startswith("input."):
+                continue
+            parts = key.split(".", 1)
+            if len(parts) == 2:
+                node_id, var_name = parts
+            else:
+                node_id, var_name = "", parts[0]
+            results.append({
+                "node_id": node_id,
+                "var_name": var_name,
+                "value_type": type(value).__name__,
+            })
+        return results
 
     def snapshot_sync(self) -> dict[str, Any]:
         """Return a shallow copy without acquiring the lock (for non-async contexts).

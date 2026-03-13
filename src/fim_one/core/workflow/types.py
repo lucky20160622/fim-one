@@ -34,6 +34,21 @@ class NodeStatus(str, Enum):
     SKIPPED = "skipped"
 
 
+class ErrorStrategy(str, Enum):
+    """Per-node error handling strategy (inspired by Dify's workflow engine).
+
+    - STOP_WORKFLOW: default — a failure stops the entire workflow.
+    - CONTINUE: the node is marked FAILED but treated as "completed" for
+      dependency resolution so downstream nodes still run.
+    - FAIL_BRANCH: the node is marked FAILED and all downstream nodes
+      reachable *only* through this node are SKIPPED.
+    """
+
+    STOP_WORKFLOW = "stop_workflow"
+    CONTINUE = "continue"
+    FAIL_BRANCH = "fail_branch"
+
+
 @dataclass
 class WorkflowNodeDef:
     """Definition of a single node in the blueprint."""
@@ -42,6 +57,8 @@ class WorkflowNodeDef:
     type: NodeType
     data: dict[str, Any] = field(default_factory=dict)
     position: dict[str, float] = field(default_factory=dict)
+    error_strategy: ErrorStrategy = ErrorStrategy.STOP_WORKFLOW
+    timeout_ms: int = 30000  # Default 30 seconds per node
 
 
 @dataclass

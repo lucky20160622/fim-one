@@ -38,6 +38,16 @@ class NodeExecutor(Protocol):
         """Execute the node and return a result."""
         ...
 
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        """Declare output variables this node type produces.
+
+        Returns a list of ``{name, type, description}`` dicts.  Used by the
+        frontend variable picker to show available variables from upstream
+        nodes.  The default implementation returns an empty list.
+        """
+        return []
+
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -56,6 +66,15 @@ def _ms_since(start: float) -> int:
 
 class StartExecutor:
     """Copy inputs into the variable store."""
+
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        # Start node outputs are dynamic (defined by the input_schema).
+        # Return a generic entry; the API layer reads the actual schema
+        # from node.data["input_schema"] for precise variable listing.
+        return [
+            {"name": "output", "type": "object", "description": "All workflow inputs as a dict"},
+        ]
 
     async def execute(
         self,
@@ -103,6 +122,11 @@ class StartExecutor:
 
 class EndExecutor:
     """Read output_mapping from store and produce the final result."""
+
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        # End node is a terminal — no downstream consumers.
+        return []
 
     async def execute(
         self,
@@ -156,6 +180,12 @@ class EndExecutor:
 
 class LLMExecutor:
     """Interpolate prompt template, call LLM, store output."""
+
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        return [
+            {"name": "output", "type": "string", "description": "LLM response text"},
+        ]
 
     async def execute(
         self,
@@ -227,6 +257,13 @@ class ConditionBranchExecutor:
     handle is activated if no conditions match.
     """
 
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        return [
+            {"name": "output", "type": "string", "description": "The label of the active branch handle"},
+            {"name": "active_handle", "type": "string", "description": "The source handle ID that was activated"},
+        ]
+
     async def execute(
         self,
         node: WorkflowNodeDef,
@@ -295,6 +332,13 @@ class QuestionClassifierExecutor:
     Node data contains ``categories``: a list of dicts with ``label``
     and ``handle`` (sourceHandle to activate).
     """
+
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        return [
+            {"name": "output", "type": "string", "description": "The classification label chosen by the LLM"},
+            {"name": "active_handle", "type": "string", "description": "The source handle ID for the matched category"},
+        ]
 
     async def execute(
         self,
@@ -392,6 +436,12 @@ class QuestionClassifierExecutor:
 class AgentExecutor:
     """Load an agent configuration and run it via ReActAgent."""
 
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        return [
+            {"name": "output", "type": "string", "description": "Agent final answer text"},
+        ]
+
     async def execute(
         self,
         node: WorkflowNodeDef,
@@ -472,6 +522,13 @@ class AgentExecutor:
 class KnowledgeRetrievalExecutor:
     """Query the RAG pipeline for relevant knowledge."""
 
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        return [
+            {"name": "output", "type": "string", "description": "Combined text from retrieved knowledge chunks"},
+            {"name": "results", "type": "array", "description": "Raw retrieval results with content and score"},
+        ]
+
     async def execute(
         self,
         node: WorkflowNodeDef,
@@ -547,6 +604,12 @@ class KnowledgeRetrievalExecutor:
 
 class ConnectorExecutor:
     """Load a connector + action and execute it."""
+
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        return [
+            {"name": "output", "type": "object", "description": "Connector action response"},
+        ]
 
     async def execute(
         self,
@@ -672,6 +735,14 @@ class ConnectorExecutor:
 class HTTPRequestExecutor:
     """Execute a raw HTTP request via aiohttp."""
 
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        return [
+            {"name": "output", "type": "object", "description": "Response body (parsed JSON if possible, else string)"},
+            {"name": "status_code", "type": "integer", "description": "HTTP response status code"},
+            {"name": "headers", "type": "object", "description": "Response headers as a dict"},
+        ]
+
     async def execute(
         self,
         node: WorkflowNodeDef,
@@ -716,16 +787,24 @@ class HTTPRequestExecutor:
                     content=body.encode("utf-8") if body else None,
                 )
 
-            output = resp.text
+            # Parse response body — try JSON first, fall back to raw text
+            raw_text = resp.text
+            try:
+                output: Any = json.loads(raw_text)
+            except (json.JSONDecodeError, ValueError):
+                output = raw_text
+
             status_code = resp.status_code
+            response_headers = dict(resp.headers)
 
             await store.set(f"{node.id}.output", output)
             await store.set(f"{node.id}.status_code", status_code)
+            await store.set(f"{node.id}.headers", response_headers)
 
             return NodeResult(
                 node_id=node.id,
                 status=NodeStatus.COMPLETED,
-                output=f"HTTP {status_code}: {output[:200]}",
+                output=f"HTTP {status_code}: {raw_text[:200]}",
                 duration_ms=_ms_since(t0),
             )
         except Exception as exc:
@@ -745,6 +824,12 @@ class HTTPRequestExecutor:
 
 class VariableAssignExecutor:
     """Evaluate an expression and assign the result to a variable."""
+
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        return [
+            {"name": "output", "type": "object", "description": "Dict of all assigned variable names and their values"},
+        ]
 
     async def execute(
         self,
@@ -811,6 +896,12 @@ class VariableAssignExecutor:
 class TemplateTransformExecutor:
     """Render a Jinja2 template with variables from the store."""
 
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        return [
+            {"name": "output", "type": "string", "description": "Rendered template output"},
+        ]
+
     async def execute(
         self,
         node: WorkflowNodeDef,
@@ -866,6 +957,12 @@ class CodeExecutionExecutor:
     should print its result as JSON to stdout.  This avoids blocking the
     event loop **and** prevents sandbox escape (no in-process ``exec``).
     """
+
+    @staticmethod
+    def output_schema() -> list[dict[str, str]]:
+        return [
+            {"name": "output", "type": "object", "description": "Code execution result (parsed from stdout JSON)"},
+        ]
 
     async def execute(
         self,

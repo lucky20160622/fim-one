@@ -9,6 +9,7 @@ conditional branching.
 from .engine import WorkflowEngine
 from .parser import BlueprintValidationError, parse_blueprint, topological_sort
 from .types import (
+    ErrorStrategy,
     ExecutionContext,
     NodeResult,
     NodeStatus,
@@ -21,6 +22,7 @@ from .variable_store import VariableStore
 
 __all__ = [
     "BlueprintValidationError",
+    "ErrorStrategy",
     "ExecutionContext",
     "NodeResult",
     "NodeStatus",

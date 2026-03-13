@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import Any
 
-from .types import NodeType, WorkflowBlueprint, WorkflowEdgeDef, WorkflowNodeDef
+from .types import ErrorStrategy, NodeType, WorkflowBlueprint, WorkflowEdgeDef, WorkflowNodeDef
 
 
 class BlueprintValidationError(ValueError):
@@ -84,12 +84,34 @@ def parse_blueprint(raw: dict[str, Any]) -> WorkflowBlueprint:
         elif node_type == NodeType.END:
             end_count += 1
 
+        # Parse optional error_strategy from node data
+        raw_error_strategy = node_data.get("error_strategy", "")
+        error_strategy = ErrorStrategy.STOP_WORKFLOW
+        if raw_error_strategy:
+            try:
+                error_strategy = ErrorStrategy(raw_error_strategy)
+            except ValueError:
+                pass  # fallback to default
+
+        # Parse optional per-node timeout
+        raw_timeout = node_data.get("timeout_ms")
+        timeout_ms = 30000  # default
+        if raw_timeout is not None:
+            try:
+                timeout_ms = int(raw_timeout)
+                if timeout_ms <= 0:
+                    timeout_ms = 30000
+            except (TypeError, ValueError):
+                pass
+
         nodes.append(
             WorkflowNodeDef(
                 id=node_id,
                 type=node_type,
                 data=node_data,
                 position=n.get("position", {}),
+                error_strategy=error_strategy,
+                timeout_ms=timeout_ms,
             )
         )
 
