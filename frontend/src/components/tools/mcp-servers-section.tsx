@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useTranslations } from "next-intl"
-import { Plus, Loader2, Clock } from "lucide-react"
+import { Plus, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -15,15 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { mcpServerApi, orgApi } from "@/lib/api"
 import type { UserOrg } from "@/lib/api"
+import { PublishDialog } from "@/components/shared/publish-dialog"
 import { MCPServerCard } from "@/components/tools/mcp-server-card"
 import { MCPServerDialog, type MCPServerInitialValues } from "@/components/tools/mcp-server-dialog"
 import { MCPHubDialog } from "@/components/tools/mcp-hub-dialog"
@@ -270,77 +262,24 @@ export function MCPServersSection({ onReady, currentUserId }: MCPServersSectionP
         }}
       />
 
-      {/* Publish to Org dialog */}
-      <Dialog open={pendingPublishId !== null} onOpenChange={(open) => { if (!open) setPendingPublishId(null) }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t("publishDialogTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("publishDialogDescription")}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              {orgsLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                </div>
-              ) : userOrgs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("publishNoOrgs")}</p>
-              ) : (
-                <>
-                  <Select value={publishOrgId} onValueChange={setPublishOrgId}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder={t("publishSelectOrg")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {userOrgs.map((org) => (
-                        <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {/* Review notice */}
-                  {selectedOrg?.review_mcp_servers && (
-                    <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-md">
-                      <Clock className="h-4 w-4 shrink-0" />
-                      <span>{to("publishRequiresReview")}</span>
-                    </div>
-                  )}
-
-                  {/* allow_fallback toggle */}
-                  <div className="flex items-start gap-3 pt-1">
-                    <Switch
-                      id="allow-fallback"
-                      checked={allowFallback}
-                      onCheckedChange={setAllowFallback}
-                      className="mt-0.5 shrink-0"
-                    />
-                    <div className="space-y-0.5">
-                      <Label htmlFor="allow-fallback" className="text-sm font-medium cursor-pointer">
-                        {t("allowFallback")}
-                      </Label>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {t("allowFallbackHelp")}
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" className="px-6" onClick={() => setPendingPublishId(null)}>{tc("cancel")}</Button>
-            <Button
-              className="px-6"
-              onClick={confirmPublish}
-              disabled={orgsLoading || userOrgs.length === 0 || !publishOrgId}
-            >
-              {tc("publish")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PublishDialog
+        open={pendingPublishId !== null}
+        onOpenChange={(open) => { if (!open) setPendingPublishId(null) }}
+        title={t("publishDialogTitle")}
+        description={t("publishDialogDescription")}
+        orgs={userOrgs}
+        orgsLoading={orgsLoading}
+        selectedOrgId={publishOrgId}
+        onOrgChange={setPublishOrgId}
+        requiresReview={!!selectedOrg?.review_mcp_servers}
+        allowFallback={allowFallback}
+        onAllowFallbackChange={setAllowFallback}
+        fallbackLabel={t("allowFallback")}
+        fallbackHelp={t("allowFallbackHelp")}
+        noOrgsText={t("publishNoOrgs")}
+        selectOrgPlaceholder={t("publishSelectOrg")}
+        onConfirm={confirmPublish}
+      />
 
       {/* Unpublish confirmation dialog */}
       <Dialog open={pendingUnpublishId !== null} onOpenChange={(open) => { if (!open) setPendingUnpublishId(null) }}>
