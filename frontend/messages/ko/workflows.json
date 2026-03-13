@@ -404,5 +404,19 @@
   "shortcutsAction_copy": "선택한 노드 복사",
   "shortcutsAction_paste": "복사한 노드 붙여넣기",
   "shortcutsAction_duplicate": "선택한 노드 복제",
-  "shortcutsAction_delete": "선택한 항목 삭제"
+  "shortcutsAction_delete": "선택한 항목 삭제",
+  "nodeStatsTitle": "노드 통계",
+  "nodeStatsDescription": "최근 실행의 노드별 실행 성능",
+  "nodeStatsEmpty": "아직 실행 데이터가 없습니다. 워크플로우를 실행하여 통계를 확인하세요.",
+  "nodeStatsTotalRuns": "총 실행 횟수",
+  "nodeStatsCompleted": "완료됨",
+  "nodeStatsFailed": "실패",
+  "nodeStatsSkipped": "건너뜀",
+  "nodeStatsSuccessRate": "성공률",
+  "nodeStatsDuration": "소요 시간",
+  "nodeStatsAvg": "평균",
+  "nodeStatsMin": "최소",
+  "nodeStatsMax": "최대",
+  "nodeStatsButton": "노드 통계",
+  "nodeStatsRunsAnalyzed": "{count}개 실행 분석됨"
 }

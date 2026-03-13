@@ -404,5 +404,19 @@
   "shortcutsAction_copy": "Copier les nœuds sélectionnés",
   "shortcutsAction_paste": "Coller les nœuds copiés",
   "shortcutsAction_duplicate": "Dupliquer les nœuds sélectionnés",
-  "shortcutsAction_delete": "Supprimer la sélection"
+  "shortcutsAction_delete": "Supprimer la sélection",
+  "nodeStatsTitle": "Statistiques des nœuds",
+  "nodeStatsDescription": "Performance d'exécution par nœud à partir des exécutions récentes",
+  "nodeStatsEmpty": "Aucune donnée d'exécution pour le moment. Exécutez le workflow pour voir les statistiques.",
+  "nodeStatsTotalRuns": "Exécutions totales",
+  "nodeStatsCompleted": "Complétées",
+  "nodeStatsFailed": "Échouées",
+  "nodeStatsSkipped": "Ignorées",
+  "nodeStatsSuccessRate": "Taux de réussite",
+  "nodeStatsDuration": "Durée",
+  "nodeStatsAvg": "moy",
+  "nodeStatsMin": "min",
+  "nodeStatsMax": "max",
+  "nodeStatsButton": "Statistiques des nœuds",
+  "nodeStatsRunsAnalyzed": "{count} exécutions analysées"
 }

@@ -453,5 +453,20 @@
   "shortcutsAction_copy": "Copy selected nodes",
   "shortcutsAction_paste": "Paste copied nodes",
   "shortcutsAction_duplicate": "Duplicate selected nodes",
-  "shortcutsAction_delete": "Delete selected"
+  "shortcutsAction_delete": "Delete selected",
+
+  "nodeStatsTitle": "Node Statistics",
+  "nodeStatsDescription": "Per-node execution performance from recent runs",
+  "nodeStatsEmpty": "No execution data yet. Run the workflow to see statistics.",
+  "nodeStatsTotalRuns": "Total Runs",
+  "nodeStatsCompleted": "Completed",
+  "nodeStatsFailed": "Failed",
+  "nodeStatsSkipped": "Skipped",
+  "nodeStatsSuccessRate": "Success Rate",
+  "nodeStatsDuration": "Duration",
+  "nodeStatsAvg": "avg",
+  "nodeStatsMin": "min",
+  "nodeStatsMax": "max",
+  "nodeStatsButton": "Node Stats",
+  "nodeStatsRunsAnalyzed": "{count} runs analyzed"
 }

@@ -404,5 +404,19 @@
   "shortcutsAction_copy": "選択したノードをコピー",
   "shortcutsAction_paste": "コピーしたノードを貼り付け",
   "shortcutsAction_duplicate": "選択したノードを複製",
-  "shortcutsAction_delete": "選択したものを削除"
+  "shortcutsAction_delete": "選択したものを削除",
+  "nodeStatsTitle": "ノード統計",
+  "nodeStatsDescription": "最近の実行からのノード単位の実行パフォーマンス",
+  "nodeStatsEmpty": "実行データはまだありません。ワークフローを実行して統計を確認してください。",
+  "nodeStatsTotalRuns": "総実行数",
+  "nodeStatsCompleted": "完了",
+  "nodeStatsFailed": "失敗",
+  "nodeStatsSkipped": "スキップ",
+  "nodeStatsSuccessRate": "成功率",
+  "nodeStatsDuration": "期間",
+  "nodeStatsAvg": "平均",
+  "nodeStatsMin": "最小",
+  "nodeStatsMax": "最大",
+  "nodeStatsButton": "ノード統計",
+  "nodeStatsRunsAnalyzed": "{count}回の実行を分析"
 }

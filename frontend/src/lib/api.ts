@@ -1,6 +1,6 @@
 import { getApiBaseUrl, ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from "./constants"
 import type { UserInfo, TokenResponse, LoginRequest, LoginWithCodeRequest, RegisterRequest, ChangePasswordRequest, SetPasswordRequest, SetupRequest } from "@/types/auth"
-import type { WorkflowResponse, WorkflowCreate, WorkflowUpdate, WorkflowRunResponse, WorkflowStats, WorkflowTemplate } from "@/types/workflow"
+import type { WorkflowResponse, WorkflowCreate, WorkflowUpdate, WorkflowRunResponse, WorkflowStats, WorkflowTemplate, NodeStatsResponse } from "@/types/workflow"
 import type {
   ConversationResponse,
   ConversationDetail,
@@ -1022,6 +1022,11 @@ export const workflowApi = {
       method: "PUT",
       body: JSON.stringify({ env_vars: envVars }),
     }).then((r) => r.data),
+
+  getNodeStats: (id: string, limit = 20) =>
+    apiFetch<ApiResponse<NodeStatsResponse>>(
+      `/api/workflows/${id}/node-stats?limit=${limit}`,
+    ).then((r) => r.data),
 }
 
 // --- Skill API ---

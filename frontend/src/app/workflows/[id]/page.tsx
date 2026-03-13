@@ -30,6 +30,7 @@ import { WorkflowEditor } from "@/components/workflows/workflow-editor"
 import type { WorkflowEditorHandle } from "@/components/workflows/workflow-editor"
 import { RunHistorySheet } from "@/components/workflows/run-history-sheet"
 import { WorkflowStatsPanel } from "@/components/workflows/workflow-stats-panel"
+import { NodeStatsPanel } from "@/components/workflows/node-stats-panel"
 import { EnvVarsDialog } from "@/components/workflows/env-vars-dialog"
 import type {
   WorkflowResponse,
@@ -80,6 +81,7 @@ export default function WorkflowEditorPage() {
 
   // Stats panel state
   const [statsOpen, setStatsOpen] = useState(false)
+  const [nodeStatsOpen, setNodeStatsOpen] = useState(false)
 
   // Env vars dialog state
   const [showEnvDialog, setShowEnvDialog] = useState(false)
@@ -645,6 +647,7 @@ export default function WorkflowEditorPage() {
         onDelete={() => setShowDeleteDialog(true)}
         onHistory={() => setHistoryOpen(true)}
         onStats={() => setStatsOpen(true)}
+        onNodeStats={() => setNodeStatsOpen(true)}
         onAutoLayout={handleAutoLayout}
         onPublish={handlePublishClick}
         onUnpublish={handleUnpublishClick}
@@ -812,6 +815,14 @@ export default function WorkflowEditorPage() {
         workflowId={workflowId}
         open={statsOpen}
         onOpenChange={setStatsOpen}
+      />
+
+      {/* Node Stats Panel */}
+      <NodeStatsPanel
+        workflowId={workflowId}
+        open={nodeStatsOpen}
+        onOpenChange={setNodeStatsOpen}
+        nodeTypeMap={nodeTypeMap}
       />
     </div>
   )

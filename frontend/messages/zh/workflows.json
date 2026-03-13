@@ -404,5 +404,19 @@
   "shortcutsAction_copy": "复制选定节点",
   "shortcutsAction_paste": "粘贴复制的节点",
   "shortcutsAction_duplicate": "复制选定节点",
-  "shortcutsAction_delete": "删除选定项"
+  "shortcutsAction_delete": "删除选定项",
+  "nodeStatsTitle": "节点统计",
+  "nodeStatsDescription": "来自最近运行的每个节点执行性能",
+  "nodeStatsEmpty": "暂无执行数据。运行工作流以查看统计信息。",
+  "nodeStatsTotalRuns": "总运行次数",
+  "nodeStatsCompleted": "已完成",
+  "nodeStatsFailed": "失败",
+  "nodeStatsSkipped": "已跳过",
+  "nodeStatsSuccessRate": "成功率",
+  "nodeStatsDuration": "耗时",
+  "nodeStatsAvg": "平均",
+  "nodeStatsMin": "最小",
+  "nodeStatsMax": "最大",
+  "nodeStatsButton": "节点统计",
+  "nodeStatsRunsAnalyzed": "已分析 {count} 次运行"
 }

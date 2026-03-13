@@ -308,6 +308,25 @@ export interface WorkflowStats {
   last_run_at: string | null
 }
 
+// --- Per-Node Stats (from /node-stats endpoint) ---
+
+export interface NodeStatEntry {
+  node_id: string
+  total_runs: number
+  completed: number
+  failed: number
+  skipped: number
+  avg_duration_ms: number | null
+  min_duration_ms: number | null
+  max_duration_ms: number | null
+  success_rate: number | null
+}
+
+export interface NodeStatsResponse {
+  runs_analyzed: number
+  nodes: NodeStatEntry[]
+}
+
 // --- Templates ---
 
 export interface WorkflowTemplate {

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
 import {
+  Activity,
   AlertTriangle,
   ArrowLeft,
   BarChart3,
@@ -83,6 +84,7 @@ interface WorkflowToolbarProps {
   onHistory: () => void
   onStats: () => void
   onAutoLayout: () => void
+  onNodeStats?: () => void
   onPublish?: () => void
   onUnpublish?: () => void
   onResubmit?: () => void
@@ -117,6 +119,7 @@ export function WorkflowToolbar({
   onAutoLayout,
   onHistory,
   onStats,
+  onNodeStats,
   onPublish,
   onUnpublish,
   onResubmit,
@@ -459,6 +462,12 @@ export function WorkflowToolbar({
               <DropdownMenuItem onClick={onEnvVars}>
                 <Key className="h-4 w-4" />
                 {t("envVarsMenuItem")}
+              </DropdownMenuItem>
+            )}
+            {onNodeStats && (
+              <DropdownMenuItem onClick={onNodeStats}>
+                <Activity className="h-4 w-4" />
+                {t("nodeStatsButton")}
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onClick={onDuplicate} disabled={isDuplicating}>

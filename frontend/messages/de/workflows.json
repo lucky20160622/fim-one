@@ -404,5 +404,19 @@
   "shortcutsAction_copy": "Ausgewählte Knoten kopieren",
   "shortcutsAction_paste": "Kopierte Knoten einfügen",
   "shortcutsAction_duplicate": "Ausgewählte Knoten duplizieren",
-  "shortcutsAction_delete": "Ausgewählte löschen"
+  "shortcutsAction_delete": "Ausgewählte löschen",
+  "nodeStatsTitle": "Knotenstatistiken",
+  "nodeStatsDescription": "Ausführungsleistung pro Knoten aus kürzlichen Durchläufen",
+  "nodeStatsEmpty": "Noch keine Ausführungsdaten. Führen Sie den Workflow aus, um Statistiken anzuzeigen.",
+  "nodeStatsTotalRuns": "Gesamte Durchläufe",
+  "nodeStatsCompleted": "Abgeschlossen",
+  "nodeStatsFailed": "Fehlgeschlagen",
+  "nodeStatsSkipped": "Übersprungen",
+  "nodeStatsSuccessRate": "Erfolgsquote",
+  "nodeStatsDuration": "Dauer",
+  "nodeStatsAvg": "Durchschn.",
+  "nodeStatsMin": "Min.",
+  "nodeStatsMax": "Max.",
+  "nodeStatsButton": "Knotenstatistiken",
+  "nodeStatsRunsAnalyzed": "{count} Durchläufe analysiert"
 }
