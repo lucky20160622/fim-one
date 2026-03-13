@@ -65,6 +65,8 @@
   "nodeType_parameterExtractor": "Parameter Extractor",
   "nodeType_listOperation": "List Operation",
   "nodeType_transform": "Transform",
+  "nodeType_documentExtractor": "Document Extractor",
+  "nodeType_questionUnderstanding": "Question Understanding",
 
   "nodeDesc_start": "Entry point with input variables",
   "nodeDesc_end": "Output results and end workflow",
@@ -84,6 +86,8 @@
   "nodeDesc_parameterExtractor": "Extract structured parameters from text",
   "nodeDesc_listOperation": "Filter, sort, slice, or transform lists",
   "nodeDesc_transform": "Apply a pipeline of data transformations",
+  "nodeDesc_documentExtractor": "Extract text, metadata, or tables from documents",
+  "nodeDesc_questionUnderstanding": "Preprocess and enhance user questions with LLM",
 
   "categoryFlow": "Flow",
   "categoryAI": "AI",
@@ -382,5 +386,25 @@
   "transformType_format": "Format",
   "transformType_regex_extract": "Regex Extract",
   "transformType_string_op": "String Operation",
-  "transformType_math_op": "Math Operation"
+  "transformType_math_op": "Math Operation",
+
+  "configInputType": "Input type",
+  "configExtractMode": "Extract mode",
+  "configPageRange": "Page range",
+  "configPageRangeHint": "e.g. 1-5, 3, 10-20",
+  "configQuestionMode": "Processing mode",
+
+  "inputType_text": "Text",
+  "inputType_base64": "Base64",
+  "inputType_url": "URL",
+
+  "extractMode_full_text": "Full Text",
+  "extractMode_pages": "Pages",
+  "extractMode_metadata": "Metadata",
+  "extractMode_tables": "Tables",
+
+  "questionMode_rewrite": "Rewrite",
+  "questionMode_expand": "Expand",
+  "questionMode_classify": "Classify",
+  "questionMode_decompose": "Decompose"
 }

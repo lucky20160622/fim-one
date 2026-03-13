@@ -66,6 +66,8 @@ export type WorkflowNodeType =
   | "parameterExtractor"
   | "listOperation"
   | "transform"
+  | "documentExtractor"
+  | "questionUnderstanding"
 
 // --- Per-node data interfaces ---
 
@@ -192,6 +194,21 @@ export interface TransformNodeData {
     type: "json_path" | "type_cast" | "format" | "regex_extract" | "string_op" | "math_op"
     config: Record<string, unknown>
   }>
+  output_variable: string
+}
+
+export interface DocumentExtractorNodeData {
+  input_variable: string
+  input_type: "text" | "base64" | "url"
+  extract_mode: "full_text" | "pages" | "metadata" | "tables"
+  page_range?: string
+  output_variable: string
+}
+
+export interface QuestionUnderstandingNodeData {
+  input_variable: string
+  mode: "rewrite" | "expand" | "classify" | "decompose"
+  system_prompt?: string
   output_variable: string
 }
 

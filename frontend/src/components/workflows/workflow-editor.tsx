@@ -55,6 +55,8 @@ import { VariableAggregatorNode } from "./nodes/variable-aggregator-node"
 import { ParameterExtractorNode } from "./nodes/parameter-extractor-node"
 import { ListOperationNode } from "./nodes/list-operation-node"
 import { TransformNode } from "./nodes/transform-node"
+import { DocumentExtractorNode } from "./nodes/document-extractor-node"
+import { QuestionUnderstandingNode } from "./nodes/question-understanding-node"
 
 // MUST be defined outside the component to prevent ReactFlow infinite re-renders
 const nodeTypes = {
@@ -76,6 +78,8 @@ const nodeTypes = {
   parameterExtractor: ParameterExtractorNode,
   listOperation: ListOperationNode,
   transform: TransformNode,
+  documentExtractor: DocumentExtractorNode,
+  questionUnderstanding: QuestionUnderstandingNode,
 }
 
 // Custom edge types - defined outside component for stability
@@ -103,6 +107,8 @@ const minimapNodeColor: Record<string, string> = {
   parameterExtractor: "#8b5cf6",
   listOperation: "#84cc16",
   transform: "#f43f5e",
+  documentExtractor: "#d97706",
+  questionUnderstanding: "#ec4899",
 }
 
 const getMinimapNodeColor = (node: Node) => minimapNodeColor[node.type ?? ""] ?? "#6b7280"
@@ -126,6 +132,8 @@ const defaultNodeData: Record<WorkflowNodeType, Record<string, unknown>> = {
   parameterExtractor: { input_text: "", parameters: [], extraction_prompt: "" },
   listOperation: { input_variable: "", operation: "filter", expression: "", output_variable: "list_result" },
   transform: { input_variable: "", operations: [], output_variable: "transform_result" },
+  documentExtractor: { input_variable: "", input_type: "text", extract_mode: "full_text", output_variable: "document_result" },
+  questionUnderstanding: { input_variable: "", mode: "rewrite", output_variable: "question_result" },
 }
 
 interface WorkflowEditorProps {

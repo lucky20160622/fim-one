@@ -21,6 +21,8 @@ import {
   FileSearch,
   ListFilter,
   ArrowRightLeft,
+  FileScan,
+  MessageCircleQuestion,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react"
@@ -58,6 +60,7 @@ const categories: NodePaletteCategory[] = [
       { type: "agent", icon: <Bot className="h-3.5 w-3.5" />, color: "text-indigo-500" },
       { type: "knowledgeRetrieval", icon: <Library className="h-3.5 w-3.5" />, color: "text-teal-500" },
       { type: "parameterExtractor", icon: <FileSearch className="h-3.5 w-3.5" />, color: "text-violet-500" },
+      { type: "questionUnderstanding", icon: <MessageCircleQuestion className="h-3.5 w-3.5" />, color: "text-pink-500" },
     ],
   },
   {
@@ -84,6 +87,7 @@ const categories: NodePaletteCategory[] = [
       { type: "codeExecution", icon: <Code className="h-3.5 w-3.5" />, color: "text-emerald-500" },
       { type: "listOperation", icon: <ListFilter className="h-3.5 w-3.5" />, color: "text-lime-500" },
       { type: "transform", icon: <ArrowRightLeft className="h-3.5 w-3.5" />, color: "text-rose-500" },
+      { type: "documentExtractor", icon: <FileScan className="h-3.5 w-3.5" />, color: "text-amber-600" },
     ],
   },
 ]

@@ -290,6 +290,10 @@ function NodeConfigFields({ nodeType, data, updateField, otherNodes }: NodeConfi
       return <ListOperationConfig data={data} updateField={updateField} t={t} otherNodes={otherNodes} />
     case "transform":
       return <TransformConfig data={data} updateField={updateField} t={t} otherNodes={otherNodes} />
+    case "documentExtractor":
+      return <DocumentExtractorConfig data={data} updateField={updateField} t={t} otherNodes={otherNodes} />
+    case "questionUnderstanding":
+      return <QuestionUnderstandingConfig data={data} updateField={updateField} t={t} otherNodes={otherNodes} />
     default:
       return <p className="text-xs text-muted-foreground">No configuration available</p>
   }
@@ -1926,4 +1930,160 @@ function TransformOpConfig({
     default:
       return null
   }
+}
+
+// ---------------------------------------------------------------------------
+// 17. DocumentExtractor
+// ---------------------------------------------------------------------------
+
+const INPUT_TYPES = ["text", "base64", "url"] as const
+const EXTRACT_MODES = ["full_text", "pages", "metadata", "tables"] as const
+
+function DocumentExtractorConfig({ data, updateField, t, otherNodes }: ConfigProps) {
+  const extractMode = (data.extract_mode ?? "full_text") as string
+
+  return (
+    <div className="space-y-3">
+      {/* Input variable */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configInputVariable")}</label>
+        <Input
+          className="h-7 text-xs font-mono"
+          placeholder="{{node_id.variable}}"
+          value={(data.input_variable ?? "") as string}
+          onChange={(e) => updateField("input_variable", e.target.value)}
+        />
+        <InsertVariableBar
+          otherNodes={otherNodes}
+          onInsert={(ref) => updateField("input_variable", ((data.input_variable ?? "") as string) + ref)}
+          t={t}
+        />
+      </div>
+
+      {/* Input type */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configInputType")}</label>
+        <Select value={(data.input_type ?? "text") as string} onValueChange={(v) => updateField("input_type", v)}>
+          <SelectTrigger className="w-full h-7 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {INPUT_TYPES.map((it) => (
+              <SelectItem key={it} value={it} className="text-xs">
+                {t(`inputType_${it}` as Parameters<typeof t>[0])}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Extract mode */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configExtractMode")}</label>
+        <Select value={extractMode} onValueChange={(v) => updateField("extract_mode", v)}>
+          <SelectTrigger className="w-full h-7 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {EXTRACT_MODES.map((em) => (
+              <SelectItem key={em} value={em} className="text-xs">
+                {t(`extractMode_${em}` as Parameters<typeof t>[0])}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Page range (only for pages mode) */}
+      {extractMode === "pages" && (
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">{t("configPageRange")}</label>
+          <Input
+            className="h-7 text-xs font-mono"
+            placeholder="1-5"
+            value={(data.page_range ?? "") as string}
+            onChange={(e) => updateField("page_range", e.target.value)}
+          />
+          <p className="text-[10px] text-muted-foreground/60">{t("configPageRangeHint")}</p>
+        </div>
+      )}
+
+      {/* Output variable */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configOutputVariable")}</label>
+        <Input
+          className="h-7 text-xs font-mono"
+          value={(data.output_variable ?? "document_result") as string}
+          onChange={(e) => updateField("output_variable", e.target.value)}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// 18. QuestionUnderstanding
+// ---------------------------------------------------------------------------
+
+const QUESTION_MODES = ["rewrite", "expand", "classify", "decompose"] as const
+
+function QuestionUnderstandingConfig({ data, updateField, t, otherNodes }: ConfigProps) {
+  return (
+    <div className="space-y-3">
+      {/* Input variable */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configInputVariable")}</label>
+        <Input
+          className="h-7 text-xs font-mono"
+          placeholder="{{node_id.variable}}"
+          value={(data.input_variable ?? "") as string}
+          onChange={(e) => updateField("input_variable", e.target.value)}
+        />
+        <InsertVariableBar
+          otherNodes={otherNodes}
+          onInsert={(ref) => updateField("input_variable", ((data.input_variable ?? "") as string) + ref)}
+          t={t}
+        />
+      </div>
+
+      {/* Processing mode */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configQuestionMode")}</label>
+        <Select value={(data.mode ?? "rewrite") as string} onValueChange={(v) => updateField("mode", v)}>
+          <SelectTrigger className="w-full h-7 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {QUESTION_MODES.map((qm) => (
+              <SelectItem key={qm} value={qm} className="text-xs">
+                {t(`questionMode_${qm}` as Parameters<typeof t>[0])}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Custom system prompt */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configSystemPrompt")}</label>
+        <Textarea
+          className="text-xs resize-none"
+          rows={3}
+          placeholder={t("configSystemPromptHint")}
+          value={(data.system_prompt ?? "") as string}
+          onChange={(e) => updateField("system_prompt", e.target.value)}
+        />
+      </div>
+
+      {/* Output variable */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configOutputVariable")}</label>
+        <Input
+          className="h-7 text-xs font-mono"
+          value={(data.output_variable ?? "question_result") as string}
+          onChange={(e) => updateField("output_variable", e.target.value)}
+        />
+      </div>
+    </div>
+  )
 }

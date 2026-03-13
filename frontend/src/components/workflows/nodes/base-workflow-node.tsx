@@ -23,6 +23,8 @@ const categoryColorMap: Record<string, string> = {
   parameterExtractor: "bg-violet-500",
   listOperation: "bg-lime-500",
   transform: "bg-rose-500",
+  documentExtractor: "bg-amber-600",
+  questionUnderstanding: "bg-pink-500",
 }
 
 const runStatusStyles: Record<NodeRunStatus, { ring: string; extra: string }> = {
