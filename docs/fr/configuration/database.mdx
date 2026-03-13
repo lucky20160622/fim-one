@@ -3,27 +3,32 @@ title: "Base de données"
 description: "Choisissez et configurez le bon backend de base de données pour votre déploiement"
 ---
 
-FIM One supporte deux backends de base de données : **SQLite** (par défaut, zéro configuration) et **PostgreSQL** (recommandé pour la production). Le backend est déterminé par la variable d'environnement `DATABASE_URL`.
+FIM One prend en charge deux backends de base de données : **SQLite** (par défaut, zéro configuration) et **PostgreSQL** (recommandé pour la production). Le backend est déterminé par la variable d'environnement `DATABASE_URL`.
 
 ```bash
 
-```# SQLite (par défaut — aucune configuration nécessaire)
-DATABASE_URL=sqlite+aiosqlite:///./data/fim_one.db# PostgreSQL (production)
+```
+# SQLite (par défaut — aucune configuration nécessaire)
+DATABASE_URL=sqlite+aiosqlite:///./data/fim_one.db
+
+# PostgreSQL (production)
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/fim_one
 ```
 
 Les tables sont créées automatiquement au premier démarrage — aucune étape de migration manuelle n'est requise.
 
----## SQLite vs PostgreSQL
+---
+
+## SQLite vs PostgreSQL
 
 | | SQLite | PostgreSQL |
 |---|---|---|
-| **Setup** | Zéro configuration, basé sur fichier | Nécessite un serveur séparé |
-| **Concurrency** | Écrivain unique (verrou global) | MVCC complet, verrouillage au niveau des lignes |
+| **Configuration** | Zéro configuration, basé sur fichier | Nécessite un serveur séparé |
+| **Concurrence** | Écrivain unique (verrou global) | MVCC complet, verrouillage au niveau des lignes |
 | **Multi-worker** | Non supporté (`WORKERS` doit être `1`) | Entièrement supporté |
-| **SSE streaming** | Les connexions maintenues pendant les flux peuvent bloquer d'autres requêtes | Les lectures et écritures concurrentes ne sont pas affectées |
-| **Backup** | Copier le fichier `.db` | `pg_dump` ou réplication en continu |
-| **Best for** | Développement, utilisateur unique, démos | Production, multi-utilisateur, équipes |
+| **Streaming SSE** | Les connexions maintenues pendant les flux peuvent bloquer d'autres requêtes | Les lectures et écritures concurrentes ne sont pas affectées |
+| **Sauvegarde** | Copier le fichier `.db` | `pg_dump` ou réplication en continu |
+| **Idéal pour** | Développement, utilisateur unique, démos | Production, multi-utilisateur, équipes |
 
 <Tip>
 **Développement local :** SQLite fonctionne directement — pas de serveur de base de données, pas de Redis, rien à configurer. Commencez simplement à coder.
@@ -31,49 +36,61 @@ Les tables sont créées automatiquement au premier démarrage — aucune étape
 **Production :** Déployez avec Docker Compose et PostgreSQL + Redis sont provisionnés automatiquement. Aucune configuration manuelle de base de données nécessaire.
 </Tip>
 
----## Limitation connue : Streaming concurrent SQLite
+---
+
+## Limitation connue : Streaming concurrent SQLite
 
 <Warning>
 **SQLite peut devenir un goulot d'étranglement sous charge concurrente.**
 
 FIM One utilise Server-Sent Events (SSE) pour le streaming des réponses IA. Pendant le streaming, chaque connexion SSE active maintient une connexion de base de données du pool pendant toute la durée du flux. SQLite applique un verrou d'écriture global, ce qui signifie qu'une seule opération d'écriture peut procéder à la fois — toutes les autres écritures s'accumulent derrière elle.
 
-Bien que le pool de connexions supporte jusqu'à 30 connexions simultanées (`pool_size=20` + `max_overflow=10`), le goulot d'étranglement est le verrou lui-même, pas le pool. Quand plusieurs utilisateurs discutent simultanément, leurs opérations d'écriture (sauvegarde des messages, mise à jour des compteurs de tokens) se sérialisent les unes par rapport aux autres.
+Bien que le pool de connexions supporte jusqu'à 30 connexions simultanées (`pool_size=20` + `max_overflow=10`), le goulot d'étranglement est le verrou lui-même, pas le pool. Quand plusieurs utilisateurs discutent simultanément, leurs opérations d'écriture (sauvegarde des messages, mise à jour des compteurs de jetons) se sérialisent les unes par rapport aux autres.
 
-**Symptômes que vous pouvez observer :**
-- La liste de conversation se charge lentement pendant qu'un autre utilisateur effectue un streaming
+**Symptômes que vous pourriez observer :**
+- La liste des conversations se charge lentement pendant qu'un autre utilisateur effectue un streaming
 - Les pages de paramètres semblent lentes pendant les sessions de chat actives
 - Les réponses API sont retardées quand plusieurs flux sont actifs
 
-**Recommandation :** Si vous avez plus de 2-3 utilisateurs concurrents, passez à PostgreSQL. PostgreSQL utilise MVCC (Multi-Version Concurrency Control) avec verrouillage au niveau des lignes, donc les lectures et écritures concurrentes procèdent indépendamment sans se bloquer mutuellement.
+**Recommandation :** Si vous avez plus de 2-3 utilisateurs concurrents, passez à PostgreSQL. PostgreSQL utilise MVCC (Multi-Version Concurrency Control) avec verrouillage au niveau des lignes, de sorte que les lectures et écritures concurrentes procèdent indépendamment sans se bloquer mutuellement.
 </Warning>
 
----## Configuration du pool de connexions
+---
 
-FIM One configure les paramètres du pool de connexions SQLAlchemy en interne pour chaque backend. Ce sont des valeurs par défaut optimisées qui ne nécessitent pas de variables d'environnement — elles sont appliquées automatiquement en fonction du schéma `DATABASE_URL`. Les comprendre aide à expliquer le comportement à l'exécution.### Paramètres du pool SQLite
+## Configuration du pool de connexions
+
+FIM One configure en interne les paramètres du pool de connexions SQLAlchemy pour chaque backend. Ce sont des valeurs par défaut optimisées qui ne nécessitent pas de variables d'environnement — elles sont appliquées automatiquement en fonction du schéma `DATABASE_URL`. Les comprendre aide à expliquer le comportement à l'exécution.
+
+### Paramètres du pool SQLite
 
 | Paramètre | Valeur | Description |
 |---|---|---|
 | `pool_size` | `20` | Nombre de base de connexions persistantes dans le pool |
 | `max_overflow` | `10` | Connexions supplémentaires créées sous charge (jusqu'à 30 au total) |
 | Mode journal WAL | Activé | Write-Ahead Logging permet les lectures concurrentes pendant qu'une écriture est en cours, réduisant considérablement la contention de verrous |
-| `busy_timeout` | `30s` | Quand le verrou d'écriture est maintenu, les autres écrivains attendent jusqu'à 30 secondes avant de lever une erreur, au lieu d'échouer immédiatement |
-| `synchronous` | `NORMAL` | Sûr avec le mode WAL ; offre un meilleur débit d'écriture que la valeur par défaut `FULL` |
+| `busy_timeout` | `30s` | Lorsque le verrou d'écriture est maintenu, les autres écrivains attendent jusqu'à 30 secondes avant de lever une erreur, au lieu d'échouer immédiatement |
+| `synchronous` | `NORMAL` | Sûr avec le mode WAL ; offre un meilleur débit d'écriture que le `FULL` par défaut |
 
-Le mode WAL et le délai d'expiration de 30 secondes sont définis via les PRAGMAs SQLite sur chaque nouvelle connexion. Cette combinaison garantit que les lectures de courte durée (chargement d'une liste de conversations, récupération des paramètres) ne sont pas bloquées par les transactions d'écriture longues, et que les écritures concurrentes s'empilent correctement au lieu d'échouer.### Paramètres du pool PostgreSQL
+Le mode WAL et le délai d'attente de 30 secondes sont définis via les PRAGMAs SQLite sur chaque nouvelle connexion. Cette combinaison garantit que les lectures de courte durée (chargement d'une liste de conversations, récupération des paramètres) ne sont pas bloquées par les transactions d'écriture longues, et que les écritures concurrentes s'empilent correctement au lieu d'échouer.
+
+### Paramètres du pool PostgreSQL
 
 | Paramètre | Valeur | Description |
 |---|---|---|
 | `pool_size` | `10` | Nombre de base de connexions persistantes dans le pool |
 | `max_overflow` | `20` | Connexions supplémentaires créées sous charge (jusqu'à 30 au total) |
-| `pool_timeout` | `30s` | Temps maximum d'attente d'une connexion libre du pool avant de lever une erreur de timeout |
+| `pool_timeout` | `30s` | Temps maximum d'attente pour obtenir une connexion libre du pool avant de lever une erreur de délai d'expiration |
 | `pool_recycle` | `1800s` | Les connexions sont recyclées toutes les 30 minutes pour éviter les connexions obsolètes (important pour les bases de données hébergées dans le cloud qui ferment les connexions inactives) |
 
 PostgreSQL gère la concurrence nativement via MVCC, donc les paramètres du pool contrôlent principalement l'utilisation des ressources plutôt que la contention. L'intervalle de recyclage de 30 minutes évite les problèmes avec les pare-feu, les équilibreurs de charge ou les services de base de données gérés qui ferment silencieusement les connexions TCP inactives.
 
----## Passage à PostgreSQL### Étape 1 : Démarrer une instance PostgreSQL
+---
 
-Le moyen le plus rapide est d'utiliser Docker :
+## Passage à PostgreSQL
+
+### Étape 1 : Démarrer une instance PostgreSQL
+
+Le moyen le plus rapide est avec Docker :
 
 ```bash
 docker run -d \
@@ -82,26 +99,35 @@ docker run -d \
   -e POSTGRES_DB=fim_one \
   -p 5432:5432 \
   postgres:16-alpine
-```### Étape 2 : Définir DATABASE_URL
+```
+
+### Étape 2 : Définir DATABASE_URL
 
 Ajoutez ou mettez à jour la ligne suivante dans votre fichier `.env` :
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://postgres:secret@localhost:5432/fim_one
-```### Étape 3 : Redémarrer FIM One
+```
+
+### Étape 3 : Redémarrer FIM One
 
 ```bash
 
 
-```# Développement local
-./start.sh portal# Ou redémarrez votre gestionnaire de processus / service systemd
+```
+# Développement local
+./start.sh portal
+
+# Ou redémarrez votre gestionnaire de processus / service systemd
 ```
 
 Les tables sont créées automatiquement au premier démarrage. Aucune migration de schéma manuelle n'est nécessaire.
 
 <Note>
 **Les données SQLite existantes ne sont pas migrées automatiquement.** Le passage de `DATABASE_URL` de SQLite à PostgreSQL commence avec une base de données vierge. Si vous avez des conversations, des agents ou des connecteurs existants dans SQLite que vous devez conserver, consultez la section [Migration des données](#data-migration) ci-dessous.
-</Note>### Docker Compose (Recommandé pour la production)
+</Note>
+
+### Docker Compose (Recommandé pour la production)
 
 Si vous déployez avec Docker Compose, **PostgreSQL et Redis sont déjà inclus et auto-configurés** — il n'y a rien d'extra à configurer. Le `docker-compose.yml` définit `DATABASE_URL` en interne — votre valeur `.env` est remplacée :
 
@@ -112,11 +138,13 @@ environment:
 
 Aucune configuration de base de données supplémentaire n'est nécessaire lors de l'utilisation de Docker Compose.
 
----## Migration de données
+---
+
+## Migration de données
 
 Il n'existe pas d'outil de migration intégré de SQLite vers PostgreSQL. Pour la plupart des déploiements, l'approche recommandée dépend de votre situation :
 
-**Déploiement nouveau (pas de données existantes) :** Définissez simplement `DATABASE_URL` sur votre chaîne de connexion PostgreSQL et démarrez FIM One. Tous les tableaux sont créés automatiquement.
+**Déploiement initial (pas de données existantes) :** Définissez simplement `DATABASE_URL` sur votre chaîne de connexion PostgreSQL et démarrez FIM One. Toutes les tables sont créées automatiquement.
 
 **Données existantes qui doivent être conservées :** Une export/import manuelle est requise. L'approche générale :
 

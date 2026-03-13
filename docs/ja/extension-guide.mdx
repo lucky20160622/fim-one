@@ -1,9 +1,11 @@
 ---
 title: "拡張ガイド"
-description: "カスタム LLM プロバイダー、ツール、メモリバックエンド、埋め込み、リランカー、ウェブバックエンド、および RAG コンポーネントを FIM One にプラグインする方法。"
----## 概要
+description: "カスタムLLMプロバイダー、ツール、メモリバックエンド、埋め込み、リランカー、Webバックエンド、およびRAGコンポーネントをFIM Oneにプラグインする方法。"
+---
 
-FIM One は、スワップ可能なコンポーネントごとに 1 つの薄い抽象基底クラスのセットを中心に構築されています。すべてのコンポーネントは単一の責任と最小限のインターフェースを持ちます。抽象メソッドを実装し、インスタンスを適切なレジストリまたはインジェクターに配線すると、システムの残りの部分が自動的にあなたの実装を使用します。
+## 概要
+
+FIM One は、スワップ可能なコンポーネントごとに 1 つの薄い抽象基底クラスのセットを中心に構築されています。すべてのコンポーネントは単一の責任と最小限のインターフェースを持ちます。抽象メソッドを実装し、インスタンスを適切なレジストリまたはインジェクターに配線すると、システムの残りの部分が自動的に実装を使用します。
 
 | 拡張ポイント | 基底クラス | ファイル | 登録 |
 |---|---|---|---|
@@ -19,9 +21,11 @@ FIM One は、スワップ可能なコンポーネントごとに 1 つの薄い
 | ドキュメントローダー | `BaseLoader` | `rag/loaders/base.py` | ローダーレジストリ / インジェクション |
 | テキストチャンカー | `BaseChunker` | `rag/chunking/base.py` | コンストラクタインジェクション |
 
----## カスタム LLM プロバイダー
+---
 
-`BaseLLM` には 2 つの必須メソッド — `chat` と `stream_chat` — と、モデルが何ができるかをシステムの残りの部分に伝える optional な `abilities` プロパティがあります。
+## カスタムLLMプロバイダー
+
+`BaseLLM`には2つの必須メソッド — `chat`と`stream_chat` — と、モデルが何ができるかをシステムの残りの部分に伝えるオプションの`abilities`プロパティがあります。
 
 ```python
 from collections.abc import AsyncIterator
@@ -74,7 +78,9 @@ class MyLLM(BaseLLM):
         # Yield StreamChunk instances as tokens arrive
         ...
         yield  # make type-checker happy
-```### ModelRegistry経由での登録
+```
+
+### ModelRegistry経由での登録
 
 `ModelRegistry`は名前を`BaseLLM`インスタンスにマップし、ロールで解決します。システムは4つの組み込みロールを使用します：`general`、`fast`、`compact`、および`vision`。独自のロールを追加できます。
 
@@ -84,17 +90,23 @@ from fim_one.core.model.registry import ModelRegistry
 registry = ModelRegistry()
 registry.register("my-llm", MyLLM(api_key="...", model="my-v1"), roles=["general"])
 registry.register("my-fast", MyLLM(api_key="...", model="my-mini"), roles=["fast", "compact"])
-```# 後で取得する
+```
+
+# 後で取得
+
+```python
 llm = registry.get_default()           # first "general" model, or first registered
 llm = registry.get_by_role("fast")     # first model with the "fast" role
 llm = registry.get("my-llm")           # by exact name
 ```
 
-`abilities` 辞書は LLM と ReAct エンジン間の契約です。`tool_call=True` で、かつエージェントが `use_native_tools=True` で作成された場合、エンジンはネイティブ関数呼び出しを使用します。それ以外の場合は自動的に JSON モードにフォールバックします。
+`abilities` 辞書は、LLM と ReAct エンジン間の契約です。`tool_call=True` で、エージェントが `use_native_tools=True` で作成された場合、エンジンはネイティブ関数呼び出しを使用します。それ以外の場合は、自動的に JSON モードにフォールバックします。
 
----## カスタムツール
+---
 
-ツールは最も一般的な拡張機能です。`BaseTool`には3つの必須要素があります：`name`、`description`、および`run`です。その他すべてには適切なデフォルト値があります。
+## カスタムツール
+
+ツールは最も一般的な拡張機能です。`BaseTool`には3つの必須要素があります：`name`、`description`、`run`です。その他すべてには適切なデフォルト値があります。
 
 ```python
 from typing import Any
@@ -136,20 +148,24 @@ class GitStatusTool(BaseTool):
         )
         stdout, _ = await result.communicate()
         return stdout.decode()
-```### 自動検出
+```
 
-`src/fim_one/core/tool/builtin/` にファイルをドロップします。`discover_builtin_tools()` スキャナーは、具体的な（抽象的でない）`BaseTool` サブクラスを自動的に検出します — 手動登録は不要です。
+### 自動検出
+
+`src/fim_one/core/tool/builtin/` にファイルをドロップします。`discover_builtin_tools()` スキャナーは、具体的な（抽象的でない）`BaseTool` サブクラスを自動的に検出します。手動登録は不要です。
 
 ```
 src/fim_one/core/tool/builtin/
-├── calculator.py       ← 既存ツール
+├── calculator.py       ← 既存のツール
 ├── git_status.py       ← 新しいファイル → 自動検出
 └── ...
 ```
 
-スキャナーは `_SKIP_AUTO_DISCOVER` にリストされているクラスをスキップします。外部設定（例：API キー）が必要で、起動時に条件付きでインスタンス化する必要があるツールには、そのセットを使用します。### 利用不可を通知する
+スキャナーは `_SKIP_AUTO_DISCOVER` にリストされているクラスをスキップします。外部設定（例：APIキー）が必要で、起動時に条件付きでインスタンス化する必要があるツールに対してそのセットを使用します。
 
-依存関係が不足している場合にツールカタログにメッセージを表示するには、`availability()` をオーバーライドします:
+### 利用不可を通知する
+
+依存関係が不足している場合、ツールカタログにメッセージを表示するには `availability()` をオーバーライドします：
 
 ```python
 def availability(self) -> tuple[bool, str | None]:
@@ -157,7 +173,9 @@ def availability(self) -> tuple[bool, str | None]:
     if not os.getenv("GITHUB_TOKEN"):
         return False, "GITHUB_TOKEN environment variable is not set."
     return True, None
-```### アーティファクトを含むリッチな結果
+```
+
+### アーティファクトを含むリッチな結果
 
 ツールがファイルを生成する場合、プレーンな `str` の代わりに `ToolResult` を返します：
 
@@ -173,7 +191,9 @@ async def run(self, **kwargs: Any) -> ToolResult:
     )
 ```
 
----## カスタムメモリ
+---
+
+## カスタムメモリ
 
 `BaseMemory` は会話履歴の永続化レイヤーです。3つのメソッドがあります: `add_message`、`get_messages`、`clear`。
 
@@ -201,9 +221,11 @@ class RedisMemory(BaseMemory):
         await self._redis.delete(self._key)
 ```
 
-エージェントコンストラクタを通じてインジェクトします: `ReActAgent(llm=llm, memory=RedisMemory(conv_id, url))`。
+エージェントコンストラクタを通じて注入します: `ReActAgent(llm=llm, memory=RedisMemory(conv_id, url))`。
 
----## カスタム埋め込み
+---
+
+## カスタム埋め込み
 
 `BaseEmbedding` は 2 つのメソッド `embed_texts`（バッチ）と `embed_query`（単一）、および `dimension` プロパティを提供します。
 
@@ -231,7 +253,9 @@ class MyEmbedding(BaseEmbedding):
 
 `embed_texts` と `embed_query` の区別が存在するのは、多くの埋め込みモデル（例：E5、BGE）がドキュメントとクエリに異なるプレフィックスを使用して検索品質を向上させるためです。
 
----## カスタム画像生成
+---
+
+## カスタム画像生成
 
 `BaseImageGen` には単一のメソッド `generate` があります。このメソッドは画像を `output_dir` に保存し、ファイルパスとサーバー相対 URL を含む `ImageResult` を返します。
 
@@ -257,7 +281,9 @@ class StableDiffusionImageGen(BaseImageGen):
         )
 ```
 
----## カスタムリランカー
+---
+
+## カスタムリランカー
 
 `BaseReranker`はクエリとドキュメント文字列のリストを受け取り、スコア付きで並べ替えて返します。
 
@@ -279,9 +305,13 @@ class CrossEncoderReranker(BaseReranker):
         return results[:top_k]
 ```
 
----## カスタムウェブバックエンド### Web fetch
+---
 
-`BaseWebFetch` は URL をフェッチし、その内容を Markdown またはプレーンテキストとして返します。
+## カスタムウェブバックエンド
+
+### Web fetch
+
+`BaseWebFetch` はURLをフェッチし、そのコンテンツをMarkdownまたはプレーンテキストとして返します。
 
 ```python
 from fim_one.core.web.fetch.base import BaseWebFetch
@@ -297,7 +327,9 @@ class PlaywrightFetch(BaseWebFetch):
             content = await page.content()
             await browser.close()
         return html_to_markdown(content)
-```### ウェブ検索
+```
+
+### ウェブ検索
 
 `BaseWebSearch` は、ランク付けされた `SearchResult` オブジェクトのリストを返します。
 
@@ -313,9 +345,13 @@ class BingSearch(BaseWebSearch):
             SearchResult(title=r["name"], url=r["url"], snippet=r["snippet"])
             for r in raw_results[:num_results]
         ]
-```## カスタムRAGコンポーネント
+```
 
-RAGパイプラインには、3つの独立して交換可能なステージがあります：ロード、チャンキング、および検索。### ドキュメントローダー
+## カスタムRAGコンポーネント
+
+RAGパイプラインには、独立して交換可能な3つのステージがあります：ロード、チャンキング、検索。
+
+### ドキュメントローダー
 
 `BaseLoader` はファイルパスを `LoadedDocument` オブジェクトのリストに変換します。PDF ローダーは通常、ページごとに 1 つのドキュメントを返します。
 
@@ -330,9 +366,11 @@ class DocxLoader(BaseLoader):
         doc = Document(path)
         text = "\n".join(p.text for p in doc.paragraphs)
         return [LoadedDocument(content=text, metadata={"source": str(path)})]
-```### テキストチャンカー
+```
 
-`BaseChunker` はテキストを `Chunk` オブジェクトに分割します。`MAX_CHUNK_SIZE = 6000` 文字はハード上限です。この値を超えるチャンクサイズは Jina Embeddings v3 トークンウィンドウをオーバーフローさせる可能性があります。
+### テキストチャンカー
+
+`BaseChunker`はテキストを`Chunk`オブジェクトに分割します。`MAX_CHUNK_SIZE = 6000`文字がハード上限です — このサイズを超えるチャンクはJina Embeddings v3トークンウィンドウをオーバーフローする可能性があります。
 
 ```python
 from typing import Any
@@ -351,9 +389,11 @@ class SentenceChunker(BaseChunker):
             chunk_text = " ".join(sentences[i : i + self._n])
             chunks.append(Chunk(text=chunk_text, metadata=metadata or {}, index=i // self._n))
         return chunks
-```### Retriever
+```
 
-`BaseRetriever` はあらゆるバックエンドをクエリし、ランク付けされた `Document` オブジェクトを返します。
+### Retriever
+
+`BaseRetriever` は任意のバックエンドをクエリし、ランク付けされた `Document` オブジェクトを返します。
 
 ```python
 from fim_one.rag.base import BaseRetriever, Document
@@ -380,14 +420,16 @@ class ElasticsearchRetriever(BaseRetriever):
         ]
 ```
 
----## 設計原則
+---
 
-すべての基本クラスにわたって一貫性のあるいくつかのパターンがあり、カスタム実装をより正しく記述しやすくします:
+## 設計原則
 
-**非同期ファースト。** すべてのメソッドは `async def` です。実装が同期的であっても、イベントループをブロックするのではなく `asyncio.to_thread()` でラップしてください。
+すべての基本クラスにおいて、カスタム実装を正しく記述しやすくするための一貫したパターンがあります：
 
-**ツールからの文字列出力。** `BaseTool.run()` は `str` (または `ToolResult`) を返します。LLM はテキストのみを見ます — ツール実装は複雑なデータを読み取り可能な形式にシリアライズする責任があります。
+**非同期ファースト。** すべてのメソッドは `async def` です。実装が同期的であっても、イベントループをブロックするのではなく、`asyncio.to_thread()` でラップしてください。
 
-**最小限のインターフェース。** 各基本クラスは必要な最小限のコントラクトを定義します。`BaseMemory` は 3 つのメソッド、`BaseWebFetch` は 1 つです。不要な機能を実装する必要はありません。
+**ツールからの文字列出力。** `BaseTool.run()` は `str`（または `ToolResult`）を返します。LLM が見るのはテキストのみです。ツール実装は複雑なデータを読みやすい形式にシリアライズする責任があります。
 
-**継承よりも合成。** 基本クラスはインターフェースであり、フレームワークではありません。実装は構築時に注入します。ランタイムはモンキーパッチやさらなるサブクラス化を行いません。
+**最小限のインターフェース。** 各基本クラスは必要な最小限の契約を定義します。`BaseMemory` は 3 つのメソッド、`BaseWebFetch` は 1 つです。必要のない機能を実装する必要はありません。
+
+**継承よりも合成。** 基本クラスはインターフェースであり、フレームワークではありません。実装を構築時に注入します。ランタイムは決してモンキーパッチやさらなるサブクラス化を行いません。

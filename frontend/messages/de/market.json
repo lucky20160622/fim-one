@@ -7,9 +7,9 @@
   "unsubscribe": "Abmelden",
   "types": {
     "all": "Alle",
-    "agent": "Agents",
-    "connector": "Connectors",
-    "knowledge_base": "Knowledge Bases",
-    "mcp_server": "MCP Servers"
+    "agent": "Agenten",
+    "connector": "Konnektoren",
+    "knowledge_base": "Wissensdatenbanken",
+    "mcp_server": "MCP Server"
   }
 }

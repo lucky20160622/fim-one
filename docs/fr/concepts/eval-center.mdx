@@ -1,13 +1,15 @@
 ---
-title: "Centre d'Évaluation"
+title: "Centre d'évaluation"
 description: "Évaluez quantitativement vos agents avec des ensembles de données de test et une notation automatisée par LLM."
 ---
 
-Le Centre d'Évaluation vous permet de vérifier la qualité des agents **avant** de les déployer en production. Créez un ensemble de données de cas de test, exécutez-les sur n'importe quel agent publié, et obtenez un rapport quantitatif avec des verdicts de réussite/échec par cas, la latence et l'utilisation des tokens.
+Le Centre d'évaluation vous permet de vérifier la qualité des agents **avant** le déploiement en production. Créez un ensemble de données de cas de test, exécutez-les contre n'importe quel agent publié, et obtenez un rapport quantitatif avec des verdicts réussi/échoué par cas, la latence et l'utilisation des jetons.
 
 <Info>
-Conçu pour l'examen des achats en entreprise — chaque résultat est auditable, reproductible et stocké de manière persistante.
-</Info>## Comment ça fonctionne
+Conçu pour l'examen des achats en entreprise — chaque résultat est vérifiable, reproductible et stocké de manière persistante.
+</Info>
+
+## Fonctionnement
 
 Chaque exécution d'évaluation exécute un **pipeline à trois étapes** pour chaque cas de test :
 
@@ -35,7 +37,9 @@ Chaque exécution d'évaluation exécute un **pipeline à trois étapes** pour c
 │  After all cases finish: pass rate, avg latency,          │
 │  total tokens are computed and attached to the run.       │
 └──────────────────────────────────────────────────────────┘
-```### Décisions de conception clés
+```
+
+### Décisions de conception clés
 
 | Décision | Raison |
 |----------|--------|
@@ -43,33 +47,43 @@ Chaque exécution d'évaluation exécute un **pipeline à trois étapes** pour c
 | **LLM évaluateur séparé** (modèle rapide) | Bon marché et rapide ; le LLM de l'agent a déjà consommé des jetons lors de l'exécution |
 | **`asyncio.Semaphore(5)`** | Limite la concurrence à 5 pour éviter de surcharger le fournisseur LLM avec des erreurs de limite de débit |
 | **Chaque cas est indépendant** | Pas d'historique de conversation entre les cas ; chacun obtient une nouvelle instance d'agent |
-| **Exécution en arrière-plan** | L'exécution se déclenche comme une tâche asynchrone — l'API retourne immédiatement, le frontend interroge toutes les 3 secondes |## Flux de travail### 1. Créer un Dataset
+| **Exécution en arrière-plan** | L'exécution se déclenche en tant que tâche asynchrone — l'API retourne immédiatement, le frontend interroge toutes les 3 secondes |
+
+## Flux de travail
+
+### 1. Créer un ensemble de données
 
 Accédez à **Eval Center → Datasets** et cliquez sur **New Dataset**.
 
-Un dataset est une collection nommée de cas de test. Donnez-lui un nom descriptif (par exemple, « Customer Support — Tier 1 Questions ») et une description optionnelle.### 2. Ajouter des cas de test
+Un ensemble de données est une collection nommée de cas de test. Donnez-lui un nom descriptif (par exemple, « Support client — Questions de niveau 1 ») et une description facultative.
 
-Cliquez dans votre dataset et ajoutez des cas de test. Chaque cas a trois champs :
+### 2. Ajouter des cas de test
 
-| Champ | Requis | Description |
-|-------|--------|-------------|
+Cliquez dans votre ensemble de données et ajoutez des cas de test. Chaque cas a trois champs :
+
+| Champ | Obligatoire | Description |
+|-------|----------|-------------|
 | **Prompt** | Oui | La question ou l'instruction exacte envoyée à l'agent |
 | **Expected Behavior** | Oui | Une description en langage naturel de ce qu'une réponse correcte ressemble |
 | **Assertions** | Non | Une liste de vérifications spécifiques (par exemple, « La réponse mentionne la politique de remboursement », « La réponse fait moins de 200 mots ») |
 
 <Tip>
 **Rédiger de bons cas de test :**
-- **Prompt** : Soyez précis. « Quelle est notre politique de remboursement pour les plans entreprise ? » est mieux que « Parlez-moi des remboursements. »
+- **Prompt** : Soyez précis. « Quelle est notre politique de remboursement pour les plans d'entreprise ? » est mieux que « Parlez-moi des remboursements. »
 - **Expected Behavior** : Décrivez le *résultat*, pas la formulation exacte. « Explique la fenêtre de remboursement de 30 jours et mentionne l'exception pour les plans annuels. »
-- **Assertions** : Utilisez-les pour les exigences strictes. Le correcteur vérifiera explicitement chaque assertion.
-</Tip>### 3. Démarrer une évaluation
+- **Assertions** : Utilisez-les pour les exigences strictes. L'évaluateur vérifiera explicitement chaque assertion.
+</Tip>
+
+### 3. Démarrer une Évaluation
 
 Allez à l'onglet **Eval Runs** et cliquez sur **New Evaluation**. Sélectionnez :
 
 1. **Agent** — n'importe quel agent que vous possédez
 2. **Dataset** — n'importe quel dataset avec au moins un cas de test
 
-Cliquez sur **Start Evaluation**. Vous serez redirigé vers la page des résultats.### 4. Lire les résultats
+Cliquez sur **Start Evaluation**. Vous serez redirigé vers la page des résultats.
+
+### 4. Lire les résultats
 
 La page des résultats affiche :
 
@@ -79,32 +93,40 @@ La page des résultats affiche :
   - Prompt (tronqué — cliquez pour développer)
   - Verdict : **Pass** (vert), **Fail** (rouge), ou **Error** (orange)
   - Réponse de l'agent (tronquée — cliquez pour développer)
-  - Raisonnement du grader (pourquoi c'est passé ou échoué)
+  - Raisonnement de l'évaluateur (pourquoi c'est passé ou échoué)
   - Latence (ms) et nombre de tokens
 
 <Warning>
-Pendant qu'une exécution est en cours (statut `pending` ou `running`), la page se rafraîchit automatiquement toutes les 3 secondes. Ne naviguez pas ailleurs si vous voulez voir les résultats apparaître en temps réel.
-</Warning>## Ce qui est testé### Inclus
-- **Outils intégrés** : calculator, web_search, web_fetch, python_exec, file_ops, etc.
+Pendant qu'une exécution est en cours (statut `pending` ou `running`), la page se rafraîchit automatiquement toutes les 3 secondes. Ne naviguez pas ailleurs si vous souhaitez voir les résultats apparaître en temps réel.
+</Warning>
+
+## Ce qui est testé
+
+### Inclus
+- **Outils intégrés** : calculatrice, web_search, web_fetch, python_exec, file_ops, etc.
 - **Instructions de l'agent** : Le champ `extra_instructions` de l'agent est transmis
-- **Modèle configuré de l'agent** : Si l'agent a une configuration de modèle personnalisée, ce modèle est utilisé### Non inclus (par conception)
+- **Modèle configuré de l'agent** : Si l'agent a une configuration de modèle personnalisée, ce modèle est utilisé
+
+### Non inclus (par conception)
 - **Connecteurs** : Les connecteurs HTTP externes nécessitent des services tiers actifs — ignorés dans l'évaluation pour éviter les tests instables
 - **Serveurs MCP** : Même raison — dépendances de processus externes
 - **Historique de conversation** : Chaque cas s'exécute isolément sans contexte préalable
 - **Bases de connaissances** : Les outils de récupération KB ne sont pas chargés en mode évaluation
 
 <Info>
-Cela signifie que les résultats d'évaluation reflètent la **capacité de raisonnement et d'utilisation d'outils de l'agent**, et non son intégration avec des services externes. Testez les connecteurs séparément via la fonctionnalité Connector Test.
-</Info>## Le Correcteur
+Cela signifie que les résultats d'évaluation reflètent la **capacité de raisonnement et d'utilisation d'outils** de l'agent, et non son intégration avec des services externes. Testez les connecteurs séparément via la fonctionnalité Test de connecteur.
+</Info>
 
-Le correcteur est un LLM (le modèle « rapide » du système) qui reçoit quatre informations et retourne un verdict JSON structuré :
+## L'évaluateur
+
+L'évaluateur est un LLM (le modèle « rapide » du système) qui reçoit quatre informations et retourne un verdict structuré en JSON :
 
 **Invite système :**
 > You are an impartial AI evaluator. Your job is to judge whether an AI agent's answer meets the expected behavior for a given prompt.
 >
 > Be strict but fair. A "pass" requires the answer to genuinely address the prompt according to the expected behavior. A "fail" means the answer is wrong, incomplete, off-topic, or misses key requirements.
 
-**Le message utilisateur inclut :**
+**Le message utilisateur comprend :**
 1. L'invite originale
 2. Le comportement attendu
 3. La liste des assertions (ou « Aucune spécifiée »)
@@ -118,34 +140,44 @@ Le correcteur est un LLM (le modèle « rapide » du système) qui reçoit quatr
 }
 ```
 
-Le correcteur utilise `structured_llm_call` avec l'appel de fonction pour appliquer le schéma. Si le correcteur lui-même échoue (erreur réseau, réponse malformée), le cas est marqué comme `error`.## Meilleures pratiques### Conception de l'ensemble de données
-- **Commencez petit** : 5–10 cas couvrant les cas d'usage principaux de l'agent
+L'évaluateur utilise `structured_llm_call` avec l'appel de fonction pour appliquer le schéma. Si l'évaluateur lui-même échoue (erreur réseau, réponse malformée), le cas est marqué comme `error`.
+
+## Bonnes pratiques
+
+### Conception de l'ensemble de données
+- **Commencez petit** : 5–10 cas couvrant les cas d'utilisation principaux de l'agent
 - **Couvrez les cas limites** : Incluez au moins 2–3 invites adversariales ou hors de portée
-- **Soyez spécifique dans le comportement attendu** : Les attentes vagues mènent à une notation incohérente
-- **Utilisez des assertions pour les exigences strictes** : « Doit mentionner le prix » est plus fiable que d'espérer que l'évaluateur le détecte### Interprétation des résultats
-- **Taux de réussite de 80%+** est une bonne ligne de base pour un agent bien configuré
+- **Soyez spécifique dans le comportement attendu** : Les attentes vagues conduisent à une notation incohérente
+- **Utilisez des assertions pour les exigences strictes** : « Doit mentionner le prix » est plus fiable que d'espérer que l'évaluateur le détecte
+
+### Interprétation des résultats
+- **Taux de réussite de 80%+** est une bonne base de référence pour un agent bien configuré
 - **Taux de réussite faible avec latence élevée** suggère que l'agent a du mal avec le raisonnement multi-étapes
-- **Statut d'erreur** signifie que l'agent ou l'évaluateur s'est arrêté de manière inattendue — vérifiez les journaux du serveur pour plus de détails
-- **Désaccords de l'évaluateur** : Si vous pensez que l'évaluateur a tort, lisez son raisonnement. Vous devrez peut-être affiner votre description du comportement attendu### Quand réévaluer
+- **Statut d'erreur** signifie que l'agent ou l'évaluateur s'est arrêté de manière anormale — vérifiez les journaux du serveur pour plus de détails
+- **Désaccords de l'évaluateur** : Si vous pensez que l'évaluateur se trompe, lisez son raisonnement. Vous devrez peut-être affiner votre description du comportement attendu
+
+### Quand réévaluer
 - Après modification des instructions de l'agent
 - Après changement du modèle LLM de l'agent
 - Après ajout ou suppression de catégories d'outils
-- Avant tout déploiement en production (intégration CI/CD à venir dans une version future)## Référence API
+- Avant tout déploiement en production (intégration CI/CD à venir dans une version future)
+
+## Référence API
 
 | Méthode | Point de terminaison | Description |
 |---------|----------------------|-------------|
 | `POST` | `/api/eval/datasets` | Créer un ensemble de données |
 | `GET` | `/api/eval/datasets` | Lister les ensembles de données (paginés) |
-| `GET` | `/api/eval/datasets/{id}` | Obtenir un ensemble de données |
-| `PUT` | `/api/eval/datasets/{id}` | Mettre à jour un ensemble de données |
-| `DELETE` | `/api/eval/datasets/{id}` | Supprimer un ensemble de données (supprime les cas) |
+| `GET` | `/api/eval/datasets/{id}` | Obtenir l'ensemble de données |
+| `PUT` | `/api/eval/datasets/{id}` | Mettre à jour l'ensemble de données |
+| `DELETE` | `/api/eval/datasets/{id}` | Supprimer l'ensemble de données (supprime les cas en cascade) |
 | `POST` | `/api/eval/datasets/{id}/cases` | Ajouter un cas de test |
 | `GET` | `/api/eval/datasets/{id}/cases` | Lister les cas (paginés) |
-| `PUT` | `/api/eval/datasets/{id}/cases/{caseId}` | Mettre à jour un cas |
-| `DELETE` | `/api/eval/datasets/{id}/cases/{caseId}` | Supprimer un cas |
+| `PUT` | `/api/eval/datasets/{id}/cases/{caseId}` | Mettre à jour le cas |
+| `DELETE` | `/api/eval/datasets/{id}/cases/{caseId}` | Supprimer le cas |
 | `POST` | `/api/eval/runs` | Démarrer une exécution d'évaluation |
 | `GET` | `/api/eval/runs` | Lister les exécutions (paginées) |
 | `GET` | `/api/eval/runs/{id}` | Obtenir l'exécution + tous les résultats des cas |
-| `DELETE` | `/api/eval/runs/{id}` | Supprimer l'exécution (supprime les résultats) |
+| `DELETE` | `/api/eval/runs/{id}` | Supprimer l'exécution (supprime les résultats en cascade) |
 
 Tous les points de terminaison nécessitent une authentification JWT (`Authorization: Bearer <token>`).

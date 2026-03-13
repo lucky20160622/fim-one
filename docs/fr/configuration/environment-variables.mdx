@@ -8,39 +8,45 @@ Toute la configuration se fait via `.env`. Copiez `example.env` et remplissez vo
 
 ```bash
 cp example.env .env
-```## Niveaux de Configuration
+```
+
+## Niveaux de Configuration
 
 Chaque intégration a un niveau de configuration indiquant son importance :
 
 | Niveau | Signification | Comportement si non configuré |
 |-------|---------|------------------------------|
-| **Required** | Dépendance système centrale | Le système génère une erreur — le chat et les fonctions principales ne fonctionnent pas |
-| **Recommended** | Activateur de fonctionnalité significative | Dégradation progressive — la fonctionnalité est visiblement indisponible mais le système fonctionne |
-| **Optional** | Capacité d'amélioration | Dégradation transparente — le système fonctionne correctement, la capacité n'est simplement pas présente |
+| **Requis** | Dépendance système essentielle | Le système génère une erreur — le chat et les fonctions principales ne fonctionnent pas |
+| **Recommandé** | Activateur de fonctionnalité significative | Dégradation progressive — la fonctionnalité est visiblement indisponible mais le système fonctionne |
+| **Optionnel** | Capacité d'amélioration | Dégradation transparente — le système fonctionne correctement, la capacité est simplement absente |
 
-> **Note** : Les modèles configurés par l'administrateur (Admin → Models page) peuvent remplacer les variables d'environnement LLM. Le contrôle de santé considère les deux sources.
+> **Remarque** : Les modèles configurés par l'administrateur (Admin → page Modèles) peuvent remplacer les variables d'environnement LLM. La vérification de santé considère les deux sources.
 
----## Frontend (Développement local uniquement)
+---
+
+## Frontend (Développement local uniquement)
 
 Le frontend a un fichier env séparé **uniquement pour le développement local** : `frontend/.env.local`.
 
-> **Ce fichier n'est PAS utilisé dans Docker.** À l'intérieur du conteneur Docker, Next.js proxie `/api/*` vers le backend Python en interne (le port 8000 est interne au conteneur), donc aucun fichier env frontend n'est nécessaire.
+> **Ce fichier n'est PAS utilisé dans Docker.** À l'intérieur du conteneur Docker, Next.js proxifie `/api/*` vers le backend Python en interne (le port 8000 est interne au conteneur), donc aucun fichier env frontend n'est nécessaire.
 
 Pour le développement local, les valeurs par défaut fonctionnent directement — vous n'avez **pas** besoin de créer `frontend/.env.local` sauf si votre backend s'exécute sur un port non-standard.
 
-Si vous avez besoin de remplacer les valeurs, créez `frontend/.env.local` manuellement :
+Si vous devez remplacer les valeurs, créez `frontend/.env.local` manuellement :
 
 ```bash
 echo 'NEXT_PUBLIC_API_URL=http://localhost:9000' > frontend/.env.local
 ```
 
-| Variable | Défaut | Description |
+| Variable | Par défaut | Description |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` *(auto)* | URL du backend que le **navigateur** utilise pour les appels API directs (redirections OAuth, streaming). Auto-détectée depuis `window.location` si non définie — remplacez uniquement si votre backend s'exécute sur un port non-standard localement. |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` *(auto)* | URL du backend que le **navigateur** utilise pour les appels API directs (redirections OAuth, streaming). Détectée automatiquement à partir de `window.location` si non définie — remplacez-la uniquement si votre backend s'exécute sur un port non-standard localement. |
 
-> **Note de compilation** : les variables `NEXT_PUBLIC_*` sont intégrées au bundle JS au moment de `pnpm build`. Les modifier à l'exécution (par ex. via `.env` racine) n'a aucun effet — c'est pourquoi elles se trouvent dans `frontend/.env.local` pour le développement local uniquement.## LLM (Requis)
+> **Note au moment de la compilation** : les variables `NEXT_PUBLIC_*` sont intégrées au bundle JS au moment de `pnpm build`. Les modifier à l'exécution (par ex. via le fichier `.env` racine) n'a aucun effet — c'est pourquoi elles se trouvent dans `frontend/.env.local` pour le développement local uniquement.
 
-| Variable | Requis | Défaut | Description |
+## LLM (Requis)
+
+| Variable | Requis | Par défaut | Description |
 |---|---|---|---|
 | `LLM_API_KEY` | **Oui** | — | Clé API du fournisseur LLM |
 | `LLM_BASE_URL` | Non | `https://api.openai.com/v1` | URL de base de toute API compatible OpenAI |
@@ -48,27 +54,31 @@ echo 'NEXT_PUBLIC_API_URL=http://localhost:9000' > frontend/.env.local
 | `FAST_LLM_MODEL` | Non | *(revient à `LLM_MODEL`)* | Modèle rapide — utilisé pour l'exécution des étapes DAG (moins cher, plus rapide) |
 | `LLM_TEMPERATURE` | Non | `0.7` | Température d'échantillonnage par défaut |
 | `LLM_CONTEXT_SIZE` | Non | `128000` | Taille de la fenêtre de contexte pour le LLM principal |
-| `LLM_MAX_OUTPUT_TOKENS` | Non | `64000` | Tokens de sortie max par appel pour le LLM principal |
-| `FAST_LLM_API_KEY` | Non | *(revient à `LLM_API_KEY`)* | Clé API du fournisseur du modèle rapide. À utiliser lorsque le modèle rapide est hébergé par un fournisseur différent du modèle principal |
-| `FAST_LLM_BASE_URL` | Non | *(revient à `LLM_BASE_URL`)* | URL de base du fournisseur du modèle rapide |
+| `LLM_MAX_OUTPUT_TOKENS` | Non | `64000` | Nombre maximal de jetons de sortie par appel pour le LLM principal |
+| `FAST_LLM_API_KEY` | Non | *(revient à `LLM_API_KEY`)* | Clé API du fournisseur de modèle rapide. À utiliser lorsque le modèle rapide est hébergé par un fournisseur différent du modèle principal |
+| `FAST_LLM_BASE_URL` | Non | *(revient à `LLM_BASE_URL`)* | URL de base du fournisseur de modèle rapide |
 | `FAST_LLM_TEMPERATURE` | Non | *(revient à `LLM_TEMPERATURE`)* | Température d'échantillonnage pour le modèle rapide |
 | `FAST_LLM_CONTEXT_SIZE` | Non | *(revient à `LLM_CONTEXT_SIZE`)* | Taille de la fenêtre de contexte pour le LLM rapide |
-| `FAST_LLM_MAX_OUTPUT_TOKENS` | Non | *(revient à `LLM_MAX_OUTPUT_TOKENS`)* | Tokens de sortie max par appel pour le LLM rapide |
-| `LLM_REASONING_EFFORT` | Non | *(désactivé)* | Niveau de réflexion étendue pour les modèles supportés (OpenAI série o, Gemini 2.5+, Claude). Valeurs : `low`, `medium`, `high`. LiteLLM traduit cela au format natif de chaque fournisseur automatiquement. La chaîne de pensée du modèle est affichée dans l'étape « thinking » de l'interface. |
-| `LLM_REASONING_BUDGET_TOKENS` | Non | *(auto à partir de l'effort)* | Budget de tokens explicite pour la réflexion Anthropic (minimum 1024). Pour OpenAI/Gemini, le niveau d'effort est utilisé directement. Effectif uniquement lorsque `LLM_REASONING_EFFORT` est défini. |
-| `LLM_JSON_MODE_ENABLED` | Non | `true` | Définir à `false` pour désactiver `response_format=json_object` pour les modèles configurés via ENV. Requis lors de l'utilisation d'un relais tiers soutenu par AWS Bedrock (les versions plus récentes rejettent l'injection de préfixe assistant de LiteLLM, causant une `ValidationException` à la 2e itération+ de l'agent). Les modèles configurés via DB remplacent cela par modèle via Admin → Models → Advanced settings. |
-| `REASONING_LLM_MODEL` | Non | *(revient à `LLM_MODEL`)* | Nom du modèle pour le tier de réflexion. Utilisé pour les tâches nécessitant une analyse approfondie (ex. planification DAG, analyse de plan) |
-| `REASONING_LLM_API_KEY` | Non | *(revient à `LLM_API_KEY`)* | Clé API du fournisseur du modèle de réflexion |
-| `REASONING_LLM_BASE_URL` | Non | *(revient à `LLM_BASE_URL`)* | URL de base du fournisseur du modèle de réflexion |
+| `FAST_LLM_MAX_OUTPUT_TOKENS` | Non | *(revient à `LLM_MAX_OUTPUT_TOKENS`)* | Nombre maximal de jetons de sortie par appel pour le LLM rapide |
+| `LLM_REASONING_EFFORT` | Non | *(désactivé)* | Niveau de réflexion étendue pour les modèles supportés (OpenAI série o, Gemini 2.5+, Claude). Valeurs : `low`, `medium`, `high`. LiteLLM traduit cela au format natif de chaque fournisseur automatiquement. La chaîne de pensée du modèle est affichée dans l'étape « thinking » de l'interface utilisateur. |
+| `LLM_REASONING_BUDGET_TOKENS` | Non | *(auto à partir de l'effort)* | Budget de jetons explicite pour la réflexion Anthropic (minimum 1024). Pour OpenAI/Gemini, le niveau d'effort est utilisé directement. Effectif uniquement lorsque `LLM_REASONING_EFFORT` est défini. |
+| `LLM_JSON_MODE_ENABLED` | Non | `true` | Définir à `false` pour désactiver `response_format=json_object` pour les modèles configurés via ENV. Requis lors de l'utilisation d'un relais tiers soutenu par AWS Bedrock (les versions plus récentes rejettent l'injection de préfixe assistant de LiteLLM, causant une `ValidationException` à la 2e itération d'agent et au-delà). Les modèles configurés en base de données remplacent cela par modèle via Admin → Models → Advanced settings. |
+| `REASONING_LLM_MODEL` | Non | *(revient à `LLM_MODEL`)* | Nom du modèle pour le niveau de réflexion. Utilisé pour les tâches nécessitant une analyse approfondie (par exemple, planification DAG, analyse de plan) |
+| `REASONING_LLM_API_KEY` | Non | *(revient à `LLM_API_KEY`)* | Clé API du fournisseur de modèle de réflexion |
+| `REASONING_LLM_BASE_URL` | Non | *(revient à `LLM_BASE_URL`)* | URL de base du fournisseur de modèle de réflexion |
 | `REASONING_LLM_TEMPERATURE` | Non | *(revient à `LLM_TEMPERATURE`)* | Température d'échantillonnage pour le modèle de réflexion |
 | `REASONING_LLM_CONTEXT_SIZE` | Non | *(revient à `LLM_CONTEXT_SIZE`)* | Taille de la fenêtre de contexte pour le modèle de réflexion |
-| `REASONING_LLM_MAX_OUTPUT_TOKENS` | Non | *(revient à `LLM_MAX_OUTPUT_TOKENS`)* | Tokens de sortie max par appel pour le modèle de réflexion |
-| `REASONING_LLM_EFFORT` | Non | *(revient à `LLM_REASONING_EFFORT`)* | Niveau d'effort de réflexion pour le tier du modèle de réflexion. Valeurs : `low`, `medium`, `high` |
-| `REASONING_LLM_BUDGET` | Non | *(revient à `LLM_REASONING_BUDGET_TOKENS`)* | Budget de tokens pour la réflexion (principalement Anthropic). Remplace le budget calculé automatiquement pour le tier de réflexion |
+| `REASONING_LLM_MAX_OUTPUT_TOKENS` | Non | *(revient à `LLM_MAX_OUTPUT_TOKENS`)* | Nombre maximal de jetons de sortie par appel pour le modèle de réflexion |
+| `REASONING_LLM_EFFORT` | Non | *(revient à `LLM_REASONING_EFFORT`)* | Niveau d'effort de réflexion pour le niveau de modèle de réflexion. Valeurs : `low`, `medium`, `high` |
+| `REASONING_LLM_BUDGET` | Non | *(revient à `LLM_REASONING_BUDGET_TOKENS`)* | Budget de jetons pour la réflexion (principalement Anthropic). Remplace le budget calculé automatiquement pour le niveau de réflexion |
 
-> **Ordre de résolution** : Préférence utilisateur → Modèles Admin (DB) → Fallback ENV. Si un modèle admin avec le rôle « General » est configuré dans Admin → Models, ces variables ENV servent de fallback uniquement. Le contrôle de santé considère les deux sources.### Extended Thinking (Reasoning)
+> **Ordre de résolution** : Préférence utilisateur → Modèles Admin (BD) → Secours ENV. Si un modèle admin avec le rôle « General » est configuré dans Admin → Models, ces variables ENV servent de secours uniquement. Le contrôle de santé considère les deux sources.
 
-When `LLM_REASONING_EFFORT` is set, FIM One enables the model's extended thinking capability so the internal chain-of-thought is surfaced in the UI "thinking" step. FIM One uses [LiteLLM](https://github.com/BerriAI/litellm) to translate the reasoning effort parameter into each provider's native format automatically.#### Fournisseurs pris en charge
+### Réflexion étendue (Raisonnement)
+
+Lorsque `LLM_REASONING_EFFORT` est défini, FIM One active la capacité de réflexion étendue du modèle afin que la chaîne de pensée interne soit affichée dans l'étape « thinking » de l'interface utilisateur. FIM One utilise [LiteLLM](https://github.com/BerriAI/litellm) pour traduire automatiquement le paramètre d'effort de raisonnement dans le format natif de chaque fournisseur.
+
+#### Fournisseurs pris en charge
 
 | Fournisseur | `LLM_BASE_URL` | Fonctionnement | Contenu de raisonnement retourné ? |
 |---|---|---|---|
@@ -76,17 +86,23 @@ When `LLM_REASONING_EFFORT` is set, FIM One enables the model's extended thinkin
 | **Anthropic** (Claude 3.7+) | `https://api.anthropic.com/v1/` | LiteLLM achemine via l'API Anthropic native avec le paramètre `thinking` | Oui |
 | **Google Gemini** (2.5+) | `https://generativelanguage.googleapis.com/v1beta/openai/` | `reasoning_effort` envoyé sur le point de terminaison de compatibilité | Oui |
 
-LiteLLM détecte automatiquement le fournisseur à partir de `LLM_BASE_URL` et le mappe au format API correct. Les URL inconnues sont traitées comme compatibles avec OpenAI.#### Avertissements importants
+LiteLLM détecte automatiquement le fournisseur à partir de `LLM_BASE_URL` et le mappe au format API correct. Les URL inconnues sont traitées comme compatibles avec OpenAI.
+
+#### Avertissements importants
 
 <Warning>
 **Les proxies tiers / points de terminaison personnalisés ne sont pas garantis.**
 Si votre `LLM_BASE_URL` pointe vers un proxy API tiers (par exemple, OpenRouter, one-api, passerelle personnalisée), LiteLLM tentera d'acheminer correctement en fonction de l'URL. Cependant, si votre proxy s'attend à un format non standard, le raisonnement peut ne pas fonctionner comme prévu. Consultez la documentation du proxy pour connaître le format de paramètre attendu.
-</Warning>#### Contraintes de température avec le raisonnement
+</Warning>
+
+#### Contraintes de température avec le raisonnement
 
 Certains fournisseurs imposent des restrictions de température lorsque le raisonnement est actif :
 
 - **Anthropic** : Nécessite `temperature=1` lorsque la réflexion étendue est activée. Si vous utilisez Anthropic avec la réflexion étendue, vous **devez** définir `LLM_TEMPERATURE=1` — Anthropic rejette les autres valeurs lorsque la réflexion est activée.
-- **OpenAI GPT-5.x** : Supporte uniquement `temperature=1` à tout moment. Le filtrage `drop_params` de LiteLLM gère cela automatiquement — les valeurs de température non supportées sont silencieusement supprimées. Aucune action de l'utilisateur n'est nécessaire pour GPT-5.x.#### Comment fonctionne `LLM_REASONING_BUDGET_TOKENS`
+- **OpenAI GPT-5.x** : Supporte uniquement `temperature=1` à tout moment. Le filtrage `drop_params` de LiteLLM gère cela automatiquement — les valeurs de température non supportées sont silencieusement supprimées. Aucune action de l'utilisateur n'est nécessaire pour GPT-5.x.
+
+#### Comment fonctionne `LLM_REASONING_BUDGET_TOKENS`
 
 Cette variable est **principalement significative pour le chemin Anthropic**. Lorsqu'elle est définie, elle remplace le budget calculé automatiquement et est envoyée en tant que `budget_tokens` dans le paramètre `thinking` via LiteLLM. Lorsqu'elle n'est pas définie, le budget est dérivé de `LLM_MAX_OUTPUT_TOKENS` x ratio d'effort :
 
@@ -100,30 +116,34 @@ Le budget minimum est de 1 024 tokens (minimum absolu d'Anthropic).
 
 Pour OpenAI et Gemini, le fournisseur gère l'allocation de tokens en interne en fonction du niveau `reasoning_effort` — `LLM_REASONING_BUDGET_TOKENS` n'a aucun effet.
 
----## Exécution de l'Agent
+## Exécution de l'agent
 
 | Variable | Requis | Par défaut | Description |
 |---|---|---|---|
-| `REACT_MAX_ITERATIONS` | Non | `20` | Nombre maximal d'itérations d'appels d'outils par requête ReAct |
-| `MAX_CONCURRENCY` | Non | `5` | Nombre maximal d'étapes parallèles dans l'exécuteur DAG |
-| `DAG_STEP_MAX_ITERATIONS` | Non | `15` | Nombre maximal d'itérations d'appels d'outils dans chaque étape DAG |
-| `DAG_MAX_REPLAN_ROUNDS` | Non | `3` | Nombre maximal de tentatives de re-planification autonome lorsque l'objectif n'est pas atteint |
+| `REACT_MAX_ITERATIONS` | Non | `20` | Nombre max d'itérations d'appels d'outils par requête ReAct |
+| `MAX_CONCURRENCY` | Non | `5` | Nombre max d'étapes parallèles dans l'exécuteur DAG |
+| `DAG_STEP_MAX_ITERATIONS` | Non | `15` | Nombre max d'itérations d'appels d'outils dans chaque étape DAG |
+| `DAG_MAX_REPLAN_ROUNDS` | Non | `3` | Nombre max de tentatives de re-planification autonome lorsque l'objectif n'est pas atteint |
 | `DAG_REPLAN_STOP_CONFIDENCE` | Non | `0.8` | Arrêter les tentatives lorsque la confiance de l'agent que l'objectif est inatteignable dépasse ce seuil (`0.0` = ne jamais arrêter tôt, `1.0` = arrêter en cas d'échec) |
-| `DAG_TOOL_CACHE` | Non | `true` | Mettre en cache les appels d'outils identiques au sein d'une seule exécution DAG. Les verrous asynchrones par clé préviennent la congestion. Définir sur `false` pour désactiver la mise en cache |
-| `DAG_STEP_VERIFICATION` | Non | `false` | Activer la vérification de qualité basée sur LLM après la fin de chaque étape DAG. En cas d'échec, l'étape est relancée une fois avec les commentaires de vérification. Ajoute de la latence mais améliore la précision des résultats |
-| `AUTO_ROUTING` | Non | `true` | Activer la classification automatique des requêtes. Un LLM rapide analyse chaque requête et l'achemine vers le mode d'exécution ReAct (une seule étape) ou DAG (multi-étapes). Le point de terminaison `/api/auto` utilise ceci. Définir sur `false` pour exiger une sélection de mode explicite |
+| `DAG_TOOL_CACHE` | Non | `true` | Mettre en cache les appels d'outils identiques au sein d'une seule exécution DAG. Les verrous asynchrones par clé préviennent les pics de charge. Définir à `false` pour désactiver la mise en cache |
+| `DAG_STEP_VERIFICATION` | Non | `false` | Activer la vérification de qualité basée sur LLM après la fin de chaque étape DAG. En cas d'échec, l'étape se réessaie une fois avec retour de vérification. Ajoute de la latence mais améliore la précision des résultats |
+| `AUTO_ROUTING` | Non | `true` | Activer la classification automatique des requêtes. Un LLM rapide analyse chaque requête et l'achemine vers le mode d'exécution ReAct (une seule étape) ou DAG (multi-étapes). Le point de terminaison `/api/auto` utilise ceci. Définir à `false` pour exiger une sélection de mode explicite |
 
----## Outils Web (Optionnel)
+---
 
-| Variable | Requis | Par défaut | Description |
+## Outils Web (Optionnel)
+
+| Variable | Requis | Défaut | Description |
 |---|---|---|---|
-| `JINA_API_KEY` | Non | — | Clé API Jina — également utilisée pour l'embedding et le reranker ; obtenez la vôtre sur [jina.ai](https://jina.ai/) |
+| `JINA_API_KEY` | Non | — | Clé API Jina — également utilisée pour l'intégration et le reclassement ; obtenez la vôtre sur [jina.ai](https://jina.ai/) |
 | `TAVILY_API_KEY` | Non | — | Clé API Tavily Search (sélectionnée automatiquement si définie et `WEB_SEARCH_PROVIDER` n'est pas défini) |
 | `BRAVE_API_KEY` | Non | — | Clé API Brave Search (sélectionnée automatiquement si définie et `WEB_SEARCH_PROVIDER` n'est pas défini) |
 | `WEB_SEARCH_PROVIDER` | Non | `jina` | Sélecteur de fournisseur de recherche : `jina` / `tavily` / `brave` |
 | `WEB_FETCH_PROVIDER` | Non | `jina` (si clé définie, sinon `httpx`) | Fournisseur de récupération : `jina` / `httpx` |
 
----## RAG et base de connaissances (Recommandé)
+---
+
+## RAG et base de connaissances (Recommandé)
 
 | Variable | Requis | Par défaut | Description |
 |---|---|---|---|
@@ -134,42 +154,52 @@ Pour OpenAI et Gemini, le fournisseur gère l'allocation de tokens en interne en
 | `RETRIEVAL_MODE` | Non | `grounding` | `grounding` (pipeline complet avec citations/conflits/confiance) ou `simple` (RAG basique) |
 | `RERANKER_MODEL` | Non | `jina-reranker-v2-base-multilingual` | Identifiant du modèle de reranking |
 | `RERANKER_PROVIDER` | Non | `jina` | Fournisseur de reranking : `jina` / `cohere` / `openai` |
-| `COHERE_API_KEY` | Non | — | Clé API Cohere (sélectionne automatiquement le reranker Cohere quand défini) |
+| `COHERE_API_KEY` | Non | — | Clé API Cohere (sélectionne automatiquement le reranker Cohere lorsqu'elle est définie) |
 | `COHERE_RERANKER_MODEL` | Non | `rerank-multilingual-v3.0` | Modèle de reranking Cohere |
 | `VECTOR_STORE_DIR` | Non | `./data/vector_store` | Répertoire pour les données du magasin vectoriel LanceDB |
 
-> L'embedding est **recommandé** pour les fonctionnalités de base de connaissances. Le reranking est **optionnel** — la recherche fonctionne sans lui en utilisant le scoring de fusion.## Exécution de Code
+> L'embedding est **recommandé** pour les fonctionnalités de base de connaissances. Le reranking est **optionnel** — la recherche fonctionne sans lui en utilisant le scoring de fusion.
 
-| Variable | Requise | Par défaut | Description |
+---
+
+## Exécution de Code
+
+| Variable | Requis | Défaut | Description |
 |---|---|---|---|
 | `CODE_EXEC_BACKEND` | Non | `local` | `local` (exécution directe sur l'hôte) ou `docker` (conteneurs isolés) |
 | `DOCKER_PYTHON_IMAGE` | Non | `python:3.11-slim` | Image Docker pour l'exécution Python |
 | `DOCKER_NODE_IMAGE` | Non | `node:20-slim` | Image Docker pour l'exécution Node.js |
 | `DOCKER_SHELL_IMAGE` | Non | `python:3.11-slim` | Image Docker pour l'exécution shell |
-| `DOCKER_MEMORY` | Non | *(Docker default)* | Limite de RAM par conteneur (ex. `256m`, `512m`, `1g`) |
-| `DOCKER_CPUS` | Non | *(Docker default)* | Quota CPU par conteneur (ex. `0.5`, `1.0`) |
+| `DOCKER_MEMORY` | Non | *(défaut Docker)* | Limite de RAM par conteneur (ex. `256m`, `512m`, `1g`) |
+| `DOCKER_CPUS` | Non | *(défaut Docker)* | Quota CPU par conteneur (ex. `0.5`, `1.0`) |
 | `SANDBOX_TIMEOUT` | Non | `120` | Délai d'exécution par défaut en secondes |
 | `DOCKER_HOST_DATA_DIR` | Non | *(non défini)* | Chemin absolu côté hôte du montage de volume `./data`. Requis pour les déploiements DooD (Docker-outside-of-Docker) ; `docker-compose.yml` le définit automatiquement via `${PWD}/data`. |
 
-> **Sécurité** : Le mode `local` exécute le code généré par l'IA directement sur l'hôte. Pour les déploiements accessibles sur Internet ou multi-utilisateurs, définissez toujours `CODE_EXEC_BACKEND=docker`.## Artefacts d'outils
+> **Sécurité** : Le mode `local` exécute le code généré par l'IA directement sur l'hôte. Pour les déploiements accessibles sur Internet ou multi-utilisateurs, définissez toujours `CODE_EXEC_BACKEND=docker`.
 
-Limites de taille pour les fichiers produits par l'exécution d'outils (exécution de code, rendu de modèles, génération d'images).
+## Artefacts d'outil
+
+Limites de taille pour les fichiers produits par l'exécution d'outils (exécution de code, rendu de modèle, génération d'image).
 
 | Variable | Requis | Par défaut | Description |
 |---|---|---|---|
 | `MAX_ARTIFACT_SIZE` | Non | `10485760` (10 MB) | Taille maximale d'un fichier artefact unique en octets |
 | `MAX_ARTIFACTS_TOTAL` | Non | `52428800` (50 MB) | Taille totale maximale des artefacts par session en octets |
 
----## Génération d'images (Optionnel)
+---
+
+## Génération d'images (Optionnel)
 
 | Variable | Requis | Par défaut | Description |
 |---|---|---|---|
 | `IMAGE_GEN_PROVIDER` | Non | `google` | `google` (API native Gemini) ou `openai` (API compatible OpenAI `/v1/images/generations`) |
 | `IMAGE_GEN_API_KEY` | Non | — | Clé Google AI Studio (`google`) ou clé proxy/OpenAI (`openai`) |
 | `IMAGE_GEN_MODEL` | Non | `gemini-3.1-flash-image-preview` | Modèle de génération d'images (par ex. `dall-e-3`, `gemini-nano-banana-2`) |
-| `IMAGE_GEN_BASE_URL` | Non | *(par fournisseur)* | Google : `https://generativelanguage.googleapis.com/v1beta`; OpenAI : `https://api.openai.com/v1` |
+| `IMAGE_GEN_BASE_URL` | Non | *(par fournisseur)* | Google : `https://generativelanguage.googleapis.com/v1beta` ; OpenAI : `https://api.openai.com/v1` |
 
----## Email (SMTP) (Recommandé)
+---
+
+## Email (SMTP) (Recommandé)
 
 Enregistre automatiquement l'outil intégré `email_send` lorsque `SMTP_HOST`, `SMTP_USER` et `SMTP_PASS` sont tous définis.
 
@@ -185,36 +215,42 @@ Enregistre automatiquement l'outil intégré `email_send` lorsque `SMTP_HOST`, `
 | `SMTP_ALLOWED_DOMAINS` | Non | — | Liste d'autorisation de domaines séparés par des virgules (ex. `example.com,corp.io`) ; bloque les destinataires en dehors des domaines listés |
 | `SMTP_ALLOWED_ADDRESSES` | Non | — | Liste d'autorisation d'adresses exactes séparées par des virgules ; combinée avec `SMTP_ALLOWED_DOMAINS` ; laissez les deux non définis pour autoriser n'importe quel destinataire (non recommandé pour les boîtes aux lettres partagées) |
 
----## Connecteurs
+---
+
+## Connecteurs
 
 | Variable | Requis | Par défaut | Description |
 |---|---|---|---|
-| `CONNECTOR_RESPONSE_MAX_CHARS` | Non | `50000` | Nombre maximal de caractères pour les réponses de connecteur JSON non-tableau / texte brut |
-| `CONNECTOR_RESPONSE_MAX_ITEMS` | Non | `10` | Nombre maximal d'éléments de tableau à conserver lorsque la réponse du connecteur est un tableau JSON |
-| `CREDENTIAL_ENCRYPTION_KEY` | Non | _(non défini)_ | Clé de chiffrement Fernet pour les blobs d'identifiants de connecteur. Lorsqu'elle est définie, les jetons d'authentification stockés dans `connector_credentials` sont chiffrés au repos. Si elle n'est pas définie, les identifiants sont stockés en tant que JSON en texte brut (rétrocompatible). La modification de cette clé invalide tous les identifiants chiffrés existants. |
+| `CONNECTOR_RESPONSE_MAX_CHARS` | Non | `50000` | Nombre maximum de caractères pour les réponses de connecteur JSON non-tableau / texte brut |
+| `CONNECTOR_RESPONSE_MAX_ITEMS` | Non | `10` | Nombre maximum d'éléments de tableau à conserver lorsque la réponse du connecteur est un tableau JSON |
+| `CREDENTIAL_ENCRYPTION_KEY` | Non | _(non défini)_ | Clé de chiffrement Fernet pour les blobs d'identifiants de connecteur. Lorsqu'elle est définie, les jetons d'authentification stockés dans `connector_credentials` sont chiffrés au repos. Si elle n'est pas définie, les identifiants sont stockés en tant que JSON en texte brut (rétro-compatible). La modification de cette clé invalide tous les identifiants chiffrés existants. |
 
----## Plateforme
+---
 
-| Variable | Requis | Par défaut | Description |
-|---|---|---|---|
-| `DATABASE_URL` | Non | `sqlite+aiosqlite:///./data/fim_one.db` | Chaîne de connexion à la base de données. **SQLite** (zéro configuration) : `sqlite+aiosqlite:///./data/fim_one.db`. **PostgreSQL** (production) : `postgresql+asyncpg://user:pass@localhost:5432/fim_one`. Docker Compose configure automatiquement PostgreSQL. |
-| `JWT_SECRET_KEY` | Non | `CHANGE_ME` | Clé secrète pour la signature des jetons JWT. La valeur d'espace réservé `CHANGE_ME` (ou tout autre défaut hérité) déclenche la génération automatique d'une clé aléatoire sécurisée de 256 bits au premier démarrage, qui est réécrite dans `.env`. Définissez explicitement en production pour maintenir la validité des jetons lors des redémarrages et des répliques. |
-| `CORS_ORIGINS` | Non | — | Liste séparée par des virgules des origines CORS supplémentaires autorisées au-delà des entrées localhost par défaut. Requis lorsque le frontend s'exécute sur un domaine non-localhost (par exemple `https://app.example.com`). |
-| `UPLOADS_DIR` | Non | `./uploads` | Répertoire pour les fichiers téléchargés |
-| `MAX_UPLOAD_SIZE_MB` | Non | `50` | Taille maximale de téléchargement de fichier en mégaoctets (application du backend) |
-| `NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB` | Non | `50` | Taille maximale de téléchargement de fichier affichée dans l'interface utilisateur du frontend. **Variable de temps de construction** — doit correspondre à `MAX_UPLOAD_SIZE_MB`. |
-| `MCP_SERVERS` | Non | — | Tableau JSON des configurations de serveur MCP (nécessite `uv sync --extra mcp`) |
-| `ALLOW_STDIO_MCP` | Non | `false` | Autoriser les serveurs MCP stdio. Définissez sur `true` uniquement pour les déploiements locaux de confiance |
-| `ALLOWED_STDIO_COMMANDS` | Non | `npx,uvx,node,python,python3,deno,bun` | Liste séparée par des virgules des commandes de base autorisées pour les serveurs MCP stdio. Effectif uniquement lorsque `ALLOW_STDIO_MCP=true` |
-| `LOG_LEVEL` | Non | `INFO` | Niveau de journalisation : `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
-| `REDIS_URL` | Non | — | URL de connexion Redis pour le relais d'interruption entre workers. Auto-configuré par Docker Compose. Nécessaire uniquement pour les configurations multi-worker locales (`WORKERS>1`). |
-| `WORKERS` | Non | `1` | Processus workers Uvicorn. `1` est sûr et ne nécessite aucun service externe. `>1` **nécessite PostgreSQL** (SQLite est single-writer). L'authentification, OAuth et les opérations de fichiers sont entièrement sûrs pour multi-worker (basés sur JWT). **Limitation** : sans `REDIS_URL`, l'interruption/injection en cours de flux ne fonctionne que dans le même processus worker. Docker Compose configure automatiquement Redis. |
-
----## OAuth (Optionnel)
-
-Lorsque `CLIENT_ID` et `CLIENT_SECRET` sont tous deux définis pour un fournisseur, la page de connexion affiche automatiquement le bouton OAuth correspondant.
+## Plateforme
 
 | Variable | Requis | Défaut | Description |
+|---|---|---|---|
+| `DATABASE_URL` | Non | `sqlite+aiosqlite:///./data/fim_one.db` | Chaîne de connexion à la base de données. **SQLite** (zéro configuration) : `sqlite+aiosqlite:///./data/fim_one.db`. **PostgreSQL** (production) : `postgresql+asyncpg://user:pass@localhost:5432/fim_one`. Docker Compose configure automatiquement PostgreSQL. |
+| `JWT_SECRET_KEY` | Non | `CHANGE_ME` | Clé secrète pour la signature des jetons JWT. La valeur d'espace réservé `CHANGE_ME` (ou tout défaut hérité) déclenche la génération automatique d'une clé aléatoire sécurisée de 256 bits au premier démarrage, qui est écrite dans `.env`. Définissez explicitement en production pour maintenir la validité des jetons entre les redémarrages et les réplicas. |
+| `CORS_ORIGINS` | Non | — | Liste séparée par des virgules d'origines CORS supplémentaires autorisées au-delà des entrées localhost par défaut. Requis lorsque le frontend s'exécute sur un domaine non-localhost (par ex. `https://app.example.com`). |
+| `UPLOADS_DIR` | Non | `./uploads` | Répertoire pour les fichiers téléchargés |
+| `MAX_UPLOAD_SIZE_MB` | Non | `50` | Taille maximale de téléchargement de fichier en mégaoctets (application backend) |
+| `NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB` | Non | `50` | Taille maximale de téléchargement de fichier affichée dans l'interface utilisateur du frontend. **Variable de temps de construction** — doit correspondre à `MAX_UPLOAD_SIZE_MB`. |
+| `MCP_SERVERS` | Non | — | Tableau JSON des configurations de serveur MCP (nécessite `uv sync --extra mcp`) |
+| `ALLOW_STDIO_MCP` | Non | `false` | Autoriser les serveurs MCP stdio. Définissez `true` uniquement pour les déploiements locaux de confiance |
+| `ALLOWED_STDIO_COMMANDS` | Non | `npx,uvx,node,python,python3,deno,bun` | Liste séparée par des virgules des commandes de base autorisées pour les serveurs MCP stdio. Effectif uniquement lorsque `ALLOW_STDIO_MCP=true` |
+| `LOG_LEVEL` | Non | `INFO` | Niveau de journalisation : `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
+| `REDIS_URL` | Non | — | URL de connexion Redis pour le relais d'interruption entre workers. Auto-configuré par Docker Compose. Nécessaire uniquement pour les configurations locales multi-worker (`WORKERS>1`). |
+| `WORKERS` | Non | `1` | Processus workers Uvicorn. `1` est sûr et ne nécessite aucun service externe. `>1` **nécessite PostgreSQL** (SQLite est à writer unique). L'authentification, OAuth et les opérations de fichiers sont entièrement sûrs pour multi-worker (basés sur JWT). **Limitation** : sans `REDIS_URL`, l'interruption/injection en cours de flux fonctionne uniquement dans le même processus worker. Docker Compose configure automatiquement Redis. |
+
+---
+
+## OAuth (Optionnel)
+
+Quand `CLIENT_ID` et `CLIENT_SECRET` sont tous les deux définis pour un fournisseur, la page de connexion affiche automatiquement le bouton OAuth correspondant.
+
+| Variable | Requis | Par défaut | Description |
 |---|---|---|---|
 | `GITHUB_CLIENT_ID` | Non | — | ID client de l'application GitHub OAuth. Créer sur [github.com/settings/developers](https://github.com/settings/developers) → OAuth Apps |
 | `GITHUB_CLIENT_SECRET` | Non | — | Secret client de l'application GitHub OAuth |
@@ -224,11 +260,13 @@ Lorsque `CLIENT_ID` et `CLIENT_SECRET` sont tous deux définis pour un fournisse
 | `DISCORD_CLIENT_SECRET` | Non | — | Secret client Discord OAuth2 |
 | `FEISHU_APP_ID` | Non | — | ID d'application Feishu (Lark). Créer sur [open.feishu.cn](https://open.feishu.cn/app). Nécessite la permission `contact:user.email:readonly` |
 | `FEISHU_APP_SECRET` | Non | — | Secret d'application Feishu (Lark) |
-| `FRONTEND_URL` | **Prod** | `http://localhost:3000` | Où le navigateur accède après la fin d'OAuth. Doit être défini en production (par ex. `https://yourdomain.com`) |
-| `API_BASE_URL` | **Prod** | `http://localhost:8000` | URL backend accessible en externe, utilisée pour construire les URL de rappel OAuth. Doit être défini en production |
-| `NEXT_PUBLIC_API_URL` | **Prod** | *(auto-détecté comme `<hostname>:8000`)* | URL de base de l'API côté navigateur pour les redirections OAuth. **C'est une variable de temps de construction du frontend** — définissez-la dans `frontend/.env.local` pour le développement local, ou passez-la en tant qu'argument de construction Docker pour les déploiements de production personnalisés. L'auto-détection fonctionne pour les configurations de proxy inverse standard (port 80/443). |
+| `FRONTEND_URL` | **Prod** | `http://localhost:3000` | Où le navigateur arrive après la fin d'OAuth. Doit être défini en production (ex. `https://yourdomain.com`) |
+| `API_BASE_URL` | **Prod** | `http://localhost:8000` | URL du backend accessible de l'extérieur, utilisée pour construire les URLs de rappel OAuth. Doit être défini en production |
+| `NEXT_PUBLIC_API_URL` | **Prod** | *(détecté automatiquement comme `<hostname>:8000`)* | URL de base de l'API côté navigateur pour les redirections OAuth. **C'est une variable de temps de construction du frontend** — définissez-la dans `frontend/.env.local` pour le développement local, ou passez-la comme argument de construction Docker pour les déploiements de production personnalisés. La détection automatique fonctionne pour les configurations de proxy inverse standard (port 80/443). |
 
-> **Prod** = optionnel localement (les valeurs par défaut fonctionnent), mais **requis pour tout déploiement accessible sur Internet**.### URLs de rappel OAuth à enregistrer auprès de chaque fournisseur
+> **Prod** = optionnel localement (les valeurs par défaut fonctionnent), mais **requis pour tout déploiement accessible sur Internet**.
+
+### URLs de rappel OAuth à enregistrer auprès de chaque fournisseur
 
 Le backend construit les URLs de rappel comme : `{API_BASE_URL}/api/auth/oauth/{provider}/callback`
 
@@ -238,16 +276,18 @@ Le backend construit les URLs de rappel comme : `{API_BASE_URL}/api/auth/oauth/{
 | Google | `https://yourdomain.com/api/auth/oauth/google/callback` |
 | Discord | `https://yourdomain.com/api/auth/oauth/discord/callback` |
 
----## Analytics (Optionnel)
+---
 
-Tous les fournisseurs d'analytics sont optionnels. Définissez n'importe quelle combinaison — tous les fournisseurs actifs se chargent simultanément. Laissez tous les champs vides pour désactiver complètement les analytics (recommandé pour le développement local).
+## Analytique (Optionnel)
+
+Tous les fournisseurs d'analytique sont optionnels. Définissez n'importe quelle combinaison — tous les fournisseurs actifs se chargent simultanément. Laissez tous les champs vides pour désactiver complètement l'analytique (recommandé pour le développement local).
 
 | Variable | Requis | Par défaut | Description |
 |---|---|---|---|
 | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | Non | — | ID de mesure Google Analytics 4 (par ex. `G-XXXXXXXXXX`). Obtenez le vôtre sur [analytics.google.com](https://analytics.google.com) |
-| `NEXT_PUBLIC_UMAMI_SCRIPT_URL` | Non | — | URL du script d'analytics Umami (par ex. `https://your-umami.com/script.js`). Alternative auto-hébergée et respectueuse de la vie privée — [umami.is](https://umami.is) |
+| `NEXT_PUBLIC_UMAMI_SCRIPT_URL` | Non | — | URL du script d'analytique Umami (par ex. `https://your-umami.com/script.js`). Alternative auto-hébergée et respectueuse de la vie privée — [umami.is](https://umami.is) |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Non | — | ID du site web Umami. Requis quand `NEXT_PUBLIC_UMAMI_SCRIPT_URL` est défini |
-| `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | Non | — | Domaine d'analytics Plausible (par ex. `yourdomain.com`). Léger et respectueux de la vie privée — [plausible.io](https://plausible.io) |
+| `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | Non | — | Domaine d'analytique Plausible (par ex. `yourdomain.com`). Léger et respectueux de la vie privée — [plausible.io](https://plausible.io) |
 | `NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL` | Non | `https://plausible.io/js/script.js` | URL de script Plausible personnalisée pour les instances auto-hébergées |
 
-> Toutes les variables d'analytics `NEXT_PUBLIC_*` sont au **moment de la compilation** — les modifications nécessitent une reconstruction du frontend pour prendre effet.
+> Toutes les variables d'analytique `NEXT_PUBLIC_*` sont au **moment de la compilation** — les modifications nécessitent une reconstruction du frontend pour prendre effet.

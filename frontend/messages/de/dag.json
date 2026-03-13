@@ -6,7 +6,7 @@
   "thinking": "Denken",
   "input": "Eingabe",
   "output": "Ausgabe",
-  "toolDetails": "{name} Werkzeugdetails",
+  "toolDetails": "Details des {name}-Werkzeugs",
   "reasoning": "Begründung",
   "arguments": "Argumente",
   "download": "Herunterladen",

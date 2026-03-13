@@ -1,34 +1,42 @@
 ---
 title: "Design-Philosophie"
-description: "Architektonische Entscheidungen während der DAG-Ausführungsgestaltung — was wir bewusst NICHT gebaut haben und warum."
+description: "Architektonische Entscheidungen beim Design der DAG-Ausführungs-Engine — was wir bewusst NICHT gebaut haben und warum."
 ---
 
-FIM One's DAG-Ausführungsmodul wurde mit bewusster Zurückhaltung entworfen. Mehrere Muster, die in Multi-Agent-Frameworks häufig vorkommen, wurden evaluiert und absichtlich ausgeschlossen. Diese Seite dokumentiert diese Entscheidungen und die Begründung dahinter.## Handoff — Nicht erforderlich
+Die DAG-Ausführungs-Engine von FIM One wurde mit bewusster Zurückhaltung entworfen. Mehrere Muster, die in Multi-Agent-Frameworks häufig vorkommen, wurden evaluiert und absichtlich ausgeschlossen. Diese Seite dokumentiert diese Entscheidungen und die Begründung dahinter.
 
-**Pattern**: Explizite Aufgabenübergabe zwischen Agenten, bei der ein Agent seine Arbeit abschließt und die Kontrolle an den nächsten Agent übergibt.
+## Handoff — Nicht erforderlich
 
-**Warum ausgeschlossen**: DAG-Linearketten decken sequenzielle Aufgabenübergaben bereits natürlich ab. Wenn Schritt B von Schritt A abhängt, wartet der Executor auf den Abschluss von A und übergibt dann das Ergebnis von A in den Kontext von B über den Abhängigkeitsmechanismus. Dies ist strukturell gleichwertig mit einer Übergabe — erfordert aber keine separate Abstraktionsschicht.
+**Muster**: Explizite Aufgabenübergabe zwischen Agenten, bei der ein Agent seine Arbeit abschließt und die Kontrolle an den nächsten Agent übergibt.
 
-Das Hinzufügen eines expliziten Handoff-Protokolls würde duplizieren, was Schrittabhängigkeiten bereits bieten, ohne zusätzliche Ausdruckskraft zu ermöglichen.## Backflow — Nicht erforderlich
+**Grund für Ausschluss**: DAG-lineare Ketten decken sequenzielle Aufgabenübergaben bereits auf natürliche Weise ab. Wenn Schritt B von Schritt A abhängt, wartet der Executor auf den Abschluss von A und übergibt dann das Ergebnis von A in den Kontext von B über den Abhängigkeitsmechanismus. Dies ist strukturell gleichwertig mit einer Übergabe — erfordert aber keine separate Abstraktionsebene.
 
-**Pattern**: Nachgelagerte Schritte, die Ergebnisse an vorgelagerte Schritte zurückführen zur Neubewertung (auch Backpropagation von Ergebnissen genannt).
+Das Hinzufügen eines expliziten Handoff-Protokolls würde duplizieren, was Schrittabhängigkeiten bereits bieten, ohne zusätzliche Ausdruckskraft zu ermöglichen.
 
-**Warum ausgeschlossen**: Die PlanAnalyzer-Neuplanungsschleife deckt bereits diesen Anwendungsfall ab. Nach Abschluss aller Schritte bewertet der Analyzer, ob das ursprüngliche Ziel erreicht wurde. Falls nicht (und das Vertrauen unter der Stoppgrenze liegt), wird eine vollständige Neuplanung mit Kontext aus den Ergebnissen der vorherigen Runde ausgelöst — einschließlich dessen, was schiefgelaufen ist und was gelernt wurde.
+## Rückfluss — Nicht erforderlich
 
-Dies ist ein grobkörnigerer, aber robusterer Ansatz als Backflow pro Schritt. Backflow pro Schritt erzeugt komplexe Rückkopplungsschleifen, die schwer zu debuggen sind und zu Endlosschleifen führen können. Die Neuplanungsschleife erreicht denselben Korrektureffekt mit einem saubereren Ausführungsmodell: planen, ausführen, bewerten, bei Bedarf neu planen.## Teams (Agent-Interkommunikation) — Nicht erforderlich
+**Muster**: Nachgelagerte Schritte speisen Ergebnisse an vorgelagerte Schritte zurück zur Neubewertung (auch Backpropagation von Ergebnissen genannt).
 
-**Pattern**: Mehrere spezialisierte Agenten, die während der Ausführung miteinander kommunizieren, Subtask-Ownership verhandeln oder an gemeinsamen Zuständen zusammenarbeiten.
+**Warum ausgeschlossen**: Die PlanAnalyzer-Neuplanungsschleife deckt bereits diesen Anwendungsfall ab. Nach Abschluss aller Schritte bewertet der Analyzer, ob das ursprüngliche Ziel erreicht wurde. Falls nicht (und das Vertrauen unter dem Stoppwert liegt), wird eine vollständige Neuplanung mit Kontext aus den Ergebnissen der vorherigen Runde ausgelöst – einschließlich dessen, was schiefgelaufen ist und was gelernt wurde.
 
-**Warum ausgeschlossen**: DAG-Abhängigkeitsketten sind für datenabhängige Aufgaben ausreichend. Wenn Schritt C Ergebnisse sowohl von Schritt A als auch von Schritt B benötigt, drücken die Abhängigkeitskanten dies direkt aus. Schritt C erhält die Ausgaben von A und B in seinem Kontext — kein Inter-Agent-Messaging-Protokoll erforderlich.
+Dies ist ein grobkörnigerer, aber robusterer Ansatz als schrittweiser Rückfluss. Schrittweiser Rückfluss erzeugt komplexe Rückkopplungsschleifen, die schwer zu debuggen sind und zu Endlosschleifen führen können. Die Neuplanungsschleife erreicht denselben Korrektureffekt mit einem saubereren Ausführungsmodell: Planen, Ausführen, Bewerten, bei Bedarf neu planen.
 
-Das DAG-Modell ist einfacher und vorhersehbarer als Agent-zu-Agent-Kommunikation. Agenten müssen nicht verhandeln; der Planer bestimmt die Ausführungsstruktur im Voraus, und der Executor erzwingt den Datenfluss durch Abhängigkeitsauflösung. Dies vermeidet den Koordinationsaufwand und die Nichtdeterminismus, die Multi-Agent-Messaging mit sich bringt.## agent_hint / role_hint — Nicht erforderlich
+## Teams (Agent-Kommunikation) — Nicht erforderlich
 
-**Muster**: Ein expliziter Hinweis, der dem Executor mitteilt, welcher Agententyp oder welche Persona jeden Schritt handhaben sollte (z. B. „den Recherche-Agent verwenden" oder „den Coding-Agent verwenden").
+**Muster**: Mehrere spezialisierte Agenten, die während der Ausführung miteinander kommunizieren, Unteraufgaben aushandeln oder an gemeinsamen Zuständen zusammenarbeiten.
+
+**Warum ausgeschlossen**: DAG-Abhängigketten sind für datenabhängige Aufgaben ausreichend. Wenn Schritt C Ergebnisse sowohl von Schritt A als auch von Schritt B benötigt, drücken die Abhängigkanten dies direkt aus. Schritt C erhält die Ausgaben von A und B in seinem Kontext — kein Inter-Agent-Messaging-Protokoll erforderlich.
+
+Das DAG-Modell ist einfacher und vorhersehbarer als die Agent-zu-Agent-Kommunikation. Agenten müssen nicht verhandeln; der Planer bestimmt die Ausführungsstruktur im Voraus, und der Executor erzwingt den Datenfluss durch Abhängigkeitsauflösung. Dies vermeidet den Koordinationsaufwand und die Nicht-Determinismus, die Multi-Agent-Messaging mit sich bringt.
+
+## agent_hint / role_hint — Nicht erforderlich
+
+**Muster**: Ein expliziter Hinweis, der dem Executor mitteilt, welcher Typ von Agent oder Persona jeden Schritt handhaben sollte (z. B. „verwende den Recherche-Agent" oder „verwende den Coding-Agent").
 
 **Warum ausgeschlossen**: Die Kombination aus drei bereits vorhandenen Feldern bietet bereits ausreichende Orientierung:
 
-- **`task`** — Die natürlichsprachliche Beschreibung dessen, was der Schritt erreichen soll. Eine gut geschriebene Aufgabe signalisiert implizit die erforderliche Expertise.
-- **`tool_hint`** — Schlägt vor, welche Tools der Schritt verwenden sollte (z. B. `web_search`, `python_exec`). Dies beschränkt den Ausführungsansatz präziser als ein vages Rollenlabel.
+- **`task`** — Die natürlichsprachige Beschreibung dessen, was der Schritt erreichen soll. Eine gut geschriebene Aufgabe signalisiert implizit die erforderliche Expertise.
+- **`tool_hint`** — Schlägt vor, welche Werkzeuge der Schritt verwenden sollte (z. B. `web_search`, `python_exec`). Dies beschränkt den Ausführungsansatz präziser als ein vages Rollenlabel.
 - **`model_hint`** — Steuert, ob der Schritt das schnelle oder das Reasoning-Modell-Tier verwendet, was die wirkungsvollste Ausführungsentscheidung ist.
 
-Das Hinzufügen von `agent_hint` oder `role_hint` würde mit diesen drei Feldern redundant sein und würde eine weitere Konfigurationsachse einführen, die der Planner-LLM richtig verstehen muss. Eine kleine Hinweis-Oberfläche zu halten reduziert Planungsfehler.
+Das Hinzufügen von `agent_hint` oder `role_hint` würde mit diesen drei Feldern redundant sein und würde eine weitere Konfigurationsachse einführen, die das Planer-LLM richtig verstehen muss. Eine kleine Hinweis-Oberfläche zu halten reduziert Planungsfehler.

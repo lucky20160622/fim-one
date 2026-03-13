@@ -1,84 +1,106 @@
 ---
 title: "Orthogonalitätsstrategie"
-description: "Architecture Decision Record — Klassifizierung von Features nach ihrer Beziehung zum LLM-Fortschritt."
+description: "Architecture Decision Record — Klassifizierung von Funktionen nach ihrer Beziehung zum LLM-Fortschritt."
 ---
 
 > **Status**: Akzeptiert (März 2026)
 >
-> **Kontext**: Da sich LLM-Fähigkeiten schnell weiterentwickeln, benötigen wir ein Framework, um zu entscheiden, wo wir Engineeringaufwand investieren und wo wir stillhalten sollten.## Entscheidung
+> **Kontext**: Da sich LLM-Fähigkeiten schnell weiterentwickeln, benötigen wir ein Framework, um zu entscheiden, wo wir Engineeringaufwand investieren und wo wir stillhalten sollten.
+
+## Entscheidung
 
 Wir klassifizieren jede Funktion nach ihrer Beziehung zum LLM-Fortschritt und ordnen die Ressourcen entsprechend zu.
 
 | Kategorie | Strategie | Investition | Beispiele |
 |----------|----------|------------|---------|
-| **Orthogonal** | Modelle werden intelligenter, ohne diese zu schmälern — reine Engineering-/Integrationsprobleme | Vollständige Investition | Connectors, Anmeldedaten, OAuth, Audit, RBAC, Sicherheit, Bereitstellung |
+| **Orthogonal** | Intelligentere Modelle schmälern diese nicht — reine Engineering-/Integrationsprobleme | Vollständige Investition | Konnektoren, Anmeldedaten, OAuth, Audit, RBAC, Sicherheit, Bereitstellung |
 | **Tailwind** | Modellverbesserungen machen diese *besser*, nicht überflüssig — symbiotische Beziehung | Investieren (Vorteile verstärken sich) | AI Connector Builder (intelligenteres Modell = höherwertige Connector-Ausgabe) |
-| **Frozen** | Bereits ausgeliefert, funktioniert gut — aber Modelle übernehmen diese Fähigkeiten | Nur Wartung, keine neuen Funktionen | ReAct-Schleife, DAG-Planung, RAG-Pipeline, Memory, Grounded Generation |
-| **Consider** | Anbieter bauen nativ auf Plattformebene — hohes Redundanzrisiko | Auf unbestimmte Zeit aufgeschoben | Multi-Agent-Orchestrierung, semantisches Memory, Memory-Lebenszyklus |
+| **Eingefroren** | Bereits ausgeliefert, funktioniert gut — aber Modelle absorbieren diese Funktionen | Nur Wartung, keine neuen Funktionen | ReAct-Schleife, DAG-Planung, RAG-Pipeline, Memory, Grounded Generation |
+| **Überdenken** | Anbieter bauen nativ auf Plattformebene — hohes Redundanzrisiko | Auf unbestimmte Zeit aufgeschoben | Multi-Agent-Orchestrierung, semantisches Memory, Memory-Lebenszyklus |
 
-**Faustregel**: Wenn eine Funktion das Problem *„wie man das Modell intelligenter macht"* löst, wird sie absorbiert. Wenn sie das Problem *„wie man das Modell sicher mit der realen Welt verbindet"* löst, ist sie orthogonal.## Analyse### Warum die Connector Platform vollständig orthogonal ist
+**Faustregel**: Wenn eine Funktion das Problem *„wie man das Modell intelligenter macht"* löst, wird sie absorbiert. Wenn sie das Problem *„wie man das Modell sicher mit der realen Welt verbindet"* löst, ist sie orthogonal.
+
+# Analyse
+
+### Warum die Connector-Plattform vollständig orthogonal ist
 
 Modelle werden niemals nativ:
 - API-Anmeldedaten speichern und verschlüsseln (AES-GCM)
-- OAuth-Flows verwalten (Autorisierungsseite → Callback → Refresh Token)
-- Sich mit der Kingdee/金蝶 ERP-Datenbank eines Kunden verbinden
-- Benachrichtigungen an Lark/飞书 oder WeCom/企微 pushen
-- RBAC durchsetzen, wer welchen Connector nutzen darf
+- OAuth-Flows verwalten (Autorisierungsseite → Callback → Refresh-Token)
+- Sich mit einer Kingdee/金蝶 ERP-Datenbank eines Kunden verbinden
+- Benachrichtigungen an Lark/飞书 oder WeCom/企微 senden
+- RBAC für die Kontrolle durchsetzen, wer welchen Connector nutzen kann
 - Jeden Tool-Aufruf für Compliance-Audits protokollieren
 
-Dies sind Engineering-Probleme, keine Intelligence-Probleme. Ein 10x intelligenteres Modell kann diese Dinge ohne Infrastruktur immer noch nicht tun.### Warum AI Connector Builder „tailwind" ist und nicht „absorbiert wird"
+Dies sind Engineering-Probleme, keine Intelligenzprobleme. Ein 10x intelligenteres Modell kann diese Dinge ohne Infrastruktur immer noch nicht tun.
 
-Der Builder Agent nutzt Modellintelligenz, um **verwaltete, persistente Connector-Entitäten** zu erstellen — gespeichert in der DB, wiederverwendbar über Agents hinweg, mit Credential Management und Audit Trails. Das verbesserte API-Verständnis des Modells führt dazu, dass der Builder *bessere* Connectoren produziert, nicht dass der Builder überflüssig wird.
+### Warum AI Connector Builder "tailwind" ist und nicht "absorbiert" wird
 
-Analogie: Cursor nutzt Claude, um Code zu schreiben. Claude wird intelligenter macht Cursor *besser*, nicht *redundant*, weil Cursor Engineering-Wert bietet (Projektmanagement, Dateiorganisation, Versionskontrolle), den das Modell nicht ersetzt.### Warum v0.1–v0.5 Features "eingefroren" sind
+Der Builder-Agent nutzt Modellintelligenz, um **verwaltete, persistente Connector-Entitäten** zu erstellen — gespeichert in der DB, wiederverwendbar über Agenten hinweg, mit Credential-Management und Audit-Trails. Das verbesserte API-Verständnis des Modells führt dazu, dass der Builder *bessere* Connectoren produziert, nicht dass der Builder überflüssig wird.
 
-| Feature | Was in der Industrie passiert |
+Analogie: Cursor nutzt Claude zum Schreiben von Code. Wenn Claude intelligenter wird, wird Cursor *besser*, nicht *redundant*, weil Cursor Engineering-Wert bietet (Projektmanagement, Dateiorganisation, Versionskontrolle), den das Modell nicht ersetzt.
+
+### Warum v0.1–v0.5 Features "eingefroren" sind
+
+| Feature | Was in der Branche passiert |
 |---------|--------------------------------|
 | ReAct loop | Modelle haben natives Tool Calling (OpenAI, Anthropic). Die externe Reasoning-Schleife bietet weniger Mehrwert, da Modelle dies internalisieren. |
 | DAG Planning | Die Reasoning-Fähigkeiten von Modellen verbessern sich schnell. Komplexe Task-Zerlegung, die externe Planer benötigte, wird zu einer Single-Shot-Fähigkeit. |
-| Memory management | Context Windows wachsen schnell (Gemini 2M+, Claude 200K+). Der Bedarf für externes Window Management, Summarization und Komprimierung schrumpft. |
-| RAG pipeline | Provider bauen Retrieval in ihre Plattformen ein (OpenAI file_search, Google NotebookLM, Gemini Search Grounding). Für öffentliches Wissen wird die traditionelle Chunk-Embed-Retrieve-Pipeline ersetzt. |
+| Memory management | Context Windows wachsen schnell (Gemini 2M+, Claude 200K+). Der Bedarf für externes Window Management, Zusammenfassung und Komprimierung schrumpft. |
+| RAG pipeline | Anbieter bauen Retrieval in ihre Plattformen ein (OpenAI file_search, Google NotebookLM, Gemini Search Grounding). Für öffentliches Wissen wird die traditionelle Chunk-Embed-Retrieve-Pipeline ersetzt. |
 | Grounded Generation | Modelle werden besser darin, Quellen nativ zu zitieren. Die 5-stufige Grounding-Pipeline, die wir gebaut haben, bietet abnehmenden Mehrwert. |
 
-**Diese Features sind nicht schlecht** — sie wurden ausgeliefert, sie funktionieren, sie machen das Produkt heute funktionsfähig. Die Entscheidung ist einfach, sie nicht weiter auszubauen und die Bemühungen umzuleiten.### Warum Multi-Agent-Orchestrierung aufgeschoben wurde
+**Diese Features sind nicht schlecht** — sie wurden ausgeliefert, sie funktionieren, sie machen das Produkt heute funktionsfähig. Die Entscheidung ist einfach, sie nicht weiter auszubauen und die Bemühungen umzuleiten.
+
+### Warum Multi-Agent-Orchestrierung aufgeschoben wurde
 
 LLM-Anbieter bauen Orchestrierung nativ auf:
 - **OpenAI Swarm**: Multi-Agent-Framework mit Handoff-Protokollen
 - **Anthropic Claude Code Teams**: Leader/Worker-Agent-Pools mit Task-Graphen
 - **Google A2A (Agent-to-Agent)**: Inter-Agent-Kommunikationsprotokoll
 
-Der Aufbau einer konkurrierenden Orchestrierungsschicht würde bedeuten, gegen First-Party-Implementierungen mit tieferer Modellintegration zu konkurrieren. Dies ist kein nachhaltiger Differenzierungsfaktor.### Warum Semantic Memory und Memory Lifecycle aufgeschoben wurden
+Der Aufbau einer konkurrierenden Orchestrierungsschicht würde bedeuten, gegen First-Party-Implementierungen mit tieferer Modellintegration anzutreten. Dies ist kein nachhaltiger Differenziator.
 
-- Context Windows wachsen schnell, was die Notwendigkeit für sessionübergreifendes Memory Retrieval reduziert
-- Anbieter fügen native Memory-Funktionen hinzu (ChatGPT Memory, Claude Projects)
-- Die Engineering-Kosten für den Aufbau eines zuverlässigen Memory-Systems (TTL, Importance Scoring, Semantic Retrieval) sind hoch im Verhältnis zur schrumpfenden Lücke, die es füllt## Klassifizierung auf Funktionsebene### Orthogonal (v0.6+)
+### Warum Semantic Memory und Memory Lifecycle aufgeschoben wurden
+
+- Kontextfenster wachsen schnell, was die Notwendigkeit für sitzungsübergreifendes Speicherabrufen verringert
+- Anbieter fügen native Speicherfunktionen hinzu (ChatGPT Memory, Claude Projects)
+- Die Engineeringkosten für den Aufbau eines zuverlässigen Speichersystems (TTL, Importance Scoring, semantisches Abrufen) sind hoch im Verhältnis zur schrumpfenden Lücke, die es füllt
+
+## Klassifizierung auf Funktionsebene
+
+### Orthogonal (v0.6+)
 
 | Feature | Version | Why orthogonal |
 |---------|---------|---------------|
-| Connector entity + CRUD | v0.6.1 | Enterprise-Integration, reine Technik |
-| Per-user credentials (AES-GCM) | v0.6.2 | Sicherheitsinfrastruktur |
+| Connector-Entität + CRUD | v0.6.1 | Enterprise-Integration, reine Technik |
+| Benutzer-spezifische Anmeldedaten (AES-GCM) | v0.6.2 | Sicherheitsinfrastruktur |
 | Confirmation Gate | v0.6.2 | Sicherheitsmechanismus für Schreibvorgänge |
 | Connector Export/Import/Fork | v0.7 | Verteilungsmechanismus |
 | OAuth 2.0 | v0.7 | Protokollimplementierung |
 | MCP Server Export | v0.7 | Interoperabilität (abhängig von MCP-Adoption) |
-| Database Connector | v0.8 | Direkter DB-Zugriff, Verbindungspools |
+| Datenbank-Connector | v0.8 | Direkter DB-Zugriff, Connection Pools |
 | Message Push | v0.8 | Benachrichtigungskanäle |
 | RBAC | v0.8 | Zugriffskontrolle, Governance |
 | Operation Audit Log | v0.8 | Compliance |
 | Sandbox Hardening | v0.9 | Sicherheitsisolation |
-| Observability (OTel, circuit breaker) | v0.9 | Produktionsbetrieb |
+| Observability (OTel, Circuit Breaker) | v0.9 | Produktionsbetrieb |
 | Connector Analytics | v0.9 | Nutzungsverfolgung |
 | Docker Compose | v0.9 | Bereitstellung |
 | Admin Dashboard | v1.0 | Management-UI |
-| Scheduled Jobs / Webhooks | v1.0 | Automatisierungsauslöser |
+| Scheduled Jobs / Webhooks | v1.0 | Automatisierungs-Trigger |
 | Batch Execution | v1.0 | Enterprise-Scale-Verarbeitung |
 | Embeddable Widget / iframe | v1.0 | Liefermodus |
-| Enterprise Security | v1.0 | Compliance (Verschlüsselung, IP-Whitelisting) |### Tailwind
+| Enterprise Security | v1.0 | Compliance (Verschlüsselung, IP-Whitelisting) |
+
+### Tailwind
 
 | Feature | Version | Relationship |
 |---------|---------|-------------|
 | AI Connector Builder | v0.6.3 | Intelligentere Modelle → bessere Builder-Ausgabe |
-| AI Connector Generation (OpenAPI) | v1.0 | Gleich — Modelle verstehen API-Spezifikationen besser → genauere automatische Generierung |### Frozen (shipped, maintain only)
+| AI Connector Generation (OpenAPI) | v1.0 | Gleich — Modelle verstehen API-Spezifikationen besser → genauere automatische Generierung |
+
+### Frozen (shipped, maintain only)
 
 | Feature | Version | Status |
 |---------|---------|--------|
@@ -87,15 +109,19 @@ Der Aufbau einer konkurrierenden Orchestrierungsschicht würde bedeuten, gegen F
 | Memory (Window, Summary, Compact) | v0.2, v0.5 | Shipped, working |
 | RAG pipeline (embedding, vector store, chunking, hybrid retrieval) | v0.5 | Shipped, working |
 | Grounded Generation | v0.5 | Shipped, working |
-| ContextGuard / Pinned Messages | v0.5 | Shipped, working |### Überlegung (auf unbestimmte Zeit verschoben)
+| ContextGuard / Pinned Messages | v0.5 | Shipped, working |
 
-| Feature | Originalversion | Grund für Verschiebung |
+### Überlegung (auf unbestimmte Zeit aufgeschoben)
+
+| Funktion | Ursprüngliche Version | Grund für Aufschub |
 |---------|-----------------|----------------|
-| Multi-Agent Orchestration | v1.0 | Anbieter bauen nativ |
-| Semantic Memory Store | Backlog | Kontextfenster wachsen; Anbieter fügen natives Memory hinzu |
-| Memory Lifecycle | Backlog | Wie oben |## Auswirkungen
+| Multi-Agent-Orchestrierung | v1.0 | Anbieter bauen nativ |
+| Semantischer Speicher | Backlog | Kontextfenster wachsen; Anbieter fügen nativen Speicher hinzu |
+| Speicher-Lebenszyklus | Backlog | Wie oben |
+
+## Auswirkungen
 
 1. **Nicht zu v0.5-Funktionen zurückkehren.** Fehlerbehebungen ja, neue Funktionen nein.
-2. **Connector-Plattform ist die Kerninvestition.** v0.6–v0.8 sollte die meiste Entwicklungszeit erhalten.
-3. **Enterprise Engineering (RBAC, Audit, Sicherheit, Bereitstellung) ist der Wettbewerbsvorteil.** Diese sind langweilig, aber verteidigbar.
-4. **Jährlich neu bewerten.** Wenn der Modellfortschritt stagniert oder eine "eingefrorene" Funktion sich als noch erhebliche Lücken aufweisend herausstellt, überdenken Sie dies.
+2. **Connector-Plattform ist die Kernanlage.** v0.6–v0.8 sollten die Mehrheit der Entwicklungszeit erhalten.
+3. **Enterprise-Engineering (RBAC, Audit, Sicherheit, Bereitstellung) ist der Wettbewerbsvorteil.** Diese sind langweilig, aber verteidigbar.
+4. **Jährlich neu bewerten.** Wenn der Modellfortschritt stagniert oder eine „eingefrorene" Funktion sich als noch mit erheblichen Lücken herausstellt, überdenken Sie dies.

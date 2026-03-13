@@ -3,44 +3,58 @@ title: "更新日志"
 description: "FIM One 的所有重要更改。"
 ---
 
-此项目的所有重要更改都记录在此。
+本项目的所有重要更改都记录在此。
 
-格式遵循 [Keep a Changelog](https://keepachangelog.com/)。版本对应于 [Roadmap](/roadmap) 里程碑。## [未发布]### 新增
+格式遵循 [Keep a Changelog](https://keepachangelog.com/)。版本对应于 [Roadmap](/roadmap) 里程碑。
 
-- **管理员：审查日志审计标签页** — 管理员审计页面现在具有分段式"系统日志/审查日志"切换。审查日志面板查询新的 `GET /api/admin/review-log` 端点（过滤条件：组织、资源类型、操作；限制/偏移分页），并显示包含时间、组织名称、资源类型、资源名称、操作徽章（颜色编码：绿色=已批准、红色=已拒绝、琥珀色=已提交/已重新提交、灰色=未发布）和操作者的表格。完整的 i18n（EN + ZH）。
+## [未发布]
+
+### 新增
+
+- **管理员：审查日志审计标签页** — 管理员审计页面现在具有分段式"系统日志/审查日志"切换。审查日志面板查询新的 `GET /api/admin/review-log` 端点（过滤器：组织、资源类型、操作；限制/偏移分页），并显示包含时间、组织名称、资源类型、资源名称、操作徽章（色彩编码：绿色=已批准、红色=已拒绝、琥珀色=已提交/已重新提交、灰色=未发布）和操作者的表格。完整的国际化支持（英文+中文）。
 - **平台组织**：内置组织 `platform`（ID：`00000000-0000-0000-0000-000000000001`）— 所有新用户自动加入。此组织替代了"全局"可见性概念，为跨所有用户共享资源提供了中央枢纽。
-- **资源订阅**：用户现在可以从组织市场订阅/取消订阅共享资源（agents、connectors、知识库、MCP servers）。新的 `resource_subscriptions` 数据库表跟踪订阅关系。
+- **资源订阅**：用户现在可以从组织市场订阅/取消订阅共享资源（智能体、连接器、知识库、MCP 服务器）。新的 `resource_subscriptions` 数据库表跟踪订阅关系。
 - **市场 API**：用于浏览和管理订阅的新端点：
   - `GET /api/market` — 浏览当前组织中的可用资源
   - `POST /api/market/subscribe` — 订阅资源
   - `DELETE /api/market/unsubscribe` — 取消订阅资源
   - `GET /api/market/subscriptions` — 列出用户的当前订阅
 - **市场页面**：Portal 中的新 `/market` 页面，用于浏览和管理对组织资源的订阅。
-- **Agent 自动发现**：agents 上的新 `discoverable` 布尔字段。`discoverable=true` 的 agents 可以通过 `call_agent` 工具由 LLMs 自动发现和调用（单级委派，无递归）。
-- **子 Agent 绑定**：agents 上的新 `sub_agent_ids` 字段 — 可调用子 agents 的显式白名单，用于细粒度访问控制。
-- **CallAgentTool**：内置工具，将任务委派给专家 agents，具有结构化输入验证和结果处理。
-- **MCP Server 凭证**：新的 `mcp_server_credentials` 表为 MCP servers 启用每用户环境变量和 HTTP 标头覆盖。
-- **MCP 凭证端点**：`PUT /api/mcp-servers/{id}/my-credentials` 允许用户为共享 MCP servers 存储个人凭证覆盖。
-- **MCPServer 上的 `allow_fallback`**：布尔字段控制凭证回退行为 — 当为 `true` 时，缺失的用户凭证回退到所有者默认值。
-- **Connector/KB 切换**：资源状态管理的新端点：
-  - `POST /api/connectors/{id}/toggle` — 暂停/恢复 connector
+- **智能体自动发现**：智能体上的新 `discoverable` 布尔字段。`discoverable=true` 的智能体可以通过 `call_agent` 工具由 LLM 自动发现和调用（单级委托，无递归）。
+- **子智能体绑定**：智能体上的新 `sub_agent_ids` 字段 — 可调用子智能体的显式白名单，用于细粒度访问控制。
+- **CallAgentTool**：内置工具，将任务委托给专家智能体，具有结构化输入验证和结果处理。
+- **MCP 服务器凭证**：新的 `mcp_server_credentials` 表为 MCP 服务器启用每用户环境变量和 HTTP 标头覆盖。
+- **MCP 凭证端点**：`PUT /api/mcp-servers/{id}/my-credentials` 允许用户为共享 MCP 服务器存储个人凭证覆盖。
+- **MCPServer 上的 `allow_fallback`**：控制凭证回退行为的布尔字段 — 当为 `true` 时，缺失的用户凭证回退到所有者默认值。
+- **连接器/知识库切换**：用于资源状态管理的新端点：
+  - `POST /api/connectors/{id}/toggle` — 暂停/恢复连接器
   - `POST /api/knowledge-bases/{id}/toggle` — 暂停/恢复知识库
-- **独立 KB 对话**：`ChatStreamRequest` 和 `Conversation` 上的新 `kb_ids` 字段 — 用户现在可以直接与知识库聊天，无需将其绑定到 agent。
-- **平台组织保护**：平台组织无法删除，用户无法自行离开。确保所有用户保持与组织枢纽的连接。
-- **发布审查 UI（前端）**：组织级发布审查系统前端 — 组织编辑对话框中的审查切换、带有类型/状态过滤器和批准/拒绝工作流的 ReviewsSheet、agent 卡片上的发布状态徽章（待处理/已批准/已拒绝）及拒绝原因工具提示、发布对话框中的审查通知（当目标组织需要审查时）、被拒绝资源的重新提交操作、组织管理员/所有者的"审查管理"下拉菜单。所有资源类型（agents、connectors、KBs、MCP servers）获得 `publish_status`、`reviewed_by`、`reviewed_at`、`review_note` 类型字段。完整的 i18n（EN + ZH）。### 已修复
+- **独立知识库对话**：`ChatStreamRequest` 和 `Conversation` 上的新 `kb_ids` 字段 — 用户现在可以直接与知识库聊天，无需将其绑定到智能体。
+- **平台组织保护**：平台组织无法被删除，用户无法自行离开。确保所有用户保持与组织枢纽的连接。
+- **发布审查 UI（前端）**：组织级发布审查系统前端 — 组织编辑对话框中的审查切换、带有类型/状态过滤器的 ReviewsSheet 和批准/拒绝工作流、智能体卡上的发布状态徽章（待处理/已批准/已拒绝）及拒绝原因工具提示、发布对话框中的审查通知（当目标组织需要审查时）、被拒绝资源的重新提交操作、组织管理员/所有者的"审查管理"下拉菜单。所有资源类型（智能体、连接器、知识库、MCP 服务器）都获得 `publish_status`、`reviewed_by`、`reviewed_at`、`review_note` 类型字段。完整的国际化支持（英文+中文）。
 
-- **切换 `is_active` 时无需重新审核**：在代理、连接器、知识库或 MCP 服务器上切换 `is_active` 不再将 `publish_status` 从 `approved` 恢复为 `pending_review`。`check_edit_revert` 守卫现在仅在实际内容字段更改时触发（不仅仅是 `is_active`）。### 已更改
+### 已修复
 
-- **可见性简化**：资源可见性从 `personal | org | global` 简化为 `personal | org`。"全局"资源现在发布到 Platform 组织，保持向后兼容行为，同时简化可见性模型。
-- **发布界面统一**：所有 4 种资源类型（Agent、Connector、Knowledge Base、MCP Server）现在仅支持 `scope="org"` 用于发布。不再支持 `scope="global"` 或仅限管理员的全局发布端点。
-- **自动 Platform 注册**：新用户在注册时自动添加到 Platform 组织，确保立即访问共享的组织资源。
-- **管理面板清理**：删除了"全局 Agent"和"全局 MCP"管理选项卡，因为全局资源现在通过 Platform 组织进行管理。### 已移除
+- **切换 `is_active` 时无需重新审核**：在智能体、连接器、知识库或 MCP 服务器上切换 `is_active` 不再将 `publish_status` 从 `approved` 恢复为 `pending_review`。`check_edit_revert` 守卫现在仅在实际内容字段更改时触发（不仅仅是 `is_active`）。
+
+### 已更改
+
+- **可见性简化**：资源可见性从 `personal | org | global` 简化为 `personal | org`。"全局"资源现已发布到 Platform 组织，在保持向后兼容行为的同时简化了可见性模型。
+- **发布界面统一**：所有 4 种资源类型（智能体、连接器、知识库、MCP Server）现在仅支持 `scope="org"` 用于发布。不再支持 `scope="global"` 或仅限管理员的全局发布端点。
+- **自动平台注册**：新用户在注册时会自动添加到 Platform 组织，确保立即访问共享的组织资源。
+- **管理面板清理**：移除了"全局智能体"和"全局 MCP"管理选项卡，因为全局资源现在通过 Platform 组织进行管理。
+
+### 已移除
 
 - 从 Agent 和 MCPServer 模型以及所有 API 响应中移除了 `is_global` 字段
 - 从 Agent 和 MCPServer 中移除了 `cloned_from_agent_id` 和 `cloned_from_mcp_server_id` 字段
-- 移除了全局 agent 管理端点（`/api/admin/global-agents/*`）
-- 移除了全局 MCP server 端点（`/api/admin/mcp-servers/*`）
-- 从资源、API 契约和前端逻辑中移除了所有 `visibility="global"` 概念引用## [v0.7.5] - 2026-03-12### 已添加
+- 移除了全局智能体管理端点（`/api/admin/global-agents/*`）
+- 移除了全局 MCP 服务器端点（`/api/admin/mcp-servers/*`）
+- 从资源、API 契约和前端逻辑中移除了所有 `visibility="global"` 概念引用
+
+## [v0.7.5] - 2026-03-12
+
+### 已添加
 - **自由模式切换 + 逐轮模式跟踪**：用户现在可以在对话中途自由切换 Auto/React/DAG 模式，无需开启新聊天。每条助手消息在 `metadata.mode` 中存储其实际执行模式。历史轮次根据元数据或 SSE 事件指纹识别按正确引擎渲染。侧边栏模式图标已移除。逐轮模式徽章显示哪个引擎处理了每一轮。
 - **三种模型角色 (F5)**：General、Fast 和 Reasoning 模型层级的独立环境配置。Fast 模型不再继承主模型的推理设置。新增环境变量：`FAST_LLM_API_KEY`、`FAST_LLM_BASE_URL`、`FAST_LLM_TEMPERATURE`、`REASONING_LLM_MODEL`、`REASONING_LLM_API_KEY`、`REASONING_LLM_BASE_URL`、`REASONING_LLM_TEMPERATURE`、`REASONING_LLM_CONTEXT_SIZE`、`REASONING_LLM_MAX_OUTPUT_TOKENS`、`REASONING_LLM_EFFORT`、`REASONING_LLM_BUDGET`
 - **结构化步骤输出 (F2)**：`StepOutput` 数据类替代 DAG 步骤中的纯字符串结果，支持未来的结构化数据和步骤间工件传递
@@ -49,159 +63,260 @@ description: "FIM One 的所有重要更改。"
 - **自动路由 (F1)**：Fast LLM 将查询分类为 ReAct 或 DAG 执行模式。新增 `/api/auto` 端点支持 SSE 路由事件。前端三向模式切换（Auto/Standard/Planner）。可通过 `AUTO_ROUTING` 配置（默认：开启）
 - **设计哲学文档**：新增 `docs/design-philosophy.mdx` 文档记录架构决策——为何 Handoff、Backflow、Teams 和 agent_hint 被有意排除在 DAG 执行之外
 
-- **连接器凭证加密 + 按用户覆盖** — 认证令牌（`bearer`、`api_key`、`basic`）现从 `auth_config` 提取并单独存储在新的 `connector_credentials` 表中，支持可选的 Fernet 加密（设置 `CREDENTIAL_ENCRYPTION_KEY`）。敏感字段从所有 API 响应中移除。新增端点：`GET/PUT/DELETE /api/connectors/{id}/my-credentials` 允许用户存储个人凭证覆盖。连接器上的 `allow_fallback` 列控制个人凭证缺失时是否回退到连接器所有者的默认凭证。聊天工具加载首先解析按用户凭证，当 `allow_fallback=true` 时回退到所有者凭证。现有凭证由迁移 `s9u1w3y5a678` 自动从 `auth_config` 迁移。
-- **ModelConfig API 密钥静态加密** — `ModelConfig.api_key` 现使用 `EncryptedString` TypeDecorator（通过 `CREDENTIAL_ENCRYPTION_KEY` 的 Fernet 对称加密）进行静态加密。透明的写入时加密/读取时解密，向后兼容遗留明文检测。迁移 `f8g9h0a1b2c3` 原地转换现有明文值。### 已修复
+- **连接器凭证加密 + 按用户覆盖** — 身份验证令牌（`bearer`、`api_key`、`basic`）现从 `auth_config` 提取并单独存储在新的 `connector_credentials` 表中，支持可选的 Fernet 加密（设置 `CREDENTIAL_ENCRYPTION_KEY`）。敏感字段从所有 API 响应中剥离。新增端点：`GET/PUT/DELETE /api/connectors/{id}/my-credentials` 允许用户存储个人凭证覆盖。连接器上的 `allow_fallback` 列控制个人凭证缺失时是否回退到连接器所有者的默认凭证。聊天工具加载首先解析按用户凭证，当 `allow_fallback=true` 时回退到所有者凭证。现有凭证通过迁移 `s9u1w3y5a678` 自动从 `auth_config` 迁移。
+- **ModelConfig API 密钥静态加密** — `ModelConfig.api_key` 现使用 `EncryptedString` TypeDecorator（通过 `CREDENTIAL_ENCRYPTION_KEY` 的 Fernet 对称加密）进行静态加密。透明的写入加密/读取解密，向后兼容遗留明文检测。迁移 `f8g9h0a1b2c3` 就地转换现有明文值。
+
+### 已修复
 - 快速模型（`get_fast_llm()`）不再从主模型配置继承 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_TEMPERATURE` 和推理设置
-- 后端 Pydantic schemas 现在接受对话和代理 `execution_mode` 的 `"auto"` 模式，默认值从 `"react"` 更改为 `"auto"`
-- 前端 SSE 路由事件字段名称与后端对齐（`chosen_mode`→`mode`、`reason`→`reasoning`）— 自动路由之前会默认静默回退到 ReAct，无论分类器决策如何
-- 代理设置表单默认执行模式从 `"react"` 更改为 `"auto"`，以匹配后端 schema 默认值### 已更改
+- 后端 Pydantic 模式现在接受对话和智能体 `execution_mode` 的 `"auto"` 模式，默认值从 `"react"` 更改为 `"auto"`
+- 前端 SSE 路由事件字段名称与后端对齐（`chosen_mode`→`mode`、`reason`→`reasoning`）— 自动路由之前会无声地回退到 ReAct，无论分类器决策如何
+- 智能体设置表单默认执行模式从 `"react"` 更改为 `"auto"`，以匹配后端模式默认值
+
+### 已更改
 - 模式切换标签现在包含引擎名称："Standard (ReAct)"、"Planner (DAG)" 以提高清晰度
-- **骨架屏** — 所有列表/网格页面现在在初始加载期间显示布局感知的骨架占位符，而不是居中的加载旋转器。受影响的页面：`/agents`（3 列 `AgentCard` × 6）、`/chats`（`ListRow` × 8）、`/kb`（3 列 `KbCard` × 6）、`/kb/[id]`（包含标题 + 工具栏 + `TableRow` × 5 的结构骨架）、`/connectors` 连接器标签页（3 列 `ConnectorCard` × 6）、`/artifacts`（4 列 `ArtifactCard` × 8）。三个新的复合组件已添加到 `skeleton.tsx`：`ConnectorCard`、`ArtifactCard`、`TableRow`。标签页切换和次要加载状态（显示更多、搜索、对话框）保留 Loader2 旋转器。## [v0.7.4] - 2026-03-12### 已添加
-- **评估中心** — 门户中的新 `/eval` 部分，用于定量代理质量基准测试。功能：测试数据集管理（创建/编辑提示 + 预期行为 + 断言测试用例的集合）；评估运行（选择代理 + 数据集 → 通过 `asyncio.Semaphore(5)` 并行运行所有用例通过实时代理 → 使用快速 LLM 评分器对每个答案进行评分 → 保留每个用例的通过/失败 + 延迟 + 令牌结果）；结果查看器，具有可展开行、通过率进度条和自动轮询（3 秒）运行时功能。适合企业采购审查。迁移 `r8t0v2x4z567`。
-- **管理员：`json_mode_enabled` 按模型标志** — 每个模型配置现在在管理员 → 模型 → 高级设置中都有显式 JSON 模式切换（默认开启）。禁用它可防止 LiteLLM 注入助手预填充消息（`{"role":"assistant","content":"{"}"`），该消息会导致 AWS Bedrock 在第 2+ 个代理迭代时以 `ValidationException` 拒绝对话。ENV 配置的模型由新的 `LLM_JSON_MODE_ENABLED` 环境变量控制。所有 URL 模式启发式（`is_bedrock`、`is_anthropic_relay`）已被移除；功能现在是显式的。包括 Alembic 迁移（`q7s9u1w3y456`）。
-- **管理员模型表单 UX** — 重组添加/编辑模型对话框：默认只显示名称、模型名称和 API 密钥。所有其他设置（基础 URL、提供商、温度、最大输出令牌、上下文大小、JSON 模式）都折叠在"高级"切换下，减少常见情况下的视觉混乱。
-- **设置：组织选项卡** — 用户现在可以直接从设置页面创建、加入和管理组织。功能包括创建组织对话框（名称、自动生成的 slug、描述、表情符号图标）、编辑对话框（仅限所有者）、用于管理成员角色的成员表（所有者/管理员/成员，带有彩色徽章）和内联操作（非所有者离开，所有者删除）。所有组织操作都调用面向用户的 `/api/orgs` 端点。完整的 i18n 支持（EN + ZH）。
-- **SSE 协议 v2 — 实时答案流式传输**：后端 `StreamChunk` 获得 `delta_reasoning` 和 `usage` 字段；LLM 请求包括使用情况跟踪；ReAct `_run_native()` 现在通过 `stream_chat` 流式传输。SSE 协议在答案后立即发出 `done`，然后将 `suggestions`、`title` 和 `end` 作为单独事件发送。LLM 执行期间的 DB 会话早期释放。SQLite 池大小从 5 增加到 20。
-- **AI Builder 扩展 — 7 个新工具 + `is_builder` 标志**：三个新的连接器构建器工具（`GetSettings`、`TestConnection`、`ImportOpenAPI`）和四个新的代理构建器工具（`ListConnectors`、`AddConnector`、`RemoveConnector`、`SetModel`）。代理上的新 `is_builder` 布尔列，带有 Alembic 迁移。会话创建时的构建器提示自动刷新。OpenAPI 导入的 SSRF 保护。
-- **SSE v2 前端 — 流式光标、DAG 轮快照、UI 优化**：前端钩子解析 `end` / `suggestions` / `title` 事件。DAG 重新规划将以前失败的轮显示为可折叠卡片。CSS 点脉冲流式光标。DAG 布局与步骤状态解耦。折叠的侧边栏新聊天按钮。连接器编辑器溢出修复。`font-mono` 替换为 `tabular-nums`。
-- **AI Builder 概念页面**：新的 `docs/concepts/ai-builder.mdx`，包含连接器和代理构建器指南，以及中文翻译。
-- **构建器对话框 — 用于连接器管理的 ReAct 代理**：将 AI 助手面板从单次 LLM 调用升级为完整的 ReAct 代理循环。"高级构建器"按钮打开一个全屏对话框，其中包含嵌入式 PlaygroundPage（左侧聊天，右侧实时操作预览）。六个连接器构建器工具（`connector_list_actions`、`connector_create_action`、`connector_update_action`、`connector_delete_action`、`connector_update_settings`、`connector_test_action`）直接在 DB 上运行，并在构建器代理活跃时自动注入。`POST /api/builder/session` 创建或重用每个连接器的构建器代理，该代理保留对话历史记录。
-- **双数据库支持（SQLite + PostgreSQL）**：`DATABASE_URL` 现在接受 SQLite（`sqlite+aiosqlite:///...`）和 PostgreSQL（`postgresql+asyncpg://...`）连接字符串。SQLite 保持零配置默认值；PostgreSQL 推荐用于生产和多工作进程部署。Docker Compose 自动配置带有健康检查的 PostgreSQL 服务。Alembic 迁移是方言感知的（`json_extract` vs `::json->>'key'`）。管理员健康仪表板显示实际数据库引擎和版本。
-- **模型配置文档**：新的 `docs/configuration/models.mdx` 页面，记录模型配置参考，包括每个提供商的扩展思维/推理设置。
-- **扩展思维/推理支持**：为具有扩展思维的模型（OpenAI o 系列、Gemini 2.5+、Claude）添加 `LLM_REASONING_EFFORT`（低/中/高）和 `LLM_REASONING_BUDGET_TOKENS` 环境变量。为 OpenAI/Gemini 发送 `reasoning_effort`，为 Anthropic 发送 `thinking`（自动检测）。从多个提供商字段名称（DeepSeek R1、Claude 代理）提取 `reasoning_content` 并在 UI"思维"步骤中显示。
-- **管理员：工具禁用** — 新的管理员工具面板，具有按工具启用/禁用切换（存储为 `disabled_builtin_tools` 设置）。禁用的工具在运行时从聊天工具解析中过滤。`/api/tools/catalog` 端点返回 `disabled` 标志，工具页面 UI 显示禁用状态。
-- **管理员：连接器页面上的 MCP 服务器** — MCP 服务器管理从工具页面移至连接器页面作为新选项卡。`MCPServersSection` 提取为具有命令式操作引用的可重用组件。
+- **骨架屏** — 所有列表/网格页面现在在初始加载时显示布局感知的骨架占位符，而不是居中的加载动画。受影响的页面：`/agents`（3 列 `AgentCard` × 6）、`/chats`（`ListRow` × 8）、`/kb`（3 列 `KbCard` × 6）、`/kb/[id]`（包含标题 + 工具栏 + `TableRow` × 5 的结构骨架）、`/connectors` 连接器标签页（3 列 `ConnectorCard` × 6）、`/artifacts`（4 列 `ArtifactCard` × 8）。在 `skeleton.tsx` 中添加了三个新的复合组件：`ConnectorCard`、`ArtifactCard`、`TableRow`。标签页切换和次要加载状态（显示更多、搜索、对话框）保留 Loader2 加载动画。
+
+## [v0.7.4] - 2026-03-12
+
+### 已添加
+- **评估中心** — 门户中的新 `/eval` 部分，用于定量智能体质量基准测试。功能：测试数据集管理（创建/编辑提示词 + 预期行为 + 断言测试用例的集合）；评估运行（选择智能体 + 数据集 → 通过 `asyncio.Semaphore(5)` 并行运行所有用例通过实时智能体 → 使用快速 LLM 评分器对每个答案进行评分 → 持久化每个用例的通过/失败 + 延迟 + 令牌结果）；结果查看器，具有可展开的行、通过率进度条和自动轮询（3 秒）。适合企业采购审查。迁移 `r8t0v2x4z567`。
+- **管理员：每个模型的 `json_mode_enabled` 标志** — 每个模型配置现在在管理员 → 模型 → 高级设置中都有一个显式 JSON 模式切换（默认启用）。禁用它可防止 LiteLLM 注入助手预填充消息（`{"role":"assistant","content":"{"}"`），该消息会导致 AWS Bedrock 在第 2+ 次智能体迭代时以 `ValidationException` 拒绝对话。ENV 配置的模型由新的 `LLM_JSON_MODE_ENABLED` 环境变量控制。所有 URL 模式启发式（`is_bedrock`、`is_anthropic_relay`）已被移除；功能现在是显式的。包括 Alembic 迁移（`q7s9u1w3y456`）。
+- **管理员模型表单 UX** — 重构了添加/编辑模型对话框：默认仅显示名称、模型名称和 API 密钥。所有其他设置（基础 URL、提供商、温度、最大输出令牌、上下文大小、JSON 模式）都折叠在"高级"切换下，减少了常见情况下的视觉混乱。
+- **设置：组织标签页** — 用户现在可以直接从设置页面创建、加入和管理组织。功能包括创建组织对话框（名称、自动生成的 slug、描述、表情符号图标）、编辑对话框（仅限所有者）、用于管理成员角色的成员表单（所有者/管理员/成员，带有彩色徽章）和内联操作（非所有者离开、所有者删除）。所有组织操作都调用面向用户的 `/api/orgs` 端点。完整的 i18n 支持（EN + ZH）。
+- **SSE 协议 v2 — 实时答案流式传输**：后端 `StreamChunk` 获得 `delta_reasoning` 和 `usage` 字段；LLM 请求包括使用情况跟踪；ReAct `_run_native()` 现在通过 `stream_chat` 流式传输。SSE 协议在答案后立即发出 `done`，然后将 `suggestions`、`title` 和 `end` 作为单独的事件发送。LLM 执行期间的数据库会话早期释放。SQLite 池大小从 5 增加到 20。
+- **AI Builder 扩展 — 7 个新工具 + `is_builder` 标志**：三个新的连接器构建器工具（`GetSettings`、`TestConnection`、`ImportOpenAPI`）和四个新的智能体构建器工具（`ListConnectors`、`AddConnector`、`RemoveConnector`、`SetModel`）。智能体上的新 `is_builder` 布尔列，带有 Alembic 迁移。会话创建时的构建器提示自动刷新。OpenAPI 导入的 SSRF 防护。
+- **SSE v2 前端 — 流式光标、DAG 轮次快照、UI 优化**：前端钩子解析 `end` / `suggestions` / `title` 事件。DAG 重新规划将之前失败的轮次显示为可折叠卡片。CSS 点脉冲流式光标。DAG 布局与步骤状态解耦。折叠的侧边栏新聊天按钮。连接器编辑器溢出修复。`font-mono` 替换为 `tabular-nums`。
+- **AI Builder 概念页面**：新的 `docs/concepts/ai-builder.mdx`，包含连接器和智能体构建器指南，以及中文翻译。
+- **构建器对话框 — 用于连接器管理的 ReAct 智能体**：将 AI 助手面板从单次 LLM 调用升级为完整的 ReAct 智能体循环。"高级构建器"按钮打开一个全屏对话框，其中包含嵌入式 PlaygroundPage（左侧聊天，右侧实时操作预览）。六个连接器构建器工具（`connector_list_actions`、`connector_create_action`、`connector_update_action`、`connector_delete_action`、`connector_update_settings`、`connector_test_action`）直接在数据库上运行，并在构建器智能体处于活动状态时自动注入。`POST /api/builder/session` 创建或重用每个连接器的构建器智能体，该智能体持久化对话历史。
+- **双数据库支持（SQLite + PostgreSQL）**：`DATABASE_URL` 现在接受 SQLite（`sqlite+aiosqlite:///...`）和 PostgreSQL（`postgresql+asyncpg://...`）连接字符串。SQLite 保持零配置默认值；PostgreSQL 推荐用于生产和多工作进程部署。Docker Compose 自动配置带有健康检查的 PostgreSQL 服务。Alembic 迁移是方言感知的（json_extract vs `::json->>'key'`）。管理员健康仪表板显示实际的数据库引擎和版本。
+- **模型配置文档**：新的 `docs/configuration/models.mdx` 页面，记录模型配置参考，包括每个提供商的扩展思考/推理设置。
+- **扩展思考/推理支持**：为具有扩展思考的模型添加 `LLM_REASONING_EFFORT`（低/中/高）和 `LLM_REASONING_BUDGET_TOKENS` 环境变量（OpenAI o 系列、Gemini 2.5+、Claude）。为 OpenAI/Gemini 发送 `reasoning_effort`，为 Anthropic 发送 `thinking`（自动检测）。从多个提供商字段名称（DeepSeek R1、Claude 代理）提取 `reasoning_content` 并在 UI"思考"步骤中显示。
+- **管理员：工具禁用** — 新的管理员工具面板，具有每个工具的启用/禁用切换（存储为 `disabled_builtin_tools` 设置）。禁用的工具在运行时从聊天工具解析中过滤。`/api/tools/catalog` 端点返回 `disabled` 标志，工具页面 UI 显示禁用状态。
+- **管理员：连接器页面上的 MCP 服务器** — MCP 服务器管理从工具页面移至连接器页面作为新标签页。`MCPServersSection` 提取为具有命令式操作引用的可重用组件。
 - **管理员：健康仪表板中的推理工作量** — 推理工作量标签现在显示在管理员健康检查仪表板中。
 - **导出：PDF 格式** — 对话现在可以导出为 PDF 文档（需要 `reportlab` + `Markdown` 附加项）。
-- **start.sh：WORKERS 环境变量** — 设置 `WORKERS=N` 以在门户/api 模式下使用多个工作进程运行 uvicorn。### 已更改
+- **start.sh：WORKERS 环境变量** — 设置 `WORKERS=N` 以在门户/API 模式下使用多个工作进程运行 uvicorn。
+
+### 已更改
 - **测试：NativeToolFakeLLM 针对基于流的 ReAct 更新**：测试假 LLM 现在生成与新的基于流的 `_run_native()` 循环相匹配的 `StreamChunk` 序列
-- **LLM 层**：用 [LiteLLM](https://github.com/BerriAI/litellm) 替换直接的 `AsyncOpenAI` 客户端，以支持通用提供商。所有特定于提供商的条件语句（Anthropic 思考、`max_completion_tokens`、GPT-5 工具解决方案）已被移除。Anthropic 模型现在通过 LiteLLM 的原生 API 路由，启用适当的 `reasoning_content`（扩展思考）支持
+- **LLM 层**：用 [LiteLLM](https://github.com/BerriAI/litellm) 替换直接的 `AsyncOpenAI` 客户端以支持通用提供商。所有特定于提供商的条件判断（Anthropic 思考、`max_completion_tokens`、GPT-5 工具解决方案）已被移除。Anthropic 模型现在通过 LiteLLM 的原生 API 路由，启用适当的 `reasoning_content`（扩展思考）支持
 - **工具页面简化**：工具页面现在仅显示内置工具（不再有选项卡）；MCP 管理已移至连接器页面
 - **Redis 中断代理**：通过 Redis Pub/Sub 进行跨工作进程中断/注入中继。当设置 `REDIS_URL` 时自动启用；否则回退到进程内队列。Docker Compose 现在包含 Redis 服务（自动配置，无需用户操作）
 - **导出：默认详细程度**：导出对话框现在默认为摘要（无执行详情）而不是完整
-- **工件：按文件 mtime 排序**：列出所有工件现在使用每个文件的 mtime 进行准确排序（还原对话时间解决方案）
-- **聊天：异步图像加载**：`_load_image_data_urls` 现在是异步的，通过 `asyncio.to_thread` 将文件读取卸载到线程以解除事件循环的阻塞
-- **多工作进程就绪**：SSE 票证、OAuth 状态和绑定票证现在使用 JWT 签名的令牌而不是内存中的字典；文件索引锁使用 `fcntl.flock()` 以确保跨进程安全；维护缓存 TTL 从 30 秒减少到 5 秒，以加快跨工作进程传播
+- **工件：按文件 mtime 排序**：列出所有工件现在使用每个文件的 mtime 以实现准确排序（恢复对话时间解决方案）
+- **聊天：异步图像加载**：`_load_image_data_urls` 现在是异步的，通过 `asyncio.to_thread` 将文件读取卸载到线程以解除事件循环阻塞
+- **多工作进程就绪**：SSE 票证、OAuth 状态和绑定票证现在使用 JWT 签名的令牌而不是内存中的字典；文件索引锁使用 `fcntl.flock()` 以实现跨进程安全；维护缓存 TTL 从 30 秒减少到 5 秒以加快跨工作进程传播
 - **健康仪表板：基础设施检查**：向管理员健康仪表板添加了数据库类型（SQLite/PostgreSQL）和 Redis 状态
-- **智能中继路由**：自动从 URL 路径模式检测 API 协议（例如 `/claude` 或 `/anthropic` → Anthropic 原生、`/gemini` → Google 原生），为第三方中继平台启用适当的身份验证标头和参数转换，无需手动提供商配置
-- **结构化输出降级**：统一的 `structured_llm_call()` 实用程序具有 3 级提取（Native FC → JSON Mode → 纯文本 + 正则表达式回退）。重构了 DAG 规划器、计划分析器和工具选择以使用共享实用程序，用一致的重试和降级替换临时 JSON 解析，适用于所有结构化 LLM 调用站点### 文档
+- **智能中继路由**：自动从 URL 路径模式检测 API 协议（例如 `/claude` 或 `/anthropic` → Anthropic 原生，`/gemini` → Google 原生），为第三方中继平台启用适当的身份验证标头和参数转换，无需手动提供商配置
+- **结构化输出降级**：统一的 `structured_llm_call()` 实用程序具有 3 级提取（原生 FC → JSON 模式 → 纯文本 + 正则表达式回退）。重构了 DAG 规划器、计划分析器和工具选择以使用共享实用程序，用一致的重试和降级替换了所有结构化 LLM 调用站点中的临时 JSON 解析
+
+### 文档
 - **架构图布局修复**：将 Mermaid 流程图从左右方向（`LR`）切换到上下方向（`TD`）以提高可读性，移除了 `mode: "wide"` frontmatter，并添加了 `custom.css` 用于居中 Mermaid SVG 渲染
-- **Mermaid 节点标签换行**：在所有架构和概念文档中将 Mermaid 流程图节点标签中的 `\n` 替换为 `<br/>`（EN + ZH）— Mermaid 在引用标签中将 `\n` 渲染为字面文本### 已修复
+- **Mermaid 节点标签换行**：在所有架构和概念文档的 Mermaid 流程图节点标签中将 `\n` 替换为 `<br/>`（EN + ZH）— Mermaid 在带引号的标签中将 `\n` 渲染为字面文本
+
+### 已修复
 - **Docker sandbox (DooD) 卷挂载**：修复当 `CODE_EXEC_BACKEND=docker` 在容器内运行（docker-compose）时空的 `-v` 绑定挂载。沙箱目录从 `tmp/conversations/` 移至 `data/sandbox/`（在挂载的 `./data:/app/data` 卷下）。新增 `DOCKER_HOST_DATA_DIR` 环境变量将容器内部路径转换为 Docker 守护进程可见的主机路径。通过使用 `.parent` 修复 `_PROJECT_ROOT` 解析为 `/app/src/`（而非 `/app/`）的问题
 - **安全：Python 沙箱 AST dunder 验证**：通过 AST dunder 属性验证阻止沙箱逃逸
 - **安全：MCP stdio 默认值 + 命令白名单**：统一 MCP stdio 传输默认值（现默认禁用）并添加命令白名单（`ALLOWED_STDIO_COMMANDS`）
 - **安全：SSRF DNS 重绑定防护**：通过传输层 IP 固定（`SSRFSafeTransport`）防止 SSRF DNS 重绑定
 - **安全：shell 元字符逃逸检测**：在黑名单之前检测 shell 元字符逃逸（命令替换、反引号、变量扩展、空引号插入）
-- **安全：connector 模板注入**：转义 connector 模板内联替换以防止 JSON 注入
-- **DAG：AnalysisCard markdown**：分析推理现使用 `MarkdownContent` 而非纯 `<p>` 渲染，修复多步骤分析中的粗体/列表
-- **DAG：滚动到步骤（折叠步骤）**：在侧边栏中点击步骤节点现在会在滚动前自动展开折叠的步骤部分
+- **安全：连接器模板注入**：转义连接器模板内联替换以防止 JSON 注入
+- **DAG：AnalysisCard markdown**：分析推理现使用 `MarkdownContent` 而非纯 `<p>` 渲染，修复多步分析中的粗体/列表显示
+- **DAG：滚动到步骤（带折叠步骤）**：点击侧边栏中的步骤节点现在会自动展开折叠的步骤部分后再滚动
 - **DAG：历史轮次显示步骤卡片**：历史轮次现在在展开的可折叠部分中渲染步骤卡片（之前被 `hideStepCards` 隐藏）
-- **DAG：重新规划时的陈旧分析**：第 1 轮"未实现目标"分析现在在重新规划开始时立即清除，第 2 轮"分析中…"加载器正确显示
+- **DAG：重新规划时的陈旧分析**：第一轮"目标未达成"分析现在在重新规划开始时立即清除，第二轮"分析中…"加载动画正确显示
 - **UI：聊天搜索焦点环**：向搜索输入框添加 `focus-visible:outline-none` 以防止焦点环溢出
 - **导出：PDF 可读性**：增加所有 PDF 样式的行距（leading）和单元格填充以提高文本可读性
-- **导出：移除 emoji 剥离**：从 DOCX 和 PDF 导出中的最终答案渲染中移除不必要的 `_strip_emoji()`，保留原始内容
+- **导出：移除 emoji 剥离**：从 DOCX 和 PDF 导出的最终答案渲染中移除不必要的 `_strip_emoji()`，保留原始内容
 - **管理员：仪表板统计 PG 崩溃**：修复 PostgreSQL 上管理员仪表板统计页面崩溃——带参数化 `coalesce()` 的 `GROUP BY` 导致 `GroupingError`；替换为 `literal()` 列默认值
 
 - **Docker Compose 部署**：单一镜像（API + 前端）、用于数据持久化的命名卷、独立 Next.js 输出模式
 - **管理员：登录历史记录**：Auth 端点现在记录每次登录尝试（IP 地址、User-Agent、成功/失败及原因）到 `LoginHistory` 表以进行安全审计
 - **管理员：文件浏览器**：新增管理员文件浏览器端点，用于列出和下载用户上传的文件，支持分页
-- **管理员：丰富的 agent/KB 视图**：管理员 agent 列表和知识库视图现在公开 `model_name`、`tools`、`kb_ids` 和 `embedding_model` 字段以提高可见性
+- **管理员：丰富的智能体/知识库视图**：管理员智能体列表和知识库视图现在公开 `model_name`、`tools`、`kb_ids` 和 `embedding_model` 字段以提高可见性
 - **聊天：敏感词阻止**：ReAct 和 `inject_message` 聊天端点现在都强制执行敏感词过滤，阻止包含已配置敏感词的消息
 - **SSE：结构化错误处理**：`useSSE` 钩子中的 `onError` 回调从纯字符串升级为 `ApiError` 对象，提供更丰富的错误上下文（错误代码、参数）
 - **UI：`formatTokens` 实用程序**：用于显示具有区域感知数字格式的令牌计数的新格式化助手
-- **UI：`Checkbox` 和 `FadeIn` 组件**：新增 shadcn 风格的复选框和淡入动画包装器组件### 已更改
-- **文档：ASCII → Mermaid 图表**：所有方框绘制 ASCII 图表已转换为原生 Mermaid 图表（跨 6 个页面的 12 个图表），以获得更好的渲染和交互性
-- **文档：深色模式主题**：优化了 Mintlify 颜色配置 — 深色模式中的温暖琥珀色强调，渐变背景装饰，与项目主题相匹配的适当背景颜色### 已修复
-- **导出：RFC 5987 文件名支持**：在 Content-Disposition 标头中优先使用 UTF-8 编码的 `filename*` 而非普通 `filename`，修复导出对话时 CJK 文件名乱码的问题
-- **Docker i18n 损坏**：将 `messages/` 目录复制到独立输出中并添加 `outputFileTracingIncludes`，以便 next-intl 在运行时能够发现区域设置 JSON 文件
+- **UI：`Checkbox` 和 `FadeIn` 组件**：新增 shadcn 风格的复选框和淡入动画包装器组件
+
+### 已更改
+- **文档：ASCII → Mermaid 图表**：所有方框绘制 ASCII 图表已转换为原生 Mermaid 图表（跨 6 个页面共 12 个图表），以获得更好的渲染和交互性
+- **文档：深色模式主题**：优化了 Mintlify 颜色配置 — 深色模式中的温暖琥珀色强调色、渐变背景装饰、与项目主题相匹配的适当背景颜色
+
+### 已修复
+- **导出：RFC 5987 文件名支持**：在 Content-Disposition 标头中优先使用 UTF-8 编码的 `filename*` 而非普通 `filename`，修复导出对话时 CJK 文件名乱码问题
+- **Docker 国际化损坏**：将 `messages/` 目录复制到独立输出中并添加 `outputFileTracingIncludes`，以便 next-intl 在运行时发现区域设置 JSON 文件
 - **Docker 启动竞态条件**：在启动 Next.js 之前在入口点添加 API 就绪等待循环（Python socket 轮询），防止 `e.map is not a function` SSR 错误
-- **Artifacts：按对话 created_at 排序**：按对话创建时间而非文件 mtime 排序 artifacts（mtime 在 Docker 卷上不可靠）
-- **OAuth：从 window.location 端口自动检测生产 API URL**：浏览器自动检测现在可以正确处理生产环境中的自定义端口（不仅限于 3000）
-- **Docker：DooD 沙箱卷挂载路径不匹配**：使用 `CODE_EXEC_BACKEND=docker`（Docker-outside-of-Docker）在容器内运行时，沙箱脚本被写入容器内部路径，主机 Docker 守护程序无法看到，导致空的 `-v` 挂载和"No such file or directory"错误。通过将沙箱目录移至 `data/sandbox/`、添加带有 `_resolve_host_path()` 的 `DOCKER_HOST_DATA_DIR` 环境变量进行路径转换，以及处理空字符串环境变量边界情况来修复## [v0.7.3] - 2026-03-06### 已添加
-- **全局 MCP 服务器**：由管理员配置的 MCP 服务器在所有聊天会话中加载（不是按用户/代理）；查询逻辑：`or_(is_global==True, user_id==current_user.id)`
-- **向后兼容模式**：如果未设置 `registration_mode`，管理员平台读取旧版 `registration_enabled` 布尔值（自动迁移到"open"模式）
-- **结构化审计日志**：`write_audit()` 辅助函数集中处理审计日志写入（admin_id、target_type、target_id、detail 字段）；替代临时性 `AuditLog()` 调用### Changed
-- **审计日志架构**：从原始 `meta` 字典迁移到结构化的 `admin_id` / `target_type` / `target_id` / `detail` 列，以实现更好的合规性
-- **OAuth 回调 URL 构造**：`{API_BASE_URL}/api/auth/oauth/{provider}/callback`（由后端自动构造，无需硬编码）### 已修复
-- **邀请码向后兼容**：当未明确设置时正确解释 registration_mode（从 registration_enabled 读取）
-- **多用户场景**：全局 MCP 服务器不再与按用户工具冲突## [v0.7.2] - 2026-03-06### 已添加
-- **邀请制注册模式**：新的注册系统，包含三种模式（开放/邀请/禁用）和邀请码 CRUD
-- **存储管理**：按用户磁盘使用量计算、清除命令、孤立文件清理
+- **工件：按对话创建时间排序**：按对话创建时间而非文件 mtime 排序工件（mtime 在 Docker 卷上不可靠）
+- **OAuth：从 window.location 端口自动检测生产 API URL**：浏览器自动检测现在可正确用于生产环境中的自定义端口（不仅限于 3000）
+- **Docker：DooD 沙箱卷挂载路径不匹配**：使用 `CODE_EXEC_BACKEND=docker` 运行容器内时（Docker-outside-of-Docker），沙箱脚本被写入容器内部路径，对主机 Docker 守护进程不可见，导致空的 `-v` 挂载和"No such file or directory"错误。通过将沙箱目录移至 `data/sandbox/`、添加带有 `_resolve_host_path()` 的 `DOCKER_HOST_DATA_DIR` 环境变量进行路径转换，以及处理空字符串环境变量边界情况来修复
+
+## [v0.7.3] - 2026-03-06
+
+### Added
+- **Global MCP servers**: Admin-provisioned MCP servers loaded in all chat sessions (not per-user/agent); query logic: `or_(is_global==True, user_id==current_user.id)`
+- **Backward-compat mode**: Admin Platform reads legacy `registration_enabled` boolean if `registration_mode` is not set (auto-migrates to "open" mode)
+- **Structured audit logging**: `write_audit()` helper centralizes audit log writes (admin_id, target_type, target_id, detail fields); replaces ad-hoc `AuditLog()` calls
+
+### Changed
+- **审计日志架构**: 从原始 `meta` 字典迁移到结构化的 `admin_id` / `target_type` / `target_id` / `detail` 列，以提高合规性
+- **OAuth 回调 URL 构造**: `{API_BASE_URL}/api/auth/oauth/{provider}/callback`（由后端自动构造，无需硬编码）
+
+### 已修复
+- **邀请码向后兼容性**：未明确设置时正确解释 registration_mode（从 registration_enabled 读取）
+- **多用户场景**：全局 MCP 服务器不再与按用户工具冲突
+
+## [v0.7.2] - 2026-03-06
+
+### 新增
+- **邀请制注册模式**：新的注册系统，包含三种模式（开放/邀请/禁用）和邀请码的增删改查功能
+- **存储管理**：按用户计算磁盘使用量、清除命令、孤立文件清理
 - **按用户强制登出**：管理员能够撤销所有令牌并强制重新身份验证
-- **对话审核**：管理员能够列出和删除所有用户对话### 已更改
-- **管理面板**：分离为管理列表（用户、API 密钥、代理等），具有一致的下拉菜单操作模式### 已修复
-- **管理员列表分页**：所有管理员数据列表现在支持分页和搜索## [v0.7.1] - 2026-03-06### 新增
-- **API 健康仪表板**：系统统计（用户、对话、令牌、模型使用图表、按代理的令牌分解）、连接器调用指标（成功率、延迟）
-- **JWT 认证**：基于令牌的 SSE 认证、对话所有权、按用户资源隔离
-- **管理 API**：代理管理、按用户令牌配额强制执行（超出时返回 429）### 已修复
-- **Token quota enforcement**: ReAct 和 DAG 端点现在在执行前检查每用户配额## [v0.7] - 2026-03-06### 新增功能
+- **对话审核**：管理员能够列出和删除所有用户对话
+
+### 已更改
+- **管理面板**：分离为管理列表（用户、API 密钥、智能体等），具有一致的下拉菜单操作模式
+
+### 已修复
+- **管理员列表分页**：所有管理员数据列表现在支持分页和搜索
+
+## [v0.7.1] - 2026-03-06
+
+### 已添加
+- **API 健康仪表板**：系统统计数据（用户、对话、令牌、模型使用图表、按智能体的令牌分解）、连接器调用指标（成功率、延迟）
+- **JWT 身份验证**：基于令牌的 SSE 身份验证、对话所有权、按用户资源隔离
+- **管理 API**：智能体管理、按用户令牌配额强制执行（超出时返回 429）
+
+### 已修复
+- **令牌配额强制执行**：ReAct 和 DAG 端点现在在执行前检查每用户配额
+
+## [v0.7] - 2026-03-06
+
+### 已添加
 - **Admin Platform v0.7**: 用户管理（搜索/分页）、角色切换、密码重置、账户启用/禁用、仅邀请注册、按用户配额、对话审核、存储管理
-- **首次运行设置向导**: 首次启动时，门户指导完成管理员账户创建（用户名、密码、电子邮件）
+- **首次运行设置向导**: 首次启动时，门户引导完成管理员账户创建（用户名、密码、电子邮件）
 - **个人中心**: 按用户全局系统指令应用于所有对话
-- **语言偏好设置**: 按用户语言设置（自动/en/zh）指导所有 LLM 响应使用所选语言### 已更改
-- **多租户身份验证**：JWT 令牌强制执行对话所有权；代理继承用户上下文### 已修复
-- **OAuth 账户绑定**：在所有提供商的链接/登录流程中正确匹配电子邮件## [v0.6.5] - 2026-03-05### 已添加
+- **语言偏好**: 按用户语言设置（自动/en/zh）指导所有 LLM 响应使用选定的语言
+
+### 已更改
+- **多租户身份验证**：JWT 令牌强制执行对话所有权；智能体继承用户上下文
+
+### 已修复
+- **OAuth 账户绑定**：在所有提供商的链接/登录流程中正确匹配电子邮件
+
+## [v0.6.5] - 2026-03-05
+
+### 新增
 - **实用工具**: `email_send`, `json_transform`, `template_render`, `text_utils`
 - **连接器响应过滤**: `CONNECTOR_RESPONSE_MAX_CHARS` 和 `CONNECTOR_RESPONSE_MAX_ITEMS` 限制
-- **嵌入模型选项**: 支持 Jina、OpenAI 和自定义嵌入提供商### 已修复
-- **RAG 管道稳定性**：改进了失败块操作的错误处理## [v0.6] - 2026-03-01### Added
-- **Connector Platform (core feature)**:
-  - Connector CRUD (create, read, update, delete)
-  - `ConnectorToolAdapter` converts Connector → BaseTool in ToolRegistry
-  - Per-user credentials with AES-GCM encryption
-  - Confirmation gate for write operations
-  - Circuit breaker for connection failures
-  - Operation classification (read/write/admin)
-  - Audit logging for all tool calls
-- **MCP integration**: Tool auto-discovery via MCP protocol, process isolation
-  - Connector data flow example: Query → Governance → MCP → Legacy System### Changed
-- **Tool architecture**: Unified ToolRegistry supports built-in, MCP, and connector tools### 已修复
-- **工具分类**: 所有内置工具都正确标记了分类## [v0.5] - 2026-02-28### 已添加
-- **完整 RAG 管道**：Jina embedding + LanceDB 向量存储 + FTS + RRF 混合检索 + 重排器
-- **基础生成**：证据锚定的 RAG，支持 `[N]` 引用、冲突检测、可解释的置信度分数
+- **嵌入模型选项**: 支持 Jina、OpenAI 和自定义嵌入提供商
+
+### 已修复
+- **RAG 管道稳定性**：改进了失败的块操作的错误处理
+
+## [v0.6] - 2026-03-01
+
+### 已添加
+- **连接器平台（核心功能）**：
+  - 连接器 CRUD（创建、读取、更新、删除）
+  - `ConnectorToolAdapter` 在 ToolRegistry 中将连接器转换为 BaseTool
+  - 使用 AES-GCM 加密的按用户凭证
+  - 写操作的确认门控
+  - 连接失败的断路器
+  - 操作分类（读/写/管理）
+  - 所有工具调用的审计日志
+- **MCP 集成**：通过 MCP 协议的工具自动发现、进程隔离
+- **连接器数据流示例**：查询 → 治理 → MCP → 遗留系统
+
+### 已更改
+- **工具架构**：统一的 ToolRegistry 支持内置、MCP 和连接器工具
+
+### 已修复
+- **工具分类**: 所有内置工具都正确标记了分类
+
+## [v0.5] - 2026-02-28
+
+### 已添加
+- **完整 RAG 管道**：Jina 嵌入 + LanceDB 向量存储 + FTS + RRF 混合检索 + 重排器
+- **有根据的生成**：证据锚定的 RAG，带有 `[N]` 引用、冲突检测、可解释的置信度分数
 - **知识库文档管理**：块级 CRUD、文本搜索、失败文档重试、自动迁移向量存储架构
-- **ContextGuard + 固定消息**：令牌预算管理器；固定消息受保护，不会被压缩### Changed
-- **Multi-turn memory**: DbMemory in `core/memory/db.py`, CompactUtils in `core/memory/compact.py`
-- **LLM Compact**: `CompactUtils.llm_compact()` summarizes old turns via fast LLM
-- **DAG Re-Planning**: Loop up to `MAX_REPLAN_ROUNDS=3`; re-plans when `analysis.achieved=False` and `confidence < 0.5`### 已修复
-- **Token 溢出处理**：自动 LLM 驱动的摘要功能遵守 token 预算## [v0.4] - 2026-02-25### 已添加
+- **ContextGuard + 固定消息**：令牌预算管理器；固定消息受保护免受压缩
+
+### 已更改
+- **多轮对话记忆**：`core/memory/db.py` 中的 DbMemory，`core/memory/compact.py` 中的 CompactUtils
+- **LLM 压缩**：`CompactUtils.llm_compact()` 通过快速 LLM 总结旧的对话轮次
+- **DAG 重新规划**：循环最多 `MAX_REPLAN_ROUNDS=3` 次；当 `analysis.achieved=False` 且 `confidence < 0.5` 时重新规划
+
+### 已修复
+- **Token 溢出处理**：自动 LLM 驱动的摘要尊重 token 预算
+
+## [v0.4] - 2026-02-25
+
+### 新增功能
 - **多轮对话**：DbMemory 持久化对话历史；智能截断处理长会话
 - **工具步骤折叠**：UI 可折叠/展开工具调用步骤以提高可读性
-- **HTTP 请求工具**：自定义标头、身份验证、方法选择
-- **Shell 执行工具**：安全的命令执行，带超时控制
-- **Agent 管理**：创建、配置、发布绑定模型、工具、指令的 agent
-- **Per-agent 执行模式**：标准/规划器模式切换、温度控制
-- **JWT 身份验证**：用于 API 调用的无状态令牌身份验证### Changed
-- **Memory architecture**: ReAct fully wired to DbMemory; DAG injects history as enriched query prefix
-- **Admin health check**: Monitors both ENV-configured and admin-configured models### 已修复
-- **多用户隔离**：对话按用户隔离；代理作用域限定于用户## [v0.3] - 2026-02-25### 已添加
-- **Web 工具**: `web_search` (Jina/Tavily/Brave)、`web_fetch`、可配置的提供商
-- **文件操作工具**: 读取、写入、列表、删除，带路径验证
-- **MCP 客户端**: 协议优先的工具集成、进程隔离
-- **工具自动发现**: `builtin/__init__.py` 中的 `discover_builtin_tools()`
-- **工具类别**: computation、web、filesystem、knowledge、mcp、connector、general
-- **DAG 可视化**: 交互式流图，具有实时状态、依赖边、点击滚动
-- **Python/Node.js 执行**: Docker 中的代码执行以实现隔离 (`CODE_EXEC_BACKEND=docker`)
-- **沙箱加固**: `--network=none`、`--memory=256m`、超时强制执行### 已更改
-- **工具接口**：所有工具现已分类；注册表支持过滤
-- **执行模型**：DAG Executor 通过 asyncio 并发运行步骤### 已修复
-- **工具发现稳健性**：优雅地处理缺失的可选依赖项## [v0.2] - 2026-02-24### 已添加
-- **重试和速率限制**：自动指数退避处理瞬时故障
-- **使用情况追踪**：按请求的令牌/成本核算
-- **原生函数调用**：直接模型支持工具选择（无仅 JSON 解析）
+- **HTTP 请求工具**：自定义请求头、身份验证、方法选择
+- **Shell 执行工具**：安全的命令执行，支持超时控制
+- **智能体管理**：创建、配置、发布绑定模型、工具和指令的智能体
+- **按智能体执行模式**：标准/规划器模式切换、温度控制
+- **JWT 身份验证**：用于 API 调用的无状态令牌身份验证
+
+### 已更改
+- **内存架构**：ReAct 完全连接到 DbMemory；DAG 将历史记录作为富化查询前缀注入
+- **管理员健康检查**：监控 ENV 配置和管理员配置的模型
+
+### 已修复
+- **多用户隔离**：对话按用户隔离；智能体作用域限定于用户
+
+## [v0.3] - 2026-02-25
+
+### 新增功能
+- **Web 工具**：`web_search`（Jina/Tavily/Brave）、`web_fetch`、可配置的提供商
+- **文件操作工具**：读取、写入、列表、删除，包含路径验证
+- **MCP 客户端**：协议优先的工具集成、进程隔离
+- **工具自动发现**：`builtin/__init__.py` 中的 `discover_builtin_tools()`
+- **工具分类**：computation、web、filesystem、knowledge、mcp、connector、general
+- **DAG 可视化**：交互式流图，实时状态、依赖边、点击滚动
+- **Python/Node.js 执行**：Docker 中的代码执行以实现隔离（`CODE_EXEC_BACKEND=docker`）
+- **沙箱加固**：`--network=none`、`--memory=256m`、超时强制执行
+
+### 已更改
+- **工具界面**：所有工具现已分类；注册表支持过滤
+- **执行模型**：DAG Executor 通过 asyncio 并发运行步骤
+
+### 已修复
+- **工具发现健壮性**：优雅地处理缺失的可选依赖项
+
+## [v0.2] - 2026-02-24
+
+### 新增功能
+- **重试和速率限制**：针对瞬时故障的自动指数退避
+- **使用情况追踪**：按请求的令牌/成本统计
+- **原生函数调用**：直接模型支持工具选择（无仅限JSON解析）
 - **多模型支持**：`FAST_LLM_MODEL` 用于更便宜的 DAG 步骤执行
-- **内存系统**：WindowMemory（最新 N 轮）、SummaryMemory（LLM 总结）、DbMemory（持久化）
-- **FastAPI 后端**：`/api/execute`（ReAct）、`/api/stream`（SSE 流式传输）### 已更改
-- **LLM 抽象**：BaseLLM → OpenAICompatibleLLM，统一接口
-- **ModelRegistry**：集中配置、提供商自动选择### 已修复
-- **错误恢复**: 在临时 API 错误时自动重试## [v0.1] - 2026-02-22### 已添加
-- **ReActAgent**: 推理 → 行动 → 观察循环与工具集成
-- **DAGPlanner**: LLM生成的依赖图、用于并发执行的DAGExecutor、用于结果验证的PlanAnalyzer
-- **BaseTool框架**: 所有工具的统一接口
+- **内存系统**：WindowMemory（最新N轮）、SummaryMemory（LLM总结）、DbMemory（持久化）
+- **FastAPI 后端**：`/api/execute`（ReAct）、`/api/stream`（SSE 流式传输）
+
+### 已更改
+- **LLM 抽象**：BaseLLM → OpenAICompatibleLLM，具有统一接口
+- **ModelRegistry**：集中配置、提供商自动选择
+
+### 已修复
+- **错误恢复**：在临时 API 错误时自动重试
+
+## [v0.1] - 2026-02-22
+
+### 已添加
+- **ReActAgent**: 推理 → 行动 → 观察循环，支持工具调用
+- **DAGPlanner**: LLM 生成的依赖图、用于并发执行的 DAGExecutor、用于结果验证的 PlanAnalyzer
+- **BaseTool 框架**: 所有工具的统一接口
 - **计算器工具**: 算术表达式、公式求值
-- **Python exec工具**: 隔离环境中的代码执行
-- **KaTeX渲染**: 流式输出中的数学符号
-- **JSON mode解析**: 强大的结构化输出处理
-- **Portal UI**: 具有实时流式传输、深色/浅色/系统主题的Next.js网络界面
-- **初始文档**: 涵盖哲学、架构、路线图的Wiki页面### 已修复
+- **Python exec 工具**: 隔离环境中的代码执行
+- **KaTeX 渲染**: 流式输出中的数学符号
+- **JSON 模式解析**: 强大的结构化输出处理
+- **Portal UI**: 具有实时流式传输、深色/浅色/系统主题的 Next.js 网络界面
+- **初始文档**: 涵盖哲学、架构、路线图的 Wiki 页面
+
+### 已修复
 - **流式传输稳定性**：正确的 SSE 错误处理和连接清理
+

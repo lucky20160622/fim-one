@@ -1,9 +1,11 @@
 ---
 title: "Guide d'extension"
-description: "Comment intégrer des fournisseurs LLM personnalisés, des outils, des backends de mémoire, des embeddings, des rerankers, des backends web et des composants RAG dans FIM One."
----## Aperçu
+description: "Comment intégrer des fournisseurs LLM personnalisés, des outils, des backends de mémoire, des embeddings, des rérankers, des backends web et des composants RAG dans FIM One."
+---
 
-FIM One est construit autour d'un ensemble de classes de base abstraites minces — une par composant interchangeable. Chaque composant a une seule responsabilité et une interface minimale. Vous implémentez les méthodes abstraites, connectez l'instance au registre ou injecteur approprié, et le reste du système utilise automatiquement votre implémentation.
+## Aperçu
+
+FIM One est construit autour d'un ensemble de classes de base abstraites minces — une par composant interchangeable. Chaque composant a une seule responsabilité et une interface minimale. Vous implémentez les méthodes abstraites, connectez l'instance au registre ou à l'injecteur approprié, et le reste du système utilise automatiquement votre implémentation.
 
 | Point d'extension | Classe de base | Fichier | Enregistrement |
 |---|---|---|---|
@@ -11,7 +13,7 @@ FIM One est construit autour d'un ensemble de classes de base abstraites minces 
 | Outil | `BaseTool` | `core/tool/base.py` | Déposer un fichier dans `builtin/` |
 | Mémoire | `BaseMemory` | `core/memory/base.py` | Injection de constructeur |
 | Embedding | `BaseEmbedding` | `core/embedding/base.py` | Injection de constructeur |
-| Génération d'images | `BaseImageGen` | `core/image_gen/base.py` | Injection de constructeur |
+| Génération d'image | `BaseImageGen` | `core/image_gen/base.py` | Injection de constructeur |
 | Reranker | `BaseReranker` | `core/reranker/base.py` | Injection de constructeur |
 | Backend de récupération web | `BaseWebFetch` | `core/web/fetch/base.py` | Injection de constructeur |
 | Backend de recherche web | `BaseWebSearch` | `core/web/search/base.py` | Injection de constructeur |
@@ -19,9 +21,11 @@ FIM One est construit autour d'un ensemble de classes de base abstraites minces 
 | Chargeur de documents | `BaseLoader` | `rag/loaders/base.py` | Registre de chargeur / injection |
 | Chunker de texte | `BaseChunker` | `rag/chunking/base.py` | Injection de constructeur |
 
----## Fournisseur LLM personnalisé
+---
 
-`BaseLLM` a deux méthodes requises — `chat` et `stream_chat` — plus une propriété optionnelle `abilities` qui indique au reste du système ce que le modèle peut faire.
+## Fournisseur LLM personnalisé
+
+`BaseLLM` a deux méthodes requises — `chat` et `stream_chat` — plus une propriété `abilities` optionnelle qui indique au reste du système ce que le modèle peut faire.
 
 ```python
 from collections.abc import AsyncIterator
@@ -74,7 +78,9 @@ class MyLLM(BaseLLM):
         # Yield StreamChunk instances as tokens arrive
         ...
         yield  # make type-checker happy
-```### Enregistrement via ModelRegistry
+```
+
+### Enregistrement via ModelRegistry
 
 `ModelRegistry` mappe les noms aux instances `BaseLLM` et résout par rôle. Le système utilise quatre rôles intégrés : `general`, `fast`, `compact` et `vision`. Vous pouvez en ajouter vos propres.
 
@@ -84,16 +90,20 @@ from fim_one.core.model.registry import ModelRegistry
 registry = ModelRegistry()
 registry.register("my-llm", MyLLM(api_key="...", model="my-v1"), roles=["general"])
 registry.register("my-fast", MyLLM(api_key="...", model="my-mini"), roles=["fast", "compact"])
-```# Récupérer plus tard
+```
+
+# Récupérer plus tard
 ```python
 llm = registry.get_default()           # first "general" model, or first registered
 llm = registry.get_by_role("fast")     # first model with the "fast" role
 llm = registry.get("my-llm")           # by exact name
 ```
 
-Le dictionnaire `abilities` est le contrat entre le LLM et le moteur ReAct. Lorsque `tool_call=True` et que l'agent a été créé avec `use_native_tools=True`, le moteur utilisera l'appel de fonction natif. Sinon, il bascule automatiquement en mode JSON.
+Le dictionnaire `abilities` est le contrat entre le LLM et le moteur ReAct. Quand `tool_call=True` et que l'agent a été créé avec `use_native_tools=True`, le moteur utilisera l'appel de fonction natif. Sinon, il bascule automatiquement en mode JSON.
 
----## Outil personnalisé
+---
+
+## Outil personnalisé
 
 Les outils sont l'extension la plus courante. `BaseTool` a trois éléments requis : `name`, `description` et `run`. Tout le reste a des valeurs par défaut sensées.
 
@@ -137,9 +147,11 @@ class GitStatusTool(BaseTool):
         )
         stdout, _ = await result.communicate()
         return stdout.decode()
-```### Découverte automatique
+```
 
-Déposez votre fichier dans `src/fim_one/core/tool/builtin/`. Le scanner `discover_builtin_tools()` trouvera automatiquement toute sous-classe concrète (non-abstraite) de `BaseTool` — aucune inscription manuelle nécessaire.
+### Découverte automatique
+
+Déposez votre fichier dans `src/fim_one/core/tool/builtin/`. Le scanner `discover_builtin_tools()` trouvera automatiquement toute sous-classe concrète (non abstraite) de `BaseTool` — aucune inscription manuelle requise.
 
 ```
 src/fim_one/core/tool/builtin/
@@ -148,7 +160,9 @@ src/fim_one/core/tool/builtin/
 └── ...
 ```
 
-Le scanner ignore les classes listées dans `_SKIP_AUTO_DISCOVER`. Utilisez cet ensemble pour les outils qui nécessitent une configuration externe (par exemple une clé API) et doivent être instanciés conditionnellement au démarrage.### Signalisation de l'indisponibilité
+Le scanner ignore les classes listées dans `_SKIP_AUTO_DISCOVER`. Utilisez cet ensemble pour les outils qui nécessitent une configuration externe (par exemple une clé API) et doivent être instanciés conditionnellement au démarrage.
+
+### Signalisation de l'indisponibilité
 
 Remplacez `availability()` pour afficher un message dans le catalogue des outils lorsqu'une dépendance est manquante :
 
@@ -158,9 +172,11 @@ def availability(self) -> tuple[bool, str | None]:
     if not os.getenv("GITHUB_TOKEN"):
         return False, "GITHUB_TOKEN environment variable is not set."
     return True, None
-```### Résultats enrichis avec des artefacts
+```
 
-Retournez un `ToolResult` au lieu d'une simple `str` quand votre outil produit des fichiers :
+### Résultats enrichis avec des artefacts
+
+Retournez un `ToolResult` au lieu d'une simple `str` lorsque votre outil produit des fichiers :
 
 ```python
 from fim_one.core.tool.base import Artifact, ToolResult
@@ -174,7 +190,9 @@ async def run(self, **kwargs: Any) -> ToolResult:
     )
 ```
 
----## Mémoire personnalisée
+---
+
+## Mémoire personnalisée
 
 `BaseMemory` est la couche de persistance pour l'historique des conversations. Trois méthodes : `add_message`, `get_messages`, `clear`.
 
@@ -204,7 +222,9 @@ class RedisMemory(BaseMemory):
 
 Injectez via le constructeur de l'agent : `ReActAgent(llm=llm, memory=RedisMemory(conv_id, url))`.
 
----## Intégration personnalisée
+---
+
+## Intégration personnalisée d'embeddings
 
 `BaseEmbedding` fournit deux méthodes : `embed_texts` (batch) et `embed_query` (single), ainsi qu'une propriété `dimension`.
 
@@ -230,11 +250,13 @@ class MyEmbedding(BaseEmbedding):
         ...
 ```
 
-La distinction entre `embed_texts` et `embed_query` existe car de nombreux modèles d'intégration (par exemple E5, BGE) utilisent des préfixes différents pour les documents et les requêtes afin d'améliorer la qualité de la récupération.
+La distinction entre `embed_texts` et `embed_query` existe parce que de nombreux modèles d'embedding (par exemple E5, BGE) utilisent des préfixes différents pour les documents et les requêtes afin d'améliorer la qualité de la récupération.
 
----## Génération d'images personnalisée
+---
 
-`BaseImageGen` a une seule méthode `generate`. Elle enregistre l'image dans `output_dir` et retourne un `ImageResult` avec le chemin du fichier et une URL relative au serveur.
+## Génération d'images personnalisée
+
+`BaseImageGen` possède une seule méthode `generate`. Elle enregistre l'image dans `output_dir` et retourne un `ImageResult` avec le chemin du fichier et une URL relative au serveur.
 
 ```python
 from fim_one.core.image_gen.base import BaseImageGen, ImageResult
@@ -258,7 +280,9 @@ class StableDiffusionImageGen(BaseImageGen):
         )
 ```
 
----## Réorganiseur personnalisé
+---
+
+## Réclasseur personnalisé
 
 `BaseReranker` prend une requête et une liste de chaînes de documents et les retourne réorganisées avec des scores.
 
@@ -280,7 +304,11 @@ class CrossEncoderReranker(BaseReranker):
         return results[:top_k]
 ```
 
----## Backends web personnalisés### Web fetch
+---
+
+## Backends web personnalisés
+
+### Récupération web
 
 `BaseWebFetch` récupère une URL et retourne son contenu en Markdown ou en texte brut.
 
@@ -298,7 +326,9 @@ class PlaywrightFetch(BaseWebFetch):
             content = await page.content()
             await browser.close()
         return html_to_markdown(content)
-```### Recherche web
+```
+
+### Recherche web
 
 `BaseWebSearch` retourne une liste classée d'objets `SearchResult`.
 
@@ -314,11 +344,15 @@ class BingSearch(BaseWebSearch):
             SearchResult(title=r["name"], url=r["url"], snippet=r["snippet"])
             for r in raw_results[:num_results]
         ]
-```## Composants RAG personnalisés
+```
 
-Le pipeline RAG a trois étapes indépendamment interchangeables : chargement, segmentation et récupération.### Chargeur de documents
+## Composants RAG personnalisés
 
-`BaseLoader` convertit un chemin de fichier en une liste d'objets `LoadedDocument`. Les chargeurs PDF retournent généralement un document par page.
+Le pipeline RAG a trois étapes indépendamment interchangeables : chargement, segmentation et récupération.
+
+### Chargeur de documents
+
+`BaseLoader` transforme un chemin de fichier en une liste d'objets `LoadedDocument`. Les chargeurs PDF retournent généralement un document par page.
 
 ```python
 from pathlib import Path
@@ -331,9 +365,11 @@ class DocxLoader(BaseLoader):
         doc = Document(path)
         text = "\n".join(p.text for p in doc.paragraphs)
         return [LoadedDocument(content=text, metadata={"source": str(path)})]
-```### Chunker de texte
+```
 
-`BaseChunker` divise le texte en objets `Chunk`. `MAX_CHUNK_SIZE = 6000` caractères est la limite maximale — les tailles de chunk au-delà de cela peuvent déborder de la fenêtre de tokens Jina Embeddings v3.
+### Découpeur de texte
+
+`BaseChunker` divise le texte en objets `Chunk`. `MAX_CHUNK_SIZE = 6000` caractères est la limite maximale — les tailles de chunk supérieures à cela peuvent dépasser la fenêtre de tokens Jina Embeddings v3.
 
 ```python
 from typing import Any
@@ -352,7 +388,9 @@ class SentenceChunker(BaseChunker):
             chunk_text = " ".join(sentences[i : i + self._n])
             chunks.append(Chunk(text=chunk_text, metadata=metadata or {}, index=i // self._n))
         return chunks
-```### Retriever
+```
+
+### Récupérateur
 
 `BaseRetriever` interroge n'importe quel backend et retourne des objets `Document` classés.
 
@@ -381,7 +419,9 @@ class ElasticsearchRetriever(BaseRetriever):
         ]
 ```
 
----## Principes de conception
+---
+
+## Principes de conception
 
 Quelques modèles sont cohérents dans toutes les classes de base qui facilitent l'écriture correcte des implémentations personnalisées :
 
@@ -389,6 +429,6 @@ Quelques modèles sont cohérents dans toutes les classes de base qui facilitent
 
 **Sortie textuelle des outils.** `BaseTool.run()` retourne `str` (ou `ToolResult`). Le LLM ne voit que du texte — les implémentations d'outils sont responsables de la sérialisation des données complexes dans un format lisible.
 
-**Interfaces minimales.** Chaque classe de base définit le plus petit contrat nécessaire. `BaseMemory` compte trois méthodes ; `BaseWebFetch` en compte une. Vous n'êtes jamais obligé d'implémenter une fonctionnalité dont vous n'avez pas besoin.
+**Interfaces minimales.** Chaque classe de base définit le plus petit contrat nécessaire. `BaseMemory` compte trois méthodes ; `BaseWebFetch` en compte une. Vous n'êtes jamais obligé d'implémenter les fonctionnalités dont vous n'avez pas besoin.
 
-**Composition plutôt qu'héritage.** Les classes de base sont des interfaces, pas des frameworks. Vous injectez votre implémentation au moment de la construction ; l'exécution ne la sous-classe jamais ni ne la modifie ultérieurement.
+**Composition plutôt qu'héritage.** Les classes de base sont des interfaces, pas des frameworks. Vous injectez votre implémentation au moment de la construction ; l'exécution ne la sous-classe jamais ou ne la modifie jamais ultérieurement.

@@ -1,13 +1,13 @@
 ---
 title: "Einführung"
-description: "AI-Powered Connector Hub — Systeme verbinden, KI orchestrieren."
+description: "KI-gestützter Connector Hub — Systeme verbinden, KI orchestrieren lassen."
 ---
 
 <Frame>
-  <img src="/banner.jpg" alt="FIM One — AI-Powered Connector Hub" />
+  <img src="/banner.jpg" alt="FIM One — KI-gestützter Connector Hub" />
 </Frame>
 
-Willkommen bei FIM One, einem KI-gestützten Framework zum Erstellen von Agenten, die komplexe Aufgaben in Ihren Unternehmenssystemen dynamisch planen und ausführen.
+Willkommen bei FIM One, einem KI-gestützten Framework zum Erstellen von Agenten, die komplexe Aufgaben über Ihre Unternehmenssysteme dynamisch planen und ausführen.
 
 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
   <a href="https://one.fim.ai/">Website</a> · <a href="https://github.com/fim-ai/fim-one">GitHub</a> · <a href="https://discord.gg/z64czxdC7z">Discord</a> · <a href="https://x.com/FIM_One">Twitter</a> · <a href="https://www.producthunt.com/products/fim-one">Product Hunt</a>
@@ -15,20 +15,26 @@ Willkommen bei FIM One, einem KI-gestützten Framework zum Erstellen von Agenten
 
 <Tip>
   **☁️ Probieren Sie FIM One in der Cloud — keine Einrichtung erforderlich.**
-  Eine verwaltete Version ist live unter [**cloud.fim.ai**](https://cloud.fim.ai/): kein Docker, keine API-Schlüssel, melden Sie sich einfach an und verbinden Sie Ihre Systeme. _Early Access — Feedback willkommen._
-</Tip>## Was ist FIM One?
+  Eine verwaltete Version ist live unter [**cloud.fim.ai**](https://cloud.fim.ai/): kein Docker, keine API-Schlüssel, melden Sie sich einfach an und beginnen Sie, Ihre Systeme zu verbinden. _Early Access — Feedback willkommen._
+</Tip>
 
-FIM One ist ein anbieterunabhängiges Python-Framework zum Erstellen von KI-Agenten, die mit Ihren bestehenden Systemen funktionieren. Im Gegensatz zu Workflow-Buildern, die Sie auffordern, Logik zu duplizieren, verbindet FIM One Ihre Systeme proaktiv – indem es Datenbanken liest, APIs aufruft, Benachrichtigungen sendet – alles über eine einheitliche KI-Schnittstelle.
+## Was ist FIM One?
 
-Der Kerngedanke: **drei Liefermodi, ein Agent-Kern**.## Drei Liefermodi
+FIM One ist ein anbieterunabhängiges Python-Framework zum Erstellen von KI-Agenten, die mit Ihren bestehenden Systemen funktionieren. Im Gegensatz zu Workflow-Buildern, die Sie auffordern, Logik zu duplizieren, verbindet FIM One Ihre Systeme proaktiv – durch Datenbankabfragen, API-Aufrufe, Push-Benachrichtigungen – alles über eine einheitliche KI-Schnittstelle.
 
-| Modus | Was es ist | Lieferung | Anwendungsfall |
+Die Kernidee: **drei Liefermodi, ein Agent-Kern**.
+
+## Drei Bereitstellungsmodi
+
+| Modus | Was es ist | Bereitstellung | Anwendungsfall |
 |------|-----------|----------|----------|
-| **Standalone** | Allzweck-KI-Assistent — Suche, Code, Wissensdatenbank | Portal | Chat, Code-Ausführung, Wissensdatenbank-Q&A |
-| **Copilot** | KI eingebettet in ein Host-System — funktioniert neben Benutzern in ihrer bestehenden UI | iframe / Widget / Embed | "Finance Copilot" in Ihrer ERP-Web-UI |
-| **Hub** | Zentrale systemübergreifende Orchestrierung — alle Ihre Systeme verbunden | Portal / API | Agent fragt ERP ab, prüft OA, benachrichtigt über Lark |## Die Hub-Architektur
+| **Standalone** | Universeller KI-Assistent — Suche, Code, Wissensdatenbank | Portal | Chat, Code-Ausführung, Wissensdatenbank-Q&A |
+| **Copilot** | KI eingebettet in ein Host-System — arbeitet neben Benutzern in ihrer bestehenden UI | iframe / Widget / Embed | „Finance Copilot" in Ihrer ERP-Web-UI |
+| **Hub** | Zentrale systemübergreifende Orchestrierung — alle Ihre Systeme verbunden | Portal / API | Agent fragt ERP ab, prüft OA, benachrichtigt über Lark |
 
-Der Hub ist der zentrale Differenzierungsfaktor — ein zentrales Portal, in dem alle Ihre Systeme auf AI treffen:
+## Die Hub-Architektur
+
+Der Hub ist der zentrale Differenziator — ein zentrales Portal, in dem alle Ihre Systeme auf AI treffen:
 
 ```mermaid
 flowchart LR
@@ -40,12 +46,14 @@ flowchart LR
   Hub["FIM One Hub<br/>(AI orchestration)"] --> CustomAPI["Custom API"]
 ```
 
-Jeder Connector ist eine standardisierte Brücke. Der Agent weiß nicht und kümmert sich nicht darum, ob er mit SAP oder einer benutzerdefinierten PostgreSQL-Datenbank spricht. Ihre Daten bleiben in Ihren Systemen; FIM One bietet die AI-Schicht, die sie orchestriert.## Erste Schritte
+Jeder Konnektor ist eine standardisierte Brücke. Der Agent weiß nicht und kümmert sich nicht darum, ob er mit SAP oder einer benutzerdefinierten PostgreSQL-Datenbank spricht. Ihre Daten bleiben in Ihren Systemen; FIM One bietet die AI-Schicht, die diese orchestriert.
+
+## Erste Schritte
 
 Erkunden Sie die nächsten Abschnitte, um die Architektur von FIM One zu verstehen und es bereitzustellen:
 
-- **[Quick Start](/quickstart)** — Starten Sie FIM One in Minuten mit Docker oder lokaler Entwicklung
+- **[Quick Start](/quickstart)** — Starten Sie FIM One in wenigen Minuten mit Docker oder lokaler Entwicklung
 - **[Execution Modes](/concepts/execution-modes)** — Verstehen Sie Standalone-, Copilot- und Hub-Modi im Detail
-- **[AI Builder](/concepts/ai-builder)** — Verwenden Sie KI, um Connectors und Agents mit natürlicher Sprache zu erstellen
+- **[AI Builder](/concepts/ai-builder)** — Verwenden Sie KI, um Konnektoren und Agenten mit natürlicher Sprache zu erstellen
 - **[Connector Architecture](/architecture/connector-architecture)** — Wie FIM One Legacy-Systeme durch KI verbindet
-- **[Philosophy](/architecture/philosophy)** — Warum dynamische Planung der richtige Mittelweg zwischen starren Workflows und vollständig autonomen Agents ist
+- **[Philosophy](/architecture/philosophy)** — Warum dynamische Planung der richtige Mittelweg zwischen starren Workflows und vollständig autonomen Agenten ist

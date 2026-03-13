@@ -1,27 +1,31 @@
 ---
 title: "Erweiterungsleitfaden"
 description: "Wie man benutzerdefinierte LLM-Anbieter, Tools, Memory-Backends, Embeddings, Reranker, Web-Backends und RAG-Komponenten in FIM One integriert."
----## Übersicht
+---
 
-FIM One basiert auf einer Reihe von dünnen abstrakten Basisklassen — eine pro austauschbare Komponente. Jede Komponente hat eine einzelne Verantwortung und eine minimale Schnittstelle. Sie implementieren die abstrakten Methoden, verbinden die Instanz mit der entsprechenden Registry oder dem Injector und der Rest des Systems verwendet Ihre Implementierung automatisch.
+## Übersicht
+
+FIM One basiert auf einer Reihe von dünnen abstrakten Basisklassen — eine pro austauschbare Komponente. Jede Komponente hat eine einzige Verantwortung und eine minimale Schnittstelle. Sie implementieren die abstrakten Methoden, verbinden die Instanz mit der entsprechenden Registry oder dem Injector, und der Rest des Systems verwendet Ihre Implementierung automatisch.
 
 | Erweiterungspunkt | Basisklasse | Datei | Registrierung |
 |---|---|---|---|
 | LLM-Anbieter | `BaseLLM` | `core/model/base.py` | `ModelRegistry.register()` |
-| Tool | `BaseTool` | `core/tool/base.py` | Datei in `builtin/` ablegen |
-| Memory | `BaseMemory` | `core/memory/base.py` | Constructor Injection |
-| Embedding | `BaseEmbedding` | `core/embedding/base.py` | Constructor Injection |
-| Bildgenerierung | `BaseImageGen` | `core/image_gen/base.py` | Constructor Injection |
-| Reranker | `BaseReranker` | `core/reranker/base.py` | Constructor Injection |
-| Web-Fetch-Backend | `BaseWebFetch` | `core/web/fetch/base.py` | Constructor Injection |
-| Web-Search-Backend | `BaseWebSearch` | `core/web/search/base.py` | Constructor Injection |
-| RAG-Retriever | `BaseRetriever` | `rag/base.py` | Constructor Injection |
-| Document Loader | `BaseLoader` | `rag/loaders/base.py` | Loader Registry / Injection |
-| Text Chunker | `BaseChunker` | `rag/chunking/base.py` | Constructor Injection |
+| Werkzeug | `BaseTool` | `core/tool/base.py` | Datei in `builtin/` ablegen |
+| Speicher | `BaseMemory` | `core/memory/base.py` | Konstruktor-Injection |
+| Embedding | `BaseEmbedding` | `core/embedding/base.py` | Konstruktor-Injection |
+| Bildgenerierung | `BaseImageGen` | `core/image_gen/base.py` | Konstruktor-Injection |
+| Reranker | `BaseReranker` | `core/reranker/base.py` | Konstruktor-Injection |
+| Web-Abruf-Backend | `BaseWebFetch` | `core/web/fetch/base.py` | Konstruktor-Injection |
+| Web-Suche-Backend | `BaseWebSearch` | `core/web/search/base.py` | Konstruktor-Injection |
+| RAG-Retriever | `BaseRetriever` | `rag/base.py` | Konstruktor-Injection |
+| Dokument-Loader | `BaseLoader` | `rag/loaders/base.py` | Loader-Registry / Injection |
+| Text-Chunker | `BaseChunker` | `rag/chunking/base.py` | Konstruktor-Injection |
 
----## Benutzerdefinierter LLM-Provider
+---
 
-`BaseLLM` hat zwei erforderliche Methoden — `chat` und `stream_chat` — plus eine optionale `abilities`-Eigenschaft, die dem Rest des Systems mitteilt, was das Modell kann.
+## Benutzerdefinierten LLM-Anbieter erstellen
+
+`BaseLLM` hat zwei erforderliche Methoden — `chat` und `stream_chat` — sowie eine optionale `abilities`-Eigenschaft, die dem Rest des Systems mitteilt, was das Modell kann.
 
 ```python
 from collections.abc import AsyncIterator
@@ -74,7 +78,9 @@ class MyLLM(BaseLLM):
         # Yield StreamChunk instances as tokens arrive
         ...
         yield  # make type-checker happy
-```### Registrierung über ModelRegistry
+```
+
+### Registrierung über ModelRegistry
 
 `ModelRegistry` ordnet Namen `BaseLLM`-Instanzen zu und löst sie nach Rolle auf. Das System verwendet vier integrierte Rollen: `general`, `fast`, `compact` und `vision`. Sie können eigene hinzufügen.
 
@@ -84,17 +90,21 @@ from fim_one.core.model.registry import ModelRegistry
 registry = ModelRegistry()
 registry.register("my-llm", MyLLM(api_key="...", model="my-v1"), roles=["general"])
 registry.register("my-fast", MyLLM(api_key="...", model="my-mini"), roles=["fast", "compact"])
-```# Später abrufen
-llm = registry.get_default()           # first "general" model, or first registered
-llm = registry.get_by_role("fast")     # first model with the "fast" role
-llm = registry.get("my-llm")           # by exact name
 ```
 
-Das `abilities`-Dict ist der Vertrag zwischen dem LLM und der ReAct-Engine. Wenn `tool_call=True` und der Agent mit `use_native_tools=True` erstellt wurde, verwendet die Engine natives Function Calling. Andernfalls wird automatisch auf JSON-Modus zurückgegriffen.
+# Abrufen später
+llm = registry.get_default()           # erstes "general" Modell oder erstes registriertes
+llm = registry.get_by_role("fast")     # erstes Modell mit der "fast" Rolle
+llm = registry.get("my-llm")           # nach exaktem Namen
+```
 
----## Benutzerdefiniertes Tool
+Das `abilities` Dict ist der Vertrag zwischen dem LLM und der ReAct Engine. Wenn `tool_call=True` und der Agent mit `use_native_tools=True` erstellt wurde, verwendet die Engine natives Function Calling. Andernfalls wird automatisch auf JSON-Modus zurückgegriffen.
 
-Tools sind die häufigste Erweiterung. `BaseTool` hat drei erforderliche Komponenten: `name`, `description` und `run`. Alles andere hat sinnvolle Standardwerte.
+---
+
+## Benutzerdefiniertes Werkzeug
+
+Werkzeuge sind die häufigste Erweiterung. `BaseTool` hat drei erforderliche Komponenten: `name`, `description` und `run`. Alles andere hat sinnvolle Standardwerte.
 
 ```python
 from typing import Any
@@ -136,20 +146,24 @@ class GitStatusTool(BaseTool):
         )
         stdout, _ = await result.communicate()
         return stdout.decode()
-```### Auto-Discovery
+```
 
-Legen Sie Ihre Datei in `src/fim_one/core/tool/builtin/` ab. Der `discover_builtin_tools()`-Scanner findet automatisch jede konkrete (nicht-abstrakte) `BaseTool`-Unterklasse – keine manuelle Registrierung erforderlich.
+### Auto-Erkennung
+
+Legen Sie Ihre Datei in `src/fim_one/core/tool/builtin/` ab. Der Scanner `discover_builtin_tools()` findet automatisch alle konkreten (nicht abstrakten) `BaseTool`-Unterklassen — keine manuelle Registrierung erforderlich.
 
 ```
 src/fim_one/core/tool/builtin/
-├── calculator.py       ← existing tool
-├── git_status.py       ← your new file → auto-discovered
+├── calculator.py       ← vorhandenes Werkzeug
+├── git_status.py       ← Ihre neue Datei → automatisch erkannt
 └── ...
 ```
 
-Der Scanner überspringt Klassen, die in `_SKIP_AUTO_DISCOVER` aufgelistet sind. Verwenden Sie diesen Satz für Tools, die externe Konfiguration erfordern (z. B. einen API-Schlüssel) und bei Startup bedingt instanziiert werden müssen.### Signalisierung von Nichtverfügbarkeit
+Der Scanner überspringt Klassen, die in `_SKIP_AUTO_DISCOVER` aufgelistet sind. Verwenden Sie diesen Satz für Werkzeuge, die eine externe Konfiguration erfordern (z. B. einen API-Schlüssel) und bei der Initialisierung bedingt instanziiert werden müssen.
 
-Überschreiben Sie `availability()`, um eine Nachricht im Tool-Katalog anzuzeigen, wenn eine Abhängigkeit fehlt:
+### Signalisierung von Nichtverfügbarkeit
+
+Überschreiben Sie `availability()`, um eine Nachricht im Werkzeugkatalog anzuzeigen, wenn eine Abhängigkeit fehlt:
 
 ```python
 def availability(self) -> tuple[bool, str | None]:
@@ -157,9 +171,11 @@ def availability(self) -> tuple[bool, str | None]:
     if not os.getenv("GITHUB_TOKEN"):
         return False, "GITHUB_TOKEN environment variable is not set."
     return True, None
-```### Umfangreiche Ergebnisse mit Artefakten
+```
 
-Geben Sie ein `ToolResult` statt eines einfachen `str` zurück, wenn Ihr Tool Dateien produziert:
+### Umfangreiche Ergebnisse mit Artefakten
+
+Geben Sie ein `ToolResult` statt eines einfachen `str` zurück, wenn Ihr Werkzeug Dateien erzeugt:
 
 ```python
 from fim_one.core.tool.base import Artifact, ToolResult
@@ -173,7 +189,9 @@ async def run(self, **kwargs: Any) -> ToolResult:
     )
 ```
 
----## Benutzerdefinierter Speicher
+---
+
+## Benutzerdefinierter Speicher
 
 `BaseMemory` ist die Persistierungsschicht für Gesprächsverlauf. Drei Methoden: `add_message`, `get_messages`, `clear`.
 
@@ -201,9 +219,11 @@ class RedisMemory(BaseMemory):
         await self._redis.delete(self._key)
 ```
 
-Injizieren Sie über den Agent-Konstruktor: `ReActAgent(llm=llm, memory=RedisMemory(conv_id, url))`.
+Injizieren Sie über den Agenten-Konstruktor: `ReActAgent(llm=llm, memory=RedisMemory(conv_id, url))`.
 
----## Benutzerdefinierte Einbettung
+---
+
+## Benutzerdefinierte Einbettung
 
 `BaseEmbedding` bietet zwei Methoden: `embed_texts` (Batch) und `embed_query` (einzeln), plus eine `dimension`-Eigenschaft.
 
@@ -229,9 +249,11 @@ class MyEmbedding(BaseEmbedding):
         ...
 ```
 
-Der Unterschied zwischen `embed_texts` und `embed_query` existiert, weil viele Einbettungsmodelle (z. B. E5, BGE) unterschiedliche Präfixe für Dokumente und Abfragen verwenden, um die Abrufqualität zu verbessern.
+Der Unterschied zwischen `embed_texts` und `embed_query` besteht darin, dass viele Einbettungsmodelle (z. B. E5, BGE) unterschiedliche Präfixe für Dokumente und Abfragen verwenden, um die Abrufqualität zu verbessern.
 
----## Benutzerdefinierte Bildgenerierung
+---
+
+## Benutzerdefinierte Bildgenerierung
 
 `BaseImageGen` hat eine einzelne Methode `generate`. Sie speichert das Bild in `output_dir` und gibt ein `ImageResult` mit dem Dateipfad und einer serverelativen URL zurück.
 
@@ -257,9 +279,11 @@ class StableDiffusionImageGen(BaseImageGen):
         )
 ```
 
----## Benutzerdefinierter Reranker
+---
 
-`BaseReranker` nimmt eine Abfrage und eine Liste von Dokumentzeichenfolgen entgegen und gibt sie neu geordnet mit Scores zurück.
+## Benutzerdefinierter Reranker
+
+`BaseReranker` nimmt eine Abfrage und eine Liste von Dokumentzeichenketten entgegen und gibt sie neu geordnet mit Bewertungen zurück.
 
 ```python
 from fim_one.core.reranker.base import BaseReranker, RerankResult
@@ -279,7 +303,11 @@ class CrossEncoderReranker(BaseReranker):
         return results[:top_k]
 ```
 
----## Benutzerdefinierte Web-Backends### Web-Abruf
+---
+
+## Benutzerdefinierte Web-Backends
+
+### Web-Abruf
 
 `BaseWebFetch` ruft eine URL ab und gibt ihren Inhalt als Markdown oder Klartext zurück.
 
@@ -297,7 +325,9 @@ class PlaywrightFetch(BaseWebFetch):
             content = await page.content()
             await browser.close()
         return html_to_markdown(content)
-```### Web-Suche
+```
+
+### Websuche
 
 `BaseWebSearch` gibt eine sortierte Liste von `SearchResult`-Objekten zurück.
 
@@ -313,11 +343,15 @@ class BingSearch(BaseWebSearch):
             SearchResult(title=r["name"], url=r["url"], snippet=r["snippet"])
             for r in raw_results[:num_results]
         ]
-```## Benutzerdefinierte RAG-Komponenten
+```
 
-Die RAG-Pipeline hat drei unabhängig austauschbare Stufen: Laden, Chunking und Abruf.### Document loader
+## Benutzerdefinierte RAG-Komponenten
 
-`BaseLoader` wandelt einen Dateipfad in eine Liste von `LoadedDocument`-Objekten um. PDF-Loader geben normalerweise ein Dokument pro Seite zurück.
+Die RAG-Pipeline hat drei unabhängig austauschbare Stufen: Laden, Chunking und Abruf.
+
+### Document-Loader
+
+`BaseLoader` konvertiert einen Dateipfad in eine Liste von `LoadedDocument`-Objekten. PDF-Loader geben normalerweise ein Dokument pro Seite zurück.
 
 ```python
 from pathlib import Path
@@ -330,9 +364,11 @@ class DocxLoader(BaseLoader):
         doc = Document(path)
         text = "\n".join(p.text for p in doc.paragraphs)
         return [LoadedDocument(content=text, metadata={"source": str(path)})]
-```### Text-Chunker
+```
 
-`BaseChunker` teilt Text in `Chunk`-Objekte auf. `MAX_CHUNK_SIZE = 6000` Zeichen ist die harte Obergrenze — Chunk-Größen über diesem Wert können das Token-Fenster von Jina Embeddings v3 überlasten.
+### Text-Chunker
+
+`BaseChunker` teilt Text in `Chunk`-Objekte auf. `MAX_CHUNK_SIZE = 6000` Zeichen ist die harte Obergrenze — Chunk-Größen über diesem Wert können das Jina Embeddings v3 Token-Fenster überlasten.
 
 ```python
 from typing import Any
@@ -351,9 +387,11 @@ class SentenceChunker(BaseChunker):
             chunk_text = " ".join(sentences[i : i + self._n])
             chunks.append(Chunk(text=chunk_text, metadata=metadata or {}, index=i // self._n))
         return chunks
-```### Retriever
+```
 
-`BaseRetriever` fragt jeden Backend ab und gibt sortierte `Document`-Objekte zurück.
+### Retriever
+
+`BaseRetriever` fragt ein beliebiges Backend ab und gibt sortierte `Document`-Objekte zurück.
 
 ```python
 from fim_one.rag.base import BaseRetriever, Document
@@ -380,13 +418,15 @@ class ElasticsearchRetriever(BaseRetriever):
         ]
 ```
 
----## Designprinzipien
+---
 
-Einige Muster sind konsistent über alle Basisklassen hinweg, die es einfacher machen, benutzerdefinierte Implementierungen korrekt zu schreiben:
+## Designprinzipien
 
-**Async-first.** Jede Methode ist `async def`. Auch wenn Ihre Implementierung synchron ist, wickeln Sie sie mit `asyncio.to_thread()` ein, anstatt die Event Loop zu blockieren.
+Einige Muster sind konsistent über alle Basisklassen hinweg, die das Schreiben korrekter benutzerdefinierter Implementierungen erleichtern:
 
-**Textausgabe von Tools.** `BaseTool.run()` gibt `str` (oder `ToolResult`) zurück. Das LLM sieht nur Text — Tool-Implementierungen sind dafür verantwortlich, komplexe Daten in ein lesbares Format zu serialisieren.
+**Async-first.** Jede Methode ist `async def`. Auch wenn Ihre Implementierung synchron ist, wrappen Sie sie mit `asyncio.to_thread()` statt den Event Loop zu blockieren.
+
+**String-Ausgabe von Tools.** `BaseTool.run()` gibt `str` (oder `ToolResult`) zurück. Das LLM sieht nur Text — Tool-Implementierungen sind verantwortlich für die Serialisierung komplexer Daten in ein lesbares Format.
 
 **Minimale Schnittstellen.** Jede Basisklasse definiert den kleinsten erforderlichen Vertrag. `BaseMemory` hat drei Methoden; `BaseWebFetch` hat eine. Sie sind nie verpflichtet, Funktionalität zu implementieren, die Sie nicht benötigen.
 

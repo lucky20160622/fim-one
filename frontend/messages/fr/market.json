@@ -8,8 +8,8 @@
   "types": {
     "all": "Tous",
     "agent": "Agents",
-    "connector": "Connectors",
+    "connector": "Connecteurs",
     "knowledge_base": "Bases de connaissances",
-    "mcp_server": "MCP Servers"
+    "mcp_server": "Serveurs MCP"
   }
 }

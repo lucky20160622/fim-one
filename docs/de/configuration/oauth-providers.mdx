@@ -17,12 +17,14 @@ FIM One unterstützt Social Login über GitHub, Google, Discord und Feishu (Lark
 |---|---|
 | Lokale Entwicklung | `http://localhost:8000/api/auth/oauth/github/callback` |
 | Dedizierte API-Subdomain | `https://api.yourdomain.com/api/auth/oauth/github/callback` |
-| Reverse-Proxy (gleiche Domain) | `https://yourdomain.com/api/auth/oauth/github/callback` |## GitHub
+| Reverse-Proxy (gleiche Domain) | `https://yourdomain.com/api/auth/oauth/github/callback` |
 
-**Developer console:** https://github.com/settings/developers
+## GitHub
+
+**Entwicklerkonsole:** https://github.com/settings/developers
 
 1. Klicken Sie auf **OAuth Apps** → **New OAuth App**.
-2. Füllen Sie aus:
+2. Füllen Sie folgende Felder aus:
    - **Application name** — beliebiger Name (z. B. `FIM One`)
    - **Homepage URL** — Ihre Frontend-URL (z. B. `https://yourdomain.com`)
    - **Authorization callback URL** — `https://yourdomain.com/api/auth/oauth/github/callback`
@@ -36,9 +38,11 @@ GitHub-Konten mit einer privaten primären E-Mail werden korrekt verarbeitet —
 ```env
 GITHUB_CLIENT_ID=Ov23li...
 GITHUB_CLIENT_SECRET=...
-```## Google
+```
 
-**Developer console:** https://console.cloud.google.com/apis/credentials
+## Google
+
+**Entwicklerkonsole:** https://console.cloud.google.com/apis/credentials
 
 1. Klicken Sie auf **+ CREATE CREDENTIALS** → **OAuth client ID**.
 2. Falls aufgefordert, konfigurieren Sie zunächst den **OAuth consent screen** (setzen Sie User Type auf "External" für persönliche/öffentliche Apps).
@@ -47,22 +51,26 @@ GITHUB_CLIENT_SECRET=...
    ```
    https://yourdomain.com/api/auth/oauth/google/callback
    ```
-5. Klicken Sie auf **Create**, dann kopieren Sie die **Client ID** und **Client Secret**.
+5. Klicken Sie auf **Create**, dann kopieren Sie die **Client ID** und das **Client Secret**.
 
-**Automatisch angeforderte Scopes:** `openid`, `email`, `profile`
+**Automatisch angeforderte Bereiche:** `openid`, `email`, `profile`
 
-> Hinweis: Während der Entwicklung zeigt der Consent Screen eine Warnung "This app is not verified" an. Sie können diese für Tests überspringen. Veröffentlichen Sie den Consent Screen, wenn Sie die Warnung für Endbenutzer entfernen möchten.
+> Hinweis: Während der Entwicklung zeigt der Zustimmungsbildschirm eine Warnung "This app is not verified" an. Sie können diese zum Testen überspringen. Veröffentlichen Sie den Zustimmungsbildschirm, wenn Sie die Warnung für Endbenutzer entfernen möchten.
 
 ```env
 GOOGLE_CLIENT_ID=12345678-abc.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-...
-```## Discord
+```
+
+---
+
+## Discord
 
 **Entwicklerkonsole:** https://discord.com/developers/applications
 
 1. Klicken Sie auf **New Application** und geben Sie einen Namen ein.
 2. Klicken Sie in der linken Seitenleiste auf **OAuth2**.
-3. Klicken Sie unter **Redirects** auf **Add Redirect** und geben Sie ein:
+3. Klicken Sie unter **Redirects** auf **Add Redirect** und geben Sie Folgendes ein:
    ```
    https://api.yourdomain.com/api/auth/oauth/discord/callback
    ```
@@ -70,22 +78,24 @@ GOOGLE_CLIENT_SECRET=GOCSPX-...
 
 **Automatisch angeforderte Bereiche:** `identify`, `email`
 
-> Discord garantiert keine verifizierte E-Mail für alle Konten. Wenn ein Benutzer seine E-Mail bei Discord nicht verifiziert hat, kann das Feld `email` `null` sein. FIM One erstellt das Konto in diesem Fall mit einer null-E-Mail — der Benutzer kann später eine in den Einstellungen hinzufügen.
+> Discord garantiert keine verifizierte E-Mail für alle Konten. Wenn ein Benutzer seine E-Mail bei Discord nicht verifiziert hat, kann das Feld `email` `null` sein. FIM One erstellt das Konto in diesem Fall mit einer Null-E-Mail — der Benutzer kann später eine in den Einstellungen hinzufügen.
 
 ```env
 DISCORD_CLIENT_ID=123456789012345678
 DISCORD_CLIENT_SECRET=...
-```## Feishu (Lark)
+```
+
+## Feishu (Lark)
 
 <Warning>
-**Nur Mandanten-Bereich.** Feishu-interne Apps (自建应用) können nur Benutzer innerhalb des **gleichen Enterprise-Mandanten** authentifizieren, der die App erstellt hat. Benutzer von anderen Feishu-Mandanten sehen eine Fehlermeldung „keine Berechtigung". Das bedeutet, dass Feishu OAuth **nicht für öffentliche SaaS-Bereitstellungen geeignet ist**, bei denen Benutzer aus verschiedenen Organisationen stammen. Es funktioniert gut für **private / Einzelorganisations-Bereitstellungen**, bei denen alle Benutzer zum gleichen Feishu-Mandanten gehören.
+**Nur Mandanten-Bereich.** Feishu-Eigenanwendungen (自建应用) können nur Benutzer innerhalb des **gleichen Unternehmens-Mandanten** authentifizieren, der die App erstellt hat. Benutzer von anderen Feishu-Mandanten sehen eine Fehlermeldung "keine Berechtigung". Das bedeutet, dass Feishu OAuth **nicht für öffentliche SaaS-Bereitstellungen geeignet ist**, bei denen Benutzer aus verschiedenen Organisationen stammen. Es funktioniert gut für **private / Einzelorganisations-Bereitstellungen**, bei denen alle Benutzer zum gleichen Feishu-Mandanten gehören.
 
-Um mandantenübergreifendes Feishu-Login zu unterstützen, müssten Sie die App im [Feishu App Directory](https://open.feishu.cn/document/store-v1/overview) (应用商店) veröffentlichen und Feishus Überprüfungsprozess durchlaufen — was komplex ist und strenge Anforderungen hat.
+Um mandantenübergreifende Feishu-Anmeldung zu unterstützen, müssen Sie die App im [Feishu App Directory](https://open.feishu.cn/document/store-v1/overview) (应用商店) veröffentlichen und Feishus Überprüfungsprozess durchlaufen — was komplex ist und strenge Anforderungen hat.
 </Warning>
 
 **Entwicklerkonsole:** https://open.feishu.cn/app
 
-1. Klicken Sie auf **Create App** → **In-house app** (自建应用). Unternehmens- oder Enterprise-Konten sind erforderlich — Feishu OAuth ist nicht für persönliche Konten verfügbar.
+1. Klicken Sie auf **Create App** → **In-house app** (自建应用). Unternehmens- oder Geschäftskonten sind erforderlich — Feishu OAuth ist nicht für persönliche Konten verfügbar.
 2. Unter **Permissions & Scopes** suchen Sie nach und aktivieren Sie:
    - `contact:user.email:readonly`
 3. Unter **Security Settings** → **Redirect URL** fügen Sie Ihre Callback-URL hinzu:
@@ -94,43 +104,55 @@ Um mandantenübergreifendes Feishu-Login zu unterstützen, müssten Sie die App 
    ```
 4. Kopieren Sie die **App ID** und **App Secret** aus dem Abschnitt **Credentials & Basic Info**.
 
-**Scopes konfiguriert in der Konsole (nicht in der Autorisierungs-URL):** `contact:user.email:readonly`
+**Bereiche, die in der Konsole konfiguriert sind (nicht in der Autorisierungs-URL):** `contact:user.email:readonly`
 
-> Hinweis: Feishu verwendet `App ID` / `App Secret` statt der Standard-Benennung `Client ID` / `Client Secret`. Die Umgebungsvariablennamen spiegeln dies wider: `FEISHU_APP_ID` und `FEISHU_APP_SECRET`.
+> Hinweis: Feishu verwendet `App ID` / `App Secret` statt der Standard-Benennungen `Client ID` / `Client Secret`. Die Umgebungsvariablennamen spiegeln dies wider: `FEISHU_APP_ID` und `FEISHU_APP_SECRET`.
 
 ```env
 FEISHU_APP_ID=cli_a1b2c3d4e5f6...
 FEISHU_APP_SECRET=...
-```### Wichtig: Feishu-E-Mail-Verhalten
+```
 
-Die Feishu-Benutzerinformations-API (`authen/v1/user_info`) gibt die **Enterprise-Kontakt-E-Mail** des Benutzers (联系邮箱) zurück — die Adresse, die vom Organisationsadministrator in der Feishu-Administrationskonsole konfiguriert wurde. Dies ist **nicht** die persönliche Feishu-Login-E-Mail des Benutzers.
+### Wichtig: Feishu-E-Mail-Verhalten
+
+Die Feishu-Benutzerinformations-API (`authen/v1/user_info`) gibt die **Unternehmenskontakt-E-Mail** (联系邮箱) des Benutzers zurück — die Adresse, die vom Organisationsadministrator in der Feishu-Verwaltungskonsole konfiguriert wurde. Dies ist **nicht** die persönliche Feishu-Login-E-Mail des Benutzers.
 
 Konsequenzen:
 - Benutzer, deren Organisationsadministrator keine Kontakt-E-Mail konfiguriert hat, erhalten ein leeres E-Mail-Feld von der API, obwohl sie ein gültiges Feishu-Konto haben.
-- Benutzer mit persönlichen Feishu-Konten (nicht Teil eines Unternehmens) erhalten immer eine leere E-Mail.
+- Benutzer mit persönlichen Feishu-Konten (nicht Teil eines Unternehmens) erhalten immer ein leeres E-Mail-Feld.
 
 FIM One behandelt dies elegant: siehe [Account Binding Rules](#account-binding-rules) unten.
 
----## Kontobindungsregeln
+---
 
-Registrierte Benutzer können zusätzliche OAuth-Anbieter über **Einstellungen → Konto** verknüpfen. Die folgenden Regeln gelten, wenn ein Benutzer eine Bindung initiiert:### Allgemeine Regel (GitHub, Google, Discord)
+## Kontobindungsregeln
 
-Die vom OAuth-Provider zurückgegebene E-Mail muss mit der registrierten E-Mail des FIM-Kontos übereinstimmen. Dies verhindert, dass versehentlich das Social-Media-Konto einer anderen Person mit Ihrem FIM-Konto verknüpft wird.
+Registrierte Benutzer können zusätzliche OAuth-Anbieter über **Einstellungen → Konto** verknüpfen. Die folgenden Regeln gelten, wenn ein Benutzer eine Bindung initiiert:
 
-Wenn die E-Mails nicht übereinstimmen, wird die Bindung mit einem `email_mismatch`-Fehler abgelehnt.### Feishu-Ausnahme
+### Allgemeine Regel (GitHub, Google, Discord)
 
-Da die API von Feishu die E-Mail des Unternehmenskontakts anstelle der Anmelde-E-Mail zurückgibt und dieses Feld für persönliche Konten oder Konten in Organisationen, in denen der Administrator es nicht konfiguriert hat, oft leer ist, folgt die E-Mail-Abgleichsprüfung für Feishu einer lockereren Regel:
+Die vom OAuth-Anbieter zurückgegebene E-Mail muss mit der registrierten E-Mail des FIM-Kontos übereinstimmen. Dies verhindert, dass versehentlich das Social-Media-Konto einer anderen Person mit Ihrem FIM-Konto verknüpft wird.
+
+Wenn die E-Mails nicht übereinstimmen, wird die Bindung mit einem `email_mismatch`-Fehler abgelehnt.
+
+### Feishu-Ausnahme
+
+Da die API von Feishu die E-Mail-Adresse des Unternehmenskontakts anstelle der Anmelde-E-Mail zurückgibt und dieses Feld für persönliche Konten oder Konten in Organisationen, in denen der Administrator es nicht konfiguriert hat, häufig leer ist, folgt die E-Mail-Abgleichsprüfung für Feishu einer lockereren Regel:
 
 - **Beide Seiten haben eine E-Mail** → die E-Mails müssen übereinstimmen (gleiche Prüfung wie bei anderen Anbietern).
-- **Eine Seite hat keine E-Mail** (Feishu hat leer zurückgegeben oder das FIM-Konto hat keine E-Mail) → die Bindung erfolgt basierend auf der ticketgestützten Authentifizierung allein.### Feishu-Anmeldung (noch nicht gebunden)
+- **Eine Seite hat keine E-Mail** (Feishu hat leer zurückgegeben oder das FIM-Konto hat keine E-Mail) → die Bindung erfolgt allein auf Basis der ticketgestützten Authentifizierung.
+
+### Feishu-Anmeldung (noch nicht gebunden)
 
 Wenn sich ein Benutzer zum ersten Mal über Feishu anmeldet (keine vorhandene Bindung):
 
 1. FIM One sucht nach einem vorhandenen Konto, dessen E-Mail mit der Feishu-Unternehmenskontakt-E-Mail übereinstimmt.
 2. Wenn eine Übereinstimmung gefunden wird, wird das Feishu-Konto automatisch an dieses vorhandene FIM-Konto gebunden und der Benutzer wird angemeldet.
-3. Wenn keine Übereinstimmung vorhanden ist (auch wenn die E-Mail leer ist), wird ein neues FIM-Konto erstellt, das durch die Feishu `open_id` identifiziert wird. Das Konto hat eine null E-Mail, die der Benutzer später in den Einstellungen ausfüllen kann.## Umgebungsvariablen – Kurzreferenz
+3. Wenn keine Übereinstimmung vorhanden ist (auch wenn die E-Mail leer ist), wird ein neues FIM-Konto erstellt, das durch die Feishu `open_id` identifiziert wird. Das Konto hat eine leere E-Mail, die der Benutzer später in den Einstellungen ausfüllen kann.
 
-| Variable | Provider | Erforderlich | Beschreibung |
+## Umgebungsvariablen – Kurzreferenz
+
+| Variable | Anbieter | Erforderlich | Beschreibung |
 |---|---|---|---|
 | `GITHUB_CLIENT_ID` | GitHub | Beide | GitHub OAuth App Client-ID |
 | `GITHUB_CLIENT_SECRET` | GitHub | Beide | GitHub OAuth App Client-Secret |
@@ -138,8 +160,8 @@ Wenn sich ein Benutzer zum ersten Mal über Feishu anmeldet (keine vorhandene Bi
 | `GOOGLE_CLIENT_SECRET` | Google | Beide | Google OAuth 2.0 Client-Secret |
 | `DISCORD_CLIENT_ID` | Discord | Beide | Discord OAuth2 Anwendungs-Client-ID |
 | `DISCORD_CLIENT_SECRET` | Discord | Beide | Discord OAuth2 Anwendungs-Client-Secret |
-| `FEISHU_APP_ID` | Feishu | Beide | Feishu In-House-App-ID (Hinweis: nicht `CLIENT_ID`) |
-| `FEISHU_APP_SECRET` | Feishu | Beide | Feishu In-House-App-Secret |
+| `FEISHU_APP_ID` | Feishu | Beide | Feishu In-House App-ID (Hinweis: nicht `CLIENT_ID`) |
+| `FEISHU_APP_SECRET` | Feishu | Beide | Feishu In-House App-Secret |
 | `FRONTEND_URL` | Alle | Prod | Wohin der Browser nach Abschluss von OAuth umgeleitet wird (z. B. `https://yourdomain.com`) |
 | `API_BASE_URL` | Alle | Prod | Extern erreichbare Backend-URL, wird zum Erstellen von Callback-URLs verwendet |
 | `NEXT_PUBLIC_API_URL` | Alle | Prod | Browser-seitige API-URL für OAuth-Umleitungen – wird zur Build-Zeit eingebettet |

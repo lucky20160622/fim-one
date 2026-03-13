@@ -4,34 +4,43 @@ description: "在几分钟内运行 FIM One — 或立即尝试云版本。"
 ---
 
 <Tip>
-  **☁️ 选项 0：云版本（零设置）**
+  **☁️ 选项 0：云版本（零配置）**
   不想自托管？在 [**cloud.fim.ai**](https://cloud.fim.ai/) 上立即尝试 FIM One — 无需 Docker、无需 API 密钥、无需配置。登录即可开始使用。_早期访问。_
-</Tip>## 选项 A：Docker（推荐）
+</Tip>
+
+## 选项 A：Docker（推荐）
 
 无需本地 Python 或 Node.js — 所有内容都在容器内构建。
 
 ```bash
 git clone https://github.com/fim-ai/fim-one.git
 cd fim-one
-```# 配置 — 仅需要 LLM_API_KEY
-cp example.env .env# 编辑 .env: 设置 LLM_API_KEY（以及可选的 LLM_BASE_URL、LLM_MODEL）# 构建并运行（首次运行或拉取新代码后）
+```
+
+# 配置 — 仅需要 LLM_API_KEY
+cp example.env .env
+# 编辑 .env：设置 LLM_API_KEY（以及可选的 LLM_BASE_URL、LLM_MODEL）
+
+# 构建并运行（首次运行或拉取新代码后）
 ```bash
 docker compose up --build -d
 ```
 
-打开 http://localhost:3000 — 首次启动时，您将被引导创建管理员账户。就这样。
+打开 http://localhost:3000 — 首次启动时，系统会引导你创建管理员账户。就这么简单。
 
-初始构建后，后续启动只需：
+初始构建后，后续启动只需要：
 
 ```bash
-docker compose up -d          # 启动（如果镜像未更改则跳过重建）
+docker compose up -d          # 启动（如果镜像未变更则跳过重建）
 docker compose down           # 停止
 docker compose logs -f        # 查看日志
 ```
 
 数据持久化在 Docker 命名卷（`fim-data`、`fim-uploads`）中，容器重启后数据保留。
 
-**注意：** Docker 模式不支持热重载。代码更改需要重建镜像（`docker compose up --build -d`）。如需进行带实时重载的活跃开发，请使用下面的**选项 B**。## 选项 B：本地开发
+**注意：** Docker 模式不支持热重载。代码更改需要重建镜像（`docker compose up --build -d`）。如需进行带有实时重载的活跃开发，请使用下面的**选项 B**。
+
+## 选项 B：本地开发
 
 前置条件：Python 3.11+、[uv](https://docs.astral.sh/uv/)、Node.js 18+、pnpm。
 
@@ -40,19 +49,26 @@ git clone https://github.com/fim-ai/fim-one.git
 cd fim-one
 
 cp example.env .env
-```# 编辑 .env: 设置 LLM_API_KEY# 安装
+```
+# 编辑 .env: 设置 LLM_API_KEY
+
+# 安装
 uv sync --all-extras
-cd frontend && pnpm install && cd ..# 启动（带热重载）
+cd frontend && pnpm install && cd ..
+
+# 启动（带热重载）
 ./start.sh
 ```
 
-| 命令             | 启动内容                                    | URL                                      |
-| ---------------- | ------------------------------------------- | ---------------------------------------- |
-| `./start.sh`     | Next.js + FastAPI                           | http://localhost:3000 (UI) + :8000 (API) |
-| `./start.sh dev` | 相同，带热重载（Python `--reload` + Next.js HMR） | 相同                                     |
-| `./start.sh api` | 仅 FastAPI（无头模式，用于集成或测试）     | http://localhost:8000/api                |## 配置
+| 命令             | 启动内容                                                | URL                                      |
+| ---------------- | ------------------------------------------------------- | ---------------------------------------- |
+| `./start.sh`     | Next.js + FastAPI                                       | http://localhost:3000 (UI) + :8000 (API) |
+| `./start.sh dev` | 相同，带热重载（Python `--reload` + Next.js HMR）       | 相同                                     |
+| `./start.sh api` | 仅 FastAPI（无头模式，用于集成或测试）                  | http://localhost:8000/api                |
 
-FIM One 适用于**任何 OpenAI 兼容的 LLM 提供商** — OpenAI、DeepSeek、Anthropic、Qwen、Ollama、vLLM 等。
+## 配置
+
+FIM One 支持**任何与 OpenAI 兼容的 LLM 提供商** — OpenAI、DeepSeek、Anthropic、Qwen、Ollama、vLLM 等。
 
 | 提供商 | `LLM_API_KEY` | `LLM_BASE_URL` | `LLM_MODEL` |
 | -------- | ------------- | -------------- | ----------- |
@@ -61,18 +77,24 @@ FIM One 适用于**任何 OpenAI 兼容的 LLM 提供商** — OpenAI、DeepSeek
 | **Anthropic** | `sk-ant-...` | `https://api.anthropic.com/v1` | `claude-sonnet-4-6` |
 | **Ollama** (本地) | `ollama` | `http://localhost:11434/v1` | `qwen2.5:14b` |
 
-**[Jina AI](https://jina.ai/)** 解锁网络搜索/获取、嵌入和完整的 RAG 管道（提供免费层级）。
+**[Jina AI](https://jina.ai/)** 解锁网页搜索/获取、嵌入和完整的 RAG 管道（提供免费层级）。
 
 最小化 `.env`：
 
 ```bash
 LLM_API_KEY=sk-your-key
-```# LLM_BASE_URL=https://api.openai.com/v1   # 默认值 — 更改为其他提供商# LLM_MODEL=gpt-4o                         # 默认值 — 改为其他模型
+```
+# LLM_BASE_URL=https://api.openai.com/v1   # 默认值 — 更改为其他提供商
+# LLM_MODEL=gpt-4o                         # 默认值 — 更改为其他模型
 
 JINA_API_KEY=jina_...                       # 解锁网络工具 + RAG
 ```
 
-有关所有配置选项的完整列表，请参阅[环境变量](/configuration/environment-variables)参考。## 生产部署### Docker（推荐）
+有关所有配置选项的完整列表，请参阅[环境变量](/configuration/environment-variables)参考。
+
+## 生产部署
+
+### Docker（推荐）
 
 `docker compose up -d` 启动您需要的所有服务 — **无需手动配置服务**：
 
@@ -86,19 +108,23 @@ docker compose up --build -d   # first time / after code changes
 docker compose up -d           # subsequent starts
 docker compose logs -f         # view logs
 docker compose down            # stop all services
-```#### 使用 Workers 扩展
+```
 
-默认情况下，API 运行单个 worker 进程。要处理更多并发用户，通过 `.env` 增加 workers：
+#### 使用 Workers 进行扩展
+
+默认情况下，API 运行单个 worker 进程。要处理更多并发用户，请通过 `.env` 增加 workers：
 
 ```bash
-WORKERS=4   # Uvicorn worker 进程数
+WORKERS=4   # number of Uvicorn worker processes
 ```
 
 多 worker 要求：
 - **PostgreSQL** — SQLite 是单写入器，不支持并发写入。将 `DATABASE_URL` 设置为 PostgreSQL 连接字符串。
 - **Redis** — 已包含在 Docker Compose 中（自动配置）。处理跨 worker 中断/注入中继。
 
-使用 `WORKERS=1`（默认值）时，不需要 Redis 或 PostgreSQL — SQLite 可以正常工作。#### Nginx 反向代理
+使用 `WORKERS=1`（默认值）时，不需要 Redis 或 PostgreSQL — SQLite 可以正常工作。
+
+#### Nginx 反向代理
 
 对于 HTTPS 和自定义域名，在前面放置一个 Nginx 反向代理：
 
@@ -106,16 +132,21 @@ WORKERS=4   # Uvicorn worker 进程数
 User → Nginx (443/HTTPS) → localhost:3000
 ```
 
-API 在内部的 8000 端口上运行 — Next.js 自动代理 `/api/*` 请求。只需要暴露 3000 端口。#### 代码执行沙箱
+API 在内部的 8000 端口上运行 — Next.js 自动代理 `/api/*` 请求。只需要暴露 3000 端口。
+
+#### 代码执行沙箱
 
 如果你使用代码执行沙箱（`CODE_EXEC_BACKEND=docker`），挂载 Docker socket：
 
 ```yaml
 
-```# docker-compose.yml
+```
+# docker-compose.yml
 volumes:
   - /var/run/docker.sock:/var/run/docker.sock
-```### 脚本部署（裸机）
+```
+
+### 脚本部署（裸机）
 
 对于裸机服务器或自定义进程管理器，直接使用 `./start.sh`：
 
@@ -132,8 +163,11 @@ volumes:
 ```bash
 
 
-```# 启动 Redis 实例（Docker 或系统包）
-docker run -d --name redis -p 6379:6379 redis:7-alpine# 添加到 .env
+```
+# 启动 Redis 实例（Docker 或系统包）
+docker run -d --name redis -p 6379:6379 redis:7-alpine
+
+# 添加到 .env
 REDIS_URL=redis://localhost:6379/0
 WORKERS=4
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost/fim_one

@@ -1,75 +1,94 @@
 ---
 title: "数据库"
-description: "为您的部署选择并配置正确的数据库后端"
+description: "为您的部署选择和配置正确的数据库后端"
 ---
 
-FIM One 支持两个数据库后端：**SQLite**（默认，零配置）和 **PostgreSQL**（推荐用于生产环境）。后端由 `DATABASE_URL` 环境变量确定。
+FIM One 支持两个数据库后端：**SQLite**（默认，零配置）和 **PostgreSQL**（推荐用于生产环境）。后端由 `DATABASE_URL` 环境变量决定。
 
-```bash# SQLite（默认 — 无需配置）
-DATABASE_URL=sqlite+aiosqlite:///./data/fim_one.db# PostgreSQL (生产环境)
+```bash
+
+```
+# SQLite（默认 — 无需配置）
+DATABASE_URL=sqlite+aiosqlite:///./data/fim_one.db
+
+# PostgreSQL（生产环境）
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/fim_one
 ```
 
-表会在首次启动时自动创建 — 无需手动迁移步骤。
+表会在首次启动时自动创建——无需手动迁移步骤。
 
----## SQLite vs PostgreSQL
+---
+
+## SQLite vs PostgreSQL
 
 | | SQLite | PostgreSQL |
 |---|---|---|
-| **Setup** | 零配置，基于文件 | 需要单独的服务器 |
-| **Concurrency** | 单写入器（全局锁） | 完整 MVCC，行级锁定 |
-| **Multi-worker** | 不支持（`WORKERS` 必须为 `1`） | 完全支持 |
-| **SSE streaming** | 流式传输期间保持的连接可能会阻止其他请求 | 并发读写不受影响 |
-| **Backup** | 复制 `.db` 文件 | `pg_dump` 或流式复制 |
-| **Best for** | 开发、单用户、演示 | 生产、多用户、团队 |
+| **设置** | 零配置，基于文件 | 需要单独的服务器 |
+| **并发性** | 单写入器（全局锁） | 完整的 MVCC，行级锁定 |
+| **多工作进程** | 不支持（`WORKERS` 必须为 `1`） | 完全支持 |
+| **SSE 流式传输** | 流式传输期间保持的连接可能会阻止其他请求 | 并发读写不受影响 |
+| **备份** | 复制 `.db` 文件 | `pg_dump` 或流式复制 |
+| **最适合** | 开发、单用户、演示 | 生产、多用户、团队 |
 
 <Tip>
-**本地开发：** SQLite 开箱即用——无需数据库服务器、无需 Redis、无需配置任何内容。直接开始编码。
+**本地开发：** SQLite 开箱即用 — 无需数据库服务器、无需 Redis、无需配置任何内容。直接开始编码。
 
-**生产环境：** 使用 Docker Compose 部署，PostgreSQL + Redis 会自动配置。无需手动数据库设置。
+**生产环境：** 使用 Docker Compose 部署，PostgreSQL + Redis 会自动配置。无需手动设置数据库。
 </Tip>
 
----## 已知限制：SQLite 并发流式传输
+---
+
+## 已知限制：SQLite 并发流式传输
 
 <Warning>
-**SQLite 在并发负载下可能成为瓶颈。**
+**SQLite 在并发负载下可能成为性能瓶颈。**
 
 FIM One 使用服务器发送事件 (SSE) 来流式传输 AI 响应。在流式传输期间，每个活跃的 SSE 连接在流的整个持续时间内都会占用连接池中的一个数据库连接。SQLite 强制执行全局写入锁，这意味着一次只能进行一个写入操作——所有其他写入操作都会排队等待。
 
-即使连接池支持最多 30 个并发连接（`pool_size=20` + `max_overflow=10`），瓶颈也是锁本身，而不是连接池。当多个用户同时聊天时，他们的写入操作（保存消息、更新令牌计数）会相互序列化。
+即使连接池支持最多 30 个并发连接（`pool_size=20` + `max_overflow=10`），瓶颈也不是连接池本身，而是锁本身。当多个用户同时聊天时，他们的写入操作（保存消息、更新令牌计数）会相互序列化。
 
 **您可能观察到的症状：**
 - 当另一个用户正在流式传输时，对话列表加载缓慢
-- 在活跃聊天会话期间，设置页面感觉迟缓
-- 当多个流处于活跃状态时，API 响应延迟
+- 活跃聊天会话期间设置页面反应迟缓
+- 多个流处于活跃状态时 API 响应延迟
 
-**建议：** 如果您有超过 2-3 个并发用户，请切换到 PostgreSQL。PostgreSQL 使用 MVCC（多版本并发控制）和行级锁定，因此并发读取和写入可以独立进行，不会相互阻塞。
+**建议：** 如果您有 2-3 个以上的并发用户，请切换到 PostgreSQL。PostgreSQL 使用 MVCC（多版本并发控制）和行级锁定，因此并发读取和写入可以独立进行，不会相互阻塞。
 </Warning>
 
----## 连接池配置
+---
 
-FIM One 为每个后端在内部配置 SQLAlchemy 连接池设置。这些是调优的默认值，不需要环境变量 — 它们根据 `DATABASE_URL` 方案自动应用。了解它们有助于解释运行时行为。### SQLite 连接池设置
+## 连接池配置
+
+FIM One 为每个后端内部配置 SQLAlchemy 连接池设置。这些是调优后的默认值，不需要环境变量 — 它们根据 `DATABASE_URL` 方案自动应用。了解它们有助于解释运行时行为。
+
+### SQLite 连接池设置
 
 | 设置 | 值 | 描述 |
 |---|---|---|
-| `pool_size` | `20` | 连接池中持久连接的基础数量 |
+| `pool_size` | `20` | 连接池中的基础持久连接数 |
 | `max_overflow` | `10` | 在负载下创建的额外连接（总计最多 30 个） |
-| WAL 日志模式 | 已启用 | 预写日志允许在写入进行时并发读取，显著降低锁争用 |
-| `busy_timeout` | `30s` | 当写入锁被持有时，其他写入器最多等待 30 秒后才会抛出错误，而不是立即失败 |
+| WAL 日志模式 | 已启用 | 预写日志允许在写入进行时进行并发读取，显著降低锁竞争 |
+| `busy_timeout` | `30s` | 当写入锁被持有时，其他写入者最多等待 30 秒后才会抛出错误，而不是立即失败 |
 | `synchronous` | `NORMAL` | 与 WAL 模式兼容；提供比默认 `FULL` 更好的写入吞吐量 |
 
-WAL 模式和 30 秒的忙碌超时通过 SQLite PRAGMA 在每个新连接上设置。这种组合确保短期读取（加载对话列表、获取设置）不会被长期运行的写入事务阻止，并且并发写入能够优雅地排队而不是失败。### PostgreSQL 连接池设置
+WAL 模式和 30 秒的忙碌超时通过 SQLite PRAGMA 在每个新连接上设置。这种组合确保短期读取（加载对话列表、获取设置）不会被长期运行的写入事务阻止，并且并发写入能够优雅地排队而不是失败。
+
+### PostgreSQL 连接池设置
 
 | 设置 | 值 | 描述 |
 |---|---|---|
 | `pool_size` | `10` | 连接池中持久连接的基础数量 |
 | `max_overflow` | `20` | 在负载下创建的额外连接（总计最多 30 个） |
 | `pool_timeout` | `30s` | 从连接池等待可用连接的最长时间，超时后抛出错误 |
-| `pool_recycle` | `1800s` | 连接每 30 分钟回收一次，以防止陈旧连接（对于会关闭空闲连接的云托管数据库很重要） |
+| `pool_recycle` | `1800s` | 连接每 30 分钟回收一次，防止连接过期（对于会关闭空闲连接的云托管数据库很重要） |
 
-PostgreSQL 通过 MVCC 原生处理并发，因此连接池设置主要控制资源使用而不是竞争。30 分钟的回收间隔避免了防火墙、负载均衡器或托管数据库服务静默关闭空闲 TCP 连接所导致的问题。
+PostgreSQL 通过 MVCC 原生处理并发，因此连接池设置主要控制资源使用而非竞争。30 分钟的回收间隔避免了防火墙、负载均衡器或托管数据库服务无声地丢弃空闲 TCP 连接的问题。
 
----## 切换到 PostgreSQL### 第 1 步：启动 PostgreSQL 实例
+---
+
+## 切换到 PostgreSQL
+
+### 第一步：启动 PostgreSQL 实例
 
 最快的方式是使用 Docker：
 
@@ -80,48 +99,59 @@ docker run -d \
   -e POSTGRES_DB=fim_one \
   -p 5432:5432 \
   postgres:16-alpine
-```### 步骤 2：设置 DATABASE_URL
+```
+
+### 步骤 2：设置 DATABASE_URL
 
 在你的 `.env` 文件中添加或更新以下行：
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://postgres:secret@localhost:5432/fim_one
-```### 步骤 3：重启 FIM One
+```
+
+### 步骤 3：重启 FIM One
 
 ```bash
 
 
-```# 本地开发
-./start.sh portal# 或重启您的流程管理器 / systemd 服务
+```
+# 本地开发
+./start.sh portal
+
+# 或重启您的进程管理器 / systemd 服务
 ```
 
 表会在首次启动时自动创建。无需手动架构迁移。
 
 <Note>
-**现有 SQLite 数据不会自动迁移。** 将 `DATABASE_URL` 从 SQLite 切换到 PostgreSQL 会使用全新数据库启动。如果您在 SQLite 中有需要保留的现有对话、代理或连接器，请参阅下面的[数据迁移](#data-migration)部分。
-</Note>### Docker Compose（推荐用于生产环境）
+**现有 SQLite 数据不会自动迁移。** 将 `DATABASE_URL` 从 SQLite 切换到 PostgreSQL 会使用全新数据库启动。如果您在 SQLite 中有需要保留的现有对话、智能体或连接器，请参阅下面的[数据迁移](#data-migration)部分。
+</Note>
 
-如果你使用 Docker Compose 部署，**PostgreSQL 和 Redis 已经包含并自动配置** — 无需额外设置。`docker-compose.yml` 在内部设置 `DATABASE_URL` — 你的 `.env` 值会被覆盖：
+### Docker Compose（推荐用于生产环境）
+
+如果使用 Docker Compose 部署，**PostgreSQL 和 Redis 已包含并自动配置** — 无需额外设置。`docker-compose.yml` 在内部设置 `DATABASE_URL` — 你的 `.env` 值会被覆盖：
 
 ```yaml
 environment:
   DATABASE_URL: postgresql+asyncpg://fim:fim@postgres:5432/fim_one
 ```
 
-使用 Docker Compose 时无需进行额外的数据库设置。
+使用 Docker Compose 时无需额外的数据库设置。
 
----## 数据迁移
+---
 
-SQLite 到 PostgreSQL 没有内置的迁移工具。对于大多数部署，推荐的方法取决于您的情况：
+## 数据迁移
 
-**全新部署（无现有数据）：** 只需将 `DATABASE_URL` 设置为您的 PostgreSQL 连接字符串并启动 FIM One。所有表都会自动创建。
+SQLite 到 PostgreSQL 没有内置的迁移工具。对于大多数部署，推荐的方法取决于您的具体情况：
 
-**必须保留现有数据：** 需要手动导出/导入。一般方法：
+**全新部署（无现有数据）：** 只需将 `DATABASE_URL` 设置为您的 PostgreSQL 连接字符串，然后启动 FIM One。所有表都会自动创建。
 
-1. 使用 `sqlite3` CLI 或 Python 脚本等工具从 SQLite 导出数据
+**需要保留现有数据：** 需要手动导出/导入。一般步骤：
+
+1. 使用 `sqlite3` CLI 或 Python 脚本从 SQLite 导出数据
 2. 根据需要转换数据（SQLite 和 PostgreSQL 有细微的类型差异）
-3. 使用 `psql`、`pg_restore` 或应用程序级插入脚本导入到 PostgreSQL
+3. 使用 `psql`、`pg_restore` 或应用程序级别的插入脚本导入到 PostgreSQL
 
 <Tip>
-对于大多数从开发设置升级到生产环境的用户，使用 PostgreSQL 重新开始并通过 UI 重新创建您的代理和连接器会更简单。对话历史通常不重要到足以保证手动迁移。
+对于大多数从开发设置升级到生产环境的用户，使用 PostgreSQL 全新开始并通过 UI 重新创建您的智能体和连接器会更简单。对话历史通常不重要到需要手动迁移。
 </Tip>

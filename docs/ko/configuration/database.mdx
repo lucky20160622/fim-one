@@ -1,77 +1,94 @@
 ---
 title: "데이터베이스"
-description: "배포를 위한 올바른 데이터베이스 백엔드를 선택하고 구성하세요"
+description: "배포에 적합한 데이터베이스 백엔드를 선택하고 구성하세요"
 ---
 
-FIM One은 두 가지 데이터베이스 백엔드를 지원합니다: **SQLite**(기본값, 제로 구성) 및 **PostgreSQL**(프로덕션 권장). 백엔드는 `DATABASE_URL` 환경 변수로 결정됩니다.
+FIM One은 두 가지 데이터베이스 백엔드를 지원합니다: **SQLite**(기본값, 설정 불필요) 및 **PostgreSQL**(프로덕션 환경 권장). 백엔드는 `DATABASE_URL` 환경 변수로 결정됩니다.
 
-```bash# SQLite (기본값 — 설정 필요 없음)
-DATABASE_URL=sqlite+aiosqlite:///./data/fim_one.db# PostgreSQL (production)
+```bash
+# SQLite (기본값 — 설정 필요 없음)
+DATABASE_URL=sqlite+aiosqlite:///./data/fim_one.db
+
+# PostgreSQL (프로덕션)
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/fim_one
 ```
 
-첫 시작 시 테이블이 자동으로 생성되므로 수동 마이그레이션 단계가 필요하지 않습니다.
+테이블은 첫 시작 시 자동으로 생성되므로 수동 마이그레이션 단계가 필요하지 않습니다.
 
----## SQLite vs PostgreSQL
+---
+
+## SQLite vs PostgreSQL
 
 | | SQLite | PostgreSQL |
 |---|---|---|
-| **설정** | 제로 설정, 파일 기반 | 별도 서버 필요 |
+| **설정** | 설정 불필요, 파일 기반 | 별도 서버 필요 |
 | **동시성** | 단일 쓰기 (전역 잠금) | 완전한 MVCC, 행 수준 잠금 |
-| **다중 워커** | 지원되지 않음 (`WORKERS`는 `1`이어야 함) | 완전히 지원됨 |
-| **SSE 스트리밍** | 스트림 중 연결이 유지되어 다른 요청을 차단할 수 있음 | 동시 읽기 및 쓰기가 영향을 받지 않음 |
+| **다중 워커** | 지원 안 함 (`WORKERS`는 `1`이어야 함) | 완전히 지원 |
+| **SSE 스트리밍** | 스트림 중 연결이 유지되어 다른 요청을 차단할 수 있음 | 동시 읽기 및 쓰기 영향 없음 |
 | **백업** | `.db` 파일 복사 | `pg_dump` 또는 스트리밍 복제 |
 | **최적 용도** | 개발, 단일 사용자, 데모 | 프로덕션, 다중 사용자, 팀 |
 
 <Tip>
-**로컬 개발:** SQLite는 기본적으로 작동합니다 — 데이터베이스 서버 없음, Redis 없음, 설정할 것도 없습니다. 그냥 코딩을 시작하세요.
+**로컬 개발:** SQLite는 즉시 작동합니다 — 데이터베이스 서버 없음, Redis 없음, 설정할 것 없음. 그냥 코딩을 시작하세요.
 
-**프로덕션:** Docker Compose로 배포하면 PostgreSQL + Redis가 자동으로 프로비저닝됩니다. 수동 데이터베이스 설정이 필요하지 않습니다.
+**프로덕션:** Docker Compose로 배포하면 PostgreSQL + Redis가 자동으로 프로비저닝됩니다. 수동 데이터베이스 설정이 필요 없습니다.
 </Tip>
 
----## 알려진 제한사항: SQLite 동시 스트리밍
+---
+
+## 알려진 제한: SQLite 동시 스트리밍
 
 <Warning>
 **SQLite는 동시 부하 상황에서 병목이 될 수 있습니다.**
 
-FIM One은 AI 응답 스트리밍을 위해 Server-Sent Events (SSE)를 사용합니다. 스트리밍 중에 각 활성 SSE 연결은 스트림 지속 시간 동안 연결 풀의 데이터베이스 연결을 보유합니다. SQLite는 전역 쓰기 잠금을 적용하므로, 한 번에 하나의 쓰기 작업만 진행될 수 있으며 다른 모든 쓰기 작업은 그 뒤에서 대기합니다.
+FIM One은 AI 응답 스트리밍을 위해 Server-Sent Events (SSE)를 사용합니다. 스트리밍 중에 각 활성 SSE 연결은 스트림 지속 시간 동안 풀의 데이터베이스 연결을 유지합니다. SQLite는 전역 쓰기 잠금을 적용하므로 한 번에 하나의 쓰기 작업만 진행할 수 있으며, 다른 모든 쓰기 작업은 뒤에서 대기합니다.
 
-연결 풀이 최대 30개의 동시 연결을 지원하더라도 (`pool_size=20` + `max_overflow=10`), 병목은 풀이 아니라 잠금 자체입니다. 여러 사용자가 동시에 채팅할 때, 메시지 저장 및 토큰 수 업데이트와 같은 쓰기 작업이 서로에 대해 직렬화됩니다.
+연결 풀이 최대 30개의 동시 연결을 지원하더라도(`pool_size=20` + `max_overflow=10`), 병목은 풀이 아니라 잠금 자체입니다. 여러 사용자가 동시에 채팅할 때, 메시지 저장 및 토큰 수 업데이트와 같은 쓰기 작업이 서로에 대해 직렬화됩니다.
 
 **관찰할 수 있는 증상:**
 - 다른 사용자가 스트리밍 중일 때 대화 목록이 느리게 로드됨
 - 활성 채팅 세션 중에 설정 페이지가 느려짐
 - 여러 스트림이 활성화되어 있을 때 API 응답이 지연됨
 
-**권장사항:** 동시 사용자가 2-3명 이상인 경우 PostgreSQL로 전환하세요. PostgreSQL은 MVCC(Multi-Version Concurrency Control)와 행 수준 잠금을 사용하므로, 동시 읽기 및 쓰기가 서로를 차단하지 않고 독립적으로 진행됩니다.
+**권장사항:** 2-3명 이상의 동시 사용자가 있는 경우 PostgreSQL로 전환하세요. PostgreSQL은 MVCC(Multi-Version Concurrency Control)와 행 수준 잠금을 사용하므로 동시 읽기 및 쓰기가 서로를 차단하지 않고 독립적으로 진행됩니다.
 </Warning>
 
----## 연결 풀 구성
+---
 
-FIM One은 각 백엔드에 대해 SQLAlchemy 연결 풀 설정을 내부적으로 구성합니다. 이는 환경 변수가 필요하지 않은 튜닝된 기본값이며, `DATABASE_URL` 스키마를 기반으로 자동으로 적용됩니다. 이를 이해하면 런타임 동작을 설명하는 데 도움이 됩니다.### SQLite 풀 설정
+## 연결 풀 구성
+
+FIM One은 각 백엔드에 대해 SQLAlchemy 연결 풀 설정을 내부적으로 구성합니다. 이는 환경 변수가 필요하지 않은 튜닝된 기본값이며, `DATABASE_URL` 스키마를 기반으로 자동으로 적용됩니다. 이를 이해하면 런타임 동작을 설명하는 데 도움이 됩니다.
+
+### SQLite 풀 설정
 
 | 설정 | 값 | 설명 |
 |---|---|---|
-| `pool_size` | `20` | 풀의 기본 지속 연결 수 |
+| `pool_size` | `20` | 풀의 기본 영구 연결 수 |
 | `max_overflow` | `10` | 부하 시 생성되는 추가 연결 (최대 30개) |
-| WAL journal mode | 활성화됨 | Write-Ahead Logging은 쓰기가 진행 중인 동안 동시 읽기를 허용하여 잠금 경합을 크게 줄임 |
+| WAL 저널 모드 | 활성화됨 | Write-Ahead Logging은 쓰기 진행 중에 동시 읽기를 허용하여 잠금 경합을 크게 줄임 |
 | `busy_timeout` | `30s` | 쓰기 잠금이 유지되는 동안 다른 쓰기 작업은 오류를 발생시키기 전에 최대 30초 동안 대기하며, 즉시 실패하지 않음 |
-| `synchronous` | `NORMAL` | WAL 모드에서 안전하며, 기본값 `FULL`보다 더 나은 쓰기 처리량 제공 |
+| `synchronous` | `NORMAL` | WAL 모드에서 안전함; 기본값인 `FULL`보다 더 나은 쓰기 처리량 제공 |
 
-WAL 모드와 30초 busy timeout은 모든 새 연결에서 SQLite PRAGMA를 통해 설정됩니다. 이 조합은 단기 읽기(대화 목록 로드, 설정 가져오기)가 장기 실행 쓰기 트랜잭션에 의해 차단되지 않도록 보장하며, 동시 쓰기가 실패하지 않고 우아하게 대기열에 들어가도록 합니다.### PostgreSQL 풀 설정
+WAL 모드와 30초 바쁜 타임아웃은 모든 새 연결에서 SQLite PRAGMA를 통해 설정됩니다. 이 조합은 단기 읽기(대화 목록 로드, 설정 가져오기)가 장기 실행 쓰기 트랜잭션에 의해 차단되지 않도록 하고, 동시 쓰기가 실패하지 않고 우아하게 대기열에 들어가도록 보장합니다.
+
+### PostgreSQL 풀 설정
 
 | 설정 | 값 | 설명 |
 |---|---|---|
-| `pool_size` | `10` | 풀의 기본 영구 연결 수 |
+| `pool_size` | `10` | 풀의 기본 지속 연결 수 |
 | `max_overflow` | `20` | 부하 시 생성되는 추가 연결 (최대 30개) |
 | `pool_timeout` | `30s` | 타임아웃 오류를 발생시키기 전에 풀에서 사용 가능한 연결을 기다리는 최대 시간 |
-| `pool_recycle` | `1800s` | 연결은 30분마다 재활용되어 오래된 연결을 방지합니다 (유휴 연결을 종료하는 클라우드 호스팅 데이터베이스의 경우 중요함) |
+| `pool_recycle` | `1800s` | 연결은 30분마다 재활용되어 오래된 연결을 방지합니다 (유휴 연결을 종료하는 클라우드 호스팅 데이터베이스의 경우 중요) |
 
 PostgreSQL은 MVCC를 통해 동시성을 기본적으로 처리하므로 풀 설정은 주로 리소스 사용량을 제어하며 경합을 제어하지는 않습니다. 30분 재활용 간격은 방화벽, 로드 밸런서 또는 유휴 TCP 연결을 자동으로 종료하는 관리형 데이터베이스 서비스의 문제를 방지합니다.
 
----## PostgreSQL로 전환하기### Step 1: PostgreSQL 인스턴스 시작
+---
 
-Docker를 사용하는 것이 가장 빠른 방법입니다:
+## PostgreSQL로 전환하기
+
+### Step 1: PostgreSQL 인스턴스 시작
+
+가장 빠른 방법은 Docker를 사용하는 것입니다:
 
 ```bash
 docker run -d \
@@ -80,26 +97,35 @@ docker run -d \
   -e POSTGRES_DB=fim_one \
   -p 5432:5432 \
   postgres:16-alpine
-```### Step 2: DATABASE_URL 설정
+```
+
+### Step 2: DATABASE_URL 설정
 
 `.env` 파일에 다음 줄을 추가하거나 업데이트하세요:
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://postgres:secret@localhost:5432/fim_one
-```### 3단계: FIM One 다시 시작
+```
+
+### 3단계: FIM One 다시 시작
 
 ```bash
 
 
-```# 로컬 개발
-./start.sh portal# 또는 프로세스 관리자 / systemd 서비스를 다시 시작하세요
+```
+# 로컬 개발
+./start.sh portal
+
+# 또는 프로세스 관리자 / systemd 서비스를 다시 시작하세요
 ```
 
 테이블은 첫 시작 시 자동으로 생성됩니다. 수동 스키마 마이그레이션이 필요하지 않습니다.
 
 <Note>
-**기존 SQLite 데이터는 자동으로 마이그레이션되지 않습니다.** `DATABASE_URL`을 SQLite에서 PostgreSQL로 전환하면 새로운 데이터베이스로 시작됩니다. SQLite에 기존 대화, 에이전트 또는 커넥터가 있고 이를 보존해야 하는 경우 아래의 [데이터 마이그레이션](#data-migration) 섹션을 참조하세요.
-</Note>### Docker Compose (프로덕션용 권장)
+**기존 SQLite 데이터는 자동으로 마이그레이션되지 않습니다.** `DATABASE_URL`을 SQLite에서 PostgreSQL로 전환하면 새로운 데이터베이스로 시작됩니다. SQLite에 보존해야 할 기존 대화, 에이전트 또는 커넥터가 있는 경우 아래의 [데이터 마이그레이션](#data-migration) 섹션을 참조하세요.
+</Note>
+
+### Docker Compose (프로덕션 권장)
 
 Docker Compose로 배포하면 **PostgreSQL과 Redis가 이미 포함되어 있고 자동으로 구성됩니다** — 추가로 설정할 것이 없습니다. `docker-compose.yml`은 `DATABASE_URL`을 내부적으로 설정하므로 `.env` 값이 재정의됩니다:
 
@@ -110,7 +136,9 @@ environment:
 
 Docker Compose를 사용할 때는 추가 데이터베이스 설정이 필요하지 않습니다.
 
----## 데이터 마이그레이션
+---
+
+## 데이터 마이그레이션
 
 SQLite에서 PostgreSQL로의 기본 제공 마이그레이션 도구는 없습니다. 대부분의 배포에서 권장되는 접근 방식은 상황에 따라 다릅니다:
 

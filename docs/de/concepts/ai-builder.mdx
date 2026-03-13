@@ -1,89 +1,107 @@
 ---
 title: "AI Builder"
-description: "Verwenden Sie KI, um Connectors und Agents zu erstellen — schnelle Vorschläge oder einen vollständigen ReAct Builder."
----## Übersicht
+description: "Nutzen Sie KI, um Konnektoren und Agenten zu erstellen — schnelle Vorschläge oder einen vollständigen ReAct-Builder."
+---
 
-AI Builder ermöglicht es dir, deine Anforderungen in natürlicher Sprache zu beschreiben und lässt einen KI-Agent diese für dich konfigurieren. Es funktioniert in zwei Modi:
+## Übersicht
 
-| Modus | Funktionsweise | Am besten geeignet für |
+AI Builder ermöglicht es dir, deine Anforderungen in natürlicher Sprache zu beschreiben und einen KI-Agent die Konfiguration für dich durchführen zu lassen. Es funktioniert in zwei Modi:
+
+| Modus | Funktionsweise | Ideal für |
 |------|-------------|---------|
-| **Quick suggestions** | Ein einzelner LLM-Aufruf generiert die Konfiguration | Schneller erster Entwurf, einfache APIs |
-| **Advanced builder** | Ein ReAct-Agent nutzt Tools in einer Schleife zum Erstellen, Testen und Verfeinern | Komplexe APIs, OpenAPI-Import, iterative Verfeinerung |
+| **Schnelle Vorschläge** | Ein einzelner LLM-Aufruf generiert die Konfiguration | Schneller erster Entwurf, einfache APIs |
+| **Erweiterter Builder** | Ein ReAct-Agent verwendet Tools in einer Schleife zum Erstellen, Testen und Verfeinern | Komplexe APIs, OpenAPI-Import, iterative Verfeinerung |
 
-Du kannst jederzeit zwischen den Modi wechseln. Der Quick-Modus erstellt einen Ausgangspunkt; der Advanced Builder ermöglicht dir, zu iterieren.
+Du kannst jederzeit zwischen den Modi wechseln. Der Schnellmodus erstellt einen Ausgangspunkt; der erweiterte Builder ermöglicht dir die Iteration.
 
----## Connector Builder
+---
 
-Ein **Connector** definiert, wie FIM One mit einem externen System kommuniziert — seine Basis-URL, Authentifizierung und die spezifischen API-Aktionen, die er bereitstellt. Der Connector Builder bietet einem KI-Agenten 9 Tools, um diese Konfiguration in Ihrem Namen zu erstellen und zu verwalten.### Tools
+## Connector-Builder
 
-| Tool | Was es tut |
+Ein **Connector** definiert, wie FIM One mit einem externen System kommuniziert — seine Basis-URL, Authentifizierung und die spezifischen API-Aktionen, die er bereitstellt. Der Connector-Builder gibt einem KI-Agenten 9 Tools zur Verfügung, um diese Konfiguration in Ihrem Namen zu erstellen und zu verwalten.
+
+### Werkzeuge
+
+| Werkzeug | Funktion |
 |------|-------------|
-| **Get Settings** | Liest die aktuelle Connector-Konfiguration (URL, Authentifizierungstyp, Authentifizierungskonfiguration) |
-| **Update Settings** | Ändert den Connector-Namen, die Basis-URL oder die Authentifizierungsdaten |
-| **List Actions** | Zeigt alle vorhandenen API-Aktionen mit ihren Methoden und Pfaden an |
-| **Create Action** | Fügt einen neuen API-Endpunkt hinzu — HTTP-Methode, Pfad, Parameter, Body-Template |
-| **Update Action** | Ändert eine vorhandene Aktion (Beschreibung, Schema, Response-Extraktion) |
-| **Delete Action** | Entfernt eine Aktion, die nicht mehr benötigt wird |
-| **Test Action** | Sendet eine Live-HTTP-Anfrage für eine beliebige Aktion und untersucht die Antwort |
-| **Test Connection** | Überprüft, ob die Basis-URL erreichbar ist und die Anmeldedaten akzeptiert werden |
-| **Import OpenAPI** | Batch-Import von bis zu 50 Endpunkten aus einer Swagger 2.x- oder OpenAPI 3.x-Spezifikation |### Typischer Workflow
+| **Get Settings** | Aktuelle Connector-Konfiguration lesen (URL, Authentifizierungstyp, Authentifizierungskonfiguration) |
+| **Update Settings** | Connector-Namen, Basis-URL oder Authentifizierungsdaten ändern |
+| **List Actions** | Alle vorhandenen API-Aktionen mit ihren Methoden und Pfaden anzeigen |
+| **Create Action** | Neuen API-Endpunkt hinzufügen — HTTP-Methode, Pfad, Parameter, Body-Vorlage |
+| **Update Action** | Vorhandene Aktion ändern (Beschreibung, Schema, Response-Extraktion) |
+| **Delete Action** | Aktion entfernen, die nicht mehr benötigt wird |
+| **Test Action** | Live-HTTP-Anfrage für eine beliebige Aktion senden und Response inspizieren |
+| **Test Connection** | Überprüfen, ob die Basis-URL erreichbar ist und die Anmeldedaten akzeptiert werden |
+| **Import OpenAPI** | Bis zu 50 Endpunkte aus einer Swagger 2.x- oder OpenAPI 3.x-Spezifikation stapelweise importieren |
+
+### Typischer Workflow
 
 Das häufigste Muster: Fügen Sie eine OpenAPI-URL ein und lassen Sie den Builder den Rest erledigen.
 
 ```mermaid
 flowchart TD
-  A["Describe your API<br/>(or paste OpenAPI URL)"]
-  A --> B["Import OpenAPI spec<br/>→ batch-create actions"]
-  B --> C["Test connection<br/>→ verify auth"]
-  C --> D{"All actions work?"}
-  D -- No --> E["Test failing action<br/>→ fix path or schema"]
+  A["Beschreiben Sie Ihre API<br/>(oder fügen Sie OpenAPI-URL ein)"]
+  A --> B["OpenAPI-Spezifikation importieren<br/>→ Aktionen stapelweise erstellen"]
+  B --> C["Verbindung testen<br/>→ Authentifizierung überprüfen"]
+  C --> D{"Funktionieren alle Aktionen?"}
+  D -- Nein --> E["Fehlerhafte Aktion testen<br/>→ Pfad oder Schema korrigieren"]
   E --> D
-  D -- Yes --> F["Connector ready<br/>Attach to an agent"]
+  D -- Ja --> F["Konnektor bereit<br/>An einen Agenten anhängen"]
 ```
 
-**Beispiel-Prompt:**
-> "Import the OpenAPI spec from `https://api.acme.com/openapi.json`, then test the `GET /orders` endpoint with `order_id=12345`."
+**Beispiel-Eingabeaufforderung:**
+> "Importieren Sie die OpenAPI-Spezifikation von `https://api.acme.com/openapi.json`, und testen Sie dann den `GET /orders`-Endpunkt mit `order_id=12345`."
 
-Der Builder ruft die Spezifikation ab, erstellt automatisch alle Aktionen, sendet eine Test-Anfrage und meldet das Ergebnis – alles ohne dass Sie ein Formular anfassen müssen.
+Der Builder ruft die Spezifikation ab, erstellt automatisch alle Aktionen, sendet eine Testandfrage und meldet das Ergebnis – alles ohne dass Sie ein Formular anfassen müssen.
 
----## Agent Builder
+---
 
-Ein **Agent** ist eine benannte KI-Persona mit einer Reihe von Anweisungen, Tools und (optional) Connectoren. Der Agent Builder gibt einem KI-Agent 6 Tools zur Verfügung, um einen anderen Agent von Grund auf zu konfigurieren.### Tools
+## Agent Builder
 
-| Tool | What it does |
+Ein **Agent** ist eine benannte KI-Persona mit einer Reihe von Anweisungen, Tools und (optional) Konnektoren. Der Agent Builder gibt einem KI-Agent 6 Tools zur Verfügung, um einen anderen Agent von Grund auf zu konfigurieren.
+
+### Werkzeuge
+
+| Werkzeug | Funktion |
 |------|-------------|
-| **Get Settings** | Aktuelle Agent-Konfiguration lesen (Anweisungen, Ausführungsmodus, Tools, Modell) |
+| **Get Settings** | Aktuelle Agent-Konfiguration lesen (Anweisungen, Ausführungsmodus, Werkzeuge, Modell) |
 | **Update Settings** | Name, Beschreibung, Systemaufforderung, Ausführungsmodus oder vorgeschlagene Aufforderungen ändern |
-| **List Connectors** | Alle verfügbaren Connectors durchsuchen (angebunden und nicht angebunden) |
-| **Add Connector** | Einen Connector angebunden, damit der Agent seine Aktionen als Tools aufrufen kann |
-| **Remove Connector** | Einen Connector trennen (der Connector selbst wird nicht gelöscht) |
-| **Set Model** | Das zugrunde liegende LLM wechseln oder Temperatur und maximale Token anpassen |### Typischer Workflow
+| **List Connectors** | Alle verfügbaren Konnektoren durchsuchen (angehängt und nicht angehängt) |
+| **Add Connector** | Einen Konnektor anhängen, damit der Agent dessen Aktionen als Werkzeuge aufrufen kann |
+| **Remove Connector** | Einen Konnektor abhängen (der Konnektor selbst wird nicht gelöscht) |
+| **Set Model** | Das zugrunde liegende LLM wechseln oder Temperatur und maximale Token anpassen |
 
-Beginnen Sie mit einer Beschreibung und lassen Sie den Builder den gesamten Agent konfigurieren:
+### Typischer Workflow
+
+Beginnen Sie mit einer Beschreibung und lassen Sie den Builder den gesamten Agenten konfigurieren:
 
 ```mermaid
 flowchart TD
-  A["Agent beschreiben<br/>(Rolle, Fähigkeiten, Ton)"]
-  A --> B["Systeminstruktionen schreiben<br/>→ Einstellungen aktualisieren"]
+  A["Beschreiben Sie den Agenten<br/>(Rolle, Fähigkeiten, Ton)"]
+  A --> B["Schreiben Sie Systeminstruktionen<br/>→ Einstellungen aktualisieren"]
   B --> C["Ausführungsmodus festlegen<br/>(ReAct oder DAG)"]
-  C --> D["Connectors durchsuchen<br/>→ Connectors auflisten"]
-  D --> E["Relevanten Connector anhängen<br/>→ Connector hinzufügen"]
+  C --> D["Konnektoren durchsuchen<br/>→ Konnektoren auflisten"]
+  D --> E["Relevanten Konnektor anhängen<br/>→ Konnektor hinzufügen"]
   E --> F["Vorgeschlagene Prompts hinzufügen<br/>→ Einstellungen aktualisieren"]
   F --> G["Agent einsatzbereit"]
 ```
 
 **Beispiel-Prompt:**
-> "Erstellen Sie einen Finance Copilot. Er sollte Fragen zu Bestellungen und Rechnungen mithilfe des Acme-Connectors beantworten. Verwenden Sie ReAct-Modus und fügen Sie 3 vorgeschlagene Prompts für häufige Fragen hinzu."
+> "Erstellen Sie einen Finance Copilot. Er sollte Fragen zu Bestellungen und Rechnungen mithilfe des Acme-Konnektors beantworten. Verwenden Sie ReAct-Modus und fügen Sie 3 vorgeschlagene Prompts für häufige Fragen hinzu."
 
-Der Builder liest die aktuellen Einstellungen, schreibt einen System-Prompt, hängt den Connector an, legt den Ausführungsmodus fest und fügt vorgeschlagene Prompts hinzu — alles in einer einzigen Gesprächsrunde.## Wie es funktioniert
+Der Builder liest die aktuellen Einstellungen, schreibt einen Systemprompt, hängt den Konnektor an, legt den Ausführungsmodus fest und fügt vorgeschlagene Prompts hinzu — alles in einer einzigen Gesprächsrunde.
 
-Unter der Haube nutzen beide Builder die gleiche Infrastruktur wie reguläre Agents:
+---
+
+## Funktionsweise
+
+Unter der Haube nutzen beide Builder die gleiche Infrastruktur wie reguläre Agenten:
 
 | Builder-Modus | Mechanismus |
 |-------------|-----------|
-| **Quick suggestions** | Ein einzelner LLM-Inferenzaufruf generiert die vollständige Konfiguration als strukturiertes JSON |
-| **Advanced builder** | Eine ReAct-Agent-Schleife: Reason → Builder-Tool aufrufen → Ergebnis beobachten → nächsten Schritt entscheiden |
+| **Schnelle Vorschläge** | Ein einzelner LLM-Inferenzaufruf generiert die vollständige Konfiguration als strukturiertes JSON |
+| **Erweiterter Builder** | Eine ReAct-Agentenschleife: Reasoning → Builder-Tool aufrufen → Ergebnis beobachten → nächsten Schritt entscheiden |
 
-Der Advanced Builder ist ein vollständiger ReAct-Agent, der zufällig über einen eingeschränkten Toolset verfügt — nur die 9 Connector- oder 6 Agent-Builder-Tools, keine Web- oder Berechnungs-Tools. Er liest den aktuellen Zustand der Zielressource, plant, welche Änderungen erforderlich sind, ruft die entsprechenden Tools auf und überprüft das Ergebnis, bevor er es als abgeschlossen erklärt.
+Der erweiterte Builder ist ein vollständiger ReAct-Agent, der über einen eingeschränkten Toolset verfügt – nur die 9 Connector- oder 6 Agent-Builder-Tools, keine Web- oder Berechnungstools. Er liest den aktuellen Zustand der Zielressource, plant welche Änderungen erforderlich sind, ruft die entsprechenden Tools auf und überprüft das Ergebnis, bevor er es als abgeschlossen erklärt.
 
-Dies bedeutet, dass der Advanced Builder mit Mehrdeutigkeit umgehen kann: Wenn der OpenAPI-Import 30 Aktionen erstellt, aber nur 5 relevant sind, können Sie ihm sagen „behalte nur die bestellungsbezogenen Endpunkte" und er löscht den Rest.
+Das bedeutet, der erweiterte Builder kann mit Mehrdeutigkeit umgehen: Wenn der OpenAPI-Import 30 Aktionen erstellt, aber nur 5 relevant sind, können Sie ihm sagen „behalte nur die bestellungsbezogenen Endpunkte" und er wird den Rest löschen.

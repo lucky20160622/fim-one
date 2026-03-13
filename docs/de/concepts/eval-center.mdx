@@ -1,15 +1,17 @@
 ---
-title: "Evaluation Center"
+title: "Evaluierungszentrum"
 description: "Quantitativ bewerten Sie Ihre Agenten mit Test-Datensätzen und automatisierter LLM-Bewertung."
 ---
 
-Das Evaluation Center ermöglicht es Ihnen, die Qualität von Agenten **vor** der Bereitstellung in der Produktion zu überprüfen. Erstellen Sie einen Datensatz mit Testfällen, führen Sie diese gegen jeden veröffentlichten Agenten aus, und erhalten Sie einen quantitativen Bericht mit Pass/Fail-Verdikten pro Fall, Latenz und Token-Nutzung.
+Das Evaluierungszentrum ermöglicht es Ihnen, die Qualität von Agenten **vor** der Bereitstellung in der Produktion zu überprüfen. Erstellen Sie einen Datensatz mit Testfällen, führen Sie diese gegen jeden veröffentlichten Agenten aus, und erhalten Sie einen quantitativen Bericht mit Bestanden/Nicht-Bestanden-Verdikten pro Fall, Latenz und Token-Nutzung.
 
 <Info>
 Konzipiert für die Überprüfung durch Unternehmenseinkauf — jedes Ergebnis ist nachvollziehbar, reproduzierbar und dauerhaft gespeichert.
-</Info>## Funktionsweise
+</Info>
 
-Jeder Evaluierungslauf führt eine **dreistufige Pipeline** für jeden Testfall aus:
+## Funktionsweise
+
+Jede Evaluierungslauf führt eine **dreistufige Pipeline** für jeden Testfall aus:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -35,69 +37,89 @@ Jeder Evaluierungslauf führt eine **dreistufige Pipeline** für jeden Testfall 
 │  After all cases finish: pass rate, avg latency,          │
 │  total tokens are computed and attached to the run.       │
 └──────────────────────────────────────────────────────────┘
-```### Wichtige Designentscheidungen
+```
+
+### Wichtige Designentscheidungen
 
 | Entscheidung | Grund |
 |----------|-----|
-| **Real ReActAgent** (nicht Mock) | Testet das tatsächliche Agent-Verhalten, einschließlich Tool-Aufrufe und mehrstufiges Reasoning |
-| **Separate Grader-LLM** (schnelles Modell) | Kostengünstig und schnell; die Agent-LLM hat bereits Token während der Ausführung verbraucht |
-| **`asyncio.Semaphore(5)`** | Begrenzt die Parallelität auf 5, um zu vermeiden, dass der LLM-Provider mit Rate-Limit-Fehlern überlastet wird |
-| **Jeder Fall ist unabhängig** | Keine Konversationsverlauf zwischen Fällen; jeder erhält eine neue Agent-Instanz |
-| **Ausführung im Hintergrund** | Der Run wird als asynchrone Task ausgelöst – die API gibt sofort zurück, das Frontend fragt alle 3 Sekunden ab |## Workflow### 1. Erstellen Sie einen Datensatz
+| **Real ReActAgent** (kein Mock) | Testet das tatsächliche Verhalten des Agenten, einschließlich Tool-Aufrufe und mehrstufiges Reasoning |
+| **Separates Grader-LLM** (schnelles Modell) | Kostengünstig und schnell; das Agent-LLM hat bereits Token während der Ausführung verbraucht |
+| **`asyncio.Semaphore(5)`** | Begrenzt die Parallelität auf 5, um zu vermeiden, dass der LLM-Anbieter mit Rate-Limit-Fehlern überlastet wird |
+| **Jeder Fall ist unabhängig** | Keine Gesprächshistorie zwischen Fällen; jeder erhält eine neue Agent-Instanz |
+| **Ausführung im Hintergrund** | Die Ausführung wird als asynchrone Aufgabe gestartet — die API gibt sofort zurück, das Frontend fragt alle 3 Sekunden ab |
+
+## Arbeitsablauf
+
+### 1. Datensatz erstellen
 
 Navigieren Sie zu **Eval Center → Datasets** und klicken Sie auf **New Dataset**.
 
-Ein Datensatz ist eine benannte Sammlung von Testfällen. Geben Sie ihm einen aussagekräftigen Namen (z. B. „Customer Support — Tier 1 Questions") und eine optionale Beschreibung.### 2. Testfälle hinzufügen
+Ein Datensatz ist eine benannte Sammlung von Testfällen. Geben Sie ihm einen aussagekräftigen Namen (z. B. „Customer Support — Tier 1 Questions") und eine optionale Beschreibung.
+
+### 2. Testfälle hinzufügen
 
 Klicken Sie in Ihren Datensatz und fügen Sie Testfälle hinzu. Jeder Fall hat drei Felder:
 
 | Feld | Erforderlich | Beschreibung |
 |-------|----------|-------------|
-| **Prompt** | Ja | Die genaue Frage oder Anweisung, die an den Agent gesendet wird |
-| **Expected Behavior** | Ja | Eine natürlichsprachige Beschreibung, wie eine korrekte Antwort aussieht |
+| **Prompt** | Ja | Die genaue Frage oder Anweisung, die an den Agenten gesendet wird |
+| **Erwartetes Verhalten** | Ja | Eine natürlichsprachige Beschreibung, wie eine korrekte Antwort aussieht |
 | **Assertions** | Nein | Eine Liste spezifischer Überprüfungen (z. B. „Antwort erwähnt die Rückgabepolitik", „Antwort ist unter 200 Wörtern") |
 
 <Tip>
 **Gute Testfälle schreiben:**
-- **Prompt**: Seien Sie spezifisch. „What is our refund policy for enterprise plans?" ist besser als „Tell me about refunds."
-- **Expected Behavior**: Beschreiben Sie das *Ergebnis*, nicht die genaue Formulierung. „Explains the 30-day refund window and mentions the exception for annual plans."
+- **Prompt**: Seien Sie spezifisch. „Was ist unsere Rückgabepolitik für Enterprise-Pläne?" ist besser als „Erzählen Sie mir von Rückgaben."
+- **Erwartetes Verhalten**: Beschreiben Sie das *Ergebnis*, nicht die genaue Formulierung. „Erklärt das 30-Tage-Rückgabefenster und erwähnt die Ausnahme für Jahrespläne."
 - **Assertions**: Verwenden Sie diese für harte Anforderungen. Der Grader wird jede Assertion explizit überprüfen.
-</Tip>### 3. Starten Sie eine Bewertung
+</Tip>
+
+### 3. Starten Sie eine Bewertung
 
 Gehen Sie zur Registerkarte **Eval Runs** und klicken Sie auf **New Evaluation**. Wählen Sie:
 
 1. **Agent** — einen beliebigen Agent, den Sie besitzen
 2. **Dataset** — einen beliebigen Datensatz mit mindestens einem Testfall
 
-Klicken Sie auf **Start Evaluation**. Sie werden zur Ergebnisseite weitergeleitet.### 4. Ergebnisse lesen
+Klicken Sie auf **Start Evaluation**. Sie werden zur Ergebnisseite weitergeleitet.
+
+### 4. Ergebnisse lesen
 
 Die Ergebnisseite zeigt:
 
-- **Header**: Agent-Name, Datensatzname, Statusabzeichen, Erfolgsquote, durchschnittliche Latenz, Gesamttoken
-- **Fortschrittsbalken**: Füllt sich auf, während Fälle abgeschlossen werden (grün = Erfolgsanteil)
+- **Header**: Name des Agenten, Name des Datensatzes, Statusabzeichen, Erfolgsquote, durchschnittliche Latenz, Gesamttoken
+- **Fortschrittsbalken**: Füllt sich auf, wenn Fälle abgeschlossen werden (grün = Erfolgsanteil)
 - **Ergebnistabelle**: Eine Zeile pro Testfall mit:
-  - Prompt (gekürzt — zum Erweitern anklicken)
-  - Urteil: **Pass** (grün), **Fail** (rot) oder **Error** (orange)
+  - Eingabeaufforderung (gekürzt — zum Erweitern anklicken)
+  - Urteil: **Bestanden** (grün), **Fehlgeschlagen** (rot) oder **Fehler** (orange)
   - Antwort des Agenten (gekürzt — zum Erweitern anklicken)
-  - Begründung des Graders (warum es bestanden oder fehlgeschlagen ist)
+  - Begründung des Bewerters (warum es bestanden oder fehlgeschlagen ist)
   - Latenz (ms) und Token-Anzahl
 
 <Warning>
 Während ein Durchlauf läuft (`pending` oder `running` Status), wird die Seite alle 3 Sekunden automatisch aktualisiert. Navigieren Sie nicht weg, wenn Sie Ergebnisse in Echtzeit sehen möchten.
-</Warning>## Was wird getestet### Enthalten
-- **Integrierte Tools**: calculator, web_search, web_fetch, python_exec, file_ops, etc.
+</Warning>
+
+## Was wird getestet
+
+### Enthalten
+- **Integrierte Werkzeuge**: calculator, web_search, web_fetch, python_exec, file_ops, etc.
 - **Agent-Anweisungen**: Das Feld `extra_instructions` des Agenten wird weitergeleitet
-- **Konfiguriertes Modell des Agenten**: Wenn der Agent eine benutzerdefinierte Modellkonfiguration hat, wird dieses Modell verwendet### Nicht enthalten (absichtlich)
-- **Connectors**: Externe HTTP-Connectors erfordern Live-Services von Drittanbietern — werden in der Evaluierung übersprungen, um instabile Tests zu vermeiden
-- **MCP servers**: Aus demselben Grund — externe Prozessabhängigkeiten
-- **Conversation history**: Jeder Fall läuft isoliert ohne vorherigen Kontext
-- **Knowledge bases**: KB-Abruf-Tools werden im Eval-Modus nicht geladen
+- **Konfiguriertes Modell des Agenten**: Wenn der Agent eine benutzerdefinierte Modellkonfiguration hat, wird dieses Modell verwendet
+
+### Nicht enthalten (absichtlich)
+- **Konnektoren**: Externe HTTP-Konnektoren erfordern Live-Services von Drittanbietern — werden in der Evaluierung übersprungen, um instabile Tests zu vermeiden
+- **MCP-Server**: Aus demselben Grund — externe Prozessabhängigkeiten
+- **Gesprächsverlauf**: Jeder Fall läuft isoliert ohne vorherigen Kontext
+- **Wissensdatenbanken**: KB-Abruefwerkzeuge werden im Evaluierungsmodus nicht geladen
 
 <Info>
-Dies bedeutet, dass Eval-Ergebnisse die **Reasoning- und Tool-Use-Fähigkeit** des Agenten widerspiegeln, nicht seine Integration mit externen Services. Testen Sie Connectors separat über die Connector Test-Funktion.
-</Info>## Der Grader
+Dies bedeutet, dass Evaluierungsergebnisse die **Reasoning- und Werkzeugnutzungsfähigkeit** des Agenten widerspiegeln, nicht seine Integration mit externen Services. Testen Sie Konnektoren separat über die Connector-Test-Funktion.
+</Info>
 
-Der Grader ist ein LLM (das "schnelle" Modell des Systems), das vier Informationen erhält und ein strukturiertes JSON-Urteil zurückgibt:
+## Der Grader
+
+Der Grader ist ein LLM (das „schnelle" Modell des Systems), das vier Informationen erhält und ein strukturiertes JSON-Urteil zurückgibt:
 
 **Systemaufforderung:**
 > You are an impartial AI evaluator. Your job is to judge whether an AI agent's answer meets the expected behavior for a given prompt.
@@ -107,7 +129,7 @@ Der Grader ist ein LLM (das "schnelle" Modell des Systems), das vier Information
 **Benutzernachricht enthält:**
 1. Die ursprüngliche Aufforderung
 2. Das erwartete Verhalten
-3. Die Liste der Assertions (oder "None specified")
+3. Die Liste der Assertions (oder „None specified")
 4. Die tatsächliche Antwort des Agenten
 
 **Ausgabeschema:**
@@ -118,19 +140,29 @@ Der Grader ist ein LLM (das "schnelle" Modell des Systems), das vier Information
 }
 ```
 
-Der Grader verwendet `structured_llm_call` mit Function Calling, um das Schema durchzusetzen. Falls der Grader selbst fehlschlägt (Netzwerkfehler, fehlerhafte Antwort), wird der Fall als `error` gekennzeichnet.## Best Practices### Dataset-Design
-- **Start small**: 5–10 cases covering the agent's core use cases
-- **Cover edge cases**: Include at least 2–3 adversarial or out-of-scope prompts
-- **Be specific in expected behavior**: Vague expectations lead to inconsistent grading
-- **Use assertions for hard requirements**: "Must mention price" is more reliable than hoping the grader catches it### Ergebnisse interpretieren
-- **80%+ Erfolgsquote** ist ein guter Richtwert für einen gut konfigurierten Agent
+Der Grader verwendet `structured_llm_call` mit Function Calling, um das Schema durchzusetzen. Wenn der Grader selbst fehlschlägt (Netzwerkfehler, fehlerhafte Antwort), wird der Fall als `error` gekennzeichnet.
+
+## Best Practices
+
+### Datensatz-Design
+- **Klein anfangen**: 5–10 Fälle, die die Kernfunktionen des Agenten abdecken
+- **Edge Cases berücksichtigen**: Mindestens 2–3 adversarische oder außerhalb des Geltungsbereichs liegende Prompts einbeziehen
+- **Spezifisch bei erwartetem Verhalten**: Vage Erwartungen führen zu inkonsistenter Bewertung
+- **Assertions für harte Anforderungen verwenden**: „Muss den Preis erwähnen" ist zuverlässiger als zu hoffen, dass der Bewerter es erfasst
+
+### Ergebnisse interpretieren
+- **80%+ Erfolgsquote** ist ein guter Richtwert für einen gut konfigurierten Agenten
 - **Niedrige Erfolgsquote mit hoher Latenz** deutet darauf hin, dass der Agent Schwierigkeiten mit mehrstufigem Reasoning hat
-- **Error-Status** bedeutet, dass der Agent oder die Grader-Komponente abgestürzt ist — überprüfen Sie die Server-Logs auf Details
-- **Grader-Unstimmigkeiten**: Wenn Sie denken, dass die Grader-Komponente falsch liegt, lesen Sie deren Begründung. Möglicherweise müssen Sie Ihre Beschreibung des erwarteten Verhaltens verfeinern### Wann neu bewerten
+- **Fehlerstatus** bedeutet, dass der Agent oder die Bewertung abgestürzt ist — überprüfen Sie die Server-Logs auf Details
+- **Bewertungsabweichungen**: Wenn Sie denken, dass die Bewertung falsch ist, lesen Sie deren Begründung. Möglicherweise müssen Sie Ihre Beschreibung des erwarteten Verhaltens verfeinern
+
+### Wann neu bewerten
 - Nach Änderung der Agent-Anweisungen
-- Nach dem Wechsel des LLM-Modells des Agenten
-- Nach dem Hinzufügen oder Entfernen von Tool-Kategorien
-- Vor jeder Produktionsbereitstellung (CI/CD-Integration kommt in einer zukünftigen Version)## API-Referenz
+- Nach Wechsel des LLM-Modells des Agenten
+- Nach Hinzufügen oder Entfernen von Tool-Kategorien
+- Vor jeder Produktionsbereitstellung (CI/CD-Integration kommt in einer zukünftigen Version)
+
+## API-Referenz
 
 | Methode | Endpunkt | Beschreibung |
 |---------|----------|-------------|

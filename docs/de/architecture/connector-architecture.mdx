@@ -1,7 +1,9 @@
 ---
 title: "Connector-Architektur"
-description: "Wie FIM One Legacy-Systeme durch KI verbindet — vom Copilot zum Hub."
----## Copilot vs Hub
+description: "Wie FIM One Legacy-Systeme durch KI verbindet — von Copilot bis Hub."
+---
+
+## Copilot vs Hub
 
 Die Architektur unterstützt zwei Integrationsskalen:
 
@@ -26,13 +28,17 @@ flowchart TD
     end
 ```
 
-**Copilot** wird in die Benutzeroberfläche eines Host-Systems eingebettet. Benutzer interagieren mit KI, ohne ihre vertraute Schnittstelle zu verlassen. Es kann mehrere Connectors verwenden (Host-DB + Benachrichtigungsdienst usw.).
+**Copilot** wird in die Benutzeroberfläche eines Host-Systems eingebettet. Benutzer interagieren mit KI, ohne ihre vertraute Schnittstelle zu verlassen. Es kann mehrere Konnektoren verwenden (Host-DB + Benachrichtigungsdienst usw.).
 
 **Hub** ist ein eigenständiges Portal, das alle Systeme verbindet. Es ist nicht in ein einzelnes System eingebettet – es ist die zentrale Intelligenzschicht, in der Systeme auf KI treffen.
 
-Gleiche Connector-Architektur, unterschiedliche Bereitstellung. Ein Copilot verwendet denselben `ConnectorToolAdapter` wie ein Hub.## Kernprinzip
+Gleiche Konnektor-Architektur, unterschiedliche Bereitstellung. Ein Copilot verwendet denselben `ConnectorToolAdapter` wie ein Hub.
 
-**Der Client ändert keinen Code.** FIM One integriert sich proaktiv in ihre Systeme -- liest ihre Datenbanken, ruft ihre APIs auf, schreibt in ihren Message Bus. Der Client stellt nur Anmeldedaten und Netzwerkzugriff bereit.## Architektur mit drei Schichten
+## Kernprinzip
+
+**Der Client ändert keinen Code.** FIM One integriert sich proaktiv in ihre Systeme – liest ihre Datenbanken, ruft ihre APIs auf, sendet an ihren Message Bus. Der Client stellt nur Anmeldedaten und Netzwerkzugriff bereit.
+
+## Three-Layer Architecture
 
 ```mermaid
 flowchart TB
@@ -48,32 +54,40 @@ Jede Schicht hat eine eigene Verantwortung:
 
 | Schicht | Verantwortlich für | Änderungen wenn... |
 |---|---|---|
-| **Platform** | Orchestrierung, Multi-Tenant, UI | Neue Platform-Features ausgeliefert werden |
-| **Connector Governance Layer** | Enterprise-Governance-Richtlinien | Sicherheits-/Compliance-Anforderungen ändern |
+| **Plattform** | Orchestrierung, Multi-Mandanten, UI | Neue Plattformfunktionen werden veröffentlicht |
+| **Connector Governance Layer** | Enterprise-Governance-Richtlinien | Sicherheits-/Compliance-Anforderungen ändern sich |
 | **MCP Protocol** | Transport, Tool-Interface-Standard | Nie (offener Standard) |
-| **Legacy System** | Geschäftsdaten und Logik | Nie (das ist der ganze Sinn) |## Warum MCP als Transport-Schicht
+| **Legacy System** | Geschäftsdaten und Logik | Nie (das ist genau der Sinn) |
+
+## Warum MCP als Transportschicht
 
 Adapter werden als **MCP Server** implementiert. Dies ist eine bewusste architektonische Entscheidung:
 
-- **Wiederverwendung**: FIM One wird bereits mit einem MCP Client (v0.3) ausgeliefert. Das Hinzufügen eines Adapters für ein Legacy-System nutzt die gleiche Infrastruktur wie das Hinzufügen eines beliebigen MCP-Tools.
-- **Standard-Protokoll**: MCP ist ein offener Standard. Kein proprietäres Protokoll, das erfunden oder gepflegt werden muss.
+- **Wiederverwendung**: FIM One wird bereits mit einem MCP Client (v0.3) ausgeliefert. Das Hinzufügen eines Legacy-System-Adapters nutzt dieselbe Infrastruktur wie das Hinzufügen eines beliebigen MCP Tools.
+- **Standardprotokoll**: MCP ist ein offener Standard. Kein proprietäres Protokoll, das erfunden oder gepflegt werden muss.
 - **Ökosystem**: MCP Server von Drittanbietern (Datenbanken, APIs, SaaS-Tools) funktionieren sofort.
-- **Prozessisolation**: Jeder MCP Server läuft als separater Prozess. Ein fehlerhafter Adapter kann die Plattform nicht zum Absturz bringen.### Was MCP allein nicht bietet
+- **Prozessisolation**: Jeder MCP Server läuft als separater Prozess. Ein fehlerhafter Adapter kann die Plattform nicht zum Absturz bringen.
+
+### Was MCP allein nicht bietet
 
 Die **Connector Governance Layer** fügt Enterprise-Governance hinzu, die rohes MCP nicht hat:
 
 | Concern | MCP | Connector Governance Layer |
 |---|---|---|
-| Read-only enforcement | Nein | `read_only` Flag auf Operationen; Schreiben standardmäßig blockiert |
-| Audit logging | Nein | Jeder Tool-Aufruf aufgezeichnet (Zeitstempel, Benutzer, Tool, Parameter, Ergebnis) |
-| Auth passthrough | Nein | Proxy Host-System-Auth; Agent handelt im Namen des angemeldeten Benutzers |
-| Confirmation gate | Nein | Schreiboperationen erfordern menschliche Genehmigung (SSE `confirmation_required`) |
-| Circuit breaker | Nein | Verbindungsfehler löst graceful degradation aus |
-| Operation classification | Nein | Operationen gekennzeichnet als read/write/admin mit Richtlinien pro Level |### Warum nicht ein benutzerdefiniertes Protokoll erfinden
+| Read-only enforcement | Nein | `read_only` Flag bei Operationen; Schreibvorgänge standardmäßig blockiert |
+| Audit logging | Nein | Jeder Tool-Aufruf wird protokolliert (Zeitstempel, Benutzer, Tool, Parameter, Ergebnis) |
+| Auth passthrough | Nein | Proxy Host-System-Authentifizierung; Agent handelt im Namen des angemeldeten Benutzers |
+| Confirmation gate | Nein | Schreibvorgänge erfordern menschliche Genehmigung (SSE `confirmation_required`) |
+| Circuit breaker | Nein | Verbindungsfehler löst ordnungsgemäße Verschlechterung aus |
+| Operation classification | Nein | Operationen gekennzeichnet als read/write/admin mit Richtlinien pro Ebene |
 
-Protokolle sind Standardware. Der technische Wert liegt in den Adaptern selbst (Domänenwissen, Schema-Mapping, Behandlung von Spezialfällen) und der Governance-Schicht (Audit, Auth, Sicherheit). Die Erfindung eines Transport-Protokolls würde Wartungskosten verursachen, ohne Funktionalität hinzuzufügen. Stripe verwendet HTTPS; Docker verwendet cgroups; FIM One verwendet MCP.## Bereitstellungsmodell
+### Warum nicht ein benutzerdefiniertes Protokoll erfinden
 
-Alles läuft in einer einzigen Docker Compose-Bereitstellung. Der Client installiert nichts.
+Protokolle sind Standardware. Der technische Wert liegt in den Adaptern selbst (Domänenwissen, Schema-Mapping, Behandlung von Spezialfällen) und der Governance-Schicht (Audit, Authentifizierung, Sicherheit). Die Erfindung eines Transport-Protokolls würde Wartungskosten verursachen, ohne zusätzliche Funktionalität zu bieten. Stripe nutzt HTTPS; Docker nutzt cgroups; FIM One nutzt MCP.
+
+## Bereitstellungsmodell
+
+Alles läuft in einer einzelnen Docker Compose-Bereitstellung. Der Client installiert nichts.
 
 ```mermaid
 flowchart TD
@@ -108,22 +122,24 @@ flowchart TD
 ```
 
 <Note>
-Alles wird von FIM One bereitgestellt. Der Client stellt nur folgendes bereit:
-- Datenbankzugangsdaten (schreibgeschütztes Konto empfohlen)
+Alles wird von FIM One bereitgestellt. Der Client stellt nur folgende Informationen bereit:
+- Datenbankzugangsdaten (Lesekonto empfohlen)
 - API-Endpunkte und Schlüssel (falls verfügbar)
 - Netzwerk-Whitelist-Zugriff
 </Note>
 
-**Zugriffshierarchie**: FIM One passt sich an, welchen Zugriff der Client bereitstellen kann:
+**Zugriffshierarchie**: FIM One passt sich an jeden Zugriff an, den der Client bereitstellen kann:
 
 | Was der Client hat | Wie FIM One sich verbindet |
 |---|---|
-| API mit Dokumentation | HTTP API-Adapter (bester Fall) |
-| API ohne Dokumentation | HTTP API-Adapter + manuelle Schema-Zuordnung |
-| Nur Datenbankzugriff | Datenbankadapter (direktes SQL, standardmäßig schreibgeschützt) |
-| Datenbank + Message Bus | Datenbankadapter + Message-Push-Adapter |## Agent-Connector-Entkopplung
+| API mit Dokumentation | HTTP-API-Adapter (bester Fall) |
+| API ohne Dokumentation | HTTP-API-Adapter + manuelle Schema-Zuordnung |
+| Nur Datenbankzugriff | Datenbankadapter (direkte SQL, standardmäßig schreibgeschützt) |
+| Datenbank + Message Bus | Datenbankadapter + Message-Push-Adapter |
 
-Der Agent sieht Connectors als gewöhnliche Tools. Er weiß nicht und kümmert sich nicht darum, ob ein Tool integriert, ein MCP Server von Drittanbietern oder ein Legacy-System-Connector ist.
+## Agent-Connector-Entkopplung
+
+Der Agent sieht Konnektoren als gewöhnliche Tools. Er weiß nicht und kümmert sich nicht darum, ob ein Tool integriert, ein MCP Server von Drittanbietern oder ein Legacy-System-Konnektor ist.
 
 ```mermaid
 flowchart TB
@@ -144,52 +160,60 @@ flowchart TB
     Agent --- Connector
 ```
 
-Das bedeutet:
+Dies bedeutet:
 
-- **Hinzufügen** eines neuen Systems = Hinzufügen einer Connector-Konfiguration. Der Agent-Code ändert sich nicht.
-- **Entfernen** eines Connectors = Entfernen der Konfiguration. Keine Code-Änderungen.
-- Der gleiche Agent kann integrierte Tools und Connectors in einer einzelnen Aufgabe verwenden.## Hot-Plug Evolution
+- **Hinzufügen** eines neuen Systems = Hinzufügen einer Konnektor-Konfiguration. Der Agent-Code ändert sich nicht.
+- **Entfernen** eines Konnektors = Entfernen der Konfiguration. Keine Code-Änderungen.
+- Der gleiche Agent kann integrierte Tools und Konnektoren in einer einzelnen Aufgabe verwenden.
 
-| Version | How to add a new connector | Restart required? |
+## Hot-Plug Evolution
+
+| Version | So fügen Sie einen neuen Connector hinzu | Neustart erforderlich? |
 |---|---|---|
-| **v0.6** | Write a Python MCP Server with Connector Governance Layer, add to docker-compose | Redeploy |
-| **v0.8** | Write a YAML/JSON config, platform generates MCP Server | Restart |
-| **v1.0** | Upload OpenAPI spec, AI generates config automatically | **No restart (hot-plug)** |
+| **v0.6** | Schreiben Sie einen Python MCP Server mit Connector Governance Layer, fügen Sie zu docker-compose hinzu | Erneute Bereitstellung |
+| **v0.8** | Schreiben Sie eine YAML/JSON-Konfiguration, Plattform generiert MCP Server | Neustart |
+| **v1.0** | Laden Sie OpenAPI-Spezifikation hoch, KI generiert Konfiguration automatisch | **Kein Neustart (Hot-Plug)** |
 
-Enterprise deployments are "implement once, run for months" -- hot-plug is a v1.0 convenience, not a v0.6 requirement.## Datenfluss-Beispiel
+Enterprise-Bereitstellungen sind „einmal implementieren, monatelang ausführen" – Hot-Plug ist eine v1.0-Annehmlichkeit, keine v0.6-Anforderung.
 
-User: "Überprüfe alle überfälligen Verträge aus dem Finanzsystem und sende eine Zusammenfassung an Lark."
+## Datenfluss-Beispiel
+
+Benutzer: "Überprüfe alle überfälligen Verträge aus dem Finanzsystem und sende eine Zusammenfassung an Lark."
 
 ```
-1. User sends message via Portal / API
+1. Benutzer sendet Nachricht über Portal / API
 
-2. FIM One (ReAct mode):
-   Think: I need to query the finance DB for overdue contracts, then push to Lark.
+2. FIM One (ReAct-Modus):
+   Think: Ich muss die Finanz-DB nach überfälligen Verträgen abfragen und dann an Lark senden.
 
 3. Act: contract_query(status="overdue", days_past_due=">30")
-   → Connector Governance: audit log, read_only check (pass)
-   → MCP Server: translates to SQL
+   → Connector Governance: Audit-Protokoll, read_only-Überprüfung (bestanden)
+   → MCP Server: übersetzt zu SQL
    → Client DB: SELECT * FROM contracts WHERE status='overdue' AND ...
-   ← Returns 7 overdue contracts
+   ← Gibt 7 überfällige Verträge zurück
 
-4. Think: Found 7 overdue contracts. I'll summarize and push.
+4. Think: 7 überfällige Verträge gefunden. Ich werde eine Zusammenfassung erstellen und senden.
 
-5. Act: lark_push(message="7 overdue contracts found: ...")
-   → Connector Governance: audit log, write operation → confirmation gate
-   → User approves via Portal
-   → MCP Server: POST to Lark webhook
-   ← Push successful
+5. Act: lark_push(message="7 überfällige Verträge gefunden: ...")
+   → Connector Governance: Audit-Protokoll, Schreiboperation → Bestätigungstor
+   → Benutzer genehmigt über Portal
+   → MCP Server: POST an Lark-Webhook
+   ← Push erfolgreich
 
-6. Answer: "Found 7 overdue contracts. Summary pushed to Lark group."
-```## Connector-Standardisierungsstufen
+6. Antwort: "7 überfällige Verträge gefunden. Zusammenfassung an Lark-Gruppe gesendet."
+```
 
-| Level | Version | Ansatz | Wer baut es |
+## Connector-Standardisierungsstufen
+
+| Stufe | Version | Ansatz | Wer erstellt es |
 |---|---|---|---|
-| **Level 1** | v0.6 | Python MCP Server mit Connector Governance | FIM One developer |
-| **Level 2** | v0.8 | YAML/JSON config, platform auto-generates MCP Server | Implementation engineer (no Python needed) |
-| **Level 3** | v1.0 | Upload OpenAPI/Swagger spec, AI generates config | AI (with human review) |## Beziehung zum bestehenden MCP-Ökosystem
+| **Stufe 1** | v0.6 | Python MCP Server mit Connector Governance | FIM One Entwickler |
+| **Stufe 2** | v0.8 | YAML/JSON-Konfiguration, Plattform generiert MCP Server automatisch | Implementierungsingenieur (kein Python erforderlich) |
+| **Stufe 3** | v1.0 | OpenAPI/Swagger-Spezifikation hochladen, KI generiert Konfiguration | KI (mit menschlicher Überprüfung) |
 
-Der MCP Client von FIM One (ab v0.3) unterstützt bereits MCP Server von Drittanbietern. Legacy-System-Adapter sind einfach **domänenspezifische MCP Server**, die mit der Connector Governance Layer für Enterprise Governance erstellt werden.
+## Beziehung zum bestehenden MCP-Ökosystem
+
+Der MCP-Client von FIM One (ab v0.3) unterstützt bereits MCP-Server von Drittanbietern. Legacy-System-Adapter sind einfach **domänenspezifische MCP-Server**, die mit der Connector Governance Layer für Enterprise-Governance erstellt werden.
 
 ```mermaid
 flowchart TB
@@ -212,4 +236,4 @@ flowchart TB
     TR --> Agent["Agent sees all as tools"]
 ```
 
-Die Connector Governance Layer ersetzt MCP nicht – sie erweitert MCP um die Governance Layer, die die Enterprise-Integration von Legacy-Systemen erfordert.
+Die Connector Governance Layer ersetzt MCP nicht – sie erweitert MCP um die Governance-Schicht, die die Enterprise-Integration von Legacy-Systemen erfordert.

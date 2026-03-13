@@ -8,7 +8,7 @@
   "dashboard": "Tableau de bord",
   "agents": "Agents",
   "knowledge": "Connaissances",
-  "connectors": "Connectors",
+  "connectors": "Connecteurs",
   "tools": "Outils",
   "artifacts": "Artefacts",
   "allChats": "Tous les chats",
@@ -19,7 +19,7 @@
   "searchTooltipMac": "Rechercher ({shortcut})",
   "searchTooltipWin": "Rechercher ({shortcut})",
   "maintenanceTitle": "Maintenance du système",
-  "maintenanceDescription": "Le système est actuellement en maintenance. Veuillez réessayer bientôt.",
+  "maintenanceDescription": "Le système est actuellement en maintenance. Veuillez revenir bientôt.",
   "noConversations": "Aucune conversation pour le moment",
   "untitled": "Sans titre",
   "rename": "Renommer",
@@ -45,8 +45,8 @@
   "gsTitle": "Premiers pas",
   "gsAllDone": "Vous êtes prêt !",
   "gsProgress": "complété",
-  "gsConnector": "Créer un Connector",
-  "gsAgent": "Créer un Agent",
+  "gsConnector": "Créer un connecteur",
+  "gsAgent": "Créer un agent",
   "gsChat": "Démarrer une conversation",
   "gsStart": "Commencer →"
 }

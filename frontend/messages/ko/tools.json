@@ -7,7 +7,7 @@
     "knowledge": "지식",
     "media": "미디어",
     "web": "웹",
-    "connector": "Connector",
+    "connector": "커넥터",
     "mcp": "MCP"
   },
   "pageTitle": "도구",
@@ -15,43 +15,43 @@
   "mcpServersTitle": "MCP 서버",
   "mcpCatalog": "MCP 카탈로그",
   "addServer": "서버 추가",
-  "noServersMessage": "구성된 MCP 서버가 없습니다. agent 기능을 확장하려면 하나를 추가하세요.",
+  "noServersMessage": "구성된 MCP 서버가 없습니다. 에이전트 기능을 확장하려면 추가하세요.",
   "loadingTools": "도구 로드 중...",
-  "failedToLoadCatalog": "도구 카탈로그 로드 실패",
+  "failedToLoadCatalog": "도구 카탈로그를 로드하지 못했습니다",
   "notConfigured": "구성되지 않음",
-  "connectorLabel": "Connector",
-  "connectorDescription": "이 agent에 바인딩된 사용자 정의 작업(API, 데이터베이스 등). Connectors 페이지에서 관리됩니다.",
+  "connectorLabel": "커넥터",
+  "connectorDescription": "이 에이전트에 바인딩된 사용자 정의 작업(API, 데이터베이스 등). 커넥터 페이지에서 관리됩니다.",
   "mcpServersLinkLabel": "MCP 서버",
-  "mcpServersLinkDescription": "외부 MCP 서버에서 제공하는 도구. Connectors 페이지에서 구성하세요.",
+  "mcpServersLinkDescription": "외부 MCP 서버에서 제공하는 도구. 커넥터 페이지에서 구성하세요.",
   "disabled": "비활성화됨",
   "enableTool": "활성화",
   "disableTool": "비활성화",
   "disabledByAdmin": "관리자가 비활성화함",
   "toolEnabled": "도구 활성화됨",
   "toolDisabled": "도구 비활성화됨",
-  "failedToEnableTool": "도구 활성화 실패",
-  "failedToDisableTool": "도구 비활성화 실패",
+  "failedToEnableTool": "도구를 활성화하지 못했습니다",
+  "failedToDisableTool": "도구를 비활성화하지 못했습니다",
   "noDescription": "설명 없음",
   "toolCount": "{count, plural, one {# 도구} other {# 도구}}",
-  "toolsFound": "{count, plural, one {# 도구} other {# 도구}} 찾음",
+  "toolsFound": "{count, plural, one {# 도구} other {# 도구}} 발견됨",
   "testConnection": "연결 테스트",
   "deleteMcpServer": "MCP 서버를 삭제하시겠습니까?",
-  "deleteMcpServerDescription": "이 MCP 서버는 영구적으로 제거됩니다. 이 작업은 취소할 수 없습니다.",
-  "disableOrgServer": "전체 조직에 대해 서버를 비활성화하시겠습니까?",
-  "disableOrgServerDescription": "이렇게 하면 모든 조직 구성원이 즉시 이 서버를 사용할 수 없게 됩니다. 언제든지 다시 활성화할 수 있습니다.",
+  "deleteMcpServerDescription": "이 MCP 서버는 영구적으로 제거됩니다. 이 작업은 실행 취소할 수 없습니다.",
+  "disableOrgServer": "전체 조직에서 서버를 비활성화하시겠습니까?",
+  "disableOrgServerDescription": "이렇게 하면 모든 조직 구성원이 이 서버를 즉시 사용할 수 없게 됩니다. 언제든지 다시 활성화할 수 있습니다.",
   "editMcpServer": "MCP 서버 편집",
   "addMcpServer": "MCP 서버 추가",
   "editMcpServerDescription": "MCP 서버 구성을 업데이트합니다.",
   "addMcpServerDescription": "새 MCP 서버 연결을 구성합니다.",
   "namePlaceholder": "예: filesystem-server",
-  "descriptionPlaceholder": "선택 사항 설명",
+  "descriptionPlaceholder": "선택사항 설명",
   "transport": "전송",
-  "streamableHttp": "Streamable HTTP",
+  "streamableHttp": "스트리밍 가능 HTTP",
   "command": "명령",
   "commandPlaceholder": "예: npx 또는 python",
   "arguments": "인수",
   "argumentsPlaceholder": "쉼표로 구분, 예: -y, @modelcontextprotocol/server-filesystem, /tmp",
-  "argumentsHint": "여러 인수를 쉼표로 구분하세요",
+  "argumentsHint": "여러 인수는 쉼표로 구분하세요",
   "workingDirectory": "작업 디렉토리",
   "workingDirectoryPlaceholder": "예: /home/user/my-server",
   "envVars": "환경 변수",
@@ -61,9 +61,9 @@
   "viewSmitheryGuide": "Smithery에서 구성 가이드 보기",
   "activeToggle": "활성",
   "activeToggleDescription": "에이전트 도구 사용을 위해 이 서버를 활성화합니다",
-  "saveChanges": "변경 사항 저장",
-  "discardUnsavedTitle": "저장하지 않은 변경 사항을 버릴까요?",
-  "discardUnsavedDescription": "저장하지 않은 변경 사항이 있습니다. 닫으면 버려집니다.",
+  "saveChanges": "변경사항 저장",
+  "discardUnsavedTitle": "저장하지 않은 변경사항을 버리시겠습니까?",
+  "discardUnsavedDescription": "저장하지 않은 변경사항이 있습니다. 닫으면 버려집니다.",
   "discardAndClose": "버리고 닫기",
   "mcpServerUpdated": "MCP 서버가 업데이트되었습니다",
   "mcpServerCreated": "MCP 서버가 생성되었습니다",
@@ -83,23 +83,23 @@
   "myKeysAddRow": "+ 추가",
   "publishToOrg": "조직에 게시",
   "publishDialogTitle": "MCP 서버 게시",
-  "publishDialogDescription": "이 MCP 서버를 조직의 구성원과 공유하세요.",
+  "publishDialogDescription": "이 MCP 서버를 조직의 구성원과 공유합니다.",
   "publishSelectOrg": "조직 선택",
   "publishNoOrgs": "어떤 조직의 구성원도 아닙니다.",
   "allowFallback": "자격증명 폴백 허용",
-  "allowFallbackHelp": "활성화되면 개인 자격증명이 없는 조직 구성원은 이 서버의 기본 제공 자격증명을 사용합니다. 이러한 자격증명에 유료 API 또는 개인 서비스가 포함된 경우 조직 전체의 모든 사용량이 귀하의 계정으로 청구됩니다.",
+  "allowFallbackHelp": "활성화되면, 개인 자격증명이 없는 조직 구성원이 이 서버의 기본 제공 자격증명을 사용합니다. 이러한 자격증명이 유료 API 또는 비공개 서비스를 포함하는 경우, 조직 전체의 모든 사용량이 귀하의 계정으로 청구됩니다.",
   "mcpServerPublished": "MCP 서버가 조직에 게시되었습니다",
-  "mcpServerPublishFailed": "MCP 서버를 게시하지 못했습니다",
+  "mcpServerPublishFailed": "MCP 서버 게시 실패",
   "mcpServerUnpublished": "MCP 서버가 게시 취소되었습니다",
-  "mcpServerUnpublishFailed": "MCP 서버 게시 취소에 실패했습니다",
+  "mcpServerUnpublishFailed": "MCP 서버 게시 취소 실패",
   "unpublishDialogTitle": "MCP 서버 게시 취소",
-  "unpublishDialogDescription": "이렇게 하면 MCP 서버가 조직에서 제거되고 개인 서버가 됩니다.",
+  "unpublishDialogDescription": "이렇게 하면 MCP 서버가 조직에서 제거되고 개인 서버로 돌아갑니다.",
   "pendingReview": "검토 대기 중",
   "approved": "승인됨",
   "rejected": "거부됨",
   "resubmit": "검토를 위해 다시 제출",
   "resubmitSuccess": "검토를 위해 다시 제출되었습니다",
-  "resubmitError": "다시 제출하지 못했습니다",
+  "resubmitError": "다시 제출 실패",
   "orgBadge": "조직",
   "mcpHub": {
     "categories": {
@@ -110,53 +110,53 @@
       "Search": "검색",
       "Productivity": "생산성",
       "Dev Tools": "개발 도구",
-      "Communication": "커뮤니케이션",
+      "Communication": "통신",
       "Cloud": "클라우드"
     },
     "servers": {
       "Filesystem": {
-        "desc": "허용된 디렉토리를 설정하여 로컬 파일을 읽고 쓸 수 있습니다.",
+        "desc": "허용된 디렉토리를 구성할 수 있는 로컬 파일을 읽고 쓰기합니다.",
         "config": "/tmp를 허용된 디렉토리 경로로 바꾸세요"
       },
       "Git": {
-        "desc": "Git을 통해 저장소 히스토리, diff, 브랜치 및 파일 내용을 검사합니다.",
-        "config": "uv 필요 · /path/to/repo로 바꾸세요"
+        "desc": "Git을 통해 저장소 히스토리, 차이, 분기 및 파일 내용을 검사합니다.",
+        "config": "uv 필요 · /path/to/repo 바꾸기"
       },
       "SQLite": {
         "desc": "전체 SQL 지원으로 SQLite 데이터베이스를 쿼리하고 수정합니다.",
         "config": ".sqlite 파일 경로로 바꾸세요"
       },
       "PostgreSQL": {
-        "desc": "PostgreSQL 데이터베이스에 대한 읽기 전용 SQL 접근.",
+        "desc": "PostgreSQL 데이터베이스에 대한 읽기 전용 SQL 액세스입니다.",
         "config": "연결 문자열로 바꾸세요"
       },
       "Puppeteer": {
-        "desc": "브라우저 자동화 — 페이지 탐색, 스크린샷 촬영, 요소와 상호작용."
+        "desc": "브라우저 자동화 — 페이지 탐색, 스크린샷 촬영, 요소와 상호작용합니다."
       },
       "Playwright": {
-        "desc": "Microsoft Playwright를 사용한 빠르고 안정적인 브라우저 자동화."
+        "desc": "Microsoft Playwright를 사용한 빠르고 안정적인 브라우저 자동화입니다."
       },
       "Fetch": {
-        "desc": "모든 웹 페이지를 가져와 Markdown으로 변환 — API 키 불필요.",
+        "desc": "모든 웹 페이지를 가져와 Markdown으로 변환합니다 — API 키가 필요하지 않습니다.",
         "config": "uv 필요"
       },
       "Brave Search": {
-        "desc": "Brave Search API를 통한 웹 및 로컬 검색.",
-        "config": "brave.com/search/api에서 키 획득 → BRAVE_API_KEY에 붙여넣기"
+        "desc": "Brave Search API를 통한 웹 및 로컬 검색입니다.",
+        "config": "brave.com/search/api에서 키 가져오기 → BRAVE_API_KEY에 붙여넣기"
       },
       "Exa Search": {
-        "desc": "Exa API를 통한 의미론적 AI 우선 검색 및 콘텐츠 검색.",
-        "config": "dashboard.exa.ai에서 키 획득 → EXA_API_KEY에 붙여넣기"
+        "desc": "Exa API를 통한 의미론적 AI 우선 검색 및 콘텐츠 검색입니다.",
+        "config": "dashboard.exa.ai에서 키 가져오기 → EXA_API_KEY에 붙여넣기"
       },
       "Memory": {
-        "desc": "대화 전반에 걸친 agent를 위한 지속적인 지식 그래프 메모리."
+        "desc": "대화 전반에 걸친 에이전트를 위한 지속적인 지식 그래프 메모리입니다."
       },
       "Sequential Thinking": {
-        "desc": "복잡한 문제 해결을 위한 구조화된 단계별 추론 도구."
+        "desc": "복잡한 문제 해결을 위한 구조화된 단계별 추론 도구입니다."
       },
       "Notion": {
-        "desc": "공식 Notion MCP — 페이지, 데이터베이스 및 블록을 읽고 쓸 수 있습니다.",
-        "config": "notion.so/my-integrations에서 키 획득 → OPENAPI_MCP_HEADERS를 {\"Authorization\":\"Bearer YOUR_KEY\"}로 설정"
+        "desc": "공식 Notion MCP — 페이지, 데이터베이스 및 블록을 읽고 쓰기합니다.",
+        "config": "notion.so/my-integrations에서 키 가져오기 → OPENAPI_MCP_HEADERS를 다음으로 설정: {\"Authorization\":\"Bearer YOUR_KEY\"}"
       },
       "GitHub": {
         "desc": "GitHub API를 통해 저장소, 이슈, 풀 요청 및 코드를 관리합니다.",
@@ -167,18 +167,18 @@
         "config": "gitlab.com/-/user_settings/personal_access_tokens에서 토큰 생성 · GITLAB_URL을 GitLab 호스트로 설정"
       },
       "Everything (test)": {
-        "desc": "모든 도구 유형을 다루는 공식 MCP 테스트 서버 — 설정 확인에 유용합니다."
+        "desc": "모든 도구 유형을 다루는 공식 MCP 테스트 서버 — 설정 확인에 좋습니다."
       },
       "Slack": {
         "desc": "Slack 워크스페이스에서 메시지 읽기 및 게시, 채널 관리.",
         "config": "api.slack.com/apps에서 봇 생성 → 봇 토큰 붙여넣기; 워크스페이스 URL에서 팀 ID 찾기"
       },
       "Google Drive": {
-        "desc": "Google Drive에서 파일 검색 및 접근.",
+        "desc": "Google Drive에서 파일 검색 및 액세스.",
         "config": "OAuth 자격증명 설정 필요"
       },
       "Google Maps": {
-        "desc": "Google Maps를 통한 위치 검색, 길찾기 및 장소 세부정보.",
+        "desc": "Google Maps를 통한 위치 검색, 길찾기, 장소 세부정보.",
         "config": "console.cloud.google.com에서 Maps API 활성화 → GOOGLE_MAPS_API_KEY에 붙여넣기"
       }
     }

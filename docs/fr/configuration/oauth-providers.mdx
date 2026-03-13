@@ -17,28 +17,32 @@ FIM One prend en charge la connexion sociale via GitHub, Google, Discord et Feis
 |---|---|
 | Dev local | `http://localhost:8000/api/auth/oauth/github/callback` |
 | Sous-domaine API dédié | `https://api.yourdomain.com/api/auth/oauth/github/callback` |
-| Proxy inverse (même domaine) | `https://yourdomain.com/api/auth/oauth/github/callback` |## GitHub
+| Proxy inverse (même domaine) | `https://yourdomain.com/api/auth/oauth/github/callback` |
+
+## GitHub
 
 **Console développeur :** https://github.com/settings/developers
 
 1. Cliquez sur **OAuth Apps** → **New OAuth App**.
 2. Remplissez :
    - **Application name** — n'importe quel nom (par ex. `FIM One`)
-   - **Homepage URL** — votre URL frontend (par ex. `https://yourdomain.com`)
+   - **Homepage URL** — l'URL de votre frontend (par ex. `https://yourdomain.com`)
    - **Authorization callback URL** — `https://yourdomain.com/api/auth/oauth/github/callback`
 3. Cliquez sur **Register application**, puis cliquez sur **Generate a new client secret**.
 4. Copiez l'**Client ID** et le **Client Secret** généré dans votre `.env`.
 
-**Scopes demandés automatiquement :** `read:user`, `user:email`
+**Portées demandées automatiquement :** `read:user`, `user:email`
 
-Les comptes GitHub avec une adresse e-mail primaire privée sont gérés correctement — FIM One récupère toujours l'e-mail primaire vérifié depuis `/user/emails`, et non l'e-mail du profil public.
+Les comptes GitHub avec une adresse e-mail principale privée sont gérés correctement — FIM One récupère toujours l'e-mail principal vérifié depuis `/user/emails`, et non l'e-mail du profil public.
 
 ```env
 GITHUB_CLIENT_ID=Ov23li...
 GITHUB_CLIENT_SECRET=...
-```## Google
+```
 
-**Console développeur :** https://console.cloud.google.com/apis/credentials
+## Google
+
+**Console de développement :** https://console.cloud.google.com/apis/credentials
 
 1. Cliquez sur **+ CREATE CREDENTIALS** → **OAuth client ID**.
 2. Si vous y êtes invité, configurez d'abord l'**OAuth consent screen** (définissez User Type sur "External" pour les applications personnelles/publiques).
@@ -49,16 +53,18 @@ GITHUB_CLIENT_SECRET=...
    ```
 5. Cliquez sur **Create**, puis copiez l'**Client ID** et le **Client Secret**.
 
-**Scopes demandés automatiquement :** `openid`, `email`, `profile`
+**Portées demandées automatiquement :** `openid`, `email`, `profile`
 
 > Note : Pendant le développement, l'écran de consentement affichera un avertissement "This app is not verified". Vous pouvez le dépasser pour les tests. Publiez l'écran de consentement si vous souhaitez supprimer l'avertissement pour les utilisateurs finaux.
 
 ```env
 GOOGLE_CLIENT_ID=12345678-abc.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-...
-```## Discord
+```
 
-**Console développeur :** https://discord.com/developers/applications
+## Discord
+
+**Console de développement :** https://discord.com/developers/applications
 
 1. Cliquez sur **New Application** et donnez-lui un nom.
 2. Dans la barre latérale gauche, cliquez sur **OAuth2**.
@@ -66,28 +72,30 @@ GOOGLE_CLIENT_SECRET=GOCSPX-...
    ```
    https://api.yourdomain.com/api/auth/oauth/discord/callback
    ```
-4. Copiez l'**Client ID** (affiché en haut de la page OAuth2) et cliquez sur **Reset Secret** pour révéler le **Client Secret**.
+4. Copiez l'**ID Client** (affiché en haut de la page OAuth2) et cliquez sur **Reset Secret** pour révéler le **Secret Client**.
 
-**Scopes demandés automatiquement :** `identify`, `email`
+**Portées demandées automatiquement :** `identify`, `email`
 
-> Discord ne garantit pas un email vérifié pour tous les comptes. Si un utilisateur n'a pas vérifié son email auprès de Discord, le champ `email` peut être `null`. FIM One crée le compte avec un email null dans ce cas — l'utilisateur peut en ajouter un plus tard dans Settings.
+> Discord ne garantit pas un email vérifié pour tous les comptes. Si un utilisateur n'a pas vérifié son email auprès de Discord, le champ `email` peut être `null`. FIM One crée le compte avec un email null dans ce cas — l'utilisateur peut en ajouter un plus tard dans Paramètres.
 
 ```env
 DISCORD_CLIENT_ID=123456789012345678
 DISCORD_CLIENT_SECRET=...
 ```
 
----## Feishu (Lark)
+---
+
+## Feishu (Lark)
 
 <Warning>
-**Limité à la portée du locataire.** Les applications internes Feishu (自建应用) ne peuvent authentifier que les utilisateurs au sein du **même locataire d'entreprise** qui a créé l'application. Les utilisateurs d'autres locataires Feishu verront une erreur « pas de permission ». Cela signifie que Feishu OAuth **ne convient pas aux déploiements SaaS publics** où les utilisateurs proviennent d'organisations différentes. Cela fonctionne bien pour les **déploiements privés / mono-organisation** où tous les utilisateurs appartiennent au même locataire Feishu.
+**Limité à la portée du locataire.** Les applications internes Feishu (自建应用) ne peuvent authentifier que les utilisateurs du **même locataire d'entreprise** qui a créé l'application. Les utilisateurs d'autres locataires Feishu verront une erreur « pas de permission ». Cela signifie que Feishu OAuth **n'est pas adapté aux déploiements SaaS publics** où les utilisateurs proviennent d'organisations différentes. Il fonctionne bien pour les **déploiements privés / monoorganisation** où tous les utilisateurs appartiennent au même locataire Feishu.
 
-Pour prendre en charge la connexion Feishu multi-locataires, vous devriez publier l'application dans le [Répertoire des applications Feishu](https://open.feishu.cn/document/store-v1/overview) (应用商店) et passer le processus d'examen de Feishu — ce qui est complexe et a des exigences strictes.
+Pour prendre en charge la connexion Feishu multi-locataires, vous devez publier l'application dans le [Répertoire des applications Feishu](https://open.feishu.cn/document/store-v1/overview) (应用商店) et passer le processus d'examen de Feishu — ce qui est complexe et a des exigences strictes.
 </Warning>
 
-**Console développeur :** https://open.feishu.cn/app
+**Console de développeur :** https://open.feishu.cn/app
 
-1. Cliquez sur **Create App** → **In-house app** (自建应用). Des comptes d'entreprise/d'organisation sont requis — Feishu OAuth n'est pas disponible pour les comptes personnels.
+1. Cliquez sur **Create App** → **In-house app** (自建应用). Les comptes d'entreprise/organisation sont requis — Feishu OAuth n'est pas disponible pour les comptes personnels.
 2. Sous **Permissions & Scopes**, recherchez et activez :
    - `contact:user.email:readonly`
 3. Sous **Security Settings** → **Redirect URL**, ajoutez votre URL de rappel :
@@ -96,55 +104,67 @@ Pour prendre en charge la connexion Feishu multi-locataires, vous devriez publie
    ```
 4. Copiez l'**App ID** et l'**App Secret** de la section **Credentials & Basic Info**.
 
-**Scopes configurés dans la console (pas dans l'URL d'autorisation) :** `contact:user.email:readonly`
+**Portées configurées dans la console (pas dans l'URL d'autorisation) :** `contact:user.email:readonly`
 
 > Note : Feishu utilise `App ID` / `App Secret` au lieu de la dénomination standard `Client ID` / `Client Secret`. Les noms des variables d'environnement reflètent cela : `FEISHU_APP_ID` et `FEISHU_APP_SECRET`.
 
 ```env
 FEISHU_APP_ID=cli_a1b2c3d4e5f6...
 FEISHU_APP_SECRET=...
-```### Important: Feishu Email Behavior
+```
 
-The Feishu user info API (`authen/v1/user_info`) returns the user's **enterprise contact email** (联系邮箱) — the address configured by the organization admin in the Feishu admin console. This is **not** the user's personal Feishu login email.
+### Important: Comportement des emails Feishu
 
-Consequences:
-- Users whose org admin has not configured a contact email will get an empty email field from the API, even though they have a valid Feishu account.
-- Users on personal Feishu accounts (not part of an enterprise) will always get an empty email.
+L'API d'informations utilisateur Feishu (`authen/v1/user_info`) retourne l'**email de contact d'entreprise** (联系邮箱) de l'utilisateur — l'adresse configurée par l'administrateur de l'organisation dans la console d'administration Feishu. Ce n'est **pas** l'email de connexion personnel Feishu de l'utilisateur.
 
-FIM One handles this gracefully: see [Account Binding Rules](#account-binding-rules) below.
+Conséquences :
+- Les utilisateurs dont l'administrateur de l'organisation n'a pas configuré d'email de contact recevront un champ email vide de la part de l'API, même s'ils disposent d'un compte Feishu valide.
+- Les utilisateurs disposant de comptes Feishu personnels (ne faisant pas partie d'une entreprise) recevront toujours un email vide.
 
----## Règles de liaison de compte
+FIM One gère cela correctement : voir [Règles de liaison de compte](#account-binding-rules) ci-dessous.
 
-Les utilisateurs enregistrés peuvent lier des fournisseurs OAuth supplémentaires à partir de **Paramètres → Compte**. Les règles suivantes s'appliquent lorsqu'un utilisateur initie une liaison :### Règle générale (GitHub, Google, Discord)
+---
 
-L'e-mail retourné par le fournisseur OAuth doit correspondre à l'e-mail enregistré du compte FIM. Cela empêche de lier accidentellement le compte social d'une autre personne à votre compte FIM.
+## Règles de liaison de compte
 
-Si les e-mails ne correspondent pas, la liaison est rejetée avec une erreur `email_mismatch`.### Exception Feishu
+Les utilisateurs enregistrés peuvent lier des fournisseurs OAuth supplémentaires à partir de **Paramètres → Compte**. Les règles suivantes s'appliquent lorsqu'un utilisateur initie une liaison :
 
-Parce que l'API de Feishu retourne l'email de contact d'entreprise plutôt que l'email de connexion, et ce champ est souvent vide pour les comptes personnels ou les comptes dans les organisations où l'administrateur ne l'a pas configuré, la vérification de correspondance d'email pour Feishu suit une règle plus souple :
+### Règle générale (GitHub, Google, Discord)
+
+L'e-mail retourné par le fournisseur OAuth doit correspondre à l'e-mail enregistré du compte FIM One. Cela empêche de lier accidentellement le compte social d'une autre personne à votre compte FIM One.
+
+Si les e-mails ne correspondent pas, la liaison est rejetée avec une erreur `email_mismatch`.
+
+### Exception Feishu
+
+Parce que l'API de Feishu retourne l'email de contact d'entreprise plutôt que l'email de connexion, et ce champ est souvent vide pour les comptes personnels ou les comptes dans des organisations où l'administrateur ne l'a pas configuré, la vérification de correspondance d'email pour Feishu suit une règle plus souple :
 
 - **Les deux côtés ont un email** → les emails doivent correspondre (même vérification que pour les autres fournisseurs).
-- **L'un des côtés n'a pas d'email** (Feishu a retourné vide, ou le compte FIM One n'a pas d'email) → la liaison réussit en fonction de l'authentification basée sur le ticket seul.### Connexion Feishu (pas encore liée)
+- **L'un des côtés n'a pas d'email** (Feishu a retourné un champ vide, ou le compte FIM One n'a pas d'email) → la liaison réussit en fonction de l'authentification basée sur le ticket seul.
+
+### Connexion Feishu (pas encore liée)
 
 Lorsqu'un utilisateur se connecte via Feishu pour la première fois (aucune liaison existante) :
 
 1. FIM One recherche un compte existant dont l'email correspond à l'email du contact d'entreprise Feishu.
 2. Si une correspondance est trouvée, le compte Feishu est automatiquement lié au compte FIM existant et l'utilisateur est connecté.
-3. Si aucune correspondance (y compris lorsque l'email est vide), un nouveau compte FIM est créé identifié par le `open_id` de Feishu. Le compte aura un email null, que l'utilisateur pourra remplir ultérieurement à partir des Paramètres.
+3. Si aucune correspondance (y compris lorsque l'email est vide), un nouveau compte FIM est créé identifié par le `open_id` Feishu. Le compte aura un email null, que l'utilisateur pourra remplir à partir des Paramètres plus tard.
 
----## Référence rapide des variables d'environnement
+---
+
+## Référence rapide des variables d'environnement
 
 | Variable | Fournisseur | Requis | Description |
 |---|---|---|---|
 | `GITHUB_CLIENT_ID` | GitHub | Les deux | ID client de l'application OAuth GitHub |
 | `GITHUB_CLIENT_SECRET` | GitHub | Les deux | Secret client de l'application OAuth GitHub |
-| `GOOGLE_CLIENT_ID` | Google | Les deux | ID client Google OAuth 2.0 |
-| `GOOGLE_CLIENT_SECRET` | Google | Les deux | Secret client Google OAuth 2.0 |
+| `GOOGLE_CLIENT_ID` | Google | Les deux | ID client OAuth 2.0 Google |
+| `GOOGLE_CLIENT_SECRET` | Google | Les deux | Secret client OAuth 2.0 Google |
 | `DISCORD_CLIENT_ID` | Discord | Les deux | ID client de l'application OAuth2 Discord |
 | `DISCORD_CLIENT_SECRET` | Discord | Les deux | Secret client de l'application OAuth2 Discord |
 | `FEISHU_APP_ID` | Feishu | Les deux | ID de l'application interne Feishu (note : pas `CLIENT_ID`) |
 | `FEISHU_APP_SECRET` | Feishu | Les deux | Secret de l'application interne Feishu |
-| `FRONTEND_URL` | Tous | Prod | URL vers laquelle le navigateur est redirigé après la fin d'OAuth (par ex. `https://yourdomain.com`) |
+| `FRONTEND_URL` | Tous | Prod | URL vers laquelle le navigateur est redirigé après la fin de OAuth (par ex. `https://yourdomain.com`) |
 | `API_BASE_URL` | Tous | Prod | URL du backend accessible en externe, utilisée pour construire les URL de rappel |
 | `NEXT_PUBLIC_API_URL` | Tous | Prod | URL de l'API côté navigateur pour les redirections OAuth — intégrée au moment de la compilation |
 

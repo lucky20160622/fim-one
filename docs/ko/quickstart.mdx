@@ -1,58 +1,74 @@
 ---
 title: "빠른 시작"
-description: "FIM One을 몇 분 안에 실행하거나 클라우드 버전을 즉시 시도하세요."
+description: "몇 분 안에 FIM One을 실행하거나 클라우드 버전을 즉시 시도하세요."
 ---
 
 <Tip>
-  **☁️ Option 0: Cloud (Zero Setup)**
-  자체 호스팅을 원하지 않으신가요? [**cloud.fim.ai**](https://cloud.fim.ai/)에서 FIM One을 즉시 시도하세요 — Docker, API 키, 구성 없음. 로그인하면 바로 시작할 수 있습니다. _얼리 액세스._
-</Tip>## 옵션 A: Docker (권장)
+  **☁️ 옵션 0: 클라우드 (설정 없음)**
+  자체 호스팅을 원하지 않으신가요? [**cloud.fim.ai**](https://cloud.fim.ai/)에서 FIM One을 즉시 시도하세요 — Docker 없음, API 키 없음, 설정 없음. 로그인하면 바로 시작할 수 있습니다. _얼리 액세스._
+</Tip>
 
-로컬 Python 또는 Node.js가 필요하지 않습니다 — 모든 것이 컨테이너 내에서 빌드됩니다.
+## 옵션 A: Docker (권장)
+
+로컬 Python 또는 Node.js가 필요하지 않습니다 — 모든 것이 컨테이너 내부에서 빌드됩니다.
 
 ```bash
 git clone https://github.com/fim-ai/fim-one.git
 cd fim-one
-```# 구성 — LLM_API_KEY만 필수입니다
-cp example.env .env# .env 편집: LLM_API_KEY 설정 (선택적으로 LLM_BASE_URL, LLM_MODEL)# 빌드 및 실행 (처음 또는 새 코드를 가져온 후)
+```
+
+# 설정 — LLM_API_KEY만 필수입니다
+cp example.env .env
+# .env 편집: LLM_API_KEY 설정 (선택적으로 LLM_BASE_URL, LLM_MODEL)
+
+# 빌드 및 실행 (처음 또는 새 코드를 가져온 후)
 ```bash
 docker compose up --build -d
 ```
 
-http://localhost:3000 을 열면 첫 실행 시 관리자 계정 생성 과정을 거치게 됩니다. 이것으로 끝입니다.
+http://localhost:3000 을 열면 처음 실행 시 관리자 계정 생성 과정을 거치게 됩니다. 이것으로 끝입니다.
 
 초기 빌드 후, 이후 시작은 다음만 필요합니다:
 
 ```bash
-docker compose up -d          # 시작 (이미지가 변경되지 않았으면 재빌드 건너뛰기)
+docker compose up -d          # 시작 (이미지가 변경되지 않으면 재빌드 건너뛰기)
 docker compose down           # 중지
 docker compose logs -f        # 로그 보기
 ```
 
-데이터는 Docker 명명된 볼륨(`fim-data`, `fim-uploads`)에 지속되며 컨테이너 재시작 후에도 유지됩니다.
+데이터는 Docker 명명된 볼륨(`fim-data`, `fim-uploads`)에 유지되며 컨테이너 재시작 후에도 유지됩니다.
 
-**참고:** Docker 모드는 핫 리로드를 지원하지 않습니다. 코드 변경 시 이미지를 재빌드해야 합니다(`docker compose up --build -d`). 라이브 리로드를 사용한 활성 개발의 경우 아래 **옵션 B**를 사용하세요.## 옵션 B: 로컬 개발
+**참고:** Docker 모드는 핫 리로드를 지원하지 않습니다. 코드 변경 시 이미지를 재빌드해야 합니다(`docker compose up --build -d`). 라이브 리로드를 사용한 활성 개발의 경우 아래 **옵션 B**를 사용하세요.
 
-필수 요구사항: Python 3.11+, [uv](https://docs.astral.sh/uv/), Node.js 18+, pnpm.
+## 옵션 B: 로컬 개발
+
+전제 조건: Python 3.11+, [uv](https://docs.astral.sh/uv/), Node.js 18+, pnpm.
 
 ```bash
 git clone https://github.com/fim-ai/fim-one.git
 cd fim-one
 
 cp example.env .env
-```# .env 편집: LLM_API_KEY 설정# 설치
+```
+# .env 편집: LLM_API_KEY 설정
+
+# 설치
 uv sync --all-extras
-cd frontend && pnpm install && cd ..# 핫 리로드를 통한 실행
+cd frontend && pnpm install && cd ..
+
+# 시작 (핫 리로드 포함)
 ./start.sh
 ```
 
-| Command          | 시작되는 항목                                           | URL                                      |
+| 명령어           | 시작되는 항목                                           | URL                                      |
 | ---------------- | ------------------------------------------------------- | ---------------------------------------- |
 | `./start.sh`     | Next.js + FastAPI                                       | http://localhost:3000 (UI) + :8000 (API) |
 | `./start.sh dev` | 동일, 핫 리로드 포함 (Python `--reload` + Next.js HMR) | 동일                                     |
-| `./start.sh api` | FastAPI만 (헤드리스, 통합 또는 테스트용)                | http://localhost:8000/api                |## 구성
+| `./start.sh api` | FastAPI만 (헤드리스, 통합 또는 테스트용)                | http://localhost:8000/api                |
 
-FIM One은 **OpenAI 호환 LLM 제공자** — OpenAI, DeepSeek, Anthropic, Qwen, Ollama, vLLM 등 모든 제공자와 함께 작동합니다.
+## 구성
+
+FIM One은 **모든 OpenAI 호환 LLM 제공자**와 함께 작동합니다 — OpenAI, DeepSeek, Anthropic, Qwen, Ollama, vLLM 등.
 
 | 제공자 | `LLM_API_KEY` | `LLM_BASE_URL` | `LLM_MODEL` |
 | -------- | ------------- | -------------- | ----------- |
@@ -61,32 +77,40 @@ FIM One은 **OpenAI 호환 LLM 제공자** — OpenAI, DeepSeek, Anthropic, Qwen
 | **Anthropic** | `sk-ant-...` | `https://api.anthropic.com/v1` | `claude-sonnet-4-6` |
 | **Ollama** (로컬) | `ollama` | `http://localhost:11434/v1` | `qwen2.5:14b` |
 
-**[Jina AI](https://jina.ai/)**는 웹 검색/가져오기, 임베딩 및 전체 RAG 파이프라인을 지원합니다(무료 티어 사용 가능).
+**[Jina AI](https://jina.ai/)**는 웹 검색/가져오기, 임베딩 및 전체 RAG 파이프라인을 지원합니다 (무료 티어 사용 가능).
 
 최소 `.env`:
 
 ```bash
 LLM_API_KEY=sk-your-key
-```# LLM_BASE_URL=https://api.openai.com/v1   # 기본값 — 다른 제공자의 경우 변경# LLM_MODEL=gpt-4o                         # 기본값 — 다른 모델로 변경 가능
+```
+# LLM_BASE_URL=https://api.openai.com/v1   # 기본값 — 다른 공급자의 경우 변경
+# LLM_MODEL=gpt-4o                         # 기본값 — 다른 모델로 변경 가능
 
 JINA_API_KEY=jina_...                       # 웹 도구 + RAG 활성화
 ```
 
-전체 구성 옵션 목록은 [환경 변수](/configuration/environment-variables) 참조를 확인하세요.## 프로덕션 배포### Docker (권장)
+전체 구성 옵션 목록은 [환경 변수](/configuration/environment-variables) 참조를 확인하세요.
 
-`docker compose up -d`는 필요한 모든 것을 실행합니다 — **수동 서비스 구성이 필요하지 않습니다**:
+## 프로덕션 배포
 
-| Service | Purpose | Configured by |
+### Docker (권장)
+
+`docker compose up -d`는 필요한 모든 것을 시작합니다 — **수동 서비스 구성이 필요 없습니다**:
+
+| 서비스 | 목적 | 구성 대상 |
 |---------|---------|---------------|
-| **fim-one** | API + Frontend | `.env` (your LLM keys, etc.) |
-| **Redis** | Cross-worker interrupt relay | Auto-configured by compose |
+| **fim-one** | API + Frontend | `.env` (LLM 키 등) |
+| **Redis** | 워커 간 인터럽트 릴레이 | compose에서 자동 구성 |
 
 ```bash
 docker compose up --build -d   # first time / after code changes
 docker compose up -d           # subsequent starts
 docker compose logs -f         # view logs
 docker compose down            # stop all services
-```#### Workers로 확장
+```
+
+#### 워커를 통한 확장
 
 기본적으로 API는 단일 워커 프로세스로 실행됩니다. 더 많은 동시 사용자를 처리하려면 `.env`를 통해 워커를 증가시키세요:
 
@@ -95,28 +119,32 @@ WORKERS=4   # number of Uvicorn worker processes
 ```
 
 다중 워커 요구사항:
-- **PostgreSQL** — SQLite는 단일 쓰기만 지원하며 동시 쓰기를 지원하지 않습니다. `DATABASE_URL`을 PostgreSQL 연결 문자열로 설정하세요.
-- **Redis** — Docker Compose에 이미 포함되어 있습니다(자동 구성). 워커 간 interrupt/inject 릴레이를 처리합니다.
+- **PostgreSQL** — SQLite는 단일 쓰기 전용이며 동시 쓰기를 지원하지 않습니다. `DATABASE_URL`을 PostgreSQL 연결 문자열로 설정하세요.
+- **Redis** — Docker Compose에 이미 포함되어 있습니다(자동 구성). 워커 간 인터럽트/주입 릴레이를 처리합니다.
 
-`WORKERS=1`(기본값)인 경우 Redis나 PostgreSQL이 필요하지 않습니다 — SQLite가 잘 작동합니다.#### Nginx 리버스 프록시
+`WORKERS=1`(기본값)인 경우 Redis나 PostgreSQL이 필요하지 않습니다 — SQLite가 잘 작동합니다.
 
-HTTPS 및 사용자 정의 도메인의 경우 Nginx 리버스 프록시를 앞에 배치합니다:
+#### Nginx 역방향 프록시
+
+HTTPS 및 사용자 정의 도메인의 경우 Nginx 역방향 프록시를 앞에 배치하세요:
 
 ```
 User → Nginx (443/HTTPS) → localhost:3000
 ```
 
-API는 내부적으로 포트 8000에서 실행됩니다 — Next.js는 `/api/*` 요청을 자동으로 프록시합니다. 포트 3000만 노출하면 됩니다.#### 코드 실행 샌드박스
+API는 내부적으로 포트 8000에서 실행됩니다 — Next.js가 `/api/*` 요청을 자동으로 프록시합니다. 포트 3000만 노출하면 됩니다.
+
+#### 코드 실행 샌드박스
 
 코드 실행 샌드박스(`CODE_EXEC_BACKEND=docker`)를 사용하는 경우 Docker 소켓을 마운트하세요:
 
 ```yaml
-
-
-```# docker-compose.yml
+# docker-compose.yml
 volumes:
   - /var/run/docker.sock:/var/run/docker.sock
-```### 스크립트 배포 (베어 메탈)
+```
+
+### 스크립트 배포 (베어 메탈)
 
 베어 메탈 서버 또는 사용자 정의 프로세스 관리자의 경우 `./start.sh`를 직접 사용하세요:
 
@@ -128,10 +156,16 @@ volumes:
 
 이 모드에서는 Redis가 자동으로 포함되지 **않습니다**. 시스템은 기본적으로 단일 워커, 인프로세스 모드로 실행되며, 저트래픽 배포에 적합합니다.
 
-Redis를 로컬에서 다중 워커로 활성화하려면:
+로컬에서 Redis를 사용한 멀티 워커를 활성화하려면:
 
-```bash# Redis 인스턴스 시작 (Docker 또는 시스템 패키지)
-docker run -d --name redis -p 6379:6379 redis:7-alpine# .env에 추가
+```bash
+
+
+```
+# Redis 인스턴스 시작 (Docker 또는 시스템 패키지)
+docker run -d --name redis -p 6379:6379 redis:7-alpine
+
+# .env에 추가
 REDIS_URL=redis://localhost:6379/0
 WORKERS=4
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost/fim_one

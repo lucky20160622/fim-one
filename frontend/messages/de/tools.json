@@ -7,7 +7,7 @@
     "knowledge": "Wissen",
     "media": "Medien",
     "web": "Web",
-    "connector": "Connector",
+    "connector": "Konnektor",
     "mcp": "MCP"
   },
   "pageTitle": "Tools",
@@ -15,18 +15,18 @@
   "mcpServersTitle": "MCP-Server",
   "mcpCatalog": "MCP-Katalog",
   "addServer": "Server hinzufügen",
-  "noServersMessage": "Keine MCP-Server konfiguriert. Fügen Sie einen hinzu, um die Agent-Funktionen zu erweitern.",
+  "noServersMessage": "Keine MCP-Server konfiguriert. Fügen Sie einen hinzu, um die Fähigkeiten des Agenten zu erweitern.",
   "loadingTools": "Tools werden geladen...",
   "failedToLoadCatalog": "Tool-Katalog konnte nicht geladen werden",
   "notConfigured": "Nicht konfiguriert",
-  "connectorLabel": "Connector",
-  "connectorDescription": "Benutzerdefinierte Aktionen (APIs, Datenbanken usw.), die an diesen Agent gebunden sind. Verwaltet auf der Seite \"Connectors\".",
+  "connectorLabel": "Konnektor",
+  "connectorDescription": "Benutzerdefinierte Aktionen (APIs, Datenbanken usw.), die an diesen Agenten gebunden sind. Verwaltet auf der Seite \"Konnektoren\".",
   "mcpServersLinkLabel": "MCP-Server",
-  "mcpServersLinkDescription": "Tools, die von externen MCP-Servern bereitgestellt werden. Konfigurieren Sie sie auf der Seite \"Connectors\".",
+  "mcpServersLinkDescription": "Tools, die von externen MCP-Servern bereitgestellt werden. Konfigurieren Sie sie auf der Seite \"Konnektoren\".",
   "disabled": "Deaktiviert",
   "enableTool": "Aktivieren",
   "disableTool": "Deaktivieren",
-  "disabledByAdmin": "Vom Administrator deaktiviert",
+  "disabledByAdmin": "Von Administrator deaktiviert",
   "toolEnabled": "Tool aktiviert",
   "toolDisabled": "Tool deaktiviert",
   "failedToEnableTool": "Tool konnte nicht aktiviert werden",
@@ -38,7 +38,7 @@
   "deleteMcpServer": "MCP-Server löschen?",
   "deleteMcpServerDescription": "Dieser MCP-Server wird dauerhaft entfernt. Diese Aktion kann nicht rückgängig gemacht werden.",
   "disableOrgServer": "Server für gesamte Organisation deaktivieren?",
-  "disableOrgServerDescription": "Dies stoppt sofort alle Organisationsmitglieder von der Nutzung dieses Servers. Sie können ihn jederzeit wieder aktivieren.",
+  "disableOrgServerDescription": "Dies stoppt sofort alle Organisationsmitglieder von der Verwendung dieses Servers. Sie können ihn jederzeit wieder aktivieren.",
   "editMcpServer": "MCP-Server bearbeiten",
   "addMcpServer": "MCP-Server hinzufügen",
   "editMcpServerDescription": "Aktualisieren Sie die MCP-Serverkonfiguration.",
@@ -64,10 +64,10 @@
   "saveChanges": "Änderungen speichern",
   "discardUnsavedTitle": "Ungespeicherte Änderungen verwerfen?",
   "discardUnsavedDescription": "Sie haben ungespeicherte Änderungen. Das Schließen verwirft diese.",
-  "discardAndClose": "Verwerfen und schließen",
+  "discardAndClose": "Verwerfen & schließen",
   "mcpServerUpdated": "MCP-Server aktualisiert",
   "mcpServerCreated": "MCP-Server erstellt",
-  "failedToSaveMcpServer": "Fehler beim Speichern des MCP-Servers",
+  "failedToSaveMcpServer": "MCP-Server konnte nicht gespeichert werden",
   "searchServers": "Server durchsuchen...",
   "noServersFound": "Keine Server gefunden",
   "configure": "Konfigurieren",
@@ -75,10 +75,10 @@
   "myCredentialsSaved": "Anmeldedaten gespeichert",
   "keyRequiredWarning": "Konfigurieren Sie Schlüssel, um dieses Tool zu verwenden",
   "myKeysDialogTitle": "Meine Schlüssel konfigurieren",
-  "myKeysDialogDescription": "Geben Sie Ihre persönlichen Anmeldedaten für diesen MCP-Server ein. Diese werden anstelle der gemeinsamen Server-Anmeldedaten verwendet.",
+  "myKeysDialogDescription": "Geben Sie Ihre persönlichen Anmeldedaten für diesen MCP-Server ein. Diese werden anstelle der gemeinsamen Serveranmeldedaten verwendet.",
   "myKeysEnvVars": "Umgebungsvariablen",
   "myKeysSave": "Speichern",
-  "myKeysValueRequired": "Der Wert darf nicht leer sein",
+  "myKeysValueRequired": "Wert darf nicht leer sein",
   "myCredentialsCleared": "Anmeldedaten gelöscht",
   "myKeysAddRow": "+ Hinzufügen",
   "publishToOrg": "In Organisation veröffentlichen",
@@ -86,9 +86,9 @@
   "publishDialogDescription": "Teilen Sie diesen MCP-Server mit Mitgliedern Ihrer Organisation.",
   "publishSelectOrg": "Organisation auswählen",
   "publishNoOrgs": "Sie sind nicht Mitglied einer Organisation.",
-  "allowFallback": "Anmeldedaten-Fallback zulassen",
-  "allowFallbackHelp": "Wenn aktiviert, verwenden Organisationsmitglieder ohne persönliche Anmeldedaten die integrierten Anmeldedaten dieses Servers. Wenn diese Anmeldedaten kostenpflichtige APIs oder private Dienste betreffen, wird die gesamte Nutzung in Ihrer Organisation Ihrem Konto in Rechnung gestellt.",
-  "mcpServerPublished": "MCP-Server in Organisation veröffentlicht",
+  "allowFallback": "Fallback für Anmeldedaten zulassen",
+  "allowFallbackHelp": "Wenn aktiviert, verwenden Organisationsmitglieder ohne persönliche Anmeldedaten die integrierten Anmeldedaten dieses Servers. Wenn diese Anmeldedaten kostenpflichtige APIs oder private Dienste betreffen, werden alle Nutzungen in Ihrer Organisation auf Ihr Konto abgerechnet.",
+  "mcpServerPublished": "MCP-Server in der Organisation veröffentlicht",
   "mcpServerPublishFailed": "Fehler beim Veröffentlichen des MCP-Servers",
   "mcpServerUnpublished": "MCP-Server nicht veröffentlicht",
   "mcpServerUnpublishFailed": "Fehler beim Aufheben der Veröffentlichung des MCP-Servers",
@@ -109,29 +109,29 @@
       "Browser": "Browser",
       "Search": "Suche",
       "Productivity": "Produktivität",
-      "Dev Tools": "Dev Tools",
+      "Dev Tools": "Entwicklungstools",
       "Communication": "Kommunikation",
       "Cloud": "Cloud"
     },
     "servers": {
       "Filesystem": {
-        "desc": "Lesen und Schreiben lokaler Dateien mit konfigurierbaren zulässigen Verzeichnissen.",
+        "desc": "Lesen und schreiben Sie lokale Dateien mit konfigurierbaren zulässigen Verzeichnissen.",
         "config": "Ersetzen Sie /tmp durch Ihren zulässigen Verzeichnispfad"
       },
       "Git": {
-        "desc": "Inspizieren Sie Repository-Verlauf, Diffs, Branches und Dateiinhalte über Git.",
+        "desc": "Inspizieren Sie Repository-Verlauf, Unterschiede, Branches und Dateiinhalte über Git.",
         "config": "Erfordert uv · ersetzen Sie /path/to/repo"
       },
       "SQLite": {
-        "desc": "Abfragen und Ändern von SQLite-Datenbanken mit vollständiger SQL-Unterstützung.",
-        "config": "Ersetzen Sie mit Ihrem .sqlite-Dateipfad"
+        "desc": "Fragen Sie SQLite-Datenbanken ab und ändern Sie sie mit vollständiger SQL-Unterstützung.",
+        "config": "Ersetzen Sie durch Ihren .sqlite-Dateipfad"
       },
       "PostgreSQL": {
         "desc": "Schreibgeschützter SQL-Zugriff auf eine PostgreSQL-Datenbank.",
-        "config": "Ersetzen Sie mit Ihrer Verbindungszeichenfolge"
+        "config": "Ersetzen Sie durch Ihre Verbindungszeichenfolge"
       },
       "Puppeteer": {
-        "desc": "Browser-Automatisierung — navigieren Sie durch Seiten, erstellen Sie Screenshots, interagieren Sie mit Elementen."
+        "desc": "Browser-Automatisierung — navigieren Sie auf Seiten, machen Sie Screenshots, interagieren Sie mit Elementen."
       },
       "Playwright": {
         "desc": "Schnelle und zuverlässige Browser-Automatisierung mit Microsoft Playwright."
@@ -145,14 +145,14 @@
         "config": "Schlüssel unter brave.com/search/api abrufen → in BRAVE_API_KEY einfügen"
       },
       "Exa Search": {
-        "desc": "Semantische KI-gesteuerte Suche und Inhaltsabruf über die Exa API.",
+        "desc": "Semantische KI-gestützte Suche und Inhaltsabruf über die Exa API.",
         "config": "Schlüssel unter dashboard.exa.ai abrufen → in EXA_API_KEY einfügen"
       },
       "Memory": {
         "desc": "Persistenter Knowledge-Graph-Speicher für Agenten über Konversationen hinweg."
       },
       "Sequential Thinking": {
-        "desc": "Strukturiertes schrittweises Reasoning-Tool zur Lösung komplexer Probleme."
+        "desc": "Strukturiertes schrittweises Reasoning-Tool für komplexe Problemlösung."
       },
       "Notion": {
         "desc": "Offizieller Notion MCP — lesen und schreiben Sie Seiten, Datenbanken und Blöcke.",
@@ -167,14 +167,14 @@
         "config": "Token unter gitlab.com/-/user_settings/personal_access_tokens erstellen · setzen Sie GITLAB_URL auf Ihren GitLab-Host"
       },
       "Everything (test)": {
-        "desc": "Offizieller MCP-Testserver mit allen Tool-Typen — ideal zur Überprüfung des Setups."
+        "desc": "Offizieller MCP-Testserver mit allen Werkzeugtypen – ideal zur Überprüfung der Einrichtung."
       },
       "Slack": {
-        "desc": "Lesen und posten Sie Nachrichten, verwalten Sie Kanäle in Ihrem Slack-Workspace.",
-        "config": "Bot unter api.slack.com/apps erstellen → Bot-Token einfügen; Team-ID in Workspace-URL finden"
+        "desc": "Lesen und Posten von Nachrichten, Verwaltung von Kanälen in Ihrem Slack-Arbeitsbereich.",
+        "config": "Bot erstellen unter api.slack.com/apps → Bot-Token einfügen; Team-ID in der Arbeitsbereichs-URL finden"
       },
       "Google Drive": {
-        "desc": "Suchen Sie nach Dateien in Google Drive und greifen Sie darauf zu.",
+        "desc": "Suchen und Zugriff auf Dateien in Google Drive.",
         "config": "OAuth-Anmeldedaten erforderlich"
       },
       "Google Maps": {
