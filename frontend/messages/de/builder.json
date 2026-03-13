@@ -1,0 +1,7 @@
+{
+  "title": "Advanced Builder",
+  "previewTitle": "Live Preview",
+  "noActions": "Noch keine Aktionen. Bitten Sie den Builder, einige zu erstellen.",
+  "actionCount": "{count} Aktion(en)",
+  "initializingSession": "Builder-Sitzung wird initialisiert..."
+}

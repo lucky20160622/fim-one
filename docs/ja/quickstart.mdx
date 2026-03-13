@@ -1,0 +1,137 @@
+---
+title: "クイックスタート"
+description: "数分でFIM Oneを実行 — またはクラウド版を今すぐ試してください。"
+---
+
+<Tip>
+  **☁️ オプション 0: クラウド（セットアップ不要）**
+  自分でホストしたくない場合は、[**cloud.fim.ai**](https://cloud.fim.ai/) でFIM Oneを今すぐ試してください — Docker、APIキー、設定は不要です。サインインするだけで準備完了です。_早期アクセス。_
+</Tip>## オプション A: Docker (推奨)
+
+ローカルの Python または Node.js は不要です — すべてコンテナ内でビルドされます。
+
+```bash
+git clone https://github.com/fim-ai/fim-one.git
+cd fim-one
+```# 設定 — LLM_API_KEY のみが必須です
+cp example.env .env# .envを編集: LLM_API_KEY（およびオプションでLLM_BASE_URL、LLM_MODEL）を設定# ビルドと実行（初回、または新しいコードをプルした後）
+```bash
+docker compose up --build -d
+```
+
+http://localhost:3000 を開く — 初回起動時は管理者アカウントの作成ガイドが表示されます。以上です。
+
+初回ビルド後、その後の起動には以下のみが必要です：
+
+```bash
+docker compose up -d          # 起動（イメージが変わっていなければリビルドをスキップ）
+docker compose down           # 停止
+docker compose logs -f        # ログを表示
+```
+
+データは Docker の名前付きボリューム（`fim-data`、`fim-uploads`）に保持され、コンテナの再起動後も保存されます。
+
+**注記：** Docker モードはホットリロードをサポートしていません。コード変更にはイメージの再ビルド（`docker compose up --build -d`）が必要です。ライブリロード付きのアクティブな開発には、以下の**オプション B** を使用してください。## オプション B: ローカル開発
+
+前提条件: Python 3.11+、[uv](https://docs.astral.sh/uv/)、Node.js 18+、pnpm。
+
+```bash
+git clone https://github.com/fim-ai/fim-one.git
+cd fim-one
+
+cp example.env .env
+```# .envを編集: LLM_API_KEYを設定# インストール
+uv sync --all-extras
+cd frontend && pnpm install && cd ..# Launch (ホットリロード付き)
+./start.sh
+```
+
+| Command          | 起動内容                                             | URL                                      |
+| ---------------- | ------------------------------------------------------- | ---------------------------------------- |
+| `./start.sh`     | Next.js + FastAPI                                       | http://localhost:3000 (UI) + :8000 (API) |
+| `./start.sh dev` | 同じ、ホットリロード付き (Python `--reload` + Next.js HMR) | Same                                     |
+| `./start.sh api` | FastAPI のみ (ヘッドレス、統合またはテスト用)     | http://localhost:8000/api                |## 設定
+
+FIM One は**任意の OpenAI 互換 LLM プロバイダー**で動作します — OpenAI、DeepSeek、Anthropic、Qwen、Ollama、vLLM など。
+
+| プロバイダー | `LLM_API_KEY` | `LLM_BASE_URL` | `LLM_MODEL` |
+| -------- | ------------- | -------------- | ----------- |
+| **OpenAI** | `sk-...` | *(デフォルト)* | `gpt-4o` |
+| **DeepSeek** | `sk-...` | `https://api.deepseek.com/v1` | `deepseek-chat` |
+| **Anthropic** | `sk-ant-...` | `https://api.anthropic.com/v1` | `claude-sonnet-4-6` |
+| **Ollama** (ローカル) | `ollama` | `http://localhost:11434/v1` | `qwen2.5:14b` |
+
+**[Jina AI](https://jina.ai/)** は Web 検索/取得、埋め込み、および完全な RAG パイプラインを実現します（無料ティア利用可能）。
+
+最小限の `.env`:
+
+```bash
+LLM_API_KEY=sk-your-key# LLM_BASE_URL=https://api.openai.com/v1   # デフォルト — 他のプロバイダーの場合は変更してください# LLM_MODEL=gpt-4o                         # デフォルト — 他のモデルに変更可能
+
+JINA_API_KEY=jina_...                       # ウェブツール + RAG を有効化
+```
+
+完全な設定オプションのリストについては、[環境変数](/configuration/environment-variables)リファレンスを参照してください。## 本番環境へのデプロイ### Docker (推奨)
+
+`docker compose up -d` は必要なすべてをセットアップします — **手動でのサービス設定は不要です**:
+
+| Service | Purpose | Configured by |
+|---------|---------|---------------|
+| **fim-one** | API + Frontend | `.env` (your LLM keys, etc.) |
+| **Redis** | Cross-worker interrupt relay | Auto-configured by compose |
+
+```bash
+docker compose up --build -d   # first time / after code changes
+docker compose up -d           # subsequent starts
+docker compose logs -f         # view logs
+docker compose down            # stop all services
+```#### ワーカーでのスケーリング
+
+デフォルトでは、APIは単一のワーカープロセスで実行されます。より多くの同時ユーザーを処理するには、`.env`でワーカー数を増やします：
+
+```bash
+WORKERS=4   # number of Uvicorn worker processes
+```
+
+マルチワーカーの要件：
+- **PostgreSQL** — SQLiteはシングルライターであり、同時書き込みをサポートしていません。`DATABASE_URL`をPostgreSQL接続文字列に設定してください。
+- **Redis** — Docker Composeに既に含まれています（自動設定）。ワーカー間の割り込み/注入リレーを処理します。
+
+`WORKERS=1`（デフォルト）の場合、RedisやPostgreSQLは不要です — SQLiteで問題なく動作します。#### Nginx リバースプロキシ
+
+HTTPS とカスタムドメインの場合、Nginx リバースプロキシをフロントに配置します：
+
+```
+User → Nginx (443/HTTPS) → localhost:3000
+```
+
+API は内部的にポート 8000 で実行されます — Next.js は `/api/*` リクエストを自動的にプロキシします。ポート 3000 のみを公開する必要があります。#### コード実行サンドボックス
+
+コード実行サンドボックス（`CODE_EXEC_BACKEND=docker`）を使用する場合は、Dockerソケットをマウントします：
+
+```yaml# docker-compose.yml
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock
+```### スクリプトデプロイメント（ベアメタル）
+
+ベアメタルサーバーまたはカスタムプロセスマネージャーの場合、`./start.sh` を直接使用します：
+
+```bash
+./start.sh           # production mode
+./start.sh portal    # same as above (explicit)
+./start.sh api       # API only (headless)
+```
+
+このモードでは、Redis は自動的に含まれ**ません**。システムはデフォルトでシングルワーカー、インプロセスモードで実行されます — 低トラフィックのデプロイメントに適しています。
+
+ローカルで Redis を使用したマルチワーカーを有効にするには：
+
+```bash
+
+
+```# Redis インスタンスを起動する (Docker またはシステムパッケージ)
+docker run -d --name redis -p 6379:6379 redis:7-alpine# .env に追加
+REDIS_URL=redis://localhost:6379/0
+WORKERS=4
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost/fim_one
+```

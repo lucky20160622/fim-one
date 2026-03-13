@@ -1,0 +1,251 @@
+---
+title: "環境変数"
+description: "FIM One の完全な設定リファレンス。"
+mode: "wide"
+---
+
+すべての設定は `.env` を通じて行われます。`example.env` をコピーして値を入力してください:
+
+```bash
+cp example.env .env
+```## 設定レベル
+
+各統合には、その重要度を示す設定レベルがあります：
+
+| レベル | 意味 | 設定されていない場合の動作 |
+|-------|---------|------------------------------|
+| **Required** | コアシステム依存 | システムがエラーになります — チャットと主要機能は動作しません |
+| **Recommended** | 重要な機能の有効化 | グレースフルデグラデーション — 機能は目に見えて利用不可になりますが、システムは実行されます |
+| **Optional** | 拡張機能 | 透過的デグラデーション — システムは正常に動作し、機能は単に存在しません |
+
+> **注**: 管理者が設定したモデル（Admin → Models ページ）は、LLM 環境変数の代わりになります。ヘルスチェックは両方のソースを考慮します。
+
+---## フロントエンド（ローカル開発のみ）
+
+フロントエンドには、**ローカル開発のみ用の**別の env ファイルがあります: `frontend/.env.local`。
+
+> **このファイルは Docker では使用されません。** Docker コンテナ内では、Next.js が `/api/*` を Python バックエンドに内部的にプロキシします（ポート 8000 はコンテナ内部）ため、フロントエンド env ファイルは不要です。
+
+ローカル開発では、デフォルト設定がそのまま機能します — バックエンドがデフォルト以外のポートで実行されていない限り、`frontend/.env.local` を作成する**必要はありません**。
+
+オーバーライドが必要な場合は、`frontend/.env.local` を手動で作成してください:
+
+```bash
+echo 'NEXT_PUBLIC_API_URL=http://localhost:9000' > frontend/.env.local
+```
+
+| 変数 | デフォルト | 説明 |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` *(自動)* | **ブラウザ**が直接 API 呼び出し（OAuth リダイレクト、ストリーミング）に使用するバックエンド URL。未設定の場合は `window.location` から自動検出されます — ローカルでバックエンドが非標準ポートで実行されている場合のみオーバーライドしてください。 |
+
+> **ビルド時の注記**: `NEXT_PUBLIC_*` 変数は `pnpm build` 時に JS バンドルに焼き込まれます。実行時に変更する（例：ルート `.env` 経由）と効果がありません — これが、ローカル開発のみで `frontend/.env.local` に配置される理由です。## LLM (必須)
+
+| 変数 | 必須 | デフォルト | 説明 |
+|---|---|---|---|
+| `LLM_API_KEY` | **はい** | — | LLM プロバイダーの API キー |
+| `LLM_BASE_URL` | いいえ | `https://api.openai.com/v1` | OpenAI 互換 API のベース URL |
+| `LLM_MODEL` | いいえ | `gpt-4o` | メインモデル — 計画、分析、ReAct エージェントに使用 |
+| `FAST_LLM_MODEL` | いいえ | *(falls back to `LLM_MODEL`)* | 高速モデル — DAG ステップ実行に使用（より安価で高速） |
+| `LLM_TEMPERATURE` | いいえ | `0.7` | デフォルトサンプリング温度 |
+| `LLM_CONTEXT_SIZE` | いいえ | `128000` | メイン LLM のコンテキストウィンドウサイズ |
+| `LLM_MAX_OUTPUT_TOKENS` | いいえ | `64000` | メイン LLM の呼び出しあたりの最大出力トークン数 |
+| `FAST_LLM_API_KEY` | いいえ | *(falls back to `LLM_API_KEY`)* | 高速モデルプロバイダーの API キー。高速モデルがメインモデルと異なるプロバイダーでホストされている場合に使用 |
+| `FAST_LLM_BASE_URL` | いいえ | *(falls back to `LLM_BASE_URL`)* | 高速モデルプロバイダーのベース URL |
+| `FAST_LLM_TEMPERATURE` | いいえ | *(falls back to `LLM_TEMPERATURE`)* | 高速モデルのサンプリング温度 |
+| `FAST_LLM_CONTEXT_SIZE` | いいえ | *(falls back to `LLM_CONTEXT_SIZE`)* | 高速 LLM のコンテキストウィンドウサイズ |
+| `FAST_LLM_MAX_OUTPUT_TOKENS` | いいえ | *(falls back to `LLM_MAX_OUTPUT_TOKENS`)* | 高速 LLM の呼び出しあたりの最大出力トークン数 |
+| `LLM_REASONING_EFFORT` | いいえ | *(disabled)* | サポートされているモデルの拡張思考レベル（OpenAI o シリーズ、Gemini 2.5+、Claude）。値: `low`、`medium`、`high`。LiteLLM は各プロバイダーのネイティブ形式に自動的に変換します。モデルの思考チェーンは UI の「thinking」ステップで表示されます。 |
+| `LLM_REASONING_BUDGET_TOKENS` | いいえ | *(auto from effort)* | Anthropic 思考の明示的なトークン予算（最小 1024）。OpenAI/Gemini の場合、努力レベルが直接使用されます。`LLM_REASONING_EFFORT` が設定されている場合のみ有効です。 |
+| `LLM_JSON_MODE_ENABLED` | いいえ | `true` | ENV 設定モデルの `response_format=json_object` を無効にするには `false` に設定します。AWS Bedrock でバックアップされたサードパーティリレーを使用する場合に必須（新しいバージョンは LiteLLM のアシスタント prefill インジェクションを拒否し、2 番目以降のエージェント反復で `ValidationException` が発生します）。DB 設定モデルは Admin → Models → Advanced settings でモデルごとにこれをオーバーライドします。 |
+| `REASONING_LLM_MODEL` | いいえ | *(falls back to `LLM_MODEL`)* | 推論層のモデル名。深い分析が必要なタスク（例：DAG 計画、計画分析）に使用 |
+| `REASONING_LLM_API_KEY` | いいえ | *(falls back to `LLM_API_KEY`)* | 推論モデルプロバイダーの API キー |
+| `REASONING_LLM_BASE_URL` | いいえ | *(falls back to `LLM_BASE_URL`)* | 推論モデルプロバイダーのベース URL |
+| `REASONING_LLM_TEMPERATURE` | いいえ | *(falls back to `LLM_TEMPERATURE`)* | 推論モデルのサンプリング温度 |
+| `REASONING_LLM_CONTEXT_SIZE` | いいえ | *(falls back to `LLM_CONTEXT_SIZE`)* | 推論モデルのコンテキストウィンドウサイズ |
+| `REASONING_LLM_MAX_OUTPUT_TOKENS` | いいえ | *(falls back to `LLM_MAX_OUTPUT_TOKENS`)* | 推論モデルの呼び出しあたりの最大出力トークン数 |
+| `REASONING_LLM_EFFORT` | いいえ | *(falls back to `LLM_REASONING_EFFORT`)* | 推論モデル層の推論努力レベル。値: `low`、`medium`、`high` |
+| `REASONING_LLM_BUDGET` | いいえ | *(falls back to `LLM_REASONING_BUDGET_TOKENS`)* | 推論のトークン予算（主に Anthropic）。推論層の自動計算予算をオーバーライドします |
+
+> **解決順序**: ユーザー設定 → Admin Models（DB）→ ENV フォールバック。Admin → Models で役割「General」を持つ管理モデルが設定されている場合、これらの ENV 変数はフォールバックのみとして機能します。ヘルスチェックは両方のソースを考慮します。### 拡張思考（推論）
+
+`LLM_REASONING_EFFORT` が設定されると、FIM One はモデルの拡張思考機能を有効にし、内部の思考の連鎖が UI の「thinking」ステップで表示されます。FIM One は [LiteLLM](https://github.com/BerriAI/litellm) を使用して、推論努力パラメータを各プロバイダのネイティブ形式に自動的に変換します。#### サポートされているプロバイダー
+
+| プロバイダー | `LLM_BASE_URL` | 動作方法 | 推論コンテンツが返されるか? |
+|---|---|---|---|
+| **OpenAI** (o1 / o3 / o4-mini) | `https://api.openai.com/v1` | `reasoning_effort` がネイティブで送信される | はい |
+| **Anthropic** (Claude 3.7+) | `https://api.anthropic.com/v1/` | LiteLLM が `thinking` パラメータを使用してネイティブ Anthropic API 経由でルーティング | はい |
+| **Google Gemini** (2.5+) | `https://generativelanguage.googleapis.com/v1beta/openai/` | `reasoning_effort` が互換性エンドポイントで送信される | はい |
+
+LiteLLM は `LLM_BASE_URL` からプロバイダーを自動検出し、正しい API 形式にマップします。不明な URL は OpenAI 互換として扱われます。#### 重要な注意事項
+
+<Warning>
+**サードパーティプロキシ / カスタムエンドポイントは保証されません。**
+`LLM_BASE_URL` がサードパーティAPI プロキシ（例：OpenRouter、one-api、カスタムゲートウェイ）を指している場合、LiteLLM は URL に基づいて正しくルーティングしようとします。ただし、プロキシが非標準形式を期待している場合、推論が期待通りに機能しない可能性があります。プロキシの期待されるパラメータ形式については、プロキシのドキュメントを参照してください。
+</Warning>#### 推論を伴う温度制約
+
+推論がアクティブな場合、一部のプロバイダーは温度制限を課します：
+
+- **Anthropic**: 拡張思考が有効な場合、`temperature=1` が必須です。Anthropic を拡張思考と共に使用する場合、`LLM_TEMPERATURE=1` を設定する**必要があります** — 思考が有効な場合、Anthropic は他の値を拒否します。
+- **OpenAI GPT-5.x**: 常に `temperature=1` のみをサポートします。LiteLLM の `drop_params` フィルタリングはこれを自動的に処理します — サポートされていない温度値は暗黙的にドロップされます。GPT-5.x ではユーザーアクションは不要です。#### `LLM_REASONING_BUDGET_TOKENS` の動作方法
+
+この変数は **主にAnthropicパスで意味を持ちます**。設定されると、自動計算されたバジェットをオーバーライドし、LiteLLM経由で`thinking`パラメータ内の`budget_tokens`として送信されます。設定されない場合、バジェットは`LLM_MAX_OUTPUT_TOKENS` x努力比から導出されます：
+
+| `LLM_REASONING_EFFORT` | バジェット比率 | 例 (max_tokens = 64000) |
+|---|---|---|
+| `low` | 20% | 12,800 tokens |
+| `medium` | 50% | 32,000 tokens |
+| `high` | 80% | 51,200 tokens |
+
+最小バジェットは1,024トークン（Anthropicのハード最小値）です。
+
+OpenAIとGeminiの場合、プロバイダーは`reasoning_effort`レベルに基づいてトークン割り当てを内部的に処理します — `LLM_REASONING_BUDGET_TOKENS`は効果がありません。## エージェント実行
+
+| 変数 | 必須 | デフォルト | 説明 |
+|---|---|---|---|
+| `REACT_MAX_ITERATIONS` | いいえ | `20` | ReAct リクエストあたりの最大ツール呼び出し反復回数 |
+| `MAX_CONCURRENCY` | いいえ | `5` | DAG エグゼキューターの最大並列ステップ数 |
+| `DAG_STEP_MAX_ITERATIONS` | いいえ | `15` | 各 DAG ステップ内の最大ツール呼び出し反復回数 |
+| `DAG_MAX_REPLAN_ROUNDS` | いいえ | `3` | 目標が達成されない場合の最大自律再計画試行回数 |
+| `DAG_REPLAN_STOP_CONFIDENCE` | いいえ | `0.8` | エージェントの目標が達成不可能であるという確信度がこのしきい値を超えた場合に再試行を停止 (`0.0` = 早期停止しない、`1.0` = 任意の失敗で停止) |
+| `DAG_TOOL_CACHE` | いいえ | `true` | 単一の DAG 実行内で同一のツール呼び出しをキャッシュ。キーごとの非同期ロックが thundering herd を防止。キャッシュを無効にするには `false` に設定 |
+| `DAG_STEP_VERIFICATION` | いいえ | `false` | 各 DAG ステップ完了後に LLM ベースの品質チェックを有効化。失敗時は検証フィードバック付きで 1 回再試行。レイテンシが増加しますが結果精度が向上 |
+| `AUTO_ROUTING` | いいえ | `true` | 自動クエリ分類を有効化。高速 LLM が各クエリを分析し、ReAct (シングルステップ) または DAG (マルチステップ) 実行モードにルーティング。`/api/auto` エンドポイントがこれを使用。明示的なモード選択を要求する場合は `false` に設定 |## Web Tools (オプション)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `JINA_API_KEY` | No | — | Jina API key — embedding と reranker にも使用されます。[jina.ai](https://jina.ai/) で取得してください |
+| `TAVILY_API_KEY` | No | — | Tavily Search API key (`WEB_SEARCH_PROVIDER` が未設定の場合は自動選択されます) |
+| `BRAVE_API_KEY` | No | — | Brave Search API key (`WEB_SEARCH_PROVIDER` が未設定の場合は自動選択されます) |
+| `WEB_SEARCH_PROVIDER` | No | `jina` | Search provider selector: `jina` / `tavily` / `brave` |
+| `WEB_FETCH_PROVIDER` | No | `jina` (key が設定されている場合、そうでない場合は `httpx`) | Fetch provider: `jina` / `httpx` |
+
+---## RAG & Knowledge Base (推奨)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `EMBEDDING_MODEL` | No | `jina-embeddings-v3` | 埋め込みモデル識別子 |
+| `EMBEDDING_DIMENSION` | No | `1024` | 埋め込みベクトルの次元 |
+| `EMBEDDING_API_KEY` | No | *(`JINA_API_KEY` を使用)* | 別の埋め込みプロバイダーの API キーをオーバーライド |
+| `EMBEDDING_BASE_URL` | No | `https://api.jina.ai/v1` | 別の埋め込みプロバイダーのベース URL をオーバーライド |
+| `RETRIEVAL_MODE` | No | `grounding` | `grounding` (引用/競合/信頼度を含む完全なパイプライン) または `simple` (基本的な RAG) |
+| `RERANKER_MODEL` | No | `jina-reranker-v2-base-multilingual` | リランカーモデル識別子 |
+| `RERANKER_PROVIDER` | No | `jina` | リランカープロバイダー: `jina` / `cohere` / `openai` |
+| `COHERE_API_KEY` | No | — | Cohere API キー (設定時に Cohere リランカーを自動選択) |
+| `COHERE_RERANKER_MODEL` | No | `rerank-multilingual-v3.0` | Cohere リランカーモデル |
+| `VECTOR_STORE_DIR` | No | `./data/vector_store` | LanceDB ベクトルストアデータのディレクトリ |
+
+> 埋め込みはナレッジベース機能に**推奨**されます。リランカーは**オプション**です — フュージョンスコアリングを使用して検索が機能します。## コード実行
+
+| 変数 | 必須 | デフォルト | 説明 |
+|---|---|---|---|
+| `CODE_EXEC_BACKEND` | いいえ | `local` | `local`（ホスト上での直接実行）または`docker`（分離されたコンテナ） |
+| `DOCKER_PYTHON_IMAGE` | いいえ | `python:3.11-slim` | Python実行用のDockerイメージ |
+| `DOCKER_NODE_IMAGE` | いいえ | `node:20-slim` | Node.js実行用のDockerイメージ |
+| `DOCKER_SHELL_IMAGE` | いいえ | `python:3.11-slim` | シェル実行用のDockerイメージ |
+| `DOCKER_MEMORY` | いいえ | *（Dockerのデフォルト）* | コンテナあたりのRAM上限（例：`256m`、`512m`、`1g`） |
+| `DOCKER_CPUS` | いいえ | *（Dockerのデフォルト）* | コンテナあたりのCPUクォータ（例：`0.5`、`1.0`） |
+| `SANDBOX_TIMEOUT` | いいえ | `120` | デフォルト実行タイムアウト（秒） |
+| `DOCKER_HOST_DATA_DIR` | いいえ | *（未設定）* | `./data`ボリュームマウントのホスト側絶対パス。DooD（Docker-outside-of-Docker）デプロイメントに必須。`docker-compose.yml`は`${PWD}/data`経由で自動設定します。 |
+
+> **セキュリティ**：`local`モードはAIが生成したコードをホスト上で直接実行します。インターネット公開またはマルチユーザーデプロイメントの場合は、常に`CODE_EXEC_BACKEND=docker`を設定してください。
+
+---## ツール成果物
+
+ツール実行（コード実行、テンプレートレンダリング、画像生成）によって生成されるファイルのサイズ制限。
+
+| 変数 | 必須 | デフォルト | 説明 |
+|---|---|---|---|
+| `MAX_ARTIFACT_SIZE` | いいえ | `10485760` (10 MB) | 単一成果物ファイルの最大サイズ（バイト） |
+| `MAX_ARTIFACTS_TOTAL` | いいえ | `52428800` (50 MB) | セッションあたりの成果物の最大合計サイズ（バイト） |
+
+---## 画像生成（オプション）
+
+| 変数 | 必須 | デフォルト | 説明 |
+|---|---|---|---|
+| `IMAGE_GEN_PROVIDER` | いいえ | `google` | `google`（Gemini ネイティブ API）または `openai`（OpenAI 互換 `/v1/images/generations`） |
+| `IMAGE_GEN_API_KEY` | いいえ | — | Google AI Studio キー（`google`）またはプロキシ/OpenAI API キー（`openai`） |
+| `IMAGE_GEN_MODEL` | いいえ | `gemini-3.1-flash-image-preview` | 画像生成モデル（例：`dall-e-3`、`gemini-nano-banana-2`） |
+| `IMAGE_GEN_BASE_URL` | いいえ | *(プロバイダーごと)* | Google: `https://generativelanguage.googleapis.com/v1beta`; OpenAI: `https://api.openai.com/v1` |
+
+---## メール (SMTP) (推奨)
+
+`SMTP_HOST`、`SMTP_USER`、`SMTP_PASS` がすべて設定されている場合、`email_send` ビルトインツールが自動的に登録されます。
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `SMTP_HOST` | Cond. | — | SMTP サーバーのホスト名 |
+| `SMTP_PORT` | No | `465` | SMTP ポート |
+| `SMTP_SSL` | No | `ssl` | TLS モード: `ssl` (ポート 465) / `tls` (STARTTLS、ポート 587) / `""` (プレーン) |
+| `SMTP_USER` | Cond. | — | SMTP ログインユーザー名 |
+| `SMTP_PASS` | Cond. | — | SMTP ログインパスワード |
+| `SMTP_FROM` | No | *(uses `SMTP_USER`)* | From ヘッダーに表示される送信者アドレス |
+| `SMTP_FROM_NAME` | No | — | From ヘッダーに表示される表示名 |
+| `SMTP_ALLOWED_DOMAINS` | No | — | カンマ区切りのドメイン許可リスト (例: `example.com,corp.io`); リストされたドメイン外の受信者をブロック |
+| `SMTP_ALLOWED_ADDRESSES` | No | — | カンマ区切りの正確なアドレス許可リスト; `SMTP_ALLOWED_DOMAINS` と組み合わせて使用; 両方を未設定にするとすべての受信者を許可 (共有メールボックスの場合は非推奨) |
+
+---## コネクタ
+
+| 変数 | 必須 | デフォルト | 説明 |
+|---|---|---|---|
+| `CONNECTOR_RESPONSE_MAX_CHARS` | いいえ | `50000` | 非配列 JSON / プレーンテキスト コネクタ レスポンスの最大文字数 |
+| `CONNECTOR_RESPONSE_MAX_ITEMS` | いいえ | `10` | コネクタ レスポンスが JSON 配列の場合に保持する最大配列項目数 |
+| `CREDENTIAL_ENCRYPTION_KEY` | いいえ | _(未設定)_ | コネクタ認証情報ブロブの Fernet 暗号化キー。設定すると、`connector_credentials` に保存されている認証トークンは保存時に暗号化されます。未設定の場合、認証情報はプレーンテキスト JSON として保存されます (後方互換性あり)。このキーを変更すると、既存のすべての暗号化された認証情報が無効になります。 |
+
+---## Platform
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATABASE_URL` | No | `sqlite+aiosqlite:///./data/fim_one.db` | データベース接続文字列。**SQLite** (ゼロコンフィグ): `sqlite+aiosqlite:///./data/fim_one.db`。**PostgreSQL** (本番環境): `postgresql+asyncpg://user:pass@localhost:5432/fim_one`。Docker Compose は PostgreSQL を自動設定します。 |
+| `JWT_SECRET_KEY` | No | `CHANGE_ME` | JWT トークン署名用の秘密鍵。プレースホルダー値 `CHANGE_ME` (またはその他のレガシーデフォルト) は、初回起動時にセキュアな 256 ビットランダムキーの自動生成をトリガーし、`.env` に書き込まれます。本番環境では明示的に設定して、再起動とレプリカ間でトークンの有効性を保つようにしてください。 |
+| `CORS_ORIGINS` | No | — | localhost エントリ以外の追加許可 CORS オリジンのカンマ区切りリスト。フロントエンドが非 localhost ドメインで実行される場合に必須です (例: `https://app.example.com`)。 |
+| `UPLOADS_DIR` | No | `./uploads` | アップロードされたファイルのディレクトリ |
+| `MAX_UPLOAD_SIZE_MB` | No | `50` | 最大ファイルアップロードサイズ (メガバイト単位、バックエンド強制) |
+| `NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB` | No | `50` | フロントエンド UI に表示される最大ファイルアップロードサイズ。**ビルド時変数** — `MAX_UPLOAD_SIZE_MB` と一致する必要があります。 |
+| `MCP_SERVERS` | No | — | MCP サーバー設定の JSON 配列 (`uv sync --extra mcp` が必須) |
+| `ALLOW_STDIO_MCP` | No | `false` | stdio MCP サーバーを許可します。信頼できるローカルデプロイメントの場合のみ `true` に設定してください |
+| `ALLOWED_STDIO_COMMANDS` | No | `npx,uvx,node,python,python3,deno,bun` | stdio MCP サーバーの許可ベースコマンドのカンマ区切りリスト。`ALLOW_STDIO_MCP=true` の場合のみ有効です |
+| `LOG_LEVEL` | No | `INFO` | ログレベル: `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
+| `REDIS_URL` | No | — | クロスワーカー割り込みリレー用の Redis 接続 URL。Docker Compose で自動設定されます。ローカルマルチワーカーセットアップ (`WORKERS>1`) の場合のみ必要です。 |
+| `WORKERS` | No | `1` | Uvicorn ワーカープロセス。`1` は安全で外部サービスは不要です。`>1` は **PostgreSQL が必須** です (SQLite はシングルライター)。認証、OAuth、ファイル操作は完全にマルチワーカー対応です (JWT ベース)。**制限**: `REDIS_URL` がない場合、ストリーム中の割り込み/注入は同じワーカープロセス内でのみ機能します。Docker Compose は Redis を自動設定します。 |
+
+---## OAuth (オプション)
+
+プロバイダーに対して `CLIENT_ID` と `CLIENT_SECRET` の両方が設定されている場合、ログインページに対応する OAuth ボタンが自動的に表示されます。
+
+| 変数 | 必須 | デフォルト | 説明 |
+|---|---|---|---|
+| `GITHUB_CLIENT_ID` | いいえ | — | GitHub OAuth App クライアント ID。[github.com/settings/developers](https://github.com/settings/developers) → OAuth Apps で作成 |
+| `GITHUB_CLIENT_SECRET` | いいえ | — | GitHub OAuth App クライアント シークレット |
+| `GOOGLE_CLIENT_ID` | いいえ | — | Google OAuth クライアント ID。[console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials) で作成 |
+| `GOOGLE_CLIENT_SECRET` | いいえ | — | Google OAuth クライアント シークレット |
+| `DISCORD_CLIENT_ID` | いいえ | — | Discord OAuth2 クライアント ID。[discord.com/developers](https://discord.com/developers/applications) で作成 |
+| `DISCORD_CLIENT_SECRET` | いいえ | — | Discord OAuth2 クライアント シークレット |
+| `FEISHU_APP_ID` | いいえ | — | Feishu (Lark) App ID。[open.feishu.cn](https://open.feishu.cn/app) で作成。`contact:user.email:readonly` パーミッションが必要 |
+| `FEISHU_APP_SECRET` | いいえ | — | Feishu (Lark) App Secret |
+| `FRONTEND_URL` | **本番環境** | `http://localhost:3000` | OAuth 完了後にブラウザが遷移する先。本番環境では設定が必須 (例: `https://yourdomain.com`) |
+| `API_BASE_URL` | **本番環境** | `http://localhost:8000` | 外部からアクセス可能なバックエンド URL。OAuth コールバック URL の構築に使用。本番環境では設定が必須 |
+| `NEXT_PUBLIC_API_URL` | **本番環境** | *(自動検出: `<hostname>:8000`)* | OAuth リダイレクト用のブラウザ側 API ベース URL。**これはフロントエンドのビルド時変数です** — ローカル開発の場合は `frontend/.env.local` で設定し、カスタム本番環境デプロイの場合は Docker ビルド引数として渡してください。標準的なリバースプロキシセットアップ (ポート 80/443) では自動検出が機能します。 |
+
+> **本番環境** = ローカルではオプション (デフォルトが機能)、ただしインターネット公開デプロイメントでは必須。### 各プロバイダーに登録する OAuth コールバック URL
+
+バックエンドはコールバック URL を次のように構成します: `{API_BASE_URL}/api/auth/oauth/{provider}/callback`
+
+| プロバイダー | 登録するコールバック URL |
+|----------|--------------------------|
+| GitHub | `https://yourdomain.com/api/auth/oauth/github/callback` |
+| Google | `https://yourdomain.com/api/auth/oauth/google/callback` |
+| Discord | `https://yourdomain.com/api/auth/oauth/discord/callback` |
+
+---## Analytics (オプション)
+
+すべての分析プロバイダーはオプションです。任意の組み合わせを設定できます — すべてのアクティブなプロバイダーが同時に読み込まれます。すべてを空白のままにすると、分析は完全に無効になります（ローカル開発では推奨）。
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | No | — | Google Analytics 4 測定ID（例：`G-XXXXXXXXXX`）。[analytics.google.com](https://analytics.google.com) で取得できます |
+| `NEXT_PUBLIC_UMAMI_SCRIPT_URL` | No | — | Umami 分析スクリプト URL（例：`https://your-umami.com/script.js`）。自己ホスト型のプライバシーフレンドリーな代替案 — [umami.is](https://umami.is) |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | No | — | Umami ウェブサイト ID。`NEXT_PUBLIC_UMAMI_SCRIPT_URL` が設定されている場合は必須 |
+| `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | No | — | Plausible 分析ドメイン（例：`yourdomain.com`）。軽量でプライバシーフレンドリー — [plausible.io](https://plausible.io) |
+| `NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL` | No | `https://plausible.io/js/script.js` | 自己ホスト型インスタンス用のカスタム Plausible スクリプト URL |
+
+> すべての `NEXT_PUBLIC_*` 分析変数は**ビルド時**です — 変更を有効にするにはフロントエンドの再ビルドが必要です。

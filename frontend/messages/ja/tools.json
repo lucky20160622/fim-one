@@ -1,0 +1,186 @@
+{
+  "categories": {
+    "all": "すべて",
+    "general": "一般",
+    "computation": "計算",
+    "filesystem": "ファイルシステム",
+    "knowledge": "ナレッジ",
+    "media": "メディア",
+    "web": "ウェブ",
+    "connector": "コネクタ",
+    "mcp": "MCP"
+  },
+  "pageTitle": "ツール",
+  "pageDescription": "組み込みツールと外部統合",
+  "mcpServersTitle": "MCPサーバー",
+  "mcpCatalog": "MCPカタログ",
+  "addServer": "サーバーを追加",
+  "noServersMessage": "MCPサーバーが設定されていません。エージェント機能を拡張するために追加してください。",
+  "loadingTools": "ツールを読み込み中...",
+  "failedToLoadCatalog": "ツールカタログの読み込みに失敗しました",
+  "notConfigured": "未設定",
+  "connectorLabel": "コネクタ",
+  "connectorDescription": "このエージェントにバインドされたカスタムアクション（API、データベースなど）。コネクタページで管理します。",
+  "mcpServersLinkLabel": "MCPサーバー",
+  "mcpServersLinkDescription": "外部MCPサーバーによって提供されるツール。コネクタページで設定します。",
+  "disabled": "無効",
+  "enableTool": "有効にする",
+  "disableTool": "無効にする",
+  "disabledByAdmin": "管理者により無効化されています",
+  "toolEnabled": "ツールが有効になりました",
+  "toolDisabled": "ツールが無効になりました",
+  "failedToEnableTool": "ツールの有効化に失敗しました",
+  "failedToDisableTool": "ツールの無効化に失敗しました",
+  "noDescription": "説明なし",
+  "toolCount": "{count, plural, one {# ツール} other {# ツール}}",
+  "toolsFound": "{count, plural, one {# ツール} other {# ツール}}が見つかりました",
+  "testConnection": "接続をテスト",
+  "deleteMcpServer": "MCPサーバーを削除しますか？",
+  "deleteMcpServerDescription": "このMCPサーバーは完全に削除されます。この操作は取り消せません。",
+  "disableOrgServer": "組織全体でサーバーを無効にしますか？",
+  "disableOrgServerDescription": "これにより、すべての組織メンバーがこのサーバーを使用できなくなります。いつでも再度有効にできます。",
+  "editMcpServer": "MCPサーバーを編集",
+  "addMcpServer": "MCPサーバーを追加",
+  "editMcpServerDescription": "MCPサーバー設定を更新します。",
+  "addMcpServerDescription": "新しいMCPサーバー接続を設定します。",
+  "namePlaceholder": "例：filesystem-server",
+  "descriptionPlaceholder": "オプションの説明",
+  "transport": "トランスポート",
+  "streamableHttp": "ストリーム可能HTTP",
+  "command": "コマンド",
+  "commandPlaceholder": "例：npxまたはpython",
+  "arguments": "引数",
+  "argumentsPlaceholder": "カンマ区切り、例：-y, @modelcontextprotocol/server-filesystem, /tmp",
+  "argumentsHint": "複数の引数はカンマで区切ってください",
+  "workingDirectory": "作業ディレクトリ",
+  "workingDirectoryPlaceholder": "例：/home/user/my-server",
+  "envVars": "環境変数",
+  "serverUrl": "サーバーURL",
+  "httpHeaders": "HTTPヘッダー",
+  "httpHeadersHint": "例：Authorization: Bearer token",
+  "viewSmitheryGuide": "Smitheryの設定ガイドを表示",
+  "activeToggle": "アクティブ",
+  "activeToggleDescription": "エージェントツール使用のためにこのサーバーを有効にします",
+  "saveChanges": "変更を保存",
+  "discardUnsavedTitle": "保存されていない変更を破棄しますか？",
+  "discardUnsavedDescription": "保存されていない変更があります。閉じると破棄されます。",
+  "discardAndClose": "破棄して閉じる",
+  "mcpServerUpdated": "MCPサーバーが更新されました",
+  "mcpServerCreated": "MCPサーバーが作成されました",
+  "failedToSaveMcpServer": "MCPサーバーの保存に失敗しました",
+  "searchServers": "サーバーを検索...",
+  "noServersFound": "サーバーが見つかりません",
+  "configure": "設定",
+  "configureMyKeys": "マイキーを設定",
+  "myCredentialsSaved": "認証情報が保存されました",
+  "keyRequiredWarning": "このツールを使用するにはキーを設定してください",
+  "myKeysDialogTitle": "マイキーを設定",
+  "myKeysDialogDescription": "このMCPサーバーの個人認証情報を入力してください。共有サーバー認証情報の代わりに使用されます。",
+  "myKeysEnvVars": "環境変数",
+  "myKeysSave": "保存",
+  "myKeysValueRequired": "値は空にできません",
+  "myCredentialsCleared": "認証情報がクリアされました",
+  "myKeysAddRow": "+ 追加",
+  "publishToOrg": "組織に公開",
+  "publishDialogTitle": "MCP サーバーを公開",
+  "publishDialogDescription": "このMCP サーバーを組織のメンバーと共有します。",
+  "publishSelectOrg": "組織を選択",
+  "publishNoOrgs": "どの組織のメンバーでもありません。",
+  "allowFallback": "認証情報のフォールバックを許可",
+  "allowFallbackHelp": "有効にすると、個人の認証情報を持たない組織メンバーはこのサーバーの組み込み認証情報を使用します。これらの認証情報が有料API またはプライベートサービスに関連する場合、組織全体の使用料金はあなたのアカウントに請求されます。",
+  "mcpServerPublished": "MCP サーバーが組織に公開されました",
+  "mcpServerPublishFailed": "MCP サーバーの公開に失敗しました",
+  "mcpServerUnpublished": "MCP サーバーが非公開になりました",
+  "mcpServerUnpublishFailed": "MCP サーバーの非公開化に失敗しました",
+  "unpublishDialogTitle": "MCP サーバーを非公開にする",
+  "unpublishDialogDescription": "これにより、MCP サーバーが組織から削除され、個人用に戻ります。",
+  "pendingReview": "レビュー待ち",
+  "approved": "承認済み",
+  "rejected": "却下",
+  "resubmit": "レビューのために再提出",
+  "resubmitSuccess": "レビューのために再提出しました",
+  "resubmitError": "再提出に失敗しました",
+  "orgBadge": "組織",
+  "mcpHub": {
+    "categories": {
+      "All": "すべて",
+      "Filesystem": "ファイルシステム",
+      "Database": "データベース",
+      "Browser": "ブラウザ",
+      "Search": "検索",
+      "Productivity": "生産性",
+      "Dev Tools": "開発ツール",
+      "Communication": "コミュニケーション",
+      "Cloud": "クラウド"
+    },
+    "servers": {
+      "Filesystem": {
+        "desc": "許可されたディレクトリを設定可能にしてローカルファイルを読み書きします。",
+        "config": "/tmp を許可するディレクトリパスに置き換えてください"
+      },
+      "Git": {
+        "desc": "Git を使用してリポジトリの履歴、差分、ブランチ、ファイル内容を検査します。",
+        "config": "uv が必要です · /path/to/repo を置き換えてください"
+      },
+      "SQLite": {
+        "desc": "完全な SQL サポートで SQLite データベースをクエリおよび変更します。",
+        "config": ".sqlite ファイルパスに置き換えてください"
+      },
+      "PostgreSQL": {
+        "desc": "PostgreSQL データベースへの読み取り専用 SQL アクセス。",
+        "config": "接続文字列に置き換えてください"
+      },
+      "Puppeteer": {
+        "desc": "ブラウザ自動化 — ページの移動、スクリーンショット、要素との相互作用。"
+      },
+      "Playwright": {
+        "desc": "Microsoft Playwright による高速で信頼性の高いブラウザ自動化。"
+      },
+      "Fetch": {
+        "desc": "任意のウェブページを取得して Markdown に変換 — API キー不要。",
+        "config": "uv が必要です"
+      },
+      "Brave Search": {
+        "desc": "Brave Search API を使用したウェブおよびローカル検索。",
+        "config": "brave.com/search/api でキーを取得 → BRAVE_API_KEY に貼り付けてください"
+      },
+      "Exa Search": {
+        "desc": "Exa API を使用したセマンティック AI ファースト検索とコンテンツ取得。",
+        "config": "dashboard.exa.ai でキーを取得 → EXA_API_KEY に貼り付けてください"
+      },
+      "Memory": {
+        "desc": "会話全体でエージェント用の永続的なナレッジグラフメモリ。"
+      },
+      "Sequential Thinking": {
+        "desc": "複雑な問題解決のための構造化ステップバイステップ推論ツール。"
+      },
+      "Notion": {
+        "desc": "公式 Notion MCP — ページ、データベース、ブロックの読み書き。",
+        "config": "notion.so/my-integrations でキーを取得 → OPENAPI_MCP_HEADERS を {\"Authorization\":\"Bearer YOUR_KEY\"} に設定してください"
+      },
+      "GitHub": {
+        "desc": "GitHub API を使用してリポジトリ、問題、プルリクエスト、コードを管理します。",
+        "config": "github.com/settings/tokens でトークンを作成 → GITHUB_PERSONAL_ACCESS_TOKEN に貼り付けてください"
+      },
+      "GitLab": {
+        "desc": "GitLab リポジトリ、問題、マージリクエストと相互作用します。",
+        "config": "gitlab.com/-/user_settings/personal_access_tokens でトークンを作成 · GITLAB_URL を GitLab ホストに設定してください"
+      },
+      "Everything (test)": {
+        "desc": "すべてのツールタイプをカバーする公式MCPテストサーバー — セットアップの検証に最適です。"
+      },
+      "Slack": {
+        "desc": "Slackワークスペースでメッセージの読み取りと投稿、チャネルの管理ができます。",
+        "config": "api.slack.com/appsでボットを作成 → ボットトークンを貼り付け、ワークスペースURLからチームIDを見つけてください"
+      },
+      "Google Drive": {
+        "desc": "Google Driveのファイルを検索してアクセスできます。",
+        "config": "OAuth認証情報のセットアップが必要です"
+      },
+      "Google Maps": {
+        "desc": "Google Mapsで位置情報検索、経路案内、場所の詳細を取得できます。",
+        "config": "console.cloud.google.comでMaps APIを有効化 → GOOGLE_MAPS_API_KEYに貼り付けてください"
+      }
+    }
+  }
+}

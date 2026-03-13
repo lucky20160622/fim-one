@@ -1,0 +1,101 @@
+---
+title: "Stratégie d'Orthogonalité"
+description: "Architecture Decision Record — classifier les fonctionnalités par leur relation à la progression des LLM."
+---
+
+> **Status**: Accepted (March 2026)
+>
+> **Context**: À mesure que les capacités des LLM évoluent rapidement, nous avons besoin d'un cadre pour décider où investir les efforts d'ingénierie et où rester stable.## Décision
+
+Nous classons chaque fonctionnalité selon sa relation avec la progression des LLM et allouons les efforts en conséquence.
+
+| Catégorie | Stratégie | Investissement | Exemples |
+|----------|----------|------------|---------|
+| **Orthogonal** | L'amélioration des modèles ne diminue pas ces fonctionnalités — problèmes purs d'ingénierie/intégration | Investissement complet | Connecteurs, identifiants, OAuth, audit, RBAC, sécurité, déploiement |
+| **Tailwind** | L'amélioration des modèles rend ces fonctionnalités *meilleures*, non redondantes — relation symbiotique | Investir (les bénéfices se composent) | AI Connector Builder (modèle plus intelligent = sortie de connecteur de meilleure qualité) |
+| **Gelé** | Déjà livré, fonctionnant bien — mais les modèles absorbent ces capacités | Maintenir uniquement, pas de nouvelles fonctionnalités | Boucle ReAct, planification DAG, pipeline RAG, Mémoire, Génération ancrée |
+| **À considérer** | Les fournisseurs construisent nativement au niveau de la plateforme — risque élevé de redondance | Reporté indéfiniment | Orchestration multi-agents, mémoire sémantique, cycle de vie de la mémoire |
+
+**Règle empirique** : Si une fonctionnalité résout *« comment rendre le modèle plus intelligent »*, elle est en cours d'absorption. Si elle résout *« comment connecter le modèle au monde réel en toute sécurité »*, elle est orthogonale.## Analyse### Pourquoi la plateforme Connector est complètement orthogonale
+
+Les modèles ne feront jamais nativement :
+- Stocker et chiffrer les identifiants API (AES-GCM)
+- Gérer les flux OAuth (page d'autorisation → callback → refresh token)
+- Se connecter à la base de données ERP Kingdee/金蝶 d'un client
+- Envoyer des notifications à Lark/飞书 ou WeCom/企微
+- Appliquer RBAC sur qui peut utiliser quel connector
+- Enregistrer chaque appel d'outil pour l'audit de conformité
+
+Ce sont des problèmes d'ingénierie, pas des problèmes d'intelligence. Un modèle 10x plus intelligent ne peut toujours pas faire ces choses sans infrastructure.### Pourquoi AI Connector Builder est « en avant » et non « absorbé »
+
+Le Builder Agent utilise l'intelligence du modèle pour créer des **entités Connector gérées et persistantes** — stockées en DB, réutilisables entre agents, avec gestion des credentials et pistes d'audit. La compréhension améliorée de l'API du modèle rend le Builder plus performant, elle ne le rend pas inutile.
+
+Analogie : Cursor utilise Claude pour écrire du code. Claude devenant plus intelligent rend Cursor *meilleur*, non *redondant*, car Cursor fournit une valeur d'ingénierie (gestion de projet, organisation des fichiers, contrôle de version) que le modèle ne remplace pas.### Pourquoi les fonctionnalités v0.1–v0.5 sont « gelées »
+
+| Fonctionnalité | Ce qui se passe dans l'industrie |
+|---------|--------------------------------|
+| ReAct loop | Les modèles ont l'appel d'outils natif (OpenAI, Anthropic). La boucle de raisonnement externe ajoute moins de valeur à mesure que les modèles l'internalisent. |
+| DAG Planning | Les capacités de raisonnement des modèles s'améliorent rapidement. La décomposition de tâches complexes qui nécessitait des planificateurs externes devient une capacité en une seule étape. |
+| Memory management | Les fenêtres de contexte augmentent rapidement (Gemini 2M+, Claude 200K+). Le besoin de gestion externe des fenêtres, de résumé et de compaction diminue. |
+| RAG pipeline | Les fournisseurs intègrent la récupération dans leurs plateformes (OpenAI file_search, Google NotebookLM, Gemini Search Grounding). Pour les connaissances publiques, le pipeline traditionnel chunk-embed-retrieve est remplacé. |
+| Grounded Generation | Les modèles s'améliorent dans la citation des sources de manière native. Le pipeline de grounding en 5 étapes que nous avons construit ajoute une valeur décroissante. |
+
+**Ces fonctionnalités ne sont pas mauvaises** — elles ont été livrées, elles fonctionnent, elles rendent le produit fonctionnel aujourd'hui. La décision est simplement d'arrêter de les améliorer et de rediriger les efforts.### Pourquoi l'orchestration multi-agents a été reportée
+
+Les fournisseurs de LLM construisent l'orchestration nativement :
+- **OpenAI Swarm** : Framework multi-agents avec protocoles de transfert
+- **Anthropic Claude Code Teams** : Pools d'agents Leader/Worker avec graphes de tâches
+- **Google A2A (Agent-to-Agent)** : Protocole de communication inter-agents
+
+Construire une couche d'orchestration concurrente signifierait faire la course contre des implémentations propriétaires avec une intégration de modèle plus profonde. Ce n'est pas un différenciateur durable.### Pourquoi la mémoire sémantique et le cycle de vie de la mémoire ont été reportés
+
+- Les fenêtres de contexte augmentent rapidement, réduisant le besoin de récupération de mémoire entre sessions
+- Les fournisseurs ajoutent des fonctionnalités de mémoire natives (ChatGPT Memory, Claude Projects)
+- Le coût d'ingénierie de la construction d'un système de mémoire fiable (TTL, notation d'importance, récupération sémantique) est élevé par rapport à l'écart décroissant qu'il comble## Classification au niveau des fonctionnalités### Orthogonal (v0.6+)
+
+| Fonctionnalité | Version | Pourquoi orthogonal |
+|---------|---------|---------------|
+| Entité Connector + CRUD | v0.6.1 | Intégration d'entreprise, ingénierie pure |
+| Identifiants par utilisateur (AES-GCM) | v0.6.2 | Infrastructure de sécurité |
+| Confirmation Gate | v0.6.2 | Mécanisme de sécurité pour les opérations d'écriture |
+| Connector Export/Import/Fork | v0.7 | Mécanisme de distribution |
+| OAuth 2.0 | v0.7 | Implémentation de protocole |
+| MCP Server Export | v0.7 | Interopérabilité (dépend de l'adoption de MCP) |
+| Database Connector | v0.8 | Accès direct à la base de données, pools de connexion |
+| Message Push | v0.8 | Canaux de notification |
+| RBAC | v0.8 | Contrôle d'accès, gouvernance |
+| Operation Audit Log | v0.8 | Conformité |
+| Sandbox Hardening | v0.9 | Isolation de sécurité |
+| Observability (OTel, circuit breaker) | v0.9 | Opérations en production |
+| Connector Analytics | v0.9 | Suivi d'utilisation |
+| Docker Compose | v0.9 | Déploiement |
+| Admin Dashboard | v1.0 | Interface de gestion |
+| Scheduled Jobs / Webhooks | v1.0 | Déclencheurs d'automatisation |
+| Batch Execution | v1.0 | Traitement à l'échelle de l'entreprise |
+| Embeddable Widget / iframe | v1.0 | Mode de livraison |
+| Enterprise Security | v1.0 | Conformité (chiffrement, liste blanche IP) |### Tailwind
+
+| Feature | Version | Relationship |
+|---------|---------|-------------|
+| AI Connector Builder | v0.6.3 | Les modèles plus intelligents → une meilleure sortie du générateur |
+| AI Connector Generation (OpenAPI) | v1.0 | Identique — les modèles comprennent mieux les spécifications API → une génération automatique plus précise |### Gelé (expédié, maintenance uniquement)
+
+| Feature | Version | Status |
+|---------|---------|--------|
+| ReAct Agent | v0.1 | Shipped, working |
+| DAG Planning / Re-Planning | v0.1, v0.5 | Shipped, working |
+| Memory (Window, Summary, Compact) | v0.2, v0.5 | Shipped, working |
+| RAG pipeline (embedding, vector store, chunking, hybrid retrieval) | v0.5 | Shipped, working |
+| Grounded Generation | v0.5 | Shipped, working |
+| ContextGuard / Pinned Messages | v0.5 | Shipped, working |### À considérer (reporté indéfiniment)
+
+| Feature | Original version | Reason deferred |
+|---------|-----------------|----------------|
+| Multi-Agent Orchestration | v1.0 | Providers building natively |
+| Semantic Memory Store | Backlog | Context windows growing; providers adding native memory |
+| Memory Lifecycle | Backlog | Same as above |## Implications
+
+1. **Ne pas revenir aux fonctionnalités de v0.5.** Les corrections de bugs oui, les nouvelles capacités non.
+2. **La plateforme de connecteur est l'investissement principal.** v0.6–v0.8 devrait recevoir la majorité du temps d'ingénierie.
+3. **L'ingénierie d'entreprise (RBAC, audit, sécurité, déploiement) est le fossé.** Ce sont des éléments ennuyeux mais défendables.
+4. **Réévaluer annuellement.** Si les progrès du modèle stagnent ou qu'une fonctionnalité « gelée » s'avère toujours avoir des lacunes importantes, reconsidérer.

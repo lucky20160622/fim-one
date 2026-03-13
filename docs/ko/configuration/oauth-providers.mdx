@@ -1,0 +1,155 @@
+---
+title: "OAuth 제공자"
+description: "GitHub, Google, Discord, Feishu 소셜 로그인을 구성합니다."
+---
+
+FIM One은 GitHub, Google, Discord, Feishu(Lark)를 통한 소셜 로그인을 지원합니다. 환경에 자격증명이 있는 모든 제공자는 자동으로 로그인 페이지에 로그인 버튼을 표시합니다 — 코드 변경이 필요하지 않습니다.
+
+**콜백 URL 패턴** — 각 제공자의 개발자 콘솔에 이 정확한 URL을 등록합니다:
+
+```
+{API_BASE_URL}/api/auth/oauth/{provider}/callback
+```
+
+`API_BASE_URL`은 FIM One 백엔드의 외부에서 접근 가능한 주소입니다. 예시:
+
+| 시나리오 | 콜백 URL 예시 |
+|---|---|
+| 로컬 개발 | `http://localhost:8000/api/auth/oauth/github/callback` |
+| 전용 API 서브도메인 | `https://api.yourdomain.com/api/auth/oauth/github/callback` |
+| 역방향 프록시(동일 도메인) | `https://yourdomain.com/api/auth/oauth/github/callback` |## GitHub
+
+**개발자 콘솔:** https://github.com/settings/developers
+
+1. **OAuth Apps** → **New OAuth App**을 클릭합니다.
+2. 다음을 입력합니다:
+   - **Application name** — 아무 이름이나 (예: `FIM One`)
+   - **Homepage URL** — 프론트엔드 URL (예: `https://yourdomain.com`)
+   - **Authorization callback URL** — `https://yourdomain.com/api/auth/oauth/github/callback`
+3. **Register application**을 클릭한 후 **Generate a new client secret**을 클릭합니다.
+4. **Client ID**와 생성된 **Client Secret**을 `.env`에 복사합니다.
+
+**자동으로 요청되는 스코프:** `read:user`, `user:email`
+
+비공개 기본 이메일을 가진 GitHub 계정은 올바르게 처리됩니다 — FIM One은 공개 프로필 이메일이 아닌 `/user/emails`에서 기본 확인된 이메일을 항상 가져옵니다.
+
+```env
+GITHUB_CLIENT_ID=Ov23li...
+GITHUB_CLIENT_SECRET=...
+```
+
+---## Google
+
+**개발자 콘솔:** https://console.cloud.google.com/apis/credentials
+
+1. **+ CREATE CREDENTIALS** → **OAuth client ID**를 클릭합니다.
+2. 메시지가 표시되면 먼저 **OAuth consent screen**을 구성합니다(개인/공개 앱의 경우 User Type을 "External"로 설정).
+3. **Application type**을 **Web application**으로 설정합니다.
+4. **Authorized redirect URIs** 아래에 다음을 추가합니다:
+   ```
+   https://yourdomain.com/api/auth/oauth/google/callback
+   ```
+5. **Create**를 클릭한 후 **Client ID**와 **Client Secret**을 복사합니다.
+
+**자동으로 요청되는 스코프:** `openid`, `email`, `profile`
+
+> 참고: 개발 중에는 동의 화면에 "This app is not verified" 경고가 표시됩니다. 테스트를 위해 이를 무시하고 진행할 수 있습니다. 최종 사용자를 위해 경고를 제거하려면 동의 화면을 게시하세요.
+
+```env
+GOOGLE_CLIENT_ID=12345678-abc.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-...
+```
+
+---## Discord
+
+**개발자 콘솔:** https://discord.com/developers/applications
+
+1. **New Application**을 클릭하고 이름을 입력합니다.
+2. 왼쪽 사이드바에서 **OAuth2**를 클릭합니다.
+3. **Redirects** 아래에서 **Add Redirect**를 클릭하고 다음을 입력합니다:
+   ```
+   https://api.yourdomain.com/api/auth/oauth/discord/callback
+   ```
+4. **Client ID**(OAuth2 페이지 상단에 표시됨)를 복사하고 **Reset Secret**을 클릭하여 **Client Secret**을 확인합니다.
+
+**자동으로 요청되는 스코프:** `identify`, `email`
+
+> Discord는 모든 계정에 대해 확인된 이메일을 보장하지 않습니다. 사용자가 Discord에서 이메일을 확인하지 않은 경우 `email` 필드는 `null`일 수 있습니다. FIM One은 이 경우 null 이메일로 계정을 생성하며, 사용자는 나중에 설정에서 이메일을 추가할 수 있습니다.
+
+```env
+DISCORD_CLIENT_ID=123456789012345678
+DISCORD_CLIENT_SECRET=...
+```
+
+---## Feishu (Lark)
+
+<Warning>
+**테넌트 범위만 해당.** Feishu 자체 구축 앱(自建应用)은 앱을 생성한 **동일한 엔터프라이즈 테넌트 내의 사용자만** 인증할 수 있습니다. 다른 Feishu 테넌트의 사용자는 "권한 없음" 오류를 보게 됩니다. 이는 Feishu OAuth가 **서로 다른 조직의 사용자가 오는 공개 SaaS 배포에는 적합하지 않음**을 의미합니다. **모든 사용자가 동일한 Feishu 테넌트에 속하는 비공개/단일 조직 배포**에서 잘 작동합니다.
+
+테넌트 간 Feishu 로그인을 지원하려면 앱을 [Feishu 앱 디렉토리](https://open.feishu.cn/document/store-v1/overview)(应用商店)에 게시하고 Feishu의 검토 프로세스를 통과해야 하는데, 이는 복잡하고 엄격한 요구사항이 있습니다.
+</Warning>
+
+**개발자 콘솔:** https://open.feishu.cn/app
+
+1. **Create App** → **In-house app**(自建应用)을 클릭합니다. 회사/엔터프라이즈 계정이 필요합니다 — Feishu OAuth는 개인 계정에서 사용할 수 없습니다.
+2. **Permissions & Scopes** 아래에서 다음을 검색하여 활성화합니다:
+   - `contact:user.email:readonly`
+3. **Security Settings** → **Redirect URL** 아래에 콜백 URL을 추가합니다:
+   ```
+   https://yourdomain.com/api/auth/oauth/feishu/callback
+   ```
+4. **Credentials & Basic Info** 섹션에서 **App ID**와 **App Secret**을 복사합니다.
+
+**콘솔에서 구성된 스코프(인증 URL에서 구성하지 않음):** `contact:user.email:readonly`
+
+> 참고: Feishu는 표준 `Client ID` / `Client Secret` 명명 대신 `App ID` / `App Secret`을 사용합니다. 환경 변수 이름이 이를 반영합니다: `FEISHU_APP_ID`와 `FEISHU_APP_SECRET`.
+
+```env
+FEISHU_APP_ID=cli_a1b2c3d4e5f6...
+FEISHU_APP_SECRET=...
+```### 중요: Feishu 이메일 동작
+
+Feishu 사용자 정보 API (`authen/v1/user_info`)는 사용자의 **엔터프라이즈 연락처 이메일** (联系邮箱) — Feishu 관리자 콘솔에서 조직 관리자가 구성한 주소를 반환합니다. 이는 사용자의 개인 Feishu 로그인 이메일이 **아닙니다**.
+
+결과:
+- 조직 관리자가 연락처 이메일을 구성하지 않은 사용자는 유효한 Feishu 계정이 있어도 API에서 빈 이메일 필드를 받게 됩니다.
+- 엔터프라이즈에 속하지 않은 개인 Feishu 계정의 사용자는 항상 빈 이메일을 받게 됩니다.
+
+FIM One은 이를 우아하게 처리합니다: 아래의 [계정 바인딩 규칙](#account-binding-rules)을 참조하세요.
+
+---## 계정 바인딩 규칙
+
+등록된 사용자는 **설정 → 계정**에서 추가 OAuth 제공자를 연결할 수 있습니다. 사용자가 바인딩을 시작할 때 다음 규칙이 적용됩니다:### 일반 규칙 (GitHub, Google, Discord)
+
+OAuth 제공자가 반환한 이메일은 FIM 계정의 등록된 이메일과 일치해야 합니다. 이는 실수로 다른 사람의 소셜 계정을 귀하의 FIM 계정에 연결하는 것을 방지합니다.
+
+이메일이 일치하지 않으면 `email_mismatch` 오류와 함께 바인딩이 거부됩니다.### Feishu 예외
+
+Feishu의 API는 로그인 이메일이 아닌 엔터프라이즈 연락처 이메일을 반환하며, 이 필드는 개인 계정이나 관리자가 구성하지 않은 조직의 계정에서 비어 있는 경우가 많기 때문에 Feishu의 이메일 일치 확인은 더 느슨한 규칙을 따릅니다:
+
+- **양쪽 모두 이메일이 있음** → 이메일이 일치해야 함 (다른 제공자와 동일한 확인).
+- **한쪽이 이메일이 없음** (Feishu가 빈 값을 반환했거나 FIM 계정에 이메일이 없음) → 티켓 기반 인증만으로 바인딩 성공.### Feishu 로그인 (아직 바인딩 없음)
+
+사용자가 처음으로 Feishu를 통해 로그인할 때 (기존 바인딩 없음):
+
+1. FIM One은 Feishu 엔터프라이즈 연락처 이메일과 일치하는 기존 계정을 찾습니다.
+2. 일치하는 항목이 발견되면 Feishu 계정이 기존 FIM 계정에 자동으로 바인딩되고 사용자가 로그인됩니다.
+3. 일치하는 항목이 없으면 (이메일이 비어있는 경우 포함), Feishu `open_id`로 식별되는 새로운 FIM 계정이 생성됩니다. 계정은 null 이메일을 가지며, 사용자는 나중에 설정에서 이메일을 입력할 수 있습니다.## 환경 변수 빠른 참조
+
+| 변수 | 제공자 | 필수 | 설명 |
+|---|---|---|---|
+| `GITHUB_CLIENT_ID` | GitHub | Both | GitHub OAuth App 클라이언트 ID |
+| `GITHUB_CLIENT_SECRET` | GitHub | Both | GitHub OAuth App 클라이언트 시크릿 |
+| `GOOGLE_CLIENT_ID` | Google | Both | Google OAuth 2.0 클라이언트 ID |
+| `GOOGLE_CLIENT_SECRET` | Google | Both | Google OAuth 2.0 클라이언트 시크릿 |
+| `DISCORD_CLIENT_ID` | Discord | Both | Discord OAuth2 애플리케이션 클라이언트 ID |
+| `DISCORD_CLIENT_SECRET` | Discord | Both | Discord OAuth2 애플리케이션 클라이언트 시크릿 |
+| `FEISHU_APP_ID` | Feishu | Both | Feishu 사내 앱 ID (`CLIENT_ID`가 아님) |
+| `FEISHU_APP_SECRET` | Feishu | Both | Feishu 사내 앱 시크릿 |
+| `FRONTEND_URL` | All | Prod | OAuth 완료 후 브라우저가 리디렉션되는 위치 (예: `https://yourdomain.com`) |
+| `API_BASE_URL` | All | Prod | 외부에서 접근 가능한 백엔드 URL, 콜백 URL 구성에 사용됨 |
+| `NEXT_PUBLIC_API_URL` | All | Prod | OAuth 리디렉션을 위한 브라우저 측 API URL — 빌드 시 포함됨 |
+
+"Required: Both"는 `_ID`와 `_SECRET` (또는 Feishu의 경우 `_APP_ID`와 `_APP_SECRET`)을 함께 설정해야 함을 의미합니다. 하나만 설정하면 효과가 없습니다.
+
+> `FRONTEND_URL`, `API_BASE_URL`, `NEXT_PUBLIC_API_URL`의 전체 문서는 [환경 변수](/configuration/environment-variables)를 참조하세요.

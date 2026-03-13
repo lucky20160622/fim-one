@@ -1,0 +1,23 @@
+{
+  "title": "アーティファクト",
+  "count": "{count, plural, one {# アーティファクト} other {# アーティファクト}}",
+  "filterAll": "すべて",
+  "filterImages": "画像",
+  "filterHtml": "HTML",
+  "filterCode": "コード",
+  "filterFiles": "ファイル",
+  "noArtifacts": "アーティファクトはまだありません",
+  "noArtifactsDesc": "エージェントによって生成されたアーティファクトがここに表示されます。",
+  "noResults": "このフィルターに一致するアーティファクトはありません",
+  "fromConversation": "会話から",
+  "openConversation": "会話を開く",
+  "download": "ダウンロード",
+  "preview": "プレビュー",
+  "loading": "読み込み中...",
+  "previous": "前へ",
+  "next": "次へ",
+  "page": "ページ",
+  "of": "の",
+  "previousPage": "前のページ",
+  "nextPage": "次のページ"
+}

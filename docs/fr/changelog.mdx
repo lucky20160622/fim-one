@@ -1,0 +1,207 @@
+---
+title: "Journal des modifications"
+description: "Tous les changements notables apportés à FIM One."
+---
+
+Tous les changements notables apportés à ce projet sont documentés ici.
+
+Le format suit [Keep a Changelog](https://keepachangelog.com/). Les versions correspondent aux jalons de la [Roadmap](/roadmap).## [Non publié]### Ajouté
+
+- **Admin: Onglet du journal d'audit de révision** — La page d'audit Admin dispose désormais d'un bouton bascule segmenté "System Log / Review Log". Le panneau Review Log interroge le nouveau point de terminaison `GET /api/admin/review-log` (filtres : org, type de ressource, action ; pagination limit/offset) et affiche un tableau avec l'heure, le nom de l'org, le type de ressource, le nom de la ressource, le badge d'action (code couleur : vert=approuvé, rouge=rejeté, ambre=soumis/renvoyé, grisé=non publié) et l'opérateur. i18n complet (EN + ZH).
+- **Organisation de plateforme** : Org intégrée `platform` (ID : `00000000-0000-0000-0000-000000000001`) — tous les nouveaux utilisateurs la rejoignent automatiquement. Cette organisation remplace le concept de visibilité « globale » et fournit un hub central pour partager des ressources entre tous les utilisateurs.
+- **Abonnements aux ressources** : Les utilisateurs peuvent désormais s'abonner/se désabonner aux ressources partagées (agents, connecteurs, bases de connaissances, serveurs MCP) à partir des marchés org. La nouvelle table de base de données `resource_subscriptions` suit les relations d'abonnement.
+- **API Market** : Nouveaux points de terminaison pour parcourir et gérer les abonnements :
+  - `GET /api/market` — parcourir les ressources disponibles dans l'org actuelle
+  - `POST /api/market/subscribe` — s'abonner à une ressource
+  - `DELETE /api/market/unsubscribe` — se désabonner d'une ressource
+  - `GET /api/market/subscriptions` — lister les abonnements actuels de l'utilisateur
+- **Page Market** : Nouvelle page `/market` dans Portal pour parcourir et gérer les abonnements aux ressources org.
+- **Découverte automatique d'agents** : Nouveau champ booléen `discoverable` sur les agents. Les agents avec `discoverable=true` peuvent être automatiquement découverts et appelés par les LLMs via l'outil `call_agent` (délégation à un niveau, pas de récursion).
+- **Liaison de sous-agent** : Nouveau champ `sub_agent_ids` sur les agents — liste blanche explicite des sous-agents appelables pour un contrôle d'accès granulaire.
+- **CallAgentTool** : Outil intégré qui délègue les tâches aux agents spécialistes avec validation d'entrée structurée et gestion des résultats.
+- **Identifiants MCP Server** : La nouvelle table `mcp_server_credentials` permet les remplacements de variables d'environnement par utilisateur et d'en-têtes HTTP pour les serveurs MCP.
+- **Point de terminaison des identifiants MCP** : `PUT /api/mcp-servers/{id}/my-credentials` permet aux utilisateurs de stocker les remplacements d'identifiants personnels pour les serveurs MCP partagés.
+- **`allow_fallback` sur MCPServer** : Champ booléen contrôlant le comportement de secours des identifiants — lorsque `true`, les identifiants utilisateur manquants reviennent aux valeurs par défaut du propriétaire.
+- **Bouton bascule Connector/KB** : Nouveaux points de terminaison pour la gestion de l'état des ressources :
+  - `POST /api/connectors/{id}/toggle` — suspendre/reprendre le connecteur
+  - `POST /api/knowledge-bases/{id}/toggle` — suspendre/reprendre la base de connaissances
+- **Conversations KB autonomes** : Nouveau champ `kb_ids` sur `ChatStreamRequest` et `Conversation` — les utilisateurs peuvent désormais discuter directement avec les bases de connaissances sans les lier à un agent.
+- **Protection de l'org de plateforme** : L'org Platform ne peut pas être supprimée, et les utilisateurs ne peuvent pas la quitter. Garantit que tous les utilisateurs maintiennent la connectivité au hub de l'organisation.
+- **Interface utilisateur de révision de publication (Frontend)** : Interface utilisateur du système de révision de publication au niveau de l'org — bouton bascule de révision dans la boîte de dialogue de modification org, ReviewsSheet avec filtres de type/statut et flux de travail d'approbation/rejet, badges de statut de publication (en attente/approuvé/rejeté) sur les cartes d'agent avec infobulle pour les notes de rejet, avis de révision dans la boîte de dialogue de publication lorsque l'org cible nécessite une révision, action de renvoi pour les ressources rejetées, menu déroulant « Gestion des révisions » pour l'administrateur org/propriétaires. Tous les types de ressources (agents, connecteurs, KBs, serveurs MCP) obtiennent les champs de type `publish_status`, `reviewed_by`, `reviewed_at`, `review_note`. i18n complet (EN + ZH).### Corrigé
+
+- **Pas de ré-examen lors du basculement `is_active`** : Le basculement de `is_active` sur les agents, connecteurs, bases de connaissances ou serveurs MCP ne ramène plus `publish_status` de `approved` à `pending_review`. La garde `check_edit_revert` ne s'active désormais que lorsque les champs de contenu réels changent (pas seulement `is_active`).### Modifié
+
+- **Visibilité Simplifiée** : La visibilité des ressources a été réduite de `personal | org | global` à `personal | org`. Les ressources « globales » sont désormais publiées dans l'organisation Platform, en maintenant un comportement rétro-compatible tout en simplifiant le modèle de visibilité.
+- **Interface de Publication Unifiée** : Les 4 types de ressources (Agent, Connector, Knowledge Base, MCP Server) ne supportent désormais que `scope="org"` pour la publication. Plus de `scope="global"` ni de points de terminaison de publication globale réservés aux administrateurs.
+- **Inscription Automatique à Platform** : Les nouveaux utilisateurs sont automatiquement ajoutés à l'organisation Platform lors de l'inscription, garantissant un accès immédiat aux ressources organisationnelles partagées.
+- **Nettoyage du Panneau Admin** : Suppression des onglets « Global Agents » et « Global MCP » de l'administration, car les ressources globales sont désormais gérées via l'organisation Platform.### Supprimé
+
+- Suppression du champ `is_global` des modèles Agent et MCPServer et de toutes les réponses API
+- Suppression des champs `cloned_from_agent_id` et `cloned_from_mcp_server_id` des modèles Agent et MCPServer
+- Suppression des points de terminaison de gestion des agents globaux (`/api/admin/global-agents/*`)
+- Suppression des points de terminaison des serveurs MCP globaux (`/api/admin/mcp-servers/*`)
+- Suppression de toutes les références au concept `visibility="global"` des ressources, contrats API et logique frontend## [v0.7.5] - 2026-03-12### Ajouté
+- **Commutation de mode libre + suivi du mode par tour** : Les utilisateurs peuvent désormais basculer librement entre Auto/React/DAG en cours de conversation sans démarrer un nouveau chat. Chaque message d'assistant stocke son mode d'exécution réel dans `metadata.mode`. Les tours d'historique sont rendus avec le moteur correct par tour (détecté à partir des métadonnées ou de l'empreinte digitale de l'événement SSE). Les icônes de mode de la barre latérale ont été supprimées. Un badge de mode par tour indique quel moteur a traité chaque tour.
+- **Trois rôles de modèle (F5)** : Configuration d'environnement indépendante pour les niveaux de modèle General, Fast et Reasoning. Le modèle Fast n'hérite plus des paramètres de raisonnement du modèle principal. Nouvelles variables d'environnement : `FAST_LLM_API_KEY`, `FAST_LLM_BASE_URL`, `FAST_LLM_TEMPERATURE`, `REASONING_LLM_MODEL`, `REASONING_LLM_API_KEY`, `REASONING_LLM_BASE_URL`, `REASONING_LLM_TEMPERATURE`, `REASONING_LLM_CONTEXT_SIZE`, `REASONING_LLM_MAX_OUTPUT_TOKENS`, `REASONING_LLM_EFFORT`, `REASONING_LLM_BUDGET`
+- **Sortie d'étape structurée (F2)** : La classe de données `StepOutput` remplace les résultats en chaîne simple dans les étapes DAG, permettant un support futur pour les données structurées et le passage d'artefacts entre les étapes
+- **Cache d'outils (F3)** : Les appels d'outils identiques au sein d'une seule exécution DAG sont mis en cache pour éviter les appels API redondants. Les verrous asynchrones par clé préviennent la congestion. Configurable via `DAG_TOOL_CACHE` (par défaut : activé)
+- **Vérification par étape (F4)** : Vérification de qualité optionnelle basée sur LLM après la fin de chaque étape DAG. En cas d'échec, réessaye une fois avec retour de vérification. Configurable via `DAG_STEP_VERIFICATION` (par défaut : désactivé)
+- **Routage automatique (F1)** : Le LLM rapide classe les requêtes en mode d'exécution ReAct ou DAG. Nouveau point de terminaison `/api/auto` avec événement de routage SSE. Commutateur de mode 3 voies frontend (Auto/Standard/Planner). Configurable via `AUTO_ROUTING` (par défaut : activé)
+- **Document de philosophie de conception** : Nouveau `docs/design-philosophy.mdx` documentant les décisions architecturales — pourquoi Handoff, Backflow, Teams et agent_hint ont été intentionnellement exclus de l'exécution DAG
+
+- **Chiffrement des identifiants du connecteur + Remplacement par utilisateur** — Les jetons d'authentification (`bearer`, `api_key`, `basic`) sont désormais extraits de `auth_config` et stockés séparément dans une nouvelle table `connector_credentials` avec chiffrement Fernet optionnel (définir `CREDENTIAL_ENCRYPTION_KEY`). Les champs sensibles sont supprimés de toutes les réponses API. Nouveaux points de terminaison : `GET/PUT/DELETE /api/connectors/{id}/my-credentials` permettent aux utilisateurs de stocker des remplacements d'identifiants personnels. La colonne `allow_fallback` sur les connecteurs contrôle si l'absence d'identifiant personnel revient à l'identifiant par défaut du propriétaire du connecteur. Le chargement des outils de chat résout d'abord les identifiants par utilisateur, puis revient à l'identifiant du propriétaire quand `allow_fallback=true`. Les identifiants existants sont automatiquement migrés depuis `auth_config` par la migration `s9u1w3y5a678`.
+- **Chiffrement de la clé API ModelConfig au repos** — `ModelConfig.api_key` est désormais chiffré au repos à l'aide du TypeDecorator `EncryptedString` (chiffrement symétrique Fernet via `CREDENTIAL_ENCRYPTION_KEY`). Chiffrement transparent à l'écriture / déchiffrement à la lecture avec détection rétrocompatible du texte brut hérité. La migration `f8g9h0a1b2c3` convertit les valeurs en texte brut existantes sur place.### Corrections
+- Le modèle rapide (`get_fast_llm()`) n'hérite plus de `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_TEMPERATURE` et des paramètres de raisonnement de la configuration du modèle principal
+- Les schémas Pydantic du backend acceptent désormais le mode `"auto"` pour les conversations et l'`execution_mode` de l'agent, avec la valeur par défaut changée de `"react"` à `"auto"`
+- Les noms des champs d'événement du routage SSE du frontend sont alignés avec le backend (`chosen_mode`→`mode`, `reason`→`reasoning`) — le routage automatique revenait silencieusement à ReAct indépendamment de la décision du classificateur
+- Le mode d'exécution par défaut du formulaire de paramètres de l'agent a été changé de `"react"` à `"auto"` pour correspondre aux valeurs par défaut du schéma backend### Modifié
+- Les étiquettes de basculement de mode incluent maintenant le nom du moteur : « Standard (ReAct) », « Planner (DAG) » pour plus de clarté
+- **Écrans squelettes** — Toutes les pages de liste/grille affichent désormais des espaces réservés squelettes conscients de la mise en page lors du chargement initial au lieu d'un spinner centré. Pages affectées : `/agents` (3-col `AgentCard` × 6), `/chats` (`ListRow` × 8), `/kb` (3-col `KbCard` × 6), `/kb/[id]` (squelette structurel avec en-tête + barre d'outils + `TableRow` × 5), `/connectors` onglet connecteurs (3-col `ConnectorCard` × 6), `/artifacts` (4-col `ArtifactCard` × 8). Trois nouveaux composites ajoutés à `skeleton.tsx` : `ConnectorCard`, `ArtifactCard`, `TableRow`. Les états de basculement d'onglet et de chargement secondaire (afficher plus, recherche, dialogues) conservent les spinners Loader2.## [v0.7.4] - 2026-03-12### Ajouté
+- **Evaluation Center** — Nouvelle section `/eval` dans le portail pour l'évaluation quantitative de la qualité des agents. Fonctionnalités : gestion des ensembles de données de test (créer/modifier des collections de prompt + comportement attendu + cas de test d'assertion) ; Eval Runs (sélectionner un agent + ensemble de données → exécuter tous les cas en parallèle via l'agent en direct avec `asyncio.Semaphore(5)` → évaluer chaque réponse avec un évaluateur LLM rapide → persister les résultats de réussite/échec, latence et tokens par cas) ; visionneuse de résultats avec lignes extensibles, barre de progression du taux de réussite et sondage automatique (3s) pendant l'exécution. Adapté pour l'examen d'approvisionnement en entreprise. Migration `r8t0v2x4z567`.
+- **Admin : drapeau `json_mode_enabled` par modèle** — Chaque configuration de modèle dispose désormais d'un bouton JSON Mode explicite (activé par défaut) dans Admin → Models → Advanced settings. Le désactiver empêche LiteLLM d'injecter un message de remplissage assistant (`{"role":"assistant","content":"{"}`) qui cause le rejet par AWS Bedrock avec une `ValidationException` à la 2e itération d'agent et au-delà. Les modèles configurés par ENV sont contrôlés par la nouvelle variable d'environnement `LLM_JSON_MODE_ENABLED`. Toutes les heuristiques de motif URL (`is_bedrock`, `is_anthropic_relay`) ont été supprimées ; la capacité est désormais explicite. Inclut une migration Alembic (`q7s9u1w3y456`).
+- **UX du formulaire de modèle Admin** — Restructuration du dialogue Add/Edit Model : seuls Name, Model Name et API Key sont affichés par défaut. Tous les autres paramètres (Base URL, Provider, Temperature, Max Output Tokens, Context Size, JSON Mode) sont regroupés sous un bouton "Advanced", réduisant le bruit visuel pour le cas courant.
+- **Settings : onglet Organizations** — Les utilisateurs peuvent désormais créer, rejoindre et gérer les organisations directement depuis la page Settings. Les fonctionnalités incluent un dialogue Create Organization (nom, slug généré automatiquement, description, icône emoji), un dialogue Edit (propriétaire uniquement), une feuille Members pour gérer les rôles des membres (propriétaire/admin/membre avec badges en couleur) et des actions en ligne (quitter pour les non-propriétaires, supprimer pour les propriétaires). Toutes les opérations org appellent les points de terminaison `/api/orgs` côté utilisateur. Support i18n complet (EN + ZH).
+- **Protocole SSE v2 — streaming de réponse en temps réel** : Backend `StreamChunk` gagne les champs `delta_reasoning` et `usage` ; les requêtes LLM incluent le suivi d'utilisation ; ReAct `_run_native()` diffuse désormais via `stream_chat`. Le protocole SSE émet `done` immédiatement après la réponse, puis envoie `suggestions`, `title` et `end` comme événements séparés. Libération anticipée de la session DB lors de l'exécution LLM. Taille du pool SQLite augmentée de 5 à 20.
+- **Expansion AI Builder — 7 nouveaux outils + drapeau `is_builder`** : Trois nouveaux outils de générateur de connecteur (`GetSettings`, `TestConnection`, `ImportOpenAPI`) et quatre nouveaux outils de générateur d'agent (`ListConnectors`, `AddConnector`, `RemoveConnector`, `SetModel`). Nouvelle colonne booléenne `is_builder` sur les agents avec migration Alembic. Actualisation automatique du prompt Builder à la création de session. Garde SSRF pour l'importation OpenAPI.
+- **Frontend SSE v2 — curseur de streaming, snapshots de round DAG, polissage UI** : Les hooks frontend analysent les événements `end` / `suggestions` / `title`. Le re-plan DAG affiche les tours précédents échoués comme des cartes réductibles. Curseur de streaming à point CSS. Mise en page DAG découplée des états d'étape. Bouton nouveau chat de barre latérale réduit. Correction du débordement de l'éditeur de connecteur. `font-mono` remplacé par `tabular-nums`.
+- **Page concept AI Builder** : Nouveau `docs/concepts/ai-builder.mdx` avec guides de générateur de connecteur et d'agent, plus traduction chinoise.
+- **Builder Dialog — Agent ReAct pour la gestion des connecteurs** : Améliore le panneau assistant IA d'un simple appel LLM à une boucle agent ReAct complète. Un bouton "Advanced Builder" ouvre un dialogue plein écran avec la PlaygroundPage intégrée (chat à gauche, aperçu d'action en direct à droite). Six outils de générateur de connecteur (`connector_list_actions`, `connector_create_action`, `connector_update_action`, `connector_delete_action`, `connector_update_settings`, `connector_test_action`) opèrent directement sur la DB et sont auto-injectés quand le Builder Agent est actif. `POST /api/builder/session` crée ou réutilise un agent builder par connecteur qui persiste l'historique de conversation.
+- **Support de base de données double (SQLite + PostgreSQL)** : `DATABASE_URL` accepte désormais les deux chaînes de connexion SQLite (`sqlite+aiosqlite:///...`) et PostgreSQL (`postgresql+asyncpg://...`). SQLite reste la valeur par défaut sans configuration ; PostgreSQL est recommandé pour les déploiements en production et multi-worker. Docker Compose provisionne automatiquement un service PostgreSQL avec des vérifications de santé. Les migrations Alembic sont conscientes du dialecte (json_extract vs `::json->>'key'`). Le tableau de bord de santé Admin affiche le moteur et la version réels de la base de données.
+- **Documentation de configuration des modèles** : Nouvelle page `docs/configuration/models.mdx` documentant la référence de configuration des modèles, incluant la configuration de la pensée étendue / raisonnement pour chaque fournisseur.
+- **Support de la pensée étendue / raisonnement** : Ajouter les variables d'environnement `LLM_REASONING_EFFORT` (low/medium/high) et `LLM_REASONING_BUDGET_TOKENS` pour les modèles avec pensée étendue (série OpenAI o, Gemini 2.5+, Claude). Envoie `reasoning_effort` pour OpenAI/Gemini, `thinking` pour Anthropic (auto-détecté). Extrait `reasoning_content` à partir de plusieurs noms de champs de fournisseur (DeepSeek R1, proxies Claude) et le surface dans l'étape UI "thinking".
+- **Admin : désactivation d'outils** : Nouveau panneau Admin Tools avec des boutons d'activation/désactivation par outil (stockés en tant que paramètre `disabled_builtin_tools`). Les outils désactivés sont filtrés de la résolution d'outils de chat à l'exécution. Le point de terminaison `/api/tools/catalog` retourne un drapeau `disabled`, et la page UI Tools affiche l'état désactivé.
+- **Admin : serveurs MCP sur la page Connectors** : Gestion des serveurs MCP déplacée de la page Tools vers la page Connectors comme un nouvel onglet. `MCPServersSection` extrait en composant réutilisable avec refs d'action impérative.
+- **Admin : effort de raisonnement dans le tableau de bord de santé** : L'étiquette d'effort de raisonnement s'affiche désormais dans le tableau de bord de vérification de santé admin.
+- **Export : format PDF** : Les conversations peuvent désormais être exportées en tant que documents PDF (nécessite les extras `reportlab` + `Markdown`).
+- **start.sh : variable d'environnement WORKERS** : Définir `WORKERS=N` pour exécuter uvicorn avec plusieurs workers en mode portal/api.### Modifié
+- **Tests: NativeToolFakeLLM mis à jour pour ReAct basé sur les flux**: Le faux LLM de test produit maintenant des séquences `StreamChunk` correspondant à la nouvelle boucle `_run_native()` basée sur les flux
+- **Couche LLM**: Remplacement du client `AsyncOpenAI` direct par [LiteLLM](https://github.com/BerriAI/litellm) pour un support universel des fournisseurs. Tous les conditionnels spécifiques aux fournisseurs (réflexion Anthropic, `max_completion_tokens`, contournement des outils GPT-5) ont été supprimés. Les modèles Anthropic sont maintenant acheminés via l'API native de LiteLLM, permettant un support approprié de `reasoning_content` (réflexion étendue)
+- **Simplification de la page Outils**: La page Outils affiche maintenant uniquement les outils intégrés (plus d'onglets); la gestion MCP a été déplacée vers la page Connecteurs
+- **Courtier d'interruption Redis**: Relais d'interruption/injection entre travailleurs via Redis Pub/Sub. Activé automatiquement lorsque `REDIS_URL` est défini; revient aux files d'attente en processus sinon. Docker Compose inclut maintenant un service Redis (auto-configuré, aucune action utilisateur requise)
+- **Export: niveau de détail par défaut**: La boîte de dialogue d'export utilise maintenant par défaut un résumé (sans détails d'exécution) au lieu de la version complète
+- **Artefacts: tri par mtime de fichier**: La liste de tous les artefacts utilise maintenant le mtime par fichier pour un tri précis (annule le contournement du temps de conversation)
+- **Chat: chargement asynchrone d'images**: `_load_image_data_urls` est maintenant asynchrone, déchargeant les lectures de fichiers vers un thread via `asyncio.to_thread` pour débloquer la boucle d'événements
+- **Préparation multi-travailleurs**: Les tickets SSE, l'état OAuth et les tickets de liaison utilisent maintenant des jetons signés JWT au lieu de dicts en mémoire; les verrous d'index de fichiers utilisent `fcntl.flock()` pour la sécurité entre processus; le TTL du cache de maintenance réduit de 30s à 5s pour une propagation plus rapide entre travailleurs
+- **Tableau de bord de santé: vérifications d'infrastructure**: Type de base de données (SQLite/PostgreSQL) et statut Redis ajoutés au tableau de bord de santé administrateur
+- **Routage de relais intelligent**: Détecte automatiquement le protocole API à partir des modèles de chemin URL (par exemple, `/claude` ou `/anthropic` → Anthropic natif, `/gemini` → Google natif), permettant les en-têtes d'authentification appropriés et la traduction des paramètres pour les plates-formes de relais tierces sans configuration manuelle du fournisseur
+- **Dégradation de la sortie structurée**: Utilitaire `structured_llm_call()` unifié avec extraction à 3 niveaux (FC natif → Mode JSON → texte brut + secours regex). Refactorisation du Planificateur DAG, de l'Analyseur de Plan et de la sélection d'outils pour utiliser l'utilitaire partagé, remplaçant l'analyse JSON ad hoc par une nouvelle tentative cohérente et une dégradation sur tous les sites d'appel LLM structuré### Docs
+- **Architecture diagrams layout fix**: Switched Mermaid flowcharts from left-right (`LR`) to top-down (`TD`) for better readability, removed `mode: "wide"` frontmatter, and added `custom.css` for centered Mermaid SVG rendering
+- **Mermaid node label line breaks**: Replaced `\n` with `<br/>` in all Mermaid flowchart node labels across architecture and concept docs (EN + ZH) — Mermaid renders `\n` as literal text in quoted labels### Corrigé
+- **Montage de volume Docker sandbox (DooD)**: Correction des montages de liaison `-v` vides lorsque `CODE_EXEC_BACKEND=docker` s'exécute dans un conteneur (docker-compose). Répertoire sandbox déplacé de `tmp/conversations/` à `data/sandbox/` (sous le volume monté `./data:/app/data`). Nouvelle variable d'environnement `DOCKER_HOST_DATA_DIR` traduit les chemins internes du conteneur en chemins visibles par l'hôte pour le démon Docker. Correction de la résolution de `_PROJECT_ROOT` en `/app/src/` (et non `/app/`) en utilisant `.parent`
+- **Sécurité : validation des attributs dunder AST du sandbox Python**: Blocage de l'échappatoire du sandbox via validation des attributs dunder AST
+- **Sécurité : paramètres par défaut MCP stdio + liste d'autorisation des commandes**: Harmonisation des paramètres par défaut du transport MCP stdio (désormais désactivés par défaut) et ajout d'une liste d'autorisation des commandes (`ALLOWED_STDIO_COMMANDS`)
+- **Sécurité : prévention de la redirection DNS SSRF**: Prévention de la redirection DNS SSRF via l'épinglage IP au niveau du transport (`SSRFSafeTransport`)
+- **Sécurité : détection d'évasion de métacaractères shell**: Détection de l'évasion de métacaractères shell (substitution de commande, backticks, expansion de variables, insertion de guillemets vides) avant la liste de blocage
+- **Sécurité : injection de modèle de connecteur**: Échappement des substitutions inline du modèle de connecteur pour prévenir l'injection JSON
+- **DAG : markdown AnalysisCard**: Le raisonnement d'analyse est maintenant rendu avec `MarkdownContent` au lieu de `<p>` simple, corrigeant le gras/les listes dans l'analyse multi-étapes
+- **DAG : scroll-to-step avec étapes réduites**: Cliquer sur un nœud d'étape dans la barre latérale développe maintenant automatiquement la section d'étape réduite avant le défilement
+- **DAG : l'historique affiche les cartes d'étapes**: Les tours d'historique affichent maintenant les cartes d'étapes dans le bloc réductible développé (précédemment masqué par `hideStepCards`)
+- **DAG : analyse obsolète lors de la replanification**: L'analyse "objectif non atteint" du round 1 est maintenant effacée immédiatement au démarrage de la replanification, et le spinner "analyse…" du round 2 s'affiche correctement
+- **UI : anneau de focus de recherche de chat**: Ajout de `focus-visible:outline-none` à l'entrée de recherche pour éviter la fuite de l'anneau de focus
+- **Export : lisibilité PDF**: Augmentation de l'interligne (leading) et du remplissage des cellules dans tous les styles PDF pour une meilleure lisibilité du texte
+- **Export : suppression du stripping d'emoji**: Suppression de `_strip_emoji()` inutile du rendu de la réponse finale dans les exports DOCX et PDF, préservant le contenu original
+- **Admin : crash des statistiques du tableau de bord PG**: Correction du crash de la page des statistiques du tableau de bord admin sur PostgreSQL — `GROUP BY` avec `coalesce()` paramétrée causait `GroupingError` ; remplacé par la valeur par défaut de colonne `literal()`
+
+- **Déploiement Docker Compose**: Image unique (API + Frontend), volumes nommés pour la persistance des données, mode de sortie Next.js autonome
+- **Admin : enregistrement de l'historique de connexion**: Les points de terminaison d'authentification enregistrent maintenant chaque tentative de connexion (adresse IP, User-Agent, succès/échec avec raison) dans la table `LoginHistory` pour l'audit de sécurité
+- **Admin : navigateur de fichiers**: Nouveaux points de terminaison du navigateur de fichiers admin pour lister et télécharger les fichiers téléchargés par l'utilisateur avec support de la pagination
+- **Admin : vues agent/KB enrichies**: Les vues de liste d'agents admin et de base de connaissances exposent maintenant les champs `model_name`, `tools`, `kb_ids` et `embedding_model` pour une meilleure visibilité
+- **Chat : blocage des mots sensibles**: Les points de terminaison de chat ReAct et `inject_message` appliquent maintenant le filtrage des mots sensibles, bloquant les messages contenant des mots sensibles configurés
+- **SSE : gestion structurée des erreurs**: Le callback `onError` dans le hook `useSSE` est passé d'une simple chaîne à un objet `ApiError` pour un contexte d'erreur plus riche (code d'erreur, arguments)
+- **UI : utilitaire `formatTokens`**: Nouveau helper de formatage pour afficher les comptages de jetons avec formatage de nombres tenant compte de la locale
+- **UI : composants `Checkbox` et `FadeIn`**: Nouveaux composants de case à cocher de style shadcn et wrapper d'animation de fondu### Modifié
+- **Docs: Diagrammes ASCII → Mermaid**: Tous les diagrammes ASCII en boîtes converties en graphiques Mermaid natifs (12 diagrammes sur 6 pages) pour un meilleur rendu et une meilleure interactivité
+- **Docs: thème mode sombre**: Configuration de couleur Mintlify affinée — accent ambre chaud en mode sombre, décoration de fond dégradé, couleurs de fond appropriées correspondant au thème du projet### Corrigé
+- **Export: support du nom de fichier RFC 5987**: Préférer `filename*` encodé en UTF-8 plutôt que `filename` simple dans l'en-tête Content-Disposition, corrigeant les noms de fichiers CJK garnis lors de l'export de conversations
+- **Docker i18n cassé**: Copier le répertoire `messages/` dans la sortie autonome et ajouter `outputFileTracingIncludes` pour que next-intl puisse découvrir les fichiers JSON de locale à l'exécution
+- **Condition de course au démarrage de Docker**: Ajouter une boucle d'attente de disponibilité de l'API (sondage de socket Python) dans le point d'entrée avant de démarrer Next.js, prévenant les erreurs SSR `e.map is not a function`
+- **Artifacts: tri par created_at de la conversation**: Trier les artifacts par heure de création de la conversation au lieu de mtime du fichier (mtime n'est pas fiable sur les volumes Docker)
+- **OAuth: détection automatique de l'URL de l'API de production à partir du port window.location**: La détection automatique du navigateur fonctionne désormais correctement pour les ports personnalisés en production (pas seulement 3000)
+- **Docker: incompatibilité du chemin de montage du volume sandbox DooD**: Lors de l'exécution à l'intérieur d'un conteneur avec `CODE_EXEC_BACKEND=docker` (Docker-outside-of-Docker), les scripts sandbox étaient écrits dans des chemins internes au conteneur invisibles au démon Docker hôte, causant des montages `-v` vides et des erreurs "No such file or directory". Corrigé en déplaçant le répertoire sandbox vers `data/sandbox/`, en ajoutant la variable d'environnement `DOCKER_HOST_DATA_DIR` avec `_resolve_host_path()` pour la traduction de chemin, et en gérant les cas limites de variables d'environnement vides## [v0.7.3] - 2026-03-06### Ajouté
+- **Serveurs MCP globaux** : Serveurs MCP provisionnés par l'administrateur chargés dans toutes les sessions de chat (non par utilisateur/agent) ; logique de requête : `or_(is_global==True, user_id==current_user.id)`
+- **Mode rétrocompatibilité** : Admin Platform lit le booléen `registration_enabled` hérité si `registration_mode` n'est pas défini (migration automatique vers le mode "open")
+- **Journalisation d'audit structurée** : L'assistant `write_audit()` centralise les écritures de journal d'audit (admin_id, target_type, target_id, champs detail) ; remplace les appels `AuditLog()` ad hoc### Modifié
+- **Schéma du journal d'audit** : Passage du dictionnaire `meta` brut à des colonnes structurées `admin_id` / `target_type` / `target_id` / `detail` pour une meilleure conformité
+- **Construction de l'URL de rappel OAuth** : `{API_BASE_URL}/api/auth/oauth/{provider}/callback` (auto-construite par le backend, pas de codage en dur)### Corrigé
+- **Compatibilité rétroactive du code d'invitation** : Interprète correctement registration_mode lorsqu'il n'est pas explicitement défini (lit depuis registration_enabled)
+- **Scénario multi-utilisateur** : Les serveurs MCP globaux n'entrent plus en conflit avec les outils par utilisateur## [v0.7.2] - 2026-03-06### Ajouté
+- **Mode d'enregistrement sur invitation uniquement** : Nouveau système d'enregistrement avec trois modes (ouvert/invitation/désactivé) et CRUD de code d'invitation
+- **Gestion du stockage** : Calcul de l'utilisation disque par utilisateur, commande de suppression, nettoyage des fichiers orphelins
+- **Déconnexion forcée par utilisateur** : Capacité de l'administrateur à révoquer tous les jetons et forcer la réauthentification
+- **Modération des conversations** : Capacité de l'administrateur à lister et supprimer toutes les conversations utilisateur### Modifié
+- **Panneaux d'administration** : Séparés en Liste d'administration (utilisateurs, clés API, agents, etc.) avec des modèles d'actions de menu déroulant cohérents### Corrigé
+- **Pagination de la liste d'administration** : Toutes les listes de données d'administration prennent désormais en charge la pagination et la recherche## [v0.7.1] - 2026-03-06### Ajouté
+- **Tableau de bord de santé API** : Statistiques système (utilisateurs, conversations, jetons, graphiques d'utilisation des modèles, répartition des jetons par agent), métriques d'appels de connecteur (taux de succès, latence)
+- **Authentification JWT** : Authentification SSE basée sur les jetons, propriété des conversations, isolation des ressources par utilisateur
+- **API Admin** : Gestion des agents, application de quotas de jetons par utilisateur (429 en cas de dépassement)### Corrigé
+- **Token quota enforcement**: Les endpoints ReAct et DAG vérifient maintenant les quotas par utilisateur avant l'exécution## [v0.7] - 2026-03-06### Ajouté
+- **Admin Platform v0.7**: Gestion des utilisateurs avec recherche/pagination, basculement de rôle, réinitialisation de mot de passe, activation/désactivation de compte, inscription sur invitation uniquement, quota par utilisateur, modération des conversations, gestion du stockage
+- **Assistant de configuration au premier lancement**: Au premier lancement, le portail guide l'administrateur dans la création d'un compte administrateur (nom d'utilisateur, mot de passe, e-mail)
+- **Centre personnel**: Instructions système globales par utilisateur appliquées à toutes les conversations
+- **Préférence de langue**: Paramètre de langue par utilisateur (auto/en/zh) dirige toutes les réponses LLM vers la langue choisie### Modifié
+- **Authentification multi-locataire** : Les jetons JWT appliquent la propriété des conversations ; les agents héritent du contexte utilisateur### Corrigé
+- **Liaison de compte OAuth** : Correspondance correcte des e-mails pour les flux de liaison/connexion sur tous les fournisseurs## [v0.6.5] - 2026-03-05### Ajouté
+- **Outils utilitaires** : `email_send`, `json_transform`, `template_render`, `text_utils`
+- **Filtrage des réponses du connecteur** : limites `CONNECTOR_RESPONSE_MAX_CHARS` et `CONNECTOR_RESPONSE_MAX_ITEMS`
+- **Options de modèle d'embedding** : Support pour Jina, OpenAI et les fournisseurs d'embedding personnalisés### Corrigé
+- **Stabilité du pipeline RAG** : Meilleure gestion des erreurs pour les opérations de chunk échouées## [v0.6] - 2026-03-01### Ajouté
+- **Connector Platform (fonctionnalité principale)**:
+  - Connector CRUD (créer, lire, mettre à jour, supprimer)
+  - `ConnectorToolAdapter` convertit Connector → BaseTool dans ToolRegistry
+  - Identifiants par utilisateur avec chiffrement AES-GCM
+  - Porte de confirmation pour les opérations d'écriture
+  - Disjoncteur pour les défaillances de connexion
+  - Classification des opérations (lecture/écriture/admin)
+  - Journalisation d'audit pour tous les appels d'outils
+- **Intégration MCP**: Découverte automatique d'outils via protocole MCP, isolation des processus
+- **Exemple de flux de données Connector**: Query → Governance → MCP → Legacy System### Modifié
+- **Architecture des outils** : ToolRegistry unifié prend en charge les outils intégrés, MCP et connector### Corrigé
+- **Catégorisation des outils** : Tous les outils intégrés correctement étiquetés avec des catégories## [v0.5] - 2026-02-28### Ajouté
+- **Pipeline RAG complet** : Jina embedding + LanceDB vector store + FTS + RRF hybrid retrieval + reranker
+- **Grounded Generation** : RAG ancré par les preuves avec citations `[N]`, détection de conflits, scores de confiance explicables
+- **Gestion des documents KB** : CRUD au niveau des chunks, recherche textuelle, retry des docs échouées, schéma de vector store auto-migrant
+- **ContextGuard + Messages épinglés** : Gestionnaire de budget de tokens ; messages épinglés protégés de la compaction### Modifié
+- **Mémoire multi-tour** : DbMemory dans `core/memory/db.py`, CompactUtils dans `core/memory/compact.py`
+- **Compact LLM** : `CompactUtils.llm_compact()` résume les anciens tours via LLM rapide
+- **Re-Planification DAG** : Boucle jusqu'à `MAX_REPLAN_ROUNDS=3` ; re-planifie quand `analysis.achieved=False` et `confidence < 0.5`### Corrigé
+- **Gestion du débordement de jetons** : La résumé automatisée alimentée par LLM respecte les budgets de jetons## [v0.4] - 2026-02-25### Ajouté
+- **Conversations multi-tours**: DbMemory persiste l'historique des conversations; la troncature intelligente gère les sessions longues
+- **Pliage des étapes d'outils**: L'interface utilisateur réduit/développe les étapes d'appel d'outils pour la lisibilité
+- **Outil de requête HTTP**: En-têtes personnalisés, authentification, sélection de méthode
+- **Outil d'exécution shell**: Exécution sécurisée de commandes avec délai d'expiration
+- **Gestion des agents**: Créer, configurer, publier des agents avec modèles liés, outils, instructions
+- **Mode d'exécution par agent**: Basculement du mode Standard/Planner, contrôle de la température
+- **Authentification JWT**: Authentification par jeton sans état pour les appels API### Changé
+- **Architecture mémoire**: ReAct entièrement connecté à DbMemory; DAG injecte l'historique comme préfixe de requête enrichi
+- **Vérification de santé admin**: Surveille à la fois les modèles configurés par ENV et les modèles configurés par admin### Corrigé
+- **Isolation multi-utilisateur** : Conversations isolées par utilisateur ; agents limités à l'utilisateur## [v0.3] - 2026-02-25### Ajouté
+- **Outils Web** : `web_search` (Jina/Tavily/Brave), `web_fetch`, fournisseurs configurables
+- **Outil d'opérations fichiers** : Lecture, écriture, liste, suppression avec validation de chemin
+- **Client MCP** : Intégration orientée protocole, isolation des processus
+- **Découverte automatique d'outils** : `discover_builtin_tools()` dans `builtin/__init__.py`
+- **Catégories d'outils** : computation, web, filesystem, knowledge, mcp, connector, general
+- **Visualisation DAG** : Graphique de flux interactif avec statut en direct, arêtes de dépendance, clic pour faire défiler
+- **Exécution Python/Node.js** : Exécution de code dans Docker pour l'isolation (`CODE_EXEC_BACKEND=docker`)
+- **Renforcement du bac à sable** : `--network=none`, `--memory=256m`, application des délais d'expiration### Modifié
+- **Interface des outils** : Tous les outils sont maintenant catégorisés ; le registre supporte le filtrage
+- **Modèle d'exécution** : DAG Executor exécute les étapes de manière concurrente via asyncio### Corrigé
+- **Robustesse de la découverte d'outils** : Gère les dépendances optionnelles manquantes avec élégance## [v0.2] - 2026-02-24### Ajouté
+- **Retry & rate limiting**: Backoff exponentiel automatique pour les défaillances transitoires
+- **Usage tracking**: Comptabilité des tokens/coûts par requête
+- **Native function calling**: Support direct du modèle pour la sélection d'outils (pas d'analyse JSON uniquement)
+- **Multi-model support**: `FAST_LLM_MODEL` pour l'exécution d'étapes DAG moins chères
+- **Memory system**: WindowMemory (derniers N tours), SummaryMemory (résumé par LLM), DbMemory (persistant)
+- **FastAPI backend**: `/api/execute` (ReAct), `/api/stream` (streaming SSE)### Modifié
+- **Abstraction LLM** : BaseLLM → OpenAICompatibleLLM avec interface unifiée
+- **ModelRegistry** : Configuration centralisée, sélection automatique du fournisseur### Corrigé
+- **Récupération d'erreur** : Nouvelle tentative automatique en cas d'erreurs API transitoires## [v0.1] - 2026-02-22### Ajouté
+- **ReActAgent**: Boucle Reason → Act → Observe avec outils
+- **DAGPlanner**: Graphes de dépendances générés par LLM, DAGExecutor pour l'exécution concurrente, PlanAnalyzer pour la vérification des résultats
+- **Framework BaseTool**: Interface unifiée pour tous les outils
+- **Outil Calculator**: Expressions arithmétiques, évaluation de formules
+- **Outil Python exec**: Exécution de code dans un environnement isolé
+- **Rendu KaTeX**: Notation mathématique dans la sortie en streaming
+- **Analyse du mode JSON**: Gestion robuste de la sortie structurée
+- **Interface utilisateur Portal**: Interface web Next.js avec streaming en temps réel, thème sombre/clair/système
+- **Documentation initiale**: Pages wiki couvrant la philosophie, l'architecture, la feuille de route### Corrigé
+- **Stabilité du streaming** : Gestion appropriée des erreurs SSE et nettoyage des connexions

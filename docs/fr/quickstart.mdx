@@ -1,0 +1,139 @@
+---
+title: "Démarrage rapide"
+description: "Lancez FIM One en quelques minutes — ou essayez la version cloud instantanément."
+---
+
+<Tip>
+  **☁️ Option 0 : Cloud (Zéro configuration)**
+  Vous ne voulez pas auto-héberger ? Essayez FIM One instantanément sur [**cloud.fim.ai**](https://cloud.fim.ai/) — pas de Docker, pas de clés API, pas de configuration. Connectez-vous et vous êtes prêt. _Accès anticipé._
+</Tip>## Option A : Docker (Recommandé)
+
+Aucun Python ou Node.js local requis — tout est construit à l'intérieur du conteneur.
+
+```bash
+git clone https://github.com/fim-ai/fim-one.git
+cd fim-one
+```# Configurer — seul LLM_API_KEY est requis
+cp example.env .env# Modifier .env : définir LLM_API_KEY (et optionnellement LLM_BASE_URL, LLM_MODEL)# Construire et exécuter (première fois, ou après avoir tiré le nouveau code)
+docker compose up --build -d
+```
+
+Ouvrez http://localhost:3000 — au premier lancement, vous serez guidé pour créer un compte administrateur. C'est tout.
+
+Après la construction initiale, les démarrages suivants ne nécessitent que :
+
+```bash
+docker compose up -d          # démarrer (ignorer la reconstruction si l'image n'a pas changé)
+docker compose down           # arrêter
+docker compose logs -f        # afficher les journaux
+```
+
+Les données sont persistantes dans les volumes nommés Docker (`fim-data`, `fim-uploads`) et survivent aux redémarrages des conteneurs.
+
+**Remarque :** Le mode Docker ne supporte pas le rechargement à chaud. Les modifications du code nécessitent de reconstruire l'image (`docker compose up --build -d`). Pour le développement actif avec rechargement en direct, utilisez **l'option B** ci-dessous.## Option B: Développement local
+
+Prérequis : Python 3.11+, [uv](https://docs.astral.sh/uv/), Node.js 18+, pnpm.
+
+```bash
+git clone https://github.com/fim-ai/fim-one.git
+cd fim-one
+
+cp example.env .env
+```# Modifier .env : définir LLM_API_KEY# Installer
+uv sync --all-extras
+cd frontend && pnpm install && cd ..# Lancer (avec rechargement à chaud)
+./start.sh
+```
+
+| Commande         | Ce qui démarre                                          | URL                                      |
+| ---------------- | ------------------------------------------------------- | ---------------------------------------- |
+| `./start.sh`     | Next.js + FastAPI                                       | http://localhost:3000 (UI) + :8000 (API) |
+| `./start.sh dev` | Identique, avec rechargement à chaud (Python `--reload` + Next.js HMR) | Identique                                |
+| `./start.sh api` | FastAPI uniquement (sans interface, pour intégration ou test)     | http://localhost:8000/api                |## Configuration
+
+FIM One fonctionne avec **n'importe quel fournisseur LLM compatible OpenAI** — OpenAI, DeepSeek, Anthropic, Qwen, Ollama, vLLM, et bien d'autres.
+
+| Provider | `LLM_API_KEY` | `LLM_BASE_URL` | `LLM_MODEL` |
+| -------- | ------------- | -------------- | ----------- |
+| **OpenAI** | `sk-...` | *(default)* | `gpt-4o` |
+| **DeepSeek** | `sk-...` | `https://api.deepseek.com/v1` | `deepseek-chat` |
+| **Anthropic** | `sk-ant-...` | `https://api.anthropic.com/v1` | `claude-sonnet-4-6` |
+| **Ollama** (local) | `ollama` | `http://localhost:11434/v1` | `qwen2.5:14b` |
+
+**[Jina AI](https://jina.ai/)** déverrouille la recherche/récupération web, l'intégration, et le pipeline RAG complet (niveau gratuit disponible).
+
+Fichier `.env` minimal :
+
+```bash
+LLM_API_KEY=sk-your-key
+```# LLM_BASE_URL=https://api.openai.com/v1   # par défaut — à modifier pour d'autres fournisseurs# LLM_MODEL=gpt-4o                         # default — change for other models
+
+JINA_API_KEY=jina_...                       # unlocks web tools + RAG
+```
+
+Pour une liste complète de toutes les options de configuration, consultez la référence [Variables d'environnement](/configuration/environment-variables).## Déploiement en Production### Docker (Recommandé)
+
+`docker compose up -d` lance tout ce dont vous avez besoin — **aucune configuration manuelle de service requise** :
+
+| Service | Objectif | Configuré par |
+|---------|----------|---------------|
+| **fim-one** | API + Frontend | `.env` (vos clés LLM, etc.) |
+| **Redis** | Relais d'interruption inter-workers | Auto-configuré par compose |
+
+```bash
+docker compose up --build -d   # first time / after code changes
+docker compose up -d           # subsequent starts
+docker compose logs -f         # view logs
+docker compose down            # stop all services
+```#### Mise à l'échelle avec des Workers
+
+Par défaut, l'API s'exécute avec un seul processus worker. Pour gérer plus d'utilisateurs simultanés, augmentez les workers via `.env` :
+
+```bash
+WORKERS=4   # number of Uvicorn worker processes
+```
+
+Exigences multi-worker :
+- **PostgreSQL** — SQLite est single-writer et ne supporte pas les écritures concurrentes. Définissez `DATABASE_URL` sur une chaîne de connexion PostgreSQL.
+- **Redis** — déjà inclus dans Docker Compose (auto-configuré). Gère le relais d'interruption/injection entre workers.
+
+Avec `WORKERS=1` (par défaut), aucun Redis ou PostgreSQL n'est nécessaire — SQLite fonctionne bien.#### Proxy inverse Nginx
+
+Pour HTTPS et un domaine personnalisé, placez un proxy inverse Nginx devant :
+
+```
+User → Nginx (443/HTTPS) → localhost:3000
+```
+
+L'API s'exécute en interne sur le port 8000 — Next.js proxifie automatiquement les requêtes `/api/*`. Seul le port 3000 doit être exposé.#### Bac à sable d'exécution de code
+
+Si vous utilisez le bac à sable d'exécution de code (`CODE_EXEC_BACKEND=docker`), montez le socket Docker :
+
+```yaml
+
+```# docker-compose.yml
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock
+```### Déploiement de script (Bare Metal)
+
+Pour les serveurs bare-metal ou les gestionnaires de processus personnalisés, utilisez `./start.sh` directement :
+
+```bash
+./start.sh           # production mode
+./start.sh portal    # same as above (explicit)
+./start.sh api       # API only (headless)
+```
+
+Dans ce mode, Redis n'est **pas** inclus automatiquement. Le système s'exécute en mode single-worker, in-process par défaut — adapté aux déploiements à faible trafic.
+
+Pour activer le multi-worker avec Redis localement :
+
+```bash
+
+
+```# Démarrer une instance Redis (Docker ou package système)
+docker run -d --name redis -p 6379:6379 redis:7-alpine# Ajouter à .env
+REDIS_URL=redis://localhost:6379/0
+WORKERS=4
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost/fim_one
+```

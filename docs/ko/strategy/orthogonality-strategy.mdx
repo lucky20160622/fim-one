@@ -1,0 +1,101 @@
+---
+title: "직교성 전략"
+description: "아키텍처 결정 기록 — LLM 진전과의 관계에 따라 기능을 분류합니다."
+---
+
+> **상태**: 승인됨 (2026년 3월)
+>
+> **맥락**: LLM 기능이 빠르게 진화함에 따라, 엔지니어링 노력을 어디에 투자할지, 어디서 유지할지 결정하기 위한 프레임워크가 필요합니다.## 결정
+
+우리는 모든 기능을 LLM 진전과의 관계에 따라 분류하고 그에 따라 노력을 배분합니다.
+
+| 카테고리 | 전략 | 투자 | 예시 |
+|----------|----------|------------|---------|
+| **직교(Orthogonal)** | 모델이 더 똑똑해져도 이들을 감소시키지 않음 — 순수 엔지니어링/통합 문제 | 전체 투자 | Connectors, 자격증명, OAuth, 감사, RBAC, 보안, 배포 |
+| **Tailwind** | 모델 개선이 이들을 *더 나아지게* 함, 중복되지 않음 — 상생 관계 | 투자 (이점이 복합됨) | AI Connector Builder (더 똑똑한 모델 = 더 높은 품질의 connector 출력) |
+| **동결(Frozen)** | 이미 출시됨, 잘 작동 중 — 하지만 모델이 이러한 기능을 흡수 중 | 유지만 함, 새 기능 없음 | ReAct 루프, DAG 계획, RAG 파이프라인, 메모리, 근거 기반 생성 |
+| **검토(Consider)** | 제공자가 플랫폼 수준에서 기본적으로 구축 중 — 중복 위험 높음 | 무기한 연기 | 멀티-에이전트 오케스트레이션, 의미론적 메모리, 메모리 생명주기 |
+
+**경험의 법칙**: 기능이 *"모델을 더 똑똑하게 만드는 방법"*을 해결하면, 흡수되고 있는 것입니다. *"모델을 안전하게 실제 세계에 연결하는 방법"*을 해결하면, 직교입니다.# 분석### Connector Platform이 완전히 직교하는 이유
+
+모델은 절대로 기본적으로 다음을 수행할 수 없습니다:
+- API 자격증명 저장 및 암호화 (AES-GCM)
+- OAuth 흐름 관리 (인증 페이지 → 콜백 → 새로고침 토큰)
+- 클라이언트의 Kingdee/金蝶 ERP 데이터베이스에 연결
+- Lark/飞书 또는 WeCom/企微에 알림 푸시
+- 어떤 커넥터를 사용할 수 있는지에 대한 RBAC 적용
+- 규정 준수 감사를 위해 모든 도구 호출 기록
+
+이는 지능 문제가 아니라 엔지니어링 문제입니다. 10배 더 똑똑한 모델도 인프라 없이는 이러한 작업을 수행할 수 없습니다.### AI Connector Builder가 "흡수되는" 것이 아니라 "선도적"인 이유
+
+Builder Agent는 모델 지능을 사용하여 **관리되고 지속적인 Connector 엔티티를 생성합니다** — DB에 저장되고, 에이전트 전체에서 재사용 가능하며, 자격증명 관리 및 감사 추적을 포함합니다. 모델의 개선된 API 이해는 Builder를 불필요하게 만드는 것이 아니라 *더 나은* Connector를 생성하도록 합니다.
+
+비유: Cursor는 Claude를 사용하여 코드를 작성합니다. Claude가 더 똑똑해지면 Cursor는 *더 나아지고*, *중복되지 않습니다*. 왜냐하면 Cursor는 모델이 대체할 수 없는 엔지니어링 가치(프로젝트 관리, 파일 구성, 버전 관리)를 제공하기 때문입니다.### v0.1–v0.5 기능이 "동결"된 이유
+
+| 기능 | 업계에서 일어나고 있는 일 |
+|---------|--------------------------------|
+| ReAct loop | 모델이 기본 도구 호출 기능을 갖추고 있습니다(OpenAI, Anthropic). 외부 추론 루프는 모델이 이를 내재화함에 따라 가치가 감소합니다. |
+| DAG Planning | 모델의 추론 능력이 빠르게 향상되고 있습니다. 외부 플래너가 필요했던 복잡한 작업 분해가 단일 샷 기능이 되고 있습니다. |
+| Memory management | 컨텍스트 윈도우가 빠르게 증가하고 있습니다(Gemini 2M+, Claude 200K+). 외부 윈도우 관리, 요약 및 압축의 필요성이 감소하고 있습니다. |
+| RAG pipeline | 제공자들이 자신의 플랫폼에 검색 기능을 구축하고 있습니다(OpenAI file_search, Google NotebookLM, Gemini Search Grounding). 공개 지식의 경우 기존의 청크-임베딩-검색 파이프라인이 대체되고 있습니다. |
+| Grounded Generation | 모델이 기본적으로 출처를 인용하는 데 더 능해지고 있습니다. 우리가 구축한 5단계 그라운딩 파이프라인은 가치가 감소하고 있습니다. |
+
+**이러한 기능들이 나쁜 것은 아닙니다** — 출시되었고, 작동하며, 오늘날 제품을 기능하게 합니다. 결정은 단순히 이들에 대한 추가 개발을 중단하고 노력을 다른 곳으로 돌리는 것입니다.### 다중 에이전트 오케스트레이션이 연기된 이유
+
+LLM 제공자들이 오케스트레이션을 기본적으로 구축하고 있습니다:
+- **OpenAI Swarm**: 핸드오프 프로토콜을 포함한 다중 에이전트 프레임워크
+- **Anthropic Claude Code Teams**: 작업 그래프를 포함한 리더/워커 에이전트 풀
+- **Google A2A (Agent-to-Agent)**: 에이전트 간 통신 프로토콜
+
+경쟁하는 오케스트레이션 레이어를 구축하는 것은 더 깊은 모델 통합을 가진 퍼스트파티 구현과 경쟁하는 것을 의미합니다. 이는 지속 가능한 차별화 요소가 아닙니다.### 의미론적 메모리와 메모리 라이프사이클이 연기된 이유
+
+- 컨텍스트 윈도우가 빠르게 증가하고 있어 세션 간 메모리 검색의 필요성이 감소하고 있습니다
+- 제공자들이 네이티브 메모리 기능을 추가하고 있습니다 (ChatGPT Memory, Claude Projects)
+- 신뢰할 수 있는 메모리 시스템을 구축하는 엔지니어링 비용(TTL, 중요도 점수 매기기, 의미론적 검색)이 이를 채우는 축소되는 격차에 비해 높습니다## 기능 수준 분류### Orthogonal (v0.6+)
+
+| Feature | Version | Why orthogonal |
+|---------|---------|---------------|
+| Connector entity + CRUD | v0.6.1 | Enterprise integration, pure engineering |
+| Per-user credentials (AES-GCM) | v0.6.2 | Security infrastructure |
+| Confirmation Gate | v0.6.2 | Safety mechanism for write operations |
+| Connector Export/Import/Fork | v0.7 | Distribution mechanism |
+| OAuth 2.0 | v0.7 | Protocol implementation |
+| MCP Server Export | v0.7 | Interoperability (depends on MCP adoption) |
+| Database Connector | v0.8 | Direct DB access, connection pools |
+| Message Push | v0.8 | Notification channels |
+| RBAC | v0.8 | Access control, governance |
+| Operation Audit Log | v0.8 | Compliance |
+| Sandbox Hardening | v0.9 | Security isolation |
+| Observability (OTel, circuit breaker) | v0.9 | Production operations |
+| Connector Analytics | v0.9 | Usage tracking |
+| Docker Compose | v0.9 | Deployment |
+| Admin Dashboard | v1.0 | Management UI |
+| Scheduled Jobs / Webhooks | v1.0 | Automation triggers |
+| Batch Execution | v1.0 | Enterprise-scale processing |
+| Embeddable Widget / iframe | v1.0 | Delivery mode |
+| Enterprise Security | v1.0 | Compliance (encryption, IP whitelisting) |### Tailwind
+
+| Feature | Version | Relationship |
+|---------|---------|-------------|
+| AI Connector Builder | v0.6.3 | 더 똑똑한 모델 → 더 나은 빌더 출력 |
+| AI Connector Generation (OpenAPI) | v1.0 | 동일 — 모델이 API 사양을 더 잘 이해 → 더 정확한 자동 생성 |### Frozen (shipped, maintain only)
+
+| Feature | Version | Status |
+|---------|---------|--------|
+| ReAct Agent | v0.1 | Shipped, working |
+| DAG Planning / Re-Planning | v0.1, v0.5 | Shipped, working |
+| Memory (Window, Summary, Compact) | v0.2, v0.5 | Shipped, working |
+| RAG pipeline (embedding, vector store, chunking, hybrid retrieval) | v0.5 | Shipped, working |
+| Grounded Generation | v0.5 | Shipped, working |
+| ContextGuard / Pinned Messages | v0.5 | Shipped, working |### 고려 중 (무기한 연기)
+
+| 기능 | 원본 버전 | 연기 사유 |
+|---------|-----------------|----------------|
+| Multi-Agent Orchestration | v1.0 | 제공자가 기본적으로 구축 중 |
+| Semantic Memory Store | Backlog | 컨텍스트 윈도우 증가; 제공자가 기본 메모리 추가 중 |
+| Memory Lifecycle | Backlog | 위와 동일 |## 의미
+
+1. **v0.5 기능으로 돌아가지 마세요.** 버그 수정은 가능하지만 새로운 기능은 안 됩니다.
+2. **Connector 플랫폼이 핵심 투자입니다.** v0.6–v0.8은 대부분의 엔지니어링 시간을 받아야 합니다.
+3. **엔터프라이즈 엔지니어링(RBAC, 감사, 보안, 배포)이 경쟁력입니다.** 이들은 지루하지만 방어 가능합니다.
+4. **연간 재평가하세요.** 모델 진전이 정체되거나 "동결된" 기능에 여전히 중대한 격차가 있다면 재검토하세요.

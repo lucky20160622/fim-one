@@ -1,0 +1,15 @@
+{
+  "title": "マーケット",
+  "description": "組織から共有されたリソースを参照して購読する",
+  "empty": "マーケットで利用可能なリソースがありません",
+  "subscribed": "購読済み",
+  "subscribe": "購読",
+  "unsubscribe": "購読解除",
+  "types": {
+    "all": "すべて",
+    "agent": "エージェント",
+    "connector": "コネクタ",
+    "knowledge_base": "ナレッジベース",
+    "mcp_server": "MCP サーバー"
+  }
+}

@@ -1,0 +1,393 @@
+---
+title: "확장 가이드"
+description: "FIM One에 사용자 정의 LLM 제공자, 도구, 메모리 백엔드, 임베딩, 리랭커, 웹 백엔드 및 RAG 구성 요소를 연결하는 방법."
+---## 개요
+
+FIM One은 교체 가능한 각 컴포넌트마다 하나씩 얇은 추상 기본 클래스 집합을 중심으로 구축되었습니다. 모든 컴포넌트는 단일 책임과 최소한의 인터페이스를 가집니다. 추상 메서드를 구현하고, 인스턴스를 적절한 레지스트리 또는 인젝터에 연결하면, 나머지 시스템이 자동으로 구현을 사용합니다.
+
+| 확장 지점 | 기본 클래스 | 파일 | 등록 |
+|---|---|---|---|
+| LLM provider | `BaseLLM` | `core/model/base.py` | `ModelRegistry.register()` |
+| Tool | `BaseTool` | `core/tool/base.py` | `builtin/`에 파일 드롭 |
+| Memory | `BaseMemory` | `core/memory/base.py` | 생성자 주입 |
+| Embedding | `BaseEmbedding` | `core/embedding/base.py` | 생성자 주입 |
+| Image generation | `BaseImageGen` | `core/image_gen/base.py` | 생성자 주입 |
+| Reranker | `BaseReranker` | `core/reranker/base.py` | 생성자 주입 |
+| Web fetch backend | `BaseWebFetch` | `core/web/fetch/base.py` | 생성자 주입 |
+| Web search backend | `BaseWebSearch` | `core/web/search/base.py` | 생성자 주입 |
+| RAG retriever | `BaseRetriever` | `rag/base.py` | 생성자 주입 |
+| Document loader | `BaseLoader` | `rag/loaders/base.py` | 로더 레지스트리 / 주입 |
+| Text chunker | `BaseChunker` | `rag/chunking/base.py` | 생성자 주입 |
+
+---## 커스텀 LLM 제공자
+
+`BaseLLM`에는 두 개의 필수 메서드 — `chat`과 `stream_chat` — 그리고 모델이 할 수 있는 작업을 시스템의 나머지 부분에 알려주는 선택적 `abilities` 속성이 있습니다.
+
+```python
+from collections.abc import AsyncIterator
+from typing import Any
+
+from fim_one.core.model.base import BaseLLM
+from fim_one.core.model.types import ChatMessage, LLMResult, StreamChunk
+
+
+class MyLLM(BaseLLM):
+    def __init__(self, api_key: str, model: str) -> None:
+        self._api_key = api_key
+        self._model = model
+
+    @property
+    def model_id(self) -> str:
+        return self._model
+
+    @property
+    def abilities(self) -> dict[str, bool]:
+        return {
+            "tool_call": True,   # supports native function calling
+            "json_mode": True,   # supports response_format JSON mode
+            "vision":   False,
+            "streaming": True,
+        }
+
+    async def chat(
+        self,
+        messages: list[ChatMessage],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        response_format: dict[str, Any] | None = None,
+    ) -> LLMResult:
+        # Call your provider, return LLMResult(message=..., usage=...)
+        ...
+
+    async def stream_chat(
+        self,
+        messages: list[ChatMessage],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> AsyncIterator[StreamChunk]:
+        # Yield StreamChunk instances as tokens arrive
+        ...
+        yield  # make type-checker happy
+```### ModelRegistry를 통한 등록
+
+`ModelRegistry`는 이름을 `BaseLLM` 인스턴스에 매핑하고 역할별로 해결합니다. 시스템은 네 가지 기본 제공 역할을 사용합니다: `general`, `fast`, `compact`, 그리고 `vision`. 자신만의 역할을 추가할 수 있습니다.
+
+```python
+from fim_one.core.model.registry import ModelRegistry
+
+registry = ModelRegistry()
+registry.register("my-llm", MyLLM(api_key="...", model="my-v1"), roles=["general"])
+registry.register("my-fast", MyLLM(api_key="...", model="my-mini"), roles=["fast", "compact"])
+```# 나중에 검색
+
+```python
+llm = registry.get_default()           # first "general" model, or first registered
+llm = registry.get_by_role("fast")     # first model with the "fast" role
+llm = registry.get("my-llm")           # by exact name
+```
+
+`abilities` dict는 LLM과 ReAct 엔진 간의 계약입니다. `tool_call=True`이고 에이전트가 `use_native_tools=True`로 생성된 경우, 엔진은 네이티브 함수 호출을 사용합니다. 그렇지 않으면 자동으로 JSON 모드로 폴백됩니다.## 사용자 정의 도구
+
+도구는 가장 일반적인 확장입니다. `BaseTool`에는 세 가지 필수 요소가 있습니다: `name`, `description`, `run`. 나머지는 모두 합리적인 기본값을 가지고 있습니다.
+
+```python
+from typing import Any
+from fim_one.core.tool.base import BaseTool
+
+
+class GitStatusTool(BaseTool):
+    @property
+    def name(self) -> str:
+        return "git_status"
+
+    @property
+    def description(self) -> str:
+        return "Return the current git status of a repository."
+
+    @property
+    def category(self) -> str:
+        return "filesystem"   # groups the tool in the UI
+
+    @property
+    def parameters_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Absolute path to the repository root.",
+                }
+            },
+            "required": ["path"],
+        }
+
+    async def run(self, *, path: str, **kwargs: Any) -> str:
+        import asyncio
+        result = await asyncio.create_subprocess_shell(
+            f"git -C {path} status --short",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await result.communicate()
+        return stdout.decode()
+```### 자동 발견
+
+`src/fim_one/core/tool/builtin/` 디렉토리에 파일을 드롭하세요. `discover_builtin_tools()` 스캐너가 구체적인(추상이 아닌) `BaseTool` 서브클래스를 자동으로 찾습니다 — 수동 등록이 필요 없습니다.
+
+```
+src/fim_one/core/tool/builtin/
+├── calculator.py       ← existing tool
+├── git_status.py       ← your new file → auto-discovered
+└── ...
+```
+
+스캐너는 `_SKIP_AUTO_DISCOVER`에 나열된 클래스를 건너뜁니다. 외부 구성(예: API 키)이 필요하고 시작 시 조건부로 인스턴스화해야 하는 도구에 해당 집합을 사용하세요.### 의존성 부재 신호 전달
+
+의존성이 누락되었을 때 도구 카탈로그에 메시지를 표시하려면 `availability()`를 재정의하세요:
+
+```python
+def availability(self) -> tuple[bool, str | None]:
+    import os
+    if not os.getenv("GITHUB_TOKEN"):
+        return False, "GITHUB_TOKEN environment variable is not set."
+    return True, None
+```### 아티팩트를 포함한 풍부한 결과
+
+도구가 파일을 생성할 때 일반 `str` 대신 `ToolResult`를 반환하세요:
+
+```python
+from fim_one.core.tool.base import Artifact, ToolResult
+
+async def run(self, **kwargs: Any) -> ToolResult:
+    # ... produce a file at /tmp/report.html ...
+    return ToolResult(
+        content="Report generated.",
+        content_type="text",
+        artifacts=[Artifact(name="report.html", path="/uploads/report.html", mime_type="text/html", size=4096)],
+    )
+```
+
+---## 커스텀 메모리
+
+`BaseMemory`는 대화 기록의 지속성 계층입니다. 세 가지 메서드: `add_message`, `get_messages`, `clear`.
+
+```python
+import redis.asyncio as redis
+from fim_one.core.memory.base import BaseMemory
+from fim_one.core.model.types import ChatMessage
+
+
+class RedisMemory(BaseMemory):
+    def __init__(self, conversation_id: str, redis_url: str) -> None:
+        self._key = f"conv:{conversation_id}"
+        self._redis = redis.from_url(redis_url)
+
+    async def add_message(self, message: ChatMessage) -> None:
+        import json
+        await self._redis.rpush(self._key, json.dumps(message))
+
+    async def get_messages(self) -> list[ChatMessage]:
+        import json
+        raw = await self._redis.lrange(self._key, 0, -1)
+        return [json.loads(m) for m in raw]
+
+    async def clear(self) -> None:
+        await self._redis.delete(self._key)
+```
+
+agent 생성자를 통해 주입: `ReActAgent(llm=llm, memory=RedisMemory(conv_id, url))`.
+
+---## 커스텀 임베딩
+
+`BaseEmbedding`은 두 가지 메서드를 제공합니다: `embed_texts` (배치) 및 `embed_query` (단일), 그리고 `dimension` 속성입니다.
+
+```python
+from fim_one.core.embedding.base import BaseEmbedding
+
+
+class MyEmbedding(BaseEmbedding):
+    def __init__(self, model: str) -> None:
+        self._model = model
+        self._dim = 1536
+
+    @property
+    def dimension(self) -> int:
+        return self._dim
+
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        # Batch embed documents
+        ...
+
+    async def embed_query(self, query: str) -> list[float]:
+        # Embed a single query — often uses a different instruction prefix
+        ...
+```
+
+`embed_texts`와 `embed_query`의 구분이 존재하는 이유는 많은 임베딩 모델(예: E5, BGE)이 검색 품질을 개선하기 위해 문서와 쿼리에 대해 서로 다른 접두사를 사용하기 때문입니다.
+
+---## 커스텀 이미지 생성
+
+`BaseImageGen`은 단일 메서드 `generate`를 가지고 있습니다. 이미지를 `output_dir`에 저장하고 파일 경로와 서버 상대 URL이 포함된 `ImageResult`를 반환합니다.
+
+```python
+from fim_one.core.image_gen.base import BaseImageGen, ImageResult
+
+
+class StableDiffusionImageGen(BaseImageGen):
+    async def generate(
+        self,
+        prompt: str,
+        *,
+        aspect_ratio: str = "1:1",
+        output_dir: str,
+    ) -> ImageResult:
+        # Call your SD API, save to output_dir
+        file_path = f"{output_dir}/image.png"
+        return ImageResult(
+            file_path=file_path,
+            url=f"/uploads/{file_path.split('/')[-1]}",
+            prompt=prompt,
+            model="stable-diffusion-xl",
+        )
+```
+
+---## 커스텀 리랭커
+
+`BaseReranker`는 쿼리와 문서 문자열 목록을 받아 재정렬된 형태로 점수와 함께 반환합니다.
+
+```python
+from fim_one.core.reranker.base import BaseReranker, RerankResult
+
+
+class CrossEncoderReranker(BaseReranker):
+    async def rerank(
+        self, query: str, documents: list[str], *, top_k: int = 5
+    ) -> list[RerankResult]:
+        # Score each (query, doc) pair with a cross-encoder
+        scores = await self._score_pairs(query, documents)
+        results = [
+            RerankResult(index=i, score=score, text=doc)
+            for i, (doc, score) in enumerate(zip(documents, scores))
+        ]
+        results.sort(key=lambda r: r.score, reverse=True)
+        return results[:top_k]
+```
+
+---## 사용자 정의 웹 백엔드### Web fetch
+
+`BaseWebFetch`는 URL을 가져와서 콘텐츠를 Markdown 또는 일반 텍스트로 반환합니다.
+
+```python
+from fim_one.core.web.fetch.base import BaseWebFetch
+
+
+class PlaywrightFetch(BaseWebFetch):
+    async def fetch(self, url: str) -> str:
+        # Use Playwright to render JS-heavy pages
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            page = await browser.new_page()
+            await page.goto(url)
+            content = await page.content()
+            await browser.close()
+        return html_to_markdown(content)
+```### 웹 검색
+
+`BaseWebSearch`는 순위가 지정된 `SearchResult` 객체 목록을 반환합니다.
+
+```python
+from fim_one.core.web.search.base import BaseWebSearch, SearchResult
+
+
+class BingSearch(BaseWebSearch):
+    async def search(self, query: str, *, num_results: int = 10) -> list[SearchResult]:
+        # Call Bing Search API
+        ...
+        return [
+            SearchResult(title=r["name"], url=r["url"], snippet=r["snippet"])
+            for r in raw_results[:num_results]
+        ]
+```## 커스텀 RAG 컴포넌트
+
+RAG 파이프라인에는 독립적으로 교체 가능한 세 가지 단계가 있습니다: 로딩, 청킹, 검색.### Document loader
+
+`BaseLoader`는 파일 경로를 `LoadedDocument` 객체의 리스트로 변환합니다. PDF 로더는 일반적으로 페이지당 하나의 문서를 반환합니다.
+
+```python
+from pathlib import Path
+from fim_one.rag.loaders.base import BaseLoader, LoadedDocument
+
+
+class DocxLoader(BaseLoader):
+    async def load(self, path: Path) -> list[LoadedDocument]:
+        from docx import Document
+        doc = Document(path)
+        text = "\n".join(p.text for p in doc.paragraphs)
+        return [LoadedDocument(content=text, metadata={"source": str(path)})]
+```### 텍스트 청커
+
+`BaseChunker`는 텍스트를 `Chunk` 객체로 분할합니다. `MAX_CHUNK_SIZE = 6000` 문자는 하드 상한선입니다 — 이를 초과하는 청크 크기는 Jina Embeddings v3 토큰 윈도우를 오버플로우할 수 있습니다.
+
+```python
+from typing import Any
+from fim_one.rag.chunking.base import BaseChunker, Chunk
+
+
+class SentenceChunker(BaseChunker):
+    def __init__(self, sentences_per_chunk: int = 5) -> None:
+        self._n = sentences_per_chunk
+
+    async def chunk(self, text: str, metadata: dict[str, Any] | None = None) -> list[Chunk]:
+        import nltk
+        sentences = nltk.sent_tokenize(text)
+        chunks = []
+        for i in range(0, len(sentences), self._n):
+            chunk_text = " ".join(sentences[i : i + self._n])
+            chunks.append(Chunk(text=chunk_text, metadata=metadata or {}, index=i // self._n))
+        return chunks
+```### Retriever
+
+`BaseRetriever`는 모든 백엔드를 쿼리하고 순위가 지정된 `Document` 객체를 반환합니다.
+
+```python
+from fim_one.rag.base import BaseRetriever, Document
+
+
+class ElasticsearchRetriever(BaseRetriever):
+    def __init__(self, es_client, index: str) -> None:
+        self._es = es_client
+        self._index = index
+
+    async def retrieve(self, query: str, *, top_k: int = 5) -> list[Document]:
+        resp = await self._es.search(
+            index=self._index,
+            query={"match": {"content": query}},
+            size=top_k,
+        )
+        return [
+            Document(
+                content=hit["_source"]["content"],
+                metadata=hit["_source"].get("metadata", {}),
+                score=hit["_score"],
+            )
+            for hit in resp["hits"]["hits"]
+        ]
+```
+
+---## 설계 원칙
+
+모든 기본 클래스에서 일관되게 적용되는 몇 가지 패턴이 있으며, 이는 사용자 정의 구현을 올바르게 작성하기 쉽게 만듭니다:
+
+**비동기 우선.** 모든 메서드는 `async def`입니다. 구현이 동기식이더라도 `asyncio.to_thread()`로 래핑하여 이벤트 루프를 차단하지 않도록 하세요.
+
+**도구의 문자열 출력.** `BaseTool.run()`은 `str` (또는 `ToolResult`)을 반환합니다. LLM은 텍스트만 봅니다 — 도구 구현은 복잡한 데이터를 읽을 수 있는 형식으로 직렬화할 책임이 있습니다.
+
+**최소한의 인터페이스.** 각 기본 클래스는 필요한 가장 작은 계약을 정의합니다. `BaseMemory`는 세 가지 메서드이고, `BaseWebFetch`는 하나입니다. 필요하지 않은 기능을 구현할 필요가 없습니다.
+
+**상속보다 조합.** 기본 클래스는 인터페이스이지 프레임워크가 아닙니다. 구성 시간에 구현을 주입하며, 런타임은 이를 더 이상 monkey-patch하거나 서브클래싱하지 않습니다.

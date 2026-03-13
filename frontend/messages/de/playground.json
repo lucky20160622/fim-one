@@ -1,0 +1,201 @@
+{
+  "injectFailed": "Nachricht konnte nicht eingefügt werden — drücken Sie Enter, um als neuer Durchgang zu senden.",
+  "switchModeTitle": "Zu {mode}-Modus wechseln?",
+  "switchModeDescription": "Dies startet ein neues Gespräch. Ihr aktuelles Gespräch wird gespeichert und ist über die Seitenleiste zugänglich.",
+  "switchButton": "Wechseln",
+  "executionLog": "Ausführungsprotokoll",
+  "history": "Verlauf",
+  "executionPlan": "Ausführungsplan",
+  "waitingForPlan": "Warte auf Plan...",
+  "placeholderInterrupt": "Senden Sie eine Nachricht, um den Agent zu unterbrechen...",
+  "placeholderReact": "Bitten Sie den Agent, ein Problem zu lösen... (Geben Sie / für Befehle ein, ziehen Sie Dateien zum Anhängen)",
+  "placeholderDag": "Beschreiben Sie eine mehrstufige Aufgabe für den DAG-Planer... (Geben Sie / für Befehle ein, ziehen Sie Dateien zum Anhängen)",
+  "placeholderAuto": "Fragen Sie alles — der beste Modus wird automatisch gewählt... (Geben Sie / für Befehle ein, ziehen Sie Dateien zum Anhängen)",
+  "modeStandard": "Standard (ReAct)",
+  "modePlanner": "Planner (DAG)",
+  "modeAuto": "Auto",
+  "modeStandardTooltip": "Standard (ReAct) — Schnelle Antwort mit flexibler Tool-Nutzung",
+  "modePlannerTooltip": "Planner (DAG) — Zerlegt Aufgaben in einen strukturierten Plan",
+  "modeAutoTooltip": "Auto — Wählt automatisch Standard (ReAct) oder Planner (DAG) basierend auf Abfragekomplexität",
+  "noAgent": "Kein Agent",
+  "searchAgents": "Agents durchsuchen...",
+  "noAgentFound": "Kein Agent gefunden.",
+  "uploadFiles": "Dateien hochladen",
+  "dropFilesHere": "Dateien hier ablegen zum Hochladen",
+  "unsupportedFileType": "{name}: nicht unterstützter Dateityp",
+  "fileTooLarge": "{name}: überschreitet {limit}MB-Limit",
+  "newUpdates": "Neue Updates",
+  "recall": "Abrufen",
+  "queued": "In Warteschlange...",
+  "compactDivider": "Früherer Kontext ({count} Nachrichten) wurde von AI zusammengefasst",
+  "statusReplanning": "Neuplanung läuft...",
+  "statusPlanning": "Planung läuft...",
+  "statusPlanningRound": "Planung (Runde {round})...",
+  "statusExecuting": "Schritte werden ausgeführt...",
+  "statusExecutingRound": "Schritte werden ausgeführt (Runde {round})...",
+  "statusAnalyzing": "Analyse läuft...",
+  "statusAnalyzingRound": "Analyse läuft (Runde {round})...",
+  "statusRouting": "Besten Modus auswählen...",
+  "statusProcessing": "Verarbeitung läuft...",
+  "answerGenerating": "Antwort wird generiert...",
+  "standardMode": "Standard-Modus",
+  "plannerMode": "Planner-Modus",
+  "autoMode": "Auto-Modus",
+  "autoSubtitle": "Wählt automatisch die beste Ausführungsstrategie",
+  "autoRoutedTo": "Auto-weitergeleitet zu {mode}",
+  "suggestedPrompts": "Vorgeschlagene Prompts",
+  "tryExample": "Beispiel ausprobieren",
+  "reactSubtitle": "Single-Agent-Aufgaben mit Tool-Nutzung",
+  "dagSubtitle": "Mehrstufige parallele Ausführung",
+  "categoryWeb": "Web + Analyse",
+  "categoryCode": "Code",
+  "categoryHybrid": "Web + Code",
+  "achieved": "Erreicht",
+  "partial": "Teilweise",
+  "noContent": "Kein Inhalt",
+  "iterationLabel": "Iteration {n}",
+  "iterationCount": "{count} Iteration",
+  "iterationCountPlural": "{count} Iterationen",
+  "toolCallCount": "{count} Tool-Aufruf",
+  "toolCallCountPlural": "{count} Tool-Aufrufe",
+  "thinking": "Überlegung",
+  "reasoning": "Begründung",
+  "result": "Ergebnis",
+  "followUp": "Nachverfolgung",
+  "stepsCompleted": "{completed}/{total} Schritt abgeschlossen",
+  "stepsCompletedPlural": "{completed}/{total} Schritte abgeschlossen",
+  "roundCount": "{count} Runden",
+  "planningSteps": "Ausführungsschritte werden geplant...",
+  "replanningRound": "Ausführungsschritte werden neu geplant (Runde {round})...",
+  "replanning": "Neuplanung läuft...",
+  "analyzingResults": "Ergebnisse werden analysiert...",
+  "analysis": "Analyse",
+  "goalAchieved": "Ziel Erreicht",
+  "goalNotAchieved": "Ziel Nicht Erreicht",
+  "confidenceLabel": "{value}% Konfidenz",
+  "stepResult": "Schritt-Ergebnis",
+  "minimize": "Minimieren",
+  "maximize": "Maximieren",
+  "references": "Referenzen",
+  "sourceCount": "{count} Quelle",
+  "sourceCountPlural": "{count} Quellen",
+  "showLess": "Weniger anzeigen",
+  "showMore": "{count} weitere anzeigen",
+  "evidence": "Belege ({count} Quellen)",
+  "conflictCount": "{count} Konflikt",
+  "conflictCountPlural": "{count} Konflikte",
+  "conflictsDetected": "Konflikte Erkannt",
+  "tokenIn": "{value}k rein",
+  "tokenOut": "{value}k verbraucht",
+  "showMoreText": "Mehr anzeigen ({chars} Zeichen)",
+  "showLessText": "Weniger anzeigen",
+  "retryButton": "Erneut versuchen",
+  "exportTitle": "Unterhaltung exportieren",
+  "exportDescription": "Wählen Sie ein Format und Detaillierungsgrad für den Export.",
+  "exportFormatMd": "Markdown",
+  "exportFormatTxt": "Nur Text",
+  "exportFormatDocx": "Word-Dokument",
+  "exportFormatMdDesc": "Formatierter Text mit Überschriften und Code-Blöcken",
+  "exportFormatTxtDesc": "Einfacher Text ohne Formatierung",
+  "exportFormatDocxDesc": "Microsoft Word-kompatibles Dokument",
+  "exportFormatPdf": "PDF-Dokument",
+  "exportFormatPdfDesc": "Tragbares Dokumentformat mit formatiertem Text",
+  "exportIncludeDetails": "Ausführungsdetails einbeziehen",
+  "exportDetailsDescription": "Tool-Aufrufe, Reasoning-Schritte und Ausführungsstatistiken einbeziehen",
+  "pastedContent": "Eingefügter Inhalt",
+  "chars": "Zeichen",
+  "expandClip": "Erweitern",
+  "collapseClip": "Reduzieren",
+  "removeClip": "Clip entfernen",
+  "exportButton": "Exportieren",
+  "previousRoundHeader": "Runde {round} · Fehlgeschlagen",
+  "previousRoundSummary": "{completed}/{total} Schritte · Ziel nicht erreicht",
+  "roundLabel": "Runde {round}",
+  "loadingNextRound": "Nächste Runde wird vorbereitet...",
+  "slash": {
+    "newDesc": "Starten Sie eine neue Unterhaltung",
+    "agentDesc": "Wählen Sie schnell einen agent nach Name",
+    "modeDesc": "Wechseln Sie zwischen Auto-, Standard- und Planner-Modus",
+    "noMatch": "Keine übereinstimmenden Elemente"
+  },
+  "examples": {
+    "react": [
+      {
+        "text": "Finden Sie die Top 5 am meisten mit Sternen versehenen Repositories auf GitHub -- welches ist #1 und wie viele Sterne hat es?",
+        "category": "web"
+      },
+      {
+        "text": "Schlagen Sie 'Sortieralgorithmus' auf Wikipedia nach und erstellen Sie eine Vergleichstabelle von Bubble Sort, Quick Sort und Merge Sort nach Zeitkomplexität",
+        "category": "web"
+      },
+      {
+        "text": "Simulieren Sie das Monty-Hall-Problem 10.000 Mal -- sollten Sie die Türen wechseln? Zeigen Sie die Gewinnquoten",
+        "category": "code"
+      },
+      {
+        "text": "Schreiben Sie Python, um die ersten 30 Fibonacci-Zahlen und ihre Konvergenz zum goldenen Schnitt zu berechnen, speichern Sie die Ergebnisse als fibonacci.csv",
+        "category": "code"
+      },
+      {
+        "text": "Wie spät ist es jetzt in New York, London und Tokio? Verwenden Sie template_render, um ein stilisiertes HTML-Weltuhr-Dashboard zu erstellen",
+        "category": "hybrid"
+      },
+      {
+        "text": "Finden Sie eine öffentliche REST API mit Dummy-Posts, rufen Sie 100 davon ab, schreiben Sie dann Python, um die Top 5 produktivsten Autoren und ihre durchschnittliche Titel-Länge zu bewerten",
+        "category": "hybrid"
+      }
+    ],
+    "dag": [
+      {
+        "text": "Schlagen Sie die Top 3 am meisten mit Sternen versehenen Repos für Facebook, Google und Microsoft auf GitHub parallel nach, vergleichen Sie dann, welcher Tech-Gigant die höchste durchschnittliche Sternzahl hat",
+        "category": "web"
+      },
+      {
+        "text": "Schlagen Sie Python, Rust und Go auf Wikipedia parallel nach, erstellen Sie dann eine Vergleichstabelle: Erstellungsjahr, Ersteller, Typ-System und Stärke",
+        "category": "web"
+      },
+      {
+        "text": "Generieren Sie ein 20x20-Labyrinth, dann führen Sie BFS vs DFS parallel aus -- welcher erkundet weniger Zellen? Visualisieren Sie beide Lösungen in ASCII-Art",
+        "category": "code"
+      },
+      {
+        "text": "Berechnen Sie die ersten 50 Fibonacci-Zahlen, ersten 50 Primzahlen und ersten 50 Dreieckszahlen parallel, finden Sie dann heraus, welche Zahlen in mehreren Sequenzen vorkommen",
+        "category": "code"
+      },
+      {
+        "text": "Rufen Sie die aktuelle Zeit in New York, London, Tokio, Sydney und Dubai parallel ab, verwenden Sie dann template_render, um ein stilisiertes HTML-Weltuhr-Dashboard zu erstellen",
+        "category": "hybrid"
+      },
+      {
+        "text": "Finden Sie eine öffentliche REST API mit Posts und Todos, rufen Sie beide parallel ab, schreiben Sie dann Python, um zu korrelieren: Sind die produktivsten Poster auch diejenigen, die die meisten Todos abschließen?",
+        "category": "hybrid"
+      }
+    ],
+    "auto": [
+      {
+        "text": "Rufen Sie das Node.js LTS-Changelog ab und fassen Sie die 5 wirkungsvollsten Änderungen für einen typischen Backend-Entwickler zusammen",
+        "category": "web"
+      },
+      {
+        "text": "Simulieren Sie 50.000 Mal das Werfen von zwei Würfeln — geben Sie eine Häufigkeitstabelle aller möglichen Summen aus und identifizieren Sie die häufigsten und seltensten Ergebnisse",
+        "category": "code"
+      },
+      {
+        "text": "Rufen Sie 100 Beiträge von JSONPlaceholder ab, ordnen Sie die Top 5 aktivsten Benutzer nach Beitragszahl und verwenden Sie template_render, um ihre Statistiken als stilisierte Leaderboard-Karte anzuzeigen",
+        "category": "hybrid"
+      },
+      {
+        "text": "Suchen Sie GPT-4 und Claude 3 auf Wikipedia — vergleichen Sie ihre Veröffentlichungsdaten, Kontextfenster und Hauptfunktionen — erstellen Sie dann eine saubere Markdown-Vergleichstabelle",
+        "category": "web"
+      },
+      {
+        "text": "Recherchieren Sie React, Vue und Svelte gleichzeitig — rufen Sie für jeden die wöchentlichen npm-Downloads, GitHub-Sterne und die neueste Version ab — ordnen Sie sie dann und erstellen Sie eine stilisierte HTML-Scorecard mit Medaillen-Abzeichen",
+        "category": "hybrid"
+      },
+      {
+        "text": "Parallel: (1) implementieren Sie Merge Sort und Quick Sort, benchmarken Sie beide auf 10.000 zufälligen Ganzzahlen; (2) finden Sie alle Fibonacci-Zahlen bis Index 50, die auch Primzahlen sind; (3) lösen Sie N-Queens für N=8 und zählen Sie alle Lösungen — kompilieren Sie alles in einen stilisierten HTML-Bericht",
+        "category": "code"
+      }
+    ]
+  }
+}

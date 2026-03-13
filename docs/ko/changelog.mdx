@@ -1,0 +1,207 @@
+---
+title: "변경 로그"
+description: "FIM One의 모든 주목할 만한 변경 사항."
+---
+
+이 프로젝트의 모든 주목할 만한 변경 사항이 여기에 문서화되어 있습니다.
+
+형식은 [Keep a Changelog](https://keepachangelog.com/)를 따릅니다. 버전은 [Roadmap](/roadmap) 마일스톤에 해당합니다.## [미출시]### 추가됨
+
+- **Admin: Review Log 감사 탭** — Admin 감사 페이지에 이제 분할된 "System Log / Review Log" 토글이 있습니다. Review Log 패널은 새로운 `GET /api/admin/review-log` 엔드포인트를 쿼리하고(필터: org, resource type, action; limit/offset 페이지네이션), 시간, org 이름, resource type, resource 이름, action 배지(색상 코드: 녹색=승인됨, 빨강=거부됨, 황색=제출됨/재제출됨, 회색=미발행됨), 운영자를 표시하는 테이블을 표시합니다. 전체 i18n (EN + ZH).
+- **Platform Organization**: 기본 제공 org `platform` (ID: `00000000-0000-0000-0000-000000000001`) — 모든 신규 사용자가 자동으로 참여합니다. 이 조직은 "global" 가시성 개념을 대체하고 모든 사용자 간에 리소스를 공유하기 위한 중앙 허브를 제공합니다.
+- **Resource Subscriptions**: 사용자는 이제 org Markets에서 공유 리소스(agents, connectors, knowledge bases, MCP servers)를 구독/구독 취소할 수 있습니다. 새로운 `resource_subscriptions` 데이터베이스 테이블이 구독 관계를 추적합니다.
+- **Market API**: 구독 검색 및 관리를 위한 새로운 엔드포인트:
+  - `GET /api/market` — 현재 org에서 사용 가능한 리소스 검색
+  - `POST /api/market/subscribe` — 리소스 구독
+  - `DELETE /api/market/unsubscribe` — 리소스 구독 취소
+  - `GET /api/market/subscriptions` — 사용자의 현재 구독 목록
+- **Market Page**: Portal의 새로운 `/market` 페이지로 org 리소스에 대한 구독을 검색하고 관리합니다.
+- **Agent Auto-discovery**: agents의 새로운 `discoverable` 부울 필드입니다. `discoverable=true`인 agents는 `call_agent` 도구를 통해 LLMs에 의해 자동으로 발견되고 호출될 수 있습니다(1단계 위임, 재귀 없음).
+- **Sub-agent Binding**: agents의 새로운 `sub_agent_ids` 필드 — 세분화된 액세스 제어를 위한 호출 가능한 sub-agents의 명시적 화이트리스트입니다.
+- **CallAgentTool**: 구조화된 입력 검증 및 결과 처리를 통해 specialist agents에게 작업을 위임하는 기본 제공 도구입니다.
+- **MCP Server Credentials**: 새로운 `mcp_server_credentials` 테이블은 MCP servers에 대한 사용자별 환경 변수 및 HTTP 헤더 재정의를 활성화합니다.
+- **MCP Credentials Endpoint**: `PUT /api/mcp-servers/{id}/my-credentials`를 통해 사용자는 공유 MCP servers에 대한 개인 자격증명 재정의를 저장할 수 있습니다.
+- **MCPServer의 `allow_fallback`**: 자격증명 폴백 동작을 제어하는 부울 필드 — `true`일 때, 누락된 사용자 자격증명은 소유자 기본값으로 폴백됩니다.
+- **Connector/KB Toggle**: 리소스 상태 관리를 위한 새로운 엔드포인트:
+  - `POST /api/connectors/{id}/toggle` — connector 일시 중단/재개
+  - `POST /api/knowledge-bases/{id}/toggle` — knowledge base 일시 중단/재개
+- **Standalone KB Conversations**: `ChatStreamRequest` 및 `Conversation`의 새로운 `kb_ids` 필드 — 사용자는 이제 agent에 바인딩하지 않고도 knowledge bases와 직접 채팅할 수 있습니다.
+- **Platform Org Protection**: Platform org는 삭제할 수 없으며, 사용자는 이를 자체 탈퇴할 수 없습니다. 모든 사용자가 조직 허브에 대한 연결을 유지하도록 보장합니다.
+- **Publish Review UI (Frontend)**: Org 수준 발행 검토 시스템 프론트엔드 — org 편집 대화상자의 검토 토글, 유형/상태 필터 및 승인/거부 워크플로우가 있는 ReviewsSheet, agent 카드의 발행 상태 배지(대기 중/승인됨/거부됨) 및 거부 사유에 대한 툴팁, 대상 org가 검토를 요구할 때 발행 대화상자의 검토 공지, 거부된 리소스에 대한 재제출 작업, org admin/owners를 위한 "Review Management" 드롭다운입니다. 모든 리소스 유형(agents, connectors, KBs, MCP servers)은 `publish_status`, `reviewed_by`, `reviewed_at`, `review_note` 유형 필드를 획득합니다. 전체 i18n (EN + ZH).### 수정됨
+
+- **`is_active` 토글 시 재검토 없음**: 에이전트, 커넥터, 지식 베이스 또는 MCP 서버에서 `is_active`를 토글해도 더 이상 `publish_status`가 `approved`에서 `pending_review`로 되돌아가지 않습니다. `check_edit_revert` 가드는 이제 실제 콘텐츠 필드가 변경될 때만 작동합니다(`is_active`만 변경되는 경우는 제외).### 변경 사항
+
+- **가시성 단순화**: 리소스 가시성이 `personal | org | global`에서 `personal | org`로 축소되었습니다. "Global" 리소스는 이제 Platform org에 게시되며, 역호환성을 유지하면서 가시성 모델을 단순화합니다.
+- **게시 인터페이스 통합**: 모든 4가지 리소스 유형(Agent, Connector, Knowledge Base, MCP Server)은 이제 게시를 위해 `scope="org"`만 지원합니다. `scope="global"` 또는 관리자 전용 글로벌 게시 엔드포인트는 더 이상 없습니다.
+- **자동 Platform 등록**: 새 사용자는 등록 시 자동으로 Platform org에 추가되어 공유 조직 리소스에 즉시 액세스할 수 있습니다.
+- **관리자 패널 정리**: "Global Agents" 및 "Global MCP" 관리자 탭이 제거되었습니다. 글로벌 리소스는 이제 Platform org를 통해 관리됩니다.### 제거됨
+
+- Agent 및 MCPServer 모델과 모든 API 응답에서 `is_global` 필드 제거
+- Agent 및 MCPServer에서 `cloned_from_agent_id` 및 `cloned_from_mcp_server_id` 필드 제거
+- 전역 agent 관리 엔드포인트(`/api/admin/global-agents/*`) 제거
+- 전역 MCP server 엔드포인트(`/api/admin/mcp-servers/*`) 제거
+- 리소스, API 계약 및 프론트엔드 로직에서 모든 `visibility="global"` 개념 참조 제거## [v0.7.5] - 2026-03-12### 추가됨
+- **자유로운 모드 전환 + 턴별 모드 추적**: 사용자는 이제 새 채팅을 시작하지 않고도 대화 중간에 Auto/React/DAG 모드 간에 자유롭게 전환할 수 있습니다. 각 어시스턴트 메시지는 `metadata.mode`에 실제 실행 모드를 저장합니다. 히스토리 턴은 메타데이터 또는 SSE 이벤트 지문 감지에서 감지된 올바른 엔진으로 렌더링됩니다. 사이드바 모드 아이콘이 제거되었습니다. 턴별 모드 배지는 각 턴을 처리한 엔진을 표시합니다.
+- **세 가지 모델 역할 (F5)**: General, Fast, Reasoning 모델 계층을 위한 독립적인 환경 구성. Fast 모델은 더 이상 메인 모델에서 reasoning 설정을 상속받지 않습니다. 새로운 환경 변수: `FAST_LLM_API_KEY`, `FAST_LLM_BASE_URL`, `FAST_LLM_TEMPERATURE`, `REASONING_LLM_MODEL`, `REASONING_LLM_API_KEY`, `REASONING_LLM_BASE_URL`, `REASONING_LLM_TEMPERATURE`, `REASONING_LLM_CONTEXT_SIZE`, `REASONING_LLM_MAX_OUTPUT_TOKENS`, `REASONING_LLM_EFFORT`, `REASONING_LLM_BUDGET`
+- **구조화된 단계 출력 (F2)**: `StepOutput` 데이터클래스가 DAG 단계의 일반 문자열 결과를 대체하여 구조화된 데이터 및 단계 간 아티팩트 전달에 대한 향후 지원을 가능하게 합니다.
+- **도구 캐시 (F3)**: 단일 DAG 실행 내에서 동일한 도구 호출은 캐시되어 중복 API 호출을 방지합니다. 키별 비동기 잠금은 thundering herd를 방지합니다. `DAG_TOOL_CACHE`를 통해 구성 가능 (기본값: on)
+- **단계별 검증 (F4)**: 각 DAG 단계 완료 후 선택적 LLM 기반 품질 확인. 실패 시 검증 피드백과 함께 한 번 재시도합니다. `DAG_STEP_VERIFICATION`을 통해 구성 가능 (기본값: off)
+- **자동 라우팅 (F1)**: Fast LLM이 쿼리를 ReAct 또는 DAG 실행 모드로 분류합니다. SSE 라우팅 이벤트가 있는 새로운 `/api/auto` 엔드포인트. 프론트엔드 3방향 모드 토글 (Auto/Standard/Planner). `AUTO_ROUTING`을 통해 구성 가능 (기본값: on)
+- **설계 철학 문서**: DAG 실행에서 Handoff, Backflow, Teams 및 agent_hint가 의도적으로 제외된 이유를 문서화하는 새로운 `docs/design-philosophy.mdx`
+
+- **커넥터 자격증명 암호화 + 사용자별 재정의** — 인증 토큰 (`bearer`, `api_key`, `basic`)은 이제 `auth_config`에서 추출되어 선택적 Fernet 암호화를 사용하는 새로운 `connector_credentials` 테이블에 별도로 저장됩니다 (`CREDENTIAL_ENCRYPTION_KEY` 설정). 민감한 필드는 모든 API 응답에서 제거됩니다. 새로운 엔드포인트: `GET/PUT/DELETE /api/connectors/{id}/my-credentials`를 통해 사용자는 개인 자격증명 재정의를 저장할 수 있습니다. 커넥터의 `allow_fallback` 열은 개인 자격증명 부재 시 커넥터 소유자의 기본값으로 폴백할지 여부를 제어합니다. 채팅 도구 로딩은 사용자별 자격증명을 먼저 확인한 후 `allow_fallback=true`일 때 소유자 자격증명으로 폴백합니다. 기존 자격증명은 마이그레이션 `s9u1w3y5a678`에 의해 `auth_config`에서 자동으로 마이그레이션됩니다.
+- **ModelConfig API 키 저장 시 암호화** — `ModelConfig.api_key`는 이제 `EncryptedString` TypeDecorator를 사용하여 저장 시 암호화됩니다 (`CREDENTIAL_ENCRYPTION_KEY`를 통한 Fernet 대칭 암호화). 하위 호환성 있는 레거시 평문 감지를 통한 투명한 쓰기 시 암호화 / 읽기 시 복호화. 마이그레이션 `f8g9h0a1b2c3`은 기존 평문 값을 제자리에서 변환합니다.### 수정됨
+- 빠른 모델(`get_fast_llm()`)이 더 이상 메인 모델 구성에서 `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_TEMPERATURE` 및 reasoning 설정을 상속받지 않음
+- 백엔드 Pydantic 스키마가 이제 대화 및 agent `execution_mode`에 대해 `"auto"` 모드를 허용하며, 기본값이 `"react"`에서 `"auto"`로 변경됨
+- 프론트엔드 SSE 라우팅 이벤트 필드 이름이 백엔드와 정렬됨(`chosen_mode`→`mode`, `reason`→`reasoning`) — 자동 라우팅이 분류기 결정과 관계없이 ReAct로 자동으로 폴백되고 있었음
+- Agent 설정 폼 기본 실행 모드가 `"react"`에서 `"auto"`로 변경되어 백엔드 스키마 기본값과 일치함### Changed
+- 모드 토글 레이블에 엔진 이름 포함: "Standard (ReAct)", "Planner (DAG)" 명확성을 위해
+- **Skeleton screens** — 모든 리스트/그리드 페이지는 초기 로드 중에 중앙 스피너 대신 레이아웃 인식 skeleton 플레이스홀더를 표시합니다. 영향을 받는 페이지: `/agents` (3열 `AgentCard` × 6), `/chats` (`ListRow` × 8), `/kb` (3열 `KbCard` × 6), `/kb/[id]` (헤더 + 툴바 + `TableRow` × 5를 포함한 구조적 skeleton), `/connectors` connectors 탭 (3열 `ConnectorCard` × 6), `/artifacts` (4열 `ArtifactCard` × 8). `skeleton.tsx`에 세 개의 새로운 composites 추가됨: `ConnectorCard`, `ArtifactCard`, `TableRow`. 탭 전환 및 보조 로딩 상태 (show-more, search, dialogs)는 Loader2 스피너 유지.## [v0.7.4] - 2026-03-12### 추가됨
+- **Evaluation Center** — 포털의 새로운 `/eval` 섹션으로 정량적 에이전트 품질 벤치마킹 제공. 기능: Test Dataset 관리 (프롬프트 + 예상 동작 + 어설션 테스트 케이스 컬렉션 생성/편집); Eval Runs (에이전트 + 데이터셋 선택 → `asyncio.Semaphore(5)`를 통해 라이브 에이전트에서 모든 케이스를 병렬 실행 → 빠른 LLM grader로 각 답변 채점 → 케이스별 통과/실패 + 지연시간 + 토큰 결과 저장); 확장 가능한 행, 통과율 진행률 표시줄, 실행 중 자동 폴링(3초)이 있는 결과 뷰어. 엔터프라이즈 조달 검토에 적합. Migration `r8t0v2x4z567`.
+- **Admin: 모델별 `json_mode_enabled` 플래그** — 각 모델 구성에는 이제 Admin → Models → Advanced settings에서 명시적 JSON Mode 토글(기본값 켜짐)이 있습니다. 이를 비활성화하면 LiteLLM이 어시스턴트 프리필 메시지(`{"role":"assistant","content":"{"}`)를 주입하는 것을 방지하여 AWS Bedrock이 2번째 이상 에이전트 반복에서 `ValidationException`으로 대화를 거부하는 문제를 해결합니다. ENV 구성 모델은 새로운 `LLM_JSON_MODE_ENABLED` 환경 변수로 제어됩니다. 모든 URL 패턴 휴리스틱(`is_bedrock`, `is_anthropic_relay`)이 제거되었으며, 기능은 이제 명시적입니다. Alembic migration(`q7s9u1w3y456`)을 포함합니다.
+- **Admin 모델 폼 UX** — Add/Edit Model 대화 재구성: 기본적으로 Name, Model Name, API Key만 표시됩니다. 다른 모든 설정(Base URL, Provider, Temperature, Max Output Tokens, Context Size, JSON Mode)은 "Advanced" 토글 아래에 축소되어 일반적인 경우의 시각적 복잡성을 줄입니다.
+- **Settings: Organizations 탭** — 사용자는 이제 Settings 페이지에서 직접 조직을 생성, 참여, 관리할 수 있습니다. 기능에는 Create Organization 대화(이름, 자동 생성 슬러그, 설명, 이모지 아이콘), Edit 대화(소유자만), 멤버 역할 관리를 위한 Members Sheet(색상 코드 배지가 있는 owner/admin/member), 인라인 작업(비소유자는 leave, 소유자는 delete)이 포함됩니다. 모든 조직 작업은 사용자 대면 `/api/orgs` 엔드포인트를 호출합니다. 완전한 i18n 지원(EN + ZH).
+- **SSE Protocol v2 — 실시간 답변 스트리밍**: Backend `StreamChunk`는 `delta_reasoning` 및 `usage` 필드를 추가합니다; LLM 요청에는 사용량 추적이 포함됩니다; ReAct `_run_native()`는 이제 `stream_chat`을 통해 스트리밍합니다. SSE 프로토콜은 답변 직후 `done`을 내보낸 다음 `suggestions`, `title`, `end`를 별도 이벤트로 전송합니다. LLM 실행 중 DB 세션 조기 해제. SQLite 풀 크기가 5에서 20으로 증가
+- **AI Builder 확장 — 7개의 새로운 도구 + `is_builder` 플래그**: 3개의 새로운 connector builder 도구(`GetSettings`, `TestConnection`, `ImportOpenAPI`)와 4개의 새로운 agent builder 도구(`ListConnectors`, `AddConnector`, `RemoveConnector`, `SetModel`). agents의 새로운 `is_builder` 부울 컬럼과 Alembic migration. 세션 생성 시 Builder 프롬프트 자동 새로고침. OpenAPI 가져오기를 위한 SSRF 가드
+- **SSE v2 프론트엔드 — 스트리밍 커서, DAG 라운드 스냅샷, UI 개선**: 프론트엔드 훅은 `end` / `suggestions` / `title` 이벤트를 파싱합니다. DAG 재계획은 이전 실패한 라운드를 축소 가능한 카드로 표시합니다. CSS dot-pulse 스트리밍 커서. DAG 레이아웃이 단계 상태와 분리됩니다. 축소된 사이드바 새 채팅 버튼. Connector 편집기 오버플로우 수정. `font-mono`를 `tabular-nums`으로 대체
+- **AI Builder 개념 페이지**: connector 및 agent builder 가이드와 중국어 번역이 포함된 새로운 `docs/concepts/ai-builder.mdx`
+- **Builder Dialog — connector 관리를 위한 ReAct 에이전트**: AI 어시스턴트 패널을 단일 LLM 호출에서 완전한 ReAct 에이전트 루프로 업그레이드합니다. "Advanced Builder" 버튼은 임베드된 PlaygroundPage(왼쪽에 채팅, 오른쪽에 라이브 작업 미리보기)가 있는 전체 화면 대화를 엽니다. 6개의 connector builder 도구(`connector_list_actions`, `connector_create_action`, `connector_update_action`, `connector_delete_action`, `connector_update_settings`, `connector_test_action`)는 DB에서 직접 작동하며 Builder Agent가 활성화되면 자동으로 주입됩니다. `POST /api/builder/session`은 대화 기록을 유지하는 connector별 builder 에이전트를 생성하거나 재사용합니다
+- **이중 데이터베이스 지원(SQLite + PostgreSQL)**: `DATABASE_URL`은 이제 SQLite(`sqlite+aiosqlite:///...`)와 PostgreSQL(`postgresql+asyncpg://...`) 연결 문자열을 모두 허용합니다. SQLite는 제로 구성 기본값으로 유지되며, PostgreSQL은 프로덕션 및 다중 워커 배포에 권장됩니다. Docker Compose는 상태 확인을 통해 PostgreSQL 서비스를 자동 프로비저닝합니다. Alembic 마이그레이션은 방언 인식(json_extract vs `::json->>'key'`). Admin 상태 대시보드는 실제 데이터베이스 엔진 및 버전을 표시합니다
+- **모델 구성 문서**: 각 공급자에 대한 확장 사고/추론 설정을 포함한 모델 구성 참조를 문서화하는 새로운 `docs/configuration/models.mdx` 페이지
+- **확장 사고/추론 지원**: 확장 사고가 있는 모델(OpenAI o-series, Gemini 2.5+, Claude)에 대해 `LLM_REASONING_EFFORT`(low/medium/high) 및 `LLM_REASONING_BUDGET_TOKENS` 환경 변수를 추가합니다. OpenAI/Gemini에 대해 `reasoning_effort`를 전송하고, Anthropic에 대해 `thinking`을 전송합니다(자동 감지). 여러 공급자 필드 이름(DeepSeek R1, Claude 프록시)에서 `reasoning_content`를 추출하고 UI "thinking" 단계에서 표시합니다
+- **Admin: 도구 비활성화**: 도구별 활성화/비활성화 토글이 있는 새로운 admin Tools 패널(`disabled_builtin_tools` 설정으로 저장됨). 비활성화된 도구는 런타임에 채팅 도구 해석에서 필터링됩니다. `/api/tools/catalog` 엔드포인트는 `disabled` 플래그를 반환하고, Tools 페이지 UI는 비활성화 상태를 표시합니다
+- **Admin: Connectors 페이지의 MCP 서버**: MCP 서버 관리가 Tools 페이지에서 Connectors 페이지의 새로운 탭으로 이동되었습니다. `MCPServersSection`이 명령형 작업 참조가 있는 재사용 가능한 컴포넌트로 추출되었습니다
+- **Admin: 상태 대시보드의 추론 노력**: 추론 노력 레이블이 이제 admin 상태 확인 대시보드에 표시됩니다
+- **Export: PDF 형식**: 대화를 이제 PDF 문서로 내보낼 수 있습니다(`reportlab` + `Markdown` extras 필요)
+- **start.sh: WORKERS 환경 변수**: `WORKERS=N`을 설정하여 portal/api 모드에서 여러 워커로 uvicorn을 실행합니다### 변경사항
+- **Tests: NativeToolFakeLLM이 스트림 기반 ReAct로 업데이트됨**: 테스트 fake LLM이 이제 새로운 스트림 기반 `_run_native()` 루프와 일치하는 `StreamChunk` 시퀀스를 생성합니다
+- **LLM 레이어**: 직접 `AsyncOpenAI` 클라이언트를 [LiteLLM](https://github.com/BerriAI/litellm)으로 대체하여 범용 제공자 지원을 제공합니다. 모든 제공자별 조건부(Anthropic 사고, `max_completion_tokens`, GPT-5 도구 해결책)가 제거되었습니다. Anthropic 모델은 이제 LiteLLM의 기본 API를 통해 라우팅되어 적절한 `reasoning_content`(확장 사고) 지원을 활성화합니다
+- **Tools 페이지 단순화**: Tools 페이지는 이제 기본 제공 도구만 표시합니다(탭 없음). MCP 관리는 Connectors 페이지로 이동되었습니다
+- **Redis 인터럽트 브로커**: Redis Pub/Sub을 통한 크로스 워커 인터럽트/주입 릴레이입니다. `REDIS_URL`이 설정되면 자동으로 활성화되고, 그렇지 않으면 인프로세스 큐로 폴백됩니다. Docker Compose는 이제 Redis 서비스를 포함합니다(자동 구성, 사용자 조치 불필요)
+- **Export: 기본 상세 수준**: Export 대화상자는 이제 전체 대신 요약(실행 세부 정보 없음)으로 기본값을 설정합니다
+- **Artifacts: 파일 mtime으로 정렬**: List-all-artifacts는 이제 정확한 순서 지정을 위해 파일별 mtime을 사용합니다(대화 시간 해결책 되돌림)
+- **Chat: 비동기 이미지 로딩**: `_load_image_data_urls`는 이제 비동기이며, `asyncio.to_thread`를 통해 파일 읽기를 스레드로 오프로드하여 이벤트 루프를 차단하지 않습니다
+- **Multi-worker 준비 완료**: SSE 티켓, OAuth 상태 및 바인드 티켓은 이제 인메모리 딕셔너리 대신 JWT 서명 토큰을 사용합니다. 파일 인덱스 잠금은 크로스 프로세스 안전을 위해 `fcntl.flock()`을 사용합니다. 유지보수 캐시 TTL이 30초에서 5초로 단축되어 더 빠른 크로스 워커 전파를 제공합니다
+- **Health 대시보드: 인프라 검사**: 관리자 health 대시보드에 데이터베이스 유형(SQLite/PostgreSQL) 및 Redis 상태가 추가되었습니다
+- **Smart relay 라우팅**: URL 경로 패턴에서 API 프로토콜을 자동으로 감지합니다(예: `/claude` 또는 `/anthropic` → Anthropic 기본, `/gemini` → Google 기본). 수동 제공자 구성 없이 타사 relay 플랫폼에 대한 적절한 인증 헤더 및 매개변수 변환을 활성화합니다
+- **Structured output 성능 저하**: 3단계 추출(Native FC → JSON Mode → 일반 텍스트 + regex 폴백)을 포함한 통합 `structured_llm_call()` 유틸리티입니다. DAG Planner, Plan Analyzer 및 도구 선택을 공유 유틸리티를 사용하도록 리팩토링하여 모든 structured LLM 호출 사이트에서 일관된 재시도 및 성능 저하로 임시 JSON 파싱을 대체합니다### 문서
+- **아키텍처 다이어그램 레이아웃 수정**: Mermaid 플로우차트를 좌우(`LR`)에서 상하(`TD`)로 전환하여 가독성 개선, `mode: "wide"` frontmatter 제거, Mermaid SVG 중앙 렌더링을 위해 `custom.css` 추가
+- **Mermaid 노드 레이블 줄바꿈**: 아키텍처 및 개념 문서(EN + ZH)의 모든 Mermaid 플로우차트 노드 레이블에서 `\n`을 `<br/>`로 대체 — Mermaid는 따옴표가 있는 레이블에서 `\n`을 리터럴 텍스트로 렌더링### 수정됨
+- **Docker sandbox (DooD) volume mount**: `CODE_EXEC_BACKEND=docker`이 컨테이너 내부에서 실행될 때 빈 `-v` bind mounts 수정 (docker-compose). Sandbox 디렉토리가 `tmp/conversations/`에서 `data/sandbox/`로 이동 (마운트된 `./data:/app/data` 볼륨 아래). 새로운 `DOCKER_HOST_DATA_DIR` 환경 변수는 컨테이너 내부 경로를 Docker 데몬이 볼 수 있는 호스트 경로로 변환. `.parent`를 사용하여 `_PROJECT_ROOT`이 `/app/src/`이 아닌 `/app/`으로 해석되도록 수정
+- **보안: Python sandbox AST dunder 검증**: AST dunder 속성 검증을 통한 sandbox 탈출 차단
+- **보안: MCP stdio 기본값 + 명령어 허용 목록**: MCP stdio 전송 기본값 조화 (이제 기본적으로 비활성화) 및 명령어 허용 목록 추가 (`ALLOWED_STDIO_COMMANDS`)
+- **보안: SSRF DNS rebinding 방지**: 전송 수준 IP pinning (`SSRFSafeTransport`)을 통한 SSRF DNS rebinding 방지
+- **보안: shell 메타문자 회피 탐지**: 차단 목록 전에 shell 메타문자 회피 (명령어 치환, 백틱, 변수 확장, 빈 따옴표 삽입) 탐지
+- **보안: connector 템플릿 주입**: JSON 주입을 방지하기 위해 connector 템플릿 인라인 치환 이스케이프
+- **DAG: AnalysisCard markdown**: 분석 추론이 이제 일반 `<p>` 대신 `MarkdownContent`로 렌더링되어 다단계 분석에서 굵은 텍스트/목록 수정
+- **DAG: 축소된 단계를 포함한 scroll-to-step**: 사이드바에서 단계 노드를 클릭하면 이제 축소된 단계 섹션을 자동으로 확장한 후 스크롤
+- **DAG: history turn에 단계 카드 표시**: History turn이 이제 확장된 축소 가능 영역에 단계 카드를 렌더링 (이전에는 `hideStepCards`로 숨겨짐)
+- **DAG: replan 시 오래된 분석**: Round-1 "goal not achieved" 분석이 이제 replanning 시작 시 즉시 지워지고, round-2 "analyzing…" 스피너가 올바르게 표시
+- **UI: chat search focus ring**: search input에 `focus-visible:outline-none`을 추가하여 focus ring 누수 방지
+- **Export: PDF 가독성**: 모든 PDF 스타일에서 줄 간격(leading) 및 셀 패딩 증가로 텍스트 가독성 개선
+- **Export: emoji 제거 제거됨**: DOCX 및 PDF 내보내기 모두에서 최종 답변 렌더링에서 불필요한 `_strip_emoji()` 제거, 원본 콘텐츠 보존
+- **Admin: dashboard stats PG crash**: PostgreSQL에서 admin dashboard stats 페이지 crash 수정 — 매개변수화된 `coalesce()`를 사용한 `GROUP BY`로 인한 `GroupingError`; `literal()` 컬럼 기본값으로 대체
+
+- **Docker Compose 배포**: 단일 이미지 (API + Frontend), 데이터 지속성을 위한 명명된 볼륨, 독립형 Next.js output 모드
+- **Admin: login history 기록**: Auth 엔드포인트가 이제 모든 로그인 시도 (IP 주소, User-Agent, 성공/실패 및 이유)를 `LoginHistory` 테이블에 기록하여 보안 감사
+- **Admin: file browser**: 페이지 매김 지원을 통해 사용자 업로드 파일을 나열하고 다운로드하기 위한 새로운 admin file browser 엔드포인트
+- **Admin: 강화된 agent/KB 보기**: Admin agent 목록 및 knowledge base 보기가 이제 더 나은 가시성을 위해 `model_name`, `tools`, `kb_ids`, `embedding_model` 필드 노출
+- **Chat: 민감한 단어 차단**: ReAct 및 `inject_message` chat 엔드포인트 모두 이제 민감한 단어 필터링을 적용하여 구성된 민감한 단어를 포함하는 메시지 차단
+- **SSE: 구조화된 오류 처리**: `useSSE` 훅의 `onError` 콜백이 일반 문자열에서 `ApiError` 객체로 업그레이드되어 더 풍부한 오류 컨텍스트 (오류 코드, args) 제공
+- **UI: `formatTokens` 유틸리티**: 로케일 인식 숫자 형식을 사용하여 토큰 수를 표시하기 위한 새로운 형식 지정 도우미
+- **UI: `Checkbox` 및 `FadeIn` 컴포넌트**: 새로운 shadcn 스타일 체크박스 및 fade-in 애니메이션 래퍼 컴포넌트### Changed
+- **Docs: ASCII → Mermaid diagrams**: 모든 박스 드로잉 ASCII 다이어그램이 더 나은 렌더링과 상호작용성을 위해 네이티브 Mermaid 차트로 변환됨 (6개 페이지에 걸쳐 12개 다이어그램)
+- **Docs: dark mode theme**: Mintlify 색상 구성 개선 — 다크 모드의 따뜻한 앰버 악센트, 그래디언트 배경 장식, 프로젝트 테마와 일치하는 적절한 배경색### 수정됨
+- **Export: RFC 5987 filename support**: Content-Disposition 헤더에서 plain `filename` 대신 UTF-8 인코딩된 `filename*`을 선호하여 대화 내보내기 시 CJK 파일명 깨짐 문제 해결
+- **Docker i18n broken**: 독립형 출력에 `messages/` 디렉토리를 복사하고 `outputFileTracingIncludes`를 추가하여 런타임에 next-intl이 로케일 JSON 파일을 발견할 수 있도록 수정
+- **Docker startup race condition**: Next.js 시작 전에 엔트리포인트에서 API 준비 대기 루프(Python socket poll)를 추가하여 `e.map is not a function` SSR 오류 방지
+- **Artifacts: sort by conversation created_at**: 파일 mtime 대신 대화 생성 시간으로 아티팩트 정렬(Docker 볼륨에서 mtime은 신뢰할 수 없음)
+- **OAuth: auto-detect production API URL from window.location port**: 브라우저 자동 감지가 이제 프로덕션에서 커스텀 포트에 대해 올바르게 작동(3000만 아님)
+- **Docker: DooD sandbox volume mount path mismatch**: `CODE_EXEC_BACKEND=docker`(Docker-outside-of-Docker)로 컨테이너 내부에서 실행할 때 샌드박스 스크립트가 호스트 Docker 데몬에 보이지 않는 컨테이너 내부 경로에 기록되어 빈 `-v` 마운트 및 "No such file or directory" 오류가 발생했습니다. 샌드박스 디렉토리를 `data/sandbox/`로 이동하고, `_resolve_host_path()`를 사용한 `DOCKER_HOST_DATA_DIR` 환경 변수를 추가하여 경로 변환을 수행하고, 빈 문자열 환경 변수 엣지 케이스를 처리하여 수정## [v0.7.3] - 2026-03-06### 추가됨
+- **Global MCP servers**: 관리자가 프로비저닝한 MCP 서버가 모든 채팅 세션에 로드됨 (사용자/에이전트별 아님); 쿼리 로직: `or_(is_global==True, user_id==current_user.id)`
+- **Backward-compat mode**: Admin Platform이 `registration_mode`가 설정되지 않은 경우 레거시 `registration_enabled` 부울값을 읽음 (자동으로 "open" 모드로 마이그레이션)
+- **Structured audit logging**: `write_audit()` 헬퍼가 감사 로그 쓰기를 중앙화함 (admin_id, target_type, target_id, detail 필드); ad-hoc `AuditLog()` 호출을 대체### Changed
+- **Audit log schema**: Moved from raw `meta` dict to structured `admin_id` / `target_type` / `target_id` / `detail` columns for better compliance
+- **OAuth callback URL construction**: `{API_BASE_URL}/api/auth/oauth/{provider}/callback` (auto-constructed by backend, no hardcoding)### 수정됨
+- **초대 코드 하위 호환성**: registration_mode가 명시적으로 설정되지 않았을 때 올바르게 해석 (registration_enabled에서 읽음)
+- **다중 사용자 시나리오**: 전역 MCP 서버가 더 이상 사용자별 도구와 충돌하지 않음## [v0.7.2] - 2026-03-06### Added
+- **초대 전용 등록 모드**: 세 가지 모드(open/invite/disabled)와 초대 코드 CRUD가 포함된 새로운 등록 시스템
+- **스토리지 관리**: 사용자별 디스크 사용량 계산, clear 명령, 고아 파일 정리
+- **사용자별 강제 로그아웃**: 모든 토큰을 취소하고 재인증을 강제하는 관리자 기능
+- **대화 중재**: 모든 사용자 대화를 나열하고 삭제하는 관리자 기능### Changed
+- **Admin panels**: Separated into Admin List (users, API keys, agents, etc.) with consistent dropdown-menu action patterns### 수정됨
+- **관리자 목록 페이지네이션**: 모든 관리자 데이터 목록이 이제 페이지네이션 및 검색을 지원합니다## [v0.7.1] - 2026-03-06### Added
+- **API 상태 대시보드**: 시스템 통계 (사용자, 대화, 토큰, 모델 사용량 차트, 에이전트별 토큰 분석), connector 호출 메트릭 (성공률, 지연시간)
+- **JWT 인증**: 토큰 기반 SSE 인증, 대화 소유권, 사용자별 리소스 격리
+- **Admin API**: Agent 관리, 사용자별 토큰 할당량 적용 (초과 시 429 반환)### Fixed
+- **Token quota enforcement**: ReAct and DAG endpoints now check per-user quotas before execution## [v0.7] - 2026-03-06### 추가됨
+- **Admin Platform v0.7**: 검색/페이지네이션을 포함한 사용자 관리, 역할 전환, 비밀번호 재설정, 계정 활성화/비활성화, 초대 전용 등록, 사용자별 할당량, 대화 중재, 저장소 관리
+- **첫 실행 설정 마법사**: 첫 실행 시 포털이 관리자 계정 생성(사용자명, 비밀번호, 이메일)을 안내합니다
+- **Personal Center**: 사용자별 전역 시스템 지침이 모든 대화에 적용됩니다
+- **언어 선호도**: 사용자별 언어 설정(자동/en/zh)이 선택한 언어로 모든 LLM 응답을 지시합니다### Changed
+- **Multi-tenant auth**: JWT 토큰이 대화 소유권을 강제하며, 에이전트가 사용자 컨텍스트를 상속받습니다### 수정됨
+- **OAuth 계정 바인딩**: 모든 공급자에서 링크/로그인 흐름에 대한 적절한 이메일 매칭## [v0.6.5] - 2026-03-05### 추가됨
+- **유틸리티 도구**: `email_send`, `json_transform`, `template_render`, `text_utils`
+- **Connector 응답 필터링**: `CONNECTOR_RESPONSE_MAX_CHARS` 및 `CONNECTOR_RESPONSE_MAX_ITEMS` 제한
+- **임베딩 모델 옵션**: Jina, OpenAI 및 커스텀 임베딩 제공자 지원### 수정됨
+- **RAG pipeline 안정성**: 실패한 청크 작업에 대한 더 나은 오류 처리## [v0.6] - 2026-03-01### Added
+- **Connector Platform (core feature)**:
+  - Connector CRUD (create, read, update, delete)
+  - `ConnectorToolAdapter` converts Connector → BaseTool in ToolRegistry
+  - Per-user credentials with AES-GCM encryption
+  - Confirmation gate for write operations
+  - Circuit breaker for connection failures
+  - Operation classification (read/write/admin)
+  - Audit logging for all tool calls
+- **MCP integration**: Tool auto-discovery via MCP protocol, process isolation
+  - Connector data flow example: Query → Governance → MCP → Legacy System### Changed
+- **Tool architecture**: Unified ToolRegistry는 built-in, MCP, connector 도구를 지원합니다### 수정됨
+- **도구 분류**: 모든 기본 제공 도구가 카테고리로 적절히 태그됨## [v0.5] - 2026-02-28### 추가됨
+- **Full RAG pipeline**: Jina embedding + LanceDB vector store + FTS + RRF hybrid retrieval + reranker
+- **Grounded Generation**: Evidence-anchored RAG with `[N]` citations, conflict detection, explainable confidence scores
+- **KB document management**: Chunk-level CRUD, text search, failed doc retry, auto-migrating vector store schema
+- **ContextGuard + Pinned Messages**: Token budget manager; pinned messages protected from compaction### Changed
+- **Multi-turn memory**: DbMemory in `core/memory/db.py`, CompactUtils in `core/memory/compact.py`
+- **LLM Compact**: `CompactUtils.llm_compact()` summarizes old turns via fast LLM
+- **DAG Re-Planning**: Loop up to `MAX_REPLAN_ROUNDS=3`; re-plans when `analysis.achieved=False` and `confidence < 0.5`### 수정됨
+- **Token overflow 처리**: 자동 LLM 기반 요약이 token 예산을 준수합니다## [v0.4] - 2026-02-25### 추가됨
+- **다중 턴 대화**: DbMemory가 대화 기록을 유지; 스마트 자르기로 긴 세션 처리
+- **도구 단계 접기**: UI가 도구 호출 단계를 접고 펼쳐서 가독성 향상
+- **HTTP 요청 도구**: 사용자 정의 헤더, 인증, 메서드 선택
+- **Shell exec 도구**: 타임아웃이 있는 안전한 명령 실행
+- **에이전트 관리**: 바인딩된 모델, 도구, 지침으로 에이전트 생성, 구성, 게시
+- **에이전트별 실행 모드**: 표준/플래너 모드 전환, 온도 제어
+- **JWT 인증**: API 호출을 위한 상태 비저장 토큰 기반 인증### Changed
+- **Memory architecture**: ReAct fully wired to DbMemory; DAG injects history as enriched query prefix
+- **Admin health check**: Monitors both ENV-configured and admin-configured models### 수정됨
+- **다중 사용자 격리**: 사용자별로 격리된 대화; 사용자로 범위가 지정된 에이전트## [v0.3] - 2026-02-25### 추가됨
+- **웹 도구**: `web_search` (Jina/Tavily/Brave), `web_fetch`, 구성 가능한 제공자
+- **파일 작업 도구**: 경로 검증을 통한 읽기, 쓰기, 나열, 삭제
+- **MCP 클라이언트**: 프로토콜 우선 도구 통합, 프로세스 격리
+- **도구 자동 발견**: `builtin/__init__.py`의 `discover_builtin_tools()`
+- **도구 카테고리**: computation, web, filesystem, knowledge, mcp, connector, general
+- **DAG 시각화**: 라이브 상태, 종속성 엣지, 클릭-스크롤을 포함한 대화형 흐름 그래프
+- **Python/Node.js 실행**: 격리를 위한 Docker에서의 코드 실행 (`CODE_EXEC_BACKEND=docker`)
+- **샌드박스 강화**: `--network=none`, `--memory=256m`, 타임아웃 적용### 변경사항
+- **Tool interface**: 모든 도구가 이제 분류됨; 레지스트리는 필터링 지원
+- **Execution model**: DAG Executor는 asyncio를 통해 단계를 동시에 실행### 수정됨
+- **Tool discovery robustness**: 누락된 선택적 종속성을 우아하게 처리합니다## [v0.2] - 2026-02-24### 추가됨
+- **재시도 및 속도 제한**: 일시적 오류에 대한 자동 지수 백오프
+- **사용량 추적**: 요청별 토큰/비용 계산
+- **네이티브 함수 호출**: 도구 선택을 위한 직접 모델 지원 (JSON 전용 파싱 없음)
+- **다중 모델 지원**: DAG 단계 실행을 위한 `FAST_LLM_MODEL` (더 저렴함)
+- **메모리 시스템**: WindowMemory (최근 N 턴), SummaryMemory (LLM 요약), DbMemory (영구 저장)
+- **FastAPI 백엔드**: `/api/execute` (ReAct), `/api/stream` (SSE 스트리밍)### Changed
+- **LLM abstraction**: BaseLLM → OpenAICompatibleLLM 통합 인터페이스
+- **ModelRegistry**: 중앙화된 구성, 공급자 자동 선택### 수정됨
+- **Error recovery**: 일시적 API 오류에 대한 자동 재시도## [v0.1] - 2026-02-22### Added
+- **ReActAgent**: Reason → Act → Observe 루프와 도구
+- **DAGPlanner**: LLM 생성 의존성 그래프, 동시 실행을 위한 DAGExecutor, 결과 검증을 위한 PlanAnalyzer
+- **BaseTool framework**: 모든 도구를 위한 통합 인터페이스
+- **Calculator tool**: 산술 표현식, 공식 평가
+- **Python exec tool**: 격리된 환경에서의 코드 실행
+- **KaTeX rendering**: 스트리밍 출력의 수학 표기법
+- **JSON mode parsing**: 견고한 구조화된 출력 처리
+- **Portal UI**: 실시간 스트리밍, 다크/라이트/시스템 테마를 지원하는 Next.js 웹 인터페이스
+- **Initial documentation**: 철학, 아키텍처, 로드맵을 다루는 위키 페이지### 수정됨
+- **스트리밍 안정성**: 적절한 SSE 오류 처리 및 연결 정리

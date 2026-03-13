@@ -1,0 +1,186 @@
+{
+  "categories": {
+    "all": "Tous",
+    "general": "Général",
+    "computation": "Calcul",
+    "filesystem": "Système de fichiers",
+    "knowledge": "Connaissance",
+    "media": "Média",
+    "web": "Web",
+    "connector": "Connector",
+    "mcp": "MCP"
+  },
+  "pageTitle": "Outils",
+  "pageDescription": "Outils intégrés et intégrations externes",
+  "mcpServersTitle": "Serveurs MCP",
+  "mcpCatalog": "Catalogue MCP",
+  "addServer": "Ajouter un serveur",
+  "noServersMessage": "Aucun serveur MCP configuré. Ajoutez-en un pour étendre les capacités de l'agent.",
+  "loadingTools": "Chargement des outils...",
+  "failedToLoadCatalog": "Échec du chargement du catalogue d'outils",
+  "notConfigured": "Non configuré",
+  "connectorLabel": "Connector",
+  "connectorDescription": "Actions personnalisées (API, bases de données, etc.) liées à cet agent. Gérées sur la page Connectors.",
+  "mcpServersLinkLabel": "Serveurs MCP",
+  "mcpServersLinkDescription": "Outils fournis par des serveurs MCP externes. Configurez-les sur la page Connectors.",
+  "disabled": "Désactivé",
+  "enableTool": "Activer",
+  "disableTool": "Désactiver",
+  "disabledByAdmin": "Désactivé par l'administrateur",
+  "toolEnabled": "Outil activé",
+  "toolDisabled": "Outil désactivé",
+  "failedToEnableTool": "Échec de l'activation de l'outil",
+  "failedToDisableTool": "Échec de la désactivation de l'outil",
+  "noDescription": "Aucune description",
+  "toolCount": "{count, plural, one {# outil} other {# outils}}",
+  "toolsFound": "{count, plural, one {# outil} other {# outils}} trouvé(s)",
+  "testConnection": "Tester la connexion",
+  "deleteMcpServer": "Supprimer le serveur MCP ?",
+  "deleteMcpServerDescription": "Ce serveur MCP sera supprimé définitivement. Cette action ne peut pas être annulée.",
+  "disableOrgServer": "Désactiver le serveur pour toute l'organisation ?",
+  "disableOrgServerDescription": "Cela empêchera immédiatement tous les membres de l'organisation d'utiliser ce serveur. Vous pouvez le réactiver à tout moment.",
+  "editMcpServer": "Modifier le serveur MCP",
+  "addMcpServer": "Ajouter un serveur MCP",
+  "editMcpServerDescription": "Mettez à jour la configuration du serveur MCP.",
+  "addMcpServerDescription": "Configurez une nouvelle connexion de serveur MCP.",
+  "namePlaceholder": "p. ex. filesystem-server",
+  "descriptionPlaceholder": "Description optionnelle",
+  "transport": "Transport",
+  "streamableHttp": "HTTP diffusable",
+  "command": "Commande",
+  "commandPlaceholder": "p. ex. npx ou python",
+  "arguments": "Arguments",
+  "argumentsPlaceholder": "Séparés par des virgules, p. ex. -y, @modelcontextprotocol/server-filesystem, /tmp",
+  "argumentsHint": "Séparez plusieurs arguments par des virgules",
+  "workingDirectory": "Répertoire de travail",
+  "workingDirectoryPlaceholder": "ex. /home/user/my-server",
+  "envVars": "Variables d'environnement",
+  "serverUrl": "URL du serveur",
+  "httpHeaders": "En-têtes HTTP",
+  "httpHeadersHint": "ex. Authorization: Bearer token",
+  "viewSmitheryGuide": "Afficher le guide de configuration sur Smithery",
+  "activeToggle": "Actif",
+  "activeToggleDescription": "Activez ce serveur pour l'utilisation des outils agent",
+  "saveChanges": "Enregistrer les modifications",
+  "discardUnsavedTitle": "Abandonner les modifications non enregistrées ?",
+  "discardUnsavedDescription": "Vous avez des modifications non enregistrées. La fermeture les abandonnera.",
+  "discardAndClose": "Abandonner et fermer",
+  "mcpServerUpdated": "Serveur MCP mis à jour",
+  "mcpServerCreated": "Serveur MCP créé",
+  "failedToSaveMcpServer": "Échec de l'enregistrement du serveur MCP",
+  "searchServers": "Rechercher des serveurs...",
+  "noServersFound": "Aucun serveur trouvé",
+  "configure": "Configurer",
+  "configureMyKeys": "Configurer mes clés",
+  "myCredentialsSaved": "Identifiants enregistrés",
+  "keyRequiredWarning": "Configurez les clés pour utiliser cet outil",
+  "myKeysDialogTitle": "Configurer mes clés",
+  "myKeysDialogDescription": "Entrez vos identifiants personnels pour ce serveur MCP. Ils sont utilisés à la place des identifiants du serveur partagé.",
+  "myKeysEnvVars": "Variables d'environnement",
+  "myKeysSave": "Enregistrer",
+  "myKeysValueRequired": "La valeur ne peut pas être vide",
+  "myCredentialsCleared": "Identifiants supprimés",
+  "myKeysAddRow": "+ Ajouter",
+  "publishToOrg": "Publier dans l'organisation",
+  "publishDialogTitle": "Publier le serveur MCP",
+  "publishDialogDescription": "Partagez ce serveur MCP avec les membres de votre organisation.",
+  "publishSelectOrg": "Sélectionner l'organisation",
+  "publishNoOrgs": "Vous n'êtes membre d'aucune organisation.",
+  "allowFallback": "Autoriser le recours aux identifiants",
+  "allowFallbackHelp": "Lorsqu'elle est activée, les membres de l'organisation sans identifiants personnels utiliseront les identifiants intégrés de ce serveur. Si ces identifiants impliquent des API payantes ou des services privés, toute utilisation dans votre organisation sera facturée à votre compte.",
+  "mcpServerPublished": "Serveur MCP publié dans l'organisation",
+  "mcpServerPublishFailed": "Échec de la publication du serveur MCP",
+  "mcpServerUnpublished": "Serveur MCP dépublié",
+  "mcpServerUnpublishFailed": "Échec de la dépublication du serveur MCP",
+  "unpublishDialogTitle": "Dépublier le serveur MCP",
+  "unpublishDialogDescription": "Cela supprimera le serveur MCP de votre organisation et le rendra personnel à nouveau.",
+  "pendingReview": "En attente d'examen",
+  "approved": "Approuvé",
+  "rejected": "Rejeté",
+  "resubmit": "Soumettre à nouveau pour examen",
+  "resubmitSuccess": "Soumis à nouveau pour examen",
+  "resubmitError": "Échec de la soumission",
+  "orgBadge": "Organisation",
+  "mcpHub": {
+    "categories": {
+      "All": "Tous",
+      "Filesystem": "Système de fichiers",
+      "Database": "Base de données",
+      "Browser": "Navigateur",
+      "Search": "Recherche",
+      "Productivity": "Productivité",
+      "Dev Tools": "Outils de développement",
+      "Communication": "Communication",
+      "Cloud": "Cloud"
+    },
+    "servers": {
+      "Filesystem": {
+        "desc": "Lire et écrire des fichiers locaux avec des répertoires autorisés configurables.",
+        "config": "Remplacez /tmp par le chemin de votre répertoire autorisé"
+      },
+      "Git": {
+        "desc": "Inspectez l'historique du référentiel, les différences, les branches et le contenu des fichiers via Git.",
+        "config": "Nécessite uv · remplacez /path/to/repo"
+      },
+      "SQLite": {
+        "desc": "Interrogez et modifiez les bases de données SQLite avec support SQL complet.",
+        "config": "Remplacez par le chemin de votre fichier .sqlite"
+      },
+      "PostgreSQL": {
+        "desc": "Accès SQL en lecture seule à une base de données PostgreSQL.",
+        "config": "Remplacez par votre chaîne de connexion"
+      },
+      "Puppeteer": {
+        "desc": "Automatisation du navigateur — naviguez sur les pages, prenez des captures d'écran, interagissez avec les éléments."
+      },
+      "Playwright": {
+        "desc": "Automatisation du navigateur rapide et fiable avec Microsoft Playwright."
+      },
+      "Fetch": {
+        "desc": "Récupérez n'importe quelle page web et convertissez-la en Markdown — aucune clé API requise.",
+        "config": "Nécessite uv"
+      },
+      "Brave Search": {
+        "desc": "Recherche web et locale via l'API Brave Search.",
+        "config": "Obtenez la clé sur brave.com/search/api → collez dans BRAVE_API_KEY"
+      },
+      "Exa Search": {
+        "desc": "Recherche sémantique basée sur l'IA et récupération de contenu via l'API Exa.",
+        "config": "Obtenez la clé sur dashboard.exa.ai → collez dans EXA_API_KEY"
+      },
+      "Memory": {
+        "desc": "Graphe de connaissances persistant pour les agents entre les conversations."
+      },
+      "Sequential Thinking": {
+        "desc": "Outil de raisonnement structuré étape par étape pour la résolution de problèmes complexes."
+      },
+      "Notion": {
+        "desc": "MCP officiel Notion — lisez et écrivez des pages, des bases de données et des blocs.",
+        "config": "Obtenez la clé sur notion.so/my-integrations → définissez OPENAPI_MCP_HEADERS sur : {\"Authorization\":\"Bearer YOUR_KEY\"}"
+      },
+      "GitHub": {
+        "desc": "Gérez les référentiels, les problèmes, les demandes de tirage et le code via l'API GitHub.",
+        "config": "Créez un jeton sur github.com/settings/tokens → collez dans GITHUB_PERSONAL_ACCESS_TOKEN"
+      },
+      "GitLab": {
+        "desc": "Interagissez avec les référentiels GitLab, les problèmes et les demandes de fusion.",
+        "config": "Créez un jeton sur gitlab.com/-/user_settings/personal_access_tokens · définissez GITLAB_URL sur votre hôte GitLab"
+      },
+      "Everything (test)": {
+        "desc": "Serveur de test MCP officiel couvrant tous les types d'outils — idéal pour vérifier la configuration."
+      },
+      "Slack": {
+        "desc": "Lisez et publiez des messages, gérez les canaux de votre espace de travail Slack.",
+        "config": "Créez un bot sur api.slack.com/apps → collez le jeton du bot ; trouvez l'ID d'équipe dans l'URL de l'espace de travail"
+      },
+      "Google Drive": {
+        "desc": "Recherchez et accédez aux fichiers dans Google Drive.",
+        "config": "Configuration des identifiants OAuth requise"
+      },
+      "Google Maps": {
+        "desc": "Recherche de localisation, itinéraires et détails des lieux via Google Maps.",
+        "config": "Activez l'API Maps sur console.cloud.google.com → collez dans GOOGLE_MAPS_API_KEY"
+      }
+    }
+  }
+}

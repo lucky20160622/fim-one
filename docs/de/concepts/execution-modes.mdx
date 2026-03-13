@@ -1,0 +1,99 @@
+---
+title: "Ausführungsmodi"
+description: "Standalone, Copilot und Hub — drei Möglichkeiten zur Bereitstellung von FIM One."
+---## Drei Modi
+
+FIM One arbeitet in drei Modi, die davon bestimmt werden, wie der Agent bereitgestellt und verwendet wird:
+
+| Modus | Was es ist | Bereitstellung | Beispiel |
+|------|-----------|----------|---------|
+| **Standalone** | Universeller KI-Assistent | Portal | Chat, Suche, Code-Ausführung, Knowledge-Base-Q&A |
+| **Copilot** | KI eingebettet in ein Host-System | iframe / Widget / Embed | "Finance Copilot" eingebettet in ERP-Web-UI |
+| **Hub** | Zentrale systemübergreifende Orchestrierung | Portal / API | Agent fragt ERP ab, prüft OA-Genehmigungen, benachrichtigt über Lark |
+
+Die Progression ist natürlich: Beginnen Sie mit Standalone, betten Sie es als Copilot in ein Host-System ein, richten Sie dann einen Hub für systemübergreifende Orchestrierung ein. Der Copilot läuft weiterhin eingebettet; der Hub fügt eine zentrale Orchestrierungsschicht hinzu.## Modusdetails### Standalone (0 Connectors)
+
+Der Standardmodus. FIM One funktioniert als vollwertiger KI-Assistent:
+
+- Integrierte Tools: Websuche, Python-Ausführung, Rechner, Dateivorgänge, Shell-Befehle
+- Wissensdatenbank mit RAG (PDF, DOCX, Markdown, HTML, CSV)
+- Dynamische DAG-Planung für komplexe mehrstufige Aufgaben
+- Echtzeit-Streaming mit DAG-Visualisierung
+
+Kein externer Systemzugriff erforderlich. Nützlich für allgemeine Analysen, Recherchen und Code-Aufgaben.### Copilot (eingebettet)
+
+Betten Sie FIM One in die Web-UI eines Host-Systems ein. Der Agent arbeitet neben Benutzern in ihrer vertrauten Oberfläche — kein Kontextwechsel erforderlich. Der Copilot-Modus kann mehrere Connectors verwenden (z. B. die Datenbank des Host-Systems + einen Benachrichtigungsdienst).
+
+```mermaid
+flowchart LR
+  subgraph Host["Host System (ERP / CRM / OA)"]
+    Copilot["FIM One Copilot<br/>(iframe / widget)"]
+  end
+  Copilot -- Connectors --> DB["DB"]
+  Copilot -- Connectors --> API["API"]
+  Copilot -- Connectors --> Lark["Lark"]
+```
+
+Beispiele:
+- **Finance Copilot**: Verbunden mit Kingdee (金蝶) über DB-Connector → Finanzberichte abfragen, Analyseerichte generieren
+- **Contract Copilot**: Verbunden mit Vertragsmanagementsystem über API-Connector → Verträge durchsuchen, Klauseln extrahieren, Risiken bewerten
+- **HR Copilot**: Verbunden mit HR-System über API-Connector → Mitarbeiterinformationen abfragen, Statistiken generieren
+
+Der Agent verwendet die gleiche ReAct/DAG-Engine wie der Standalone-Modus, hat aber jetzt Zugriff auf echte Geschäftsdaten über den Connector.### Hub (zentrale Orchestrierung)
+
+Der Hub ist ein eigenständiges Portal (oder API), das als zentrale Intelligenzschicht fungiert. Er ist nicht in ein einzelnes System eingebettet – stattdessen verbindet er sich mit allen Systemen. Benutzer greifen darauf über die Portal-UI oder API zu.
+
+```mermaid
+flowchart LR
+  ERP --> Hub["FIM One Hub<br/>(AI orchestration)"]
+  Database --> Hub
+  Lark --> Hub
+  CRM --> Hub
+  OA --> Hub
+  CustomAPI["Custom API"] --> Hub
+```
+
+Beispiele:
+- "Überprüfe überfällige Verträge in CRM, kreuze mit ERP-Zahlungen ab, benachrichtige Finanzteam auf Lark"
+- "Wenn OA-Genehmigung abgeschlossen ist, aktualisiere Vertragsstatus in CRM und protokolliere in Audit-Datenbank"
+- "Abfrage von Verkaufsdaten aus Salesforce, Prognose mit Business-DB generieren, Zusammenfassung per E-Mail an Management senden"
+
+Jeder Connector ist eine unabhängige Brücke. Das Hinzufügen oder Entfernen eines Connectors beeinträchtigt die anderen nicht.## Liefermethoden
+
+| Liefermethode | Beschreibung | Typischer Modus |
+|----------|-------------|-------------|
+| **Portal (Web UI)** | Integrierte Next.js-Schnittstelle | Standalone, Hub |
+| **API (headless)** | HTTP/SSE-Endpunkte (`/api/execute`, `/api/stream`) | Hub (programmatischer Zugriff) |
+| **iframe / Embed** | In Host-System-Seiten injiziert | Copilot |
+
+Liefermethode und Modus sind verwandt, aber nicht gebunden: Sie können auf einen Hub über die API zugreifen oder einen Standalone-Agent über das Portal verwenden. Das typische Muster ist jedoch Portal für Hub und Embed für Copilot.## Ausführungs-Engines (interne Implementierung)
+
+Unter der Haube bietet FIM One zwei Ausführungs-Engines:
+
+| Engine | Am besten für | Funktionsweise |
+|--------|----------|-------------|
+| **ReAct** | Einzelne komplexe Abfragen | Reason → Act → Observe Loop mit Tools |
+| **DAG Planning** | Multi-Step parallele Aufgaben | LLM generiert Abhängigkeitsgraph, unabhängige Schritte laufen gleichzeitig |
+
+```mermaid
+flowchart TD
+  DAG["DAG Planning<br/>(orchestration layer)"]
+  DAG --> step_1
+  DAG --> step_2
+  step_1 --> ReAct1["ReAct Agent"] --> Tools1["Tools"]
+  step_2 --> ReAct2["ReAct Agent"] --> Tools2["Tools"]
+  step_1 & step_2 --> step_3
+  step_3 --> ReAct3["ReAct Agent"] --> Tools3["Tools"]
+```
+
+ReAct ist die atomare Einheit; DAG ist die Orchestrierungsschicht. Beide Engines funktionieren in allen drei Modi (Standalone, Copilot, Hub). Im Hub-Modus kann ein einzelner DAG-Schritt Connectors zu verschiedenen Systemen aufrufen.## Warum kein traditionelles Workflow-Engine
+
+FIM One baut bewusst **keinen** Drag-and-Drop-Workflow-Editor. Dies ist eine strategische Entscheidung:
+
+1. **Workflows existieren bereits anderswo.** Die festen Prozesse von Enterprise-Kunden (Genehmigungsketten, Audit-Flows) befinden sich in ihren OA-, ERP- und Legacy-Systemen. Sie benötigen AI, die sich mit diesen Systemen verbindet, nicht einen weiteren Workflow-Editor.
+
+2. **Dynamischer DAG deckt den flexiblen Fall ab.** Für nicht vordefinierte Aufgaben passen LLM-generierte DAGs sich zur Laufzeit an — keine menschliche Vorausplanung erforderlich.
+
+3. **Vorhandene Funktionen setzen sich zu festen Pipelines zusammen.** Geplante Jobs (geplant) lösen einen DAG-Agent mit einem festen Prompt aus; der DAG plant die Schritte; Connectors verbinden sich mit Zielsystemen. Die Kombination entspricht einer statischen Pipeline — aber flexibler, weil die LLM ihren Plan basierend auf den Daten anpasst, auf die sie trifft.
+
+4. **Connector = API-Aufruf.** Komplexe Workflow-Operationen (Übertragung, Ablehnung, Eskalation) sind die Verantwortung des Zielsystems. Aus der Perspektive des Connectors ist jede Operation nur ein HTTP-Request mit Parametern. FIM One ruft die API auf; das Zielsystem verwaltet die State Machine.

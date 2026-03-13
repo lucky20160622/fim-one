@@ -1,0 +1,393 @@
+---
+title: "Erweiterungsleitfaden"
+description: "Wie man benutzerdefinierte LLM-Anbieter, Tools, Memory-Backends, Embeddings, Reranker, Web-Backends und RAG-Komponenten in FIM One integriert."
+---## Übersicht
+
+FIM One basiert auf einer Reihe von dünnen abstrakten Basisklassen — eine pro austauschbare Komponente. Jede Komponente hat eine einzelne Verantwortung und eine minimale Schnittstelle. Sie implementieren die abstrakten Methoden, verbinden die Instanz mit der entsprechenden Registry oder dem Injector und der Rest des Systems verwendet Ihre Implementierung automatisch.
+
+| Erweiterungspunkt | Basisklasse | Datei | Registrierung |
+|---|---|---|---|
+| LLM-Anbieter | `BaseLLM` | `core/model/base.py` | `ModelRegistry.register()` |
+| Tool | `BaseTool` | `core/tool/base.py` | Datei in `builtin/` ablegen |
+| Memory | `BaseMemory` | `core/memory/base.py` | Constructor Injection |
+| Embedding | `BaseEmbedding` | `core/embedding/base.py` | Constructor Injection |
+| Bildgenerierung | `BaseImageGen` | `core/image_gen/base.py` | Constructor Injection |
+| Reranker | `BaseReranker` | `core/reranker/base.py` | Constructor Injection |
+| Web-Fetch-Backend | `BaseWebFetch` | `core/web/fetch/base.py` | Constructor Injection |
+| Web-Search-Backend | `BaseWebSearch` | `core/web/search/base.py` | Constructor Injection |
+| RAG-Retriever | `BaseRetriever` | `rag/base.py` | Constructor Injection |
+| Document Loader | `BaseLoader` | `rag/loaders/base.py` | Loader Registry / Injection |
+| Text Chunker | `BaseChunker` | `rag/chunking/base.py` | Constructor Injection |
+
+---## Benutzerdefinierter LLM-Provider
+
+`BaseLLM` hat zwei erforderliche Methoden — `chat` und `stream_chat` — plus eine optionale `abilities`-Eigenschaft, die dem Rest des Systems mitteilt, was das Modell kann.
+
+```python
+from collections.abc import AsyncIterator
+from typing import Any
+
+from fim_one.core.model.base import BaseLLM
+from fim_one.core.model.types import ChatMessage, LLMResult, StreamChunk
+
+
+class MyLLM(BaseLLM):
+    def __init__(self, api_key: str, model: str) -> None:
+        self._api_key = api_key
+        self._model = model
+
+    @property
+    def model_id(self) -> str:
+        return self._model
+
+    @property
+    def abilities(self) -> dict[str, bool]:
+        return {
+            "tool_call": True,   # supports native function calling
+            "json_mode": True,   # supports response_format JSON mode
+            "vision":   False,
+            "streaming": True,
+        }
+
+    async def chat(
+        self,
+        messages: list[ChatMessage],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        response_format: dict[str, Any] | None = None,
+    ) -> LLMResult:
+        # Call your provider, return LLMResult(message=..., usage=...)
+        ...
+
+    async def stream_chat(
+        self,
+        messages: list[ChatMessage],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> AsyncIterator[StreamChunk]:
+        # Yield StreamChunk instances as tokens arrive
+        ...
+        yield  # make type-checker happy
+```### Registrierung über ModelRegistry
+
+`ModelRegistry` ordnet Namen `BaseLLM`-Instanzen zu und löst sie nach Rolle auf. Das System verwendet vier integrierte Rollen: `general`, `fast`, `compact` und `vision`. Sie können eigene hinzufügen.
+
+```python
+from fim_one.core.model.registry import ModelRegistry
+
+registry = ModelRegistry()
+registry.register("my-llm", MyLLM(api_key="...", model="my-v1"), roles=["general"])
+registry.register("my-fast", MyLLM(api_key="...", model="my-mini"), roles=["fast", "compact"])
+```# Später abrufen
+llm = registry.get_default()           # first "general" model, or first registered
+llm = registry.get_by_role("fast")     # first model with the "fast" role
+llm = registry.get("my-llm")           # by exact name
+```
+
+Das `abilities`-Dict ist der Vertrag zwischen dem LLM und der ReAct-Engine. Wenn `tool_call=True` und der Agent mit `use_native_tools=True` erstellt wurde, verwendet die Engine natives Function Calling. Andernfalls wird automatisch auf JSON-Modus zurückgegriffen.
+
+---## Benutzerdefiniertes Tool
+
+Tools sind die häufigste Erweiterung. `BaseTool` hat drei erforderliche Komponenten: `name`, `description` und `run`. Alles andere hat sinnvolle Standardwerte.
+
+```python
+from typing import Any
+from fim_one.core.tool.base import BaseTool
+
+
+class GitStatusTool(BaseTool):
+    @property
+    def name(self) -> str:
+        return "git_status"
+
+    @property
+    def description(self) -> str:
+        return "Return the current git status of a repository."
+
+    @property
+    def category(self) -> str:
+        return "filesystem"   # groups the tool in the UI
+
+    @property
+    def parameters_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Absolute path to the repository root.",
+                }
+            },
+            "required": ["path"],
+        }
+
+    async def run(self, *, path: str, **kwargs: Any) -> str:
+        import asyncio
+        result = await asyncio.create_subprocess_shell(
+            f"git -C {path} status --short",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await result.communicate()
+        return stdout.decode()
+```### Auto-Discovery
+
+Legen Sie Ihre Datei in `src/fim_one/core/tool/builtin/` ab. Der `discover_builtin_tools()`-Scanner findet automatisch jede konkrete (nicht-abstrakte) `BaseTool`-Unterklasse – keine manuelle Registrierung erforderlich.
+
+```
+src/fim_one/core/tool/builtin/
+├── calculator.py       ← existing tool
+├── git_status.py       ← your new file → auto-discovered
+└── ...
+```
+
+Der Scanner überspringt Klassen, die in `_SKIP_AUTO_DISCOVER` aufgelistet sind. Verwenden Sie diesen Satz für Tools, die externe Konfiguration erfordern (z. B. einen API-Schlüssel) und bei Startup bedingt instanziiert werden müssen.### Signalisierung von Nichtverfügbarkeit
+
+Überschreiben Sie `availability()`, um eine Nachricht im Tool-Katalog anzuzeigen, wenn eine Abhängigkeit fehlt:
+
+```python
+def availability(self) -> tuple[bool, str | None]:
+    import os
+    if not os.getenv("GITHUB_TOKEN"):
+        return False, "GITHUB_TOKEN environment variable is not set."
+    return True, None
+```### Umfangreiche Ergebnisse mit Artefakten
+
+Geben Sie ein `ToolResult` statt eines einfachen `str` zurück, wenn Ihr Tool Dateien produziert:
+
+```python
+from fim_one.core.tool.base import Artifact, ToolResult
+
+async def run(self, **kwargs: Any) -> ToolResult:
+    # ... produce a file at /tmp/report.html ...
+    return ToolResult(
+        content="Report generated.",
+        content_type="text",
+        artifacts=[Artifact(name="report.html", path="/uploads/report.html", mime_type="text/html", size=4096)],
+    )
+```
+
+---## Benutzerdefinierter Speicher
+
+`BaseMemory` ist die Persistierungsschicht für Gesprächsverlauf. Drei Methoden: `add_message`, `get_messages`, `clear`.
+
+```python
+import redis.asyncio as redis
+from fim_one.core.memory.base import BaseMemory
+from fim_one.core.model.types import ChatMessage
+
+
+class RedisMemory(BaseMemory):
+    def __init__(self, conversation_id: str, redis_url: str) -> None:
+        self._key = f"conv:{conversation_id}"
+        self._redis = redis.from_url(redis_url)
+
+    async def add_message(self, message: ChatMessage) -> None:
+        import json
+        await self._redis.rpush(self._key, json.dumps(message))
+
+    async def get_messages(self) -> list[ChatMessage]:
+        import json
+        raw = await self._redis.lrange(self._key, 0, -1)
+        return [json.loads(m) for m in raw]
+
+    async def clear(self) -> None:
+        await self._redis.delete(self._key)
+```
+
+Injizieren Sie über den Agent-Konstruktor: `ReActAgent(llm=llm, memory=RedisMemory(conv_id, url))`.
+
+---## Benutzerdefinierte Einbettung
+
+`BaseEmbedding` bietet zwei Methoden: `embed_texts` (Batch) und `embed_query` (einzeln), plus eine `dimension`-Eigenschaft.
+
+```python
+from fim_one.core.embedding.base import BaseEmbedding
+
+
+class MyEmbedding(BaseEmbedding):
+    def __init__(self, model: str) -> None:
+        self._model = model
+        self._dim = 1536
+
+    @property
+    def dimension(self) -> int:
+        return self._dim
+
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        # Batch embed documents
+        ...
+
+    async def embed_query(self, query: str) -> list[float]:
+        # Embed a single query — often uses a different instruction prefix
+        ...
+```
+
+Der Unterschied zwischen `embed_texts` und `embed_query` existiert, weil viele Einbettungsmodelle (z. B. E5, BGE) unterschiedliche Präfixe für Dokumente und Abfragen verwenden, um die Abrufqualität zu verbessern.
+
+---## Benutzerdefinierte Bildgenerierung
+
+`BaseImageGen` hat eine einzelne Methode `generate`. Sie speichert das Bild in `output_dir` und gibt ein `ImageResult` mit dem Dateipfad und einer serverelativen URL zurück.
+
+```python
+from fim_one.core.image_gen.base import BaseImageGen, ImageResult
+
+
+class StableDiffusionImageGen(BaseImageGen):
+    async def generate(
+        self,
+        prompt: str,
+        *,
+        aspect_ratio: str = "1:1",
+        output_dir: str,
+    ) -> ImageResult:
+        # Call your SD API, save to output_dir
+        file_path = f"{output_dir}/image.png"
+        return ImageResult(
+            file_path=file_path,
+            url=f"/uploads/{file_path.split('/')[-1]}",
+            prompt=prompt,
+            model="stable-diffusion-xl",
+        )
+```
+
+---## Benutzerdefinierter Reranker
+
+`BaseReranker` nimmt eine Abfrage und eine Liste von Dokumentzeichenfolgen entgegen und gibt sie neu geordnet mit Scores zurück.
+
+```python
+from fim_one.core.reranker.base import BaseReranker, RerankResult
+
+
+class CrossEncoderReranker(BaseReranker):
+    async def rerank(
+        self, query: str, documents: list[str], *, top_k: int = 5
+    ) -> list[RerankResult]:
+        # Score each (query, doc) pair with a cross-encoder
+        scores = await self._score_pairs(query, documents)
+        results = [
+            RerankResult(index=i, score=score, text=doc)
+            for i, (doc, score) in enumerate(zip(documents, scores))
+        ]
+        results.sort(key=lambda r: r.score, reverse=True)
+        return results[:top_k]
+```
+
+---## Benutzerdefinierte Web-Backends### Web-Abruf
+
+`BaseWebFetch` ruft eine URL ab und gibt ihren Inhalt als Markdown oder Klartext zurück.
+
+```python
+from fim_one.core.web.fetch.base import BaseWebFetch
+
+
+class PlaywrightFetch(BaseWebFetch):
+    async def fetch(self, url: str) -> str:
+        # Use Playwright to render JS-heavy pages
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            page = await browser.new_page()
+            await page.goto(url)
+            content = await page.content()
+            await browser.close()
+        return html_to_markdown(content)
+```### Web-Suche
+
+`BaseWebSearch` gibt eine sortierte Liste von `SearchResult`-Objekten zurück.
+
+```python
+from fim_one.core.web.search.base import BaseWebSearch, SearchResult
+
+
+class BingSearch(BaseWebSearch):
+    async def search(self, query: str, *, num_results: int = 10) -> list[SearchResult]:
+        # Call Bing Search API
+        ...
+        return [
+            SearchResult(title=r["name"], url=r["url"], snippet=r["snippet"])
+            for r in raw_results[:num_results]
+        ]
+```## Benutzerdefinierte RAG-Komponenten
+
+Die RAG-Pipeline hat drei unabhängig austauschbare Stufen: Laden, Chunking und Abruf.### Document loader
+
+`BaseLoader` wandelt einen Dateipfad in eine Liste von `LoadedDocument`-Objekten um. PDF-Loader geben normalerweise ein Dokument pro Seite zurück.
+
+```python
+from pathlib import Path
+from fim_one.rag.loaders.base import BaseLoader, LoadedDocument
+
+
+class DocxLoader(BaseLoader):
+    async def load(self, path: Path) -> list[LoadedDocument]:
+        from docx import Document
+        doc = Document(path)
+        text = "\n".join(p.text for p in doc.paragraphs)
+        return [LoadedDocument(content=text, metadata={"source": str(path)})]
+```### Text-Chunker
+
+`BaseChunker` teilt Text in `Chunk`-Objekte auf. `MAX_CHUNK_SIZE = 6000` Zeichen ist die harte Obergrenze — Chunk-Größen über diesem Wert können das Token-Fenster von Jina Embeddings v3 überlasten.
+
+```python
+from typing import Any
+from fim_one.rag.chunking.base import BaseChunker, Chunk
+
+
+class SentenceChunker(BaseChunker):
+    def __init__(self, sentences_per_chunk: int = 5) -> None:
+        self._n = sentences_per_chunk
+
+    async def chunk(self, text: str, metadata: dict[str, Any] | None = None) -> list[Chunk]:
+        import nltk
+        sentences = nltk.sent_tokenize(text)
+        chunks = []
+        for i in range(0, len(sentences), self._n):
+            chunk_text = " ".join(sentences[i : i + self._n])
+            chunks.append(Chunk(text=chunk_text, metadata=metadata or {}, index=i // self._n))
+        return chunks
+```### Retriever
+
+`BaseRetriever` fragt jeden Backend ab und gibt sortierte `Document`-Objekte zurück.
+
+```python
+from fim_one.rag.base import BaseRetriever, Document
+
+
+class ElasticsearchRetriever(BaseRetriever):
+    def __init__(self, es_client, index: str) -> None:
+        self._es = es_client
+        self._index = index
+
+    async def retrieve(self, query: str, *, top_k: int = 5) -> list[Document]:
+        resp = await self._es.search(
+            index=self._index,
+            query={"match": {"content": query}},
+            size=top_k,
+        )
+        return [
+            Document(
+                content=hit["_source"]["content"],
+                metadata=hit["_source"].get("metadata", {}),
+                score=hit["_score"],
+            )
+            for hit in resp["hits"]["hits"]
+        ]
+```
+
+---## Designprinzipien
+
+Einige Muster sind konsistent über alle Basisklassen hinweg, die es einfacher machen, benutzerdefinierte Implementierungen korrekt zu schreiben:
+
+**Async-first.** Jede Methode ist `async def`. Auch wenn Ihre Implementierung synchron ist, wickeln Sie sie mit `asyncio.to_thread()` ein, anstatt die Event Loop zu blockieren.
+
+**Textausgabe von Tools.** `BaseTool.run()` gibt `str` (oder `ToolResult`) zurück. Das LLM sieht nur Text — Tool-Implementierungen sind dafür verantwortlich, komplexe Daten in ein lesbares Format zu serialisieren.
+
+**Minimale Schnittstellen.** Jede Basisklasse definiert den kleinsten erforderlichen Vertrag. `BaseMemory` hat drei Methoden; `BaseWebFetch` hat eine. Sie sind nie verpflichtet, Funktionalität zu implementieren, die Sie nicht benötigen.
+
+**Komposition statt Vererbung.** Die Basisklassen sind Schnittstellen, keine Frameworks. Sie injizieren Ihre Implementierung zur Konstruktionszeit; die Runtime patcht oder subklassifiziert sie nie weiter.

@@ -1,0 +1,7 @@
+{
+  "title": "Générateur Avancé",
+  "previewTitle": "Aperçu en direct",
+  "noActions": "Aucune action pour le moment. Demandez au générateur d'en créer.",
+  "actionCount": "{count} action(s)",
+  "initializingSession": "Initialisation de la session du générateur..."
+}

@@ -1,0 +1,101 @@
+---
+title: "Wettbewerbslandschaft"
+description: "Interne strategische Referenz — wo FIM One unter Konkurrenten positioniert ist."
+mode: "wide"
+---
+
+> Interne strategische Referenz. Zuletzt aktualisiert: 2026-02.## Positionierung
+
+```
+Dify:       "Build AI workflows visually"
+Manus:      "Your AI that does the work"
+FIM One:  "The hub where your systems meet AI"
+```
+
+Dify / Manus sind **Ersatzprodukte** — sie fordern Benutzer auf, ihre Arbeit auf eine neue Plattform zu verlagern. FIM One ist ein **Connector-Hub** — es verbindet die Systeme, die Benutzer bereits haben, und ermöglicht ihnen, über AI zu kommunizieren.## Wettbewerbsmatrix
+
+| Dimension | Dify | Manus | Coze | FIM One |
+|-----------|------|-------|------|-----------|
+| **Ansatz** | Visueller DAG-Workflow-Builder | Autonomer Consumer-Agent | Visueller Builder + Agent-Bereich | AI Connector Hub |
+| **Bereitstellung** | Standalone-Plattform | Cloud SaaS + API | Cloud SaaS + Self-Hosted (Coze Studio) | Plattform / API / Embed |
+| **Planung** | Von Menschen entworfene statische DAGs | Multi-Agent Chain-of-Thought | Statische Workflows + dynamische Agents | LLM DAG-Planung + ReAct-Schleifen |
+| **Integration von Legacy-Systemen** | API-Knoten (manuelle Verkabelung) | Keine | Plugin-Marketplace | Connector Platform (standardisiert) |
+| **Systemübergreifende Orchestrierung** | Nein | Nein | Nein | Hub Mode (N:N) |
+| **Einbettbar** | iframe + Script-Embed | Nur API | Chat SDK + 10+ Kanäle | API / iframe (Widget geplant) |
+| **Menschliche Bestätigung** | Nein | Nein | Nein | Ja (Pre-Execution Gate) |
+| **Self-Hosted** | Ja (Docker Compose) | Nein | Ja (Coze Studio, Apache 2.0) | Ja (Single Process) |
+| **Lizenz** | Apache 2.0 | Proprietär | Apache 2.0 (Coze Studio) | Source Available |
+| **Traction** | 121K+ Stars | Von Meta akquiriert ($2B+, chinesische behördliche Überprüfung) | Von ByteDance unterstützt, 20K+ Stars (Studio) | Frühe Phase |## Benchmarking-Strategie
+
+| Was man lernen sollte | Von wem | Priorität |
+|---------------|-----------|----------|
+| Plattform-Grundlagen (Multi-Tenant, Agent-Management, Knowledge Base, UI-Verbesserung) | Dify | v0.4-v0.5 |
+| Context Engineering, Plan-Reflect-Loop-Qualität | Manus | Laufend |
+| Enterprise-Integrationsmuster, Lark/Feishu-Ökosystem | Coze | v0.6+ |
+| Integration in Host-Umgebungs-Interaktionsparadigma | Cursor / GitHub Copilot | v0.7 |
+| Connector-Ökosystem, deklarative Integration | MuleSoft / Zapier | v0.8 |## FIM One's Unique Differentiators### 1. Connector-Architektur (MCP + Governance)
+
+```
+Platform (ReAct / DAG / Portal)
+    ↓
+Connector Governance (audit, read_only, auth, confirmation gate)
+    ↓
+MCP Protocol (standard transport, process isolation)
+    ↓
+Legacy System (DB / API / message bus)
+```
+
+Connectors werden als **MCP Servers** mit einer Governance-Schicht implementiert. Der Agent weiß nicht, dass er mit einem Legacy-System kommuniziert – Connectors werden als gewöhnliche Tools in der ToolRegistry angezeigt. Keine andere Plattform in diesem Bereich hat eine standardisierte Connector-Architektur mit integriertem Enterprise-Governance. Siehe [Connector Architecture](/architecture/connector-architecture) für das vollständige Design.### 2. Dual-Mode Delivery
+
+```
+Standalone:  Full web UI, independent AI assistant
+Embedded:    <script src="fim-one.js"> injected into host page
+             OR iframe / standalone URL with auth passthrough
+```### 3. Human Confirmation Gate
+
+Schreibvorgänge auf Legacy-Systemen erfordern explizite Benutzerbestätigung. Implementiert als Pre-Execution-Hook -- modifiziert die Agent-Schleife nicht. SSE-Event `confirmation_required` pausiert die Ausführung, bis der Benutzer antwortet.### 4. Seitenkontext-Injektion
+
+Wenn das Widget eingebettet ist, liest es den Kontext von der Host-Seite (aktuelle Vertrags-ID, Seiten-URL, DOM-Selektoren) und injiziert ihn in den Kontext des Agenten. Der Agent versteht *wo* sich der Benutzer befindet, nicht nur *was* er gefragt hat.## Kategorie-Dauerhaftigkeitsanalyse
+
+**Werden Frontier-Modelle diese Kategorie absorbieren?**
+
+| Layer | Absorptionsrisiko | Begründung |
+|-------|-------------------|-----------|
+| Simple orchestration (ReAct loops) | **High** | Claude/GPT/Gemini machen das jetzt nativ |
+| Dynamic planning | **High** | AWS Strands Team bestätigt: Frontier-Modelle handhaben Planning ohne Frameworks |
+| Production infrastructure (observability, auth, state) | **Low** | Modelle bieten keine Ops-Tools |
+| Multi-agent coordination | **Low** | Governance, Konfliktlösung, Routing benötigen Infrastructure |
+| Enterprise system integration | **Very low** | Verbindung zu Legacy-APIs/DBs ist Integrationsarbeit, keine Modell-Capability |
+| Context engineering | **Low** | Manus Blog bestätigt: Performance-Gewinne kommen aus Context, nicht intelligenteren Modellen |
+
+**FIM One's Verteidigungsfähigkeit**: Die Connector Platform und der embedded delivery mode befinden sich in der Zone mit „sehr niedrigem" Absorptionsrisiko. Je weiter wir uns von reiner LLM-Orchestrierung hin zu Enterprise-System-Integration bewegen, desto haltbarer ist der Burggraben.## Wichtigste Konkurrenten – Tiefenanalyse### Dify (Primäre Referenz für Plattformfunktionen)
+
+- 121K+ GitHub-Sterne, Apache 2.0
+- Visual Workflow Builder mit RAG-, Agent- und Tool-Knoten
+- Stärke: massive Community, produktionsgeprüft, zugänglich für Nicht-Entwickler
+- Schwäche: statische DAGs brechen bei Anforderungsänderungen, keine Legacy-System-Connector-Architektur
+- Unsere Sicht: Plattformfunktionen erlernen (Multi-Tenant, Agent-Management, Knowledge Base), nicht bei Visual Workflow konkurrieren. Die festen Prozesse der Kunden existieren bereits in ihren OA/ERP -- sie benötigen KI, die sich mit diesen Systemen verbindet, nicht einen weiteren Workflow-Editor### Manus (Category validator)
+
+- Von Meta für $2B+ erworben (Dez 2025); Deal unterliegt seit Jan 2026 der regulatorischen Überprüfung durch China MOFCOM
+- Consumer-facing autonomer Agent (Cloud SaaS + REST API unter open.manus.im)
+- Führend im GAIA Benchmark; Browser Operator Extension ermöglicht dem Agent, lokale Browser-Sitzungen des Benutzers zu nutzen
+- Wichtige Erkenntnis aus ihrem Blog: **context engineering** (nicht Modellkapazität) treibt die Leistung
+- Unsere Einschätzung: validiert die Kategorie; ihre Context-Engineering-Erkenntnisse informieren unsere Architektur### Coze (ByteDance)
+
+- Visual builder + Coze Space agents
+- Coze Studio (20K+ stars) / Loop open-sourced (Juli 2025, Apache 2.0); vollständig selbst-hostbar via Docker
+- Chat SDK + 10+ Deployment-Kanäle (Discord, Telegram, Slack, LINE, WhatsApp, WeChat, etc.)
+- Stärke: ByteDance-Ressourcen, breites Kanal-Ökosystem, Open-Source-Dynamik
+- Unsere Einschätzung: stärkste Embedding-/Kanal-Abdeckung; achten Sie auf Enterprise-Integrationsmuster## Die MuleSoft-Analogie
+
+Die Connector-Architektur von FIM One ist konzeptionell **AI-era MuleSoft**:
+
+| | MuleSoft | FIM One |
+|-|----------|-----------|
+| **What** | System-to-system API integration | AI Connector Hub for system integration |
+| **How** | Connectors + declarative mapping | MCP Servers + Connector Governance Layer |
+| **Protocol** | Anypoint SDK | MCP (open standard) + governance layer |
+| **Standardization** | Anypoint connectors | Level 1 (Python MCP Server) -> Level 2 (YAML) -> Level 3 (AI-generated) |
+| **Value** | "Connect everything" | "The hub where all your systems meet AI" |
+
+Diese Analogie ist mächtig für die Enterprise-Positionierung.

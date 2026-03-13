@@ -1,0 +1,15 @@
+{
+  "title": "Marché",
+  "description": "Parcourez et abonnez-vous aux ressources partagées de vos organisations",
+  "empty": "Aucune ressource disponible sur le marché",
+  "subscribed": "Abonné",
+  "subscribe": "S'abonner",
+  "unsubscribe": "Se désabonner",
+  "types": {
+    "all": "Tous",
+    "agent": "Agents",
+    "connector": "Connectors",
+    "knowledge_base": "Bases de connaissances",
+    "mcp_server": "MCP Servers"
+  }
+}

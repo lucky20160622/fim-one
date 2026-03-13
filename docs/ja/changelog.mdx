@@ -1,0 +1,207 @@
+---
+title: "変更履歴"
+description: "FIM One への全ての注目すべき変更。"
+---
+
+このプロジェクトへの全ての注目すべき変更はここに記載されています。
+
+フォーマットは [Keep a Changelog](https://keepachangelog.com/) に従っています。バージョンは [Roadmap](/roadmap) のマイルストーンに対応しています。## [未リリース]### 追加
+
+- **Admin: Review Log audit tab** — Admin audit ページに「System Log / Review Log」セグメント化トグルが追加されました。Review Log パネルは新しい `GET /api/admin/review-log` エンドポイント（フィルター: org、リソースタイプ、アクション；limit/offset ページネーション）をクエリし、時間、org 名、リソースタイプ、リソース名、アクションバッジ（色分け：緑=承認、赤=却下、琥珀=提出/再提出、グレー=未公開）、オペレーターを表示するテーブルを表示します。完全な i18n（EN + ZH）対応。
+- **Platform Organization**: ビルトイン org `platform`（ID: `00000000-0000-0000-0000-000000000001`）— すべての新規ユーザーが自動的に参加します。この organization は「global」可視性の概念に代わり、すべてのユーザー間でリソースを共有するための中央ハブを提供します。
+- **Resource Subscriptions**: ユーザーは org Markets から共有リソース（agents、connectors、knowledge bases、MCP servers）をサブスクライブ/アンサブスクライブできるようになりました。新しい `resource_subscriptions` データベーステーブルがサブスクリプション関係を追跡します。
+- **Market API**: ブラウジングとサブスクリプション管理用の新しいエンドポイント：
+  - `GET /api/market` — 現在の org で利用可能なリソースをブラウズ
+  - `POST /api/market/subscribe` — リソースをサブスクライブ
+  - `DELETE /api/market/unsubscribe` — リソースをアンサブスクライブ
+  - `GET /api/market/subscriptions` — ユーザーの現在のサブスクリプションをリスト
+- **Market Page**: Portal の新しい `/market` ページで org リソースへのサブスクリプションをブラウズおよび管理できます。
+- **Agent Auto-discovery**: agents 上の新しい `discoverable` ブール値フィールド。`discoverable=true` の agents は LLM によって `call_agent` ツール経由で自動的に検出および呼び出すことができます（1段階の委譲、再帰なし）。
+- **Sub-agent Binding**: agents 上の新しい `sub_agent_ids` フィールド — 呼び出し可能なサブエージェントの明示的なホワイトリストで、きめ細かいアクセス制御を実現します。
+- **CallAgentTool**: 構造化入力検証と結果処理を備えたスペシャリスト agents へのタスク委譲を行うビルトインツール。
+- **MCP Server Credentials**: 新しい `mcp_server_credentials` テーブルにより、MCP servers のユーザーごとの環境変数と HTTP ヘッダーオーバーライドが可能になります。
+- **MCP Credentials Endpoint**: `PUT /api/mcp-servers/{id}/my-credentials` により、ユーザーは共有 MCP servers の個人的な認証情報オーバーライドを保存できます。
+- **`allow_fallback` on MCPServer**: 認証情報フォールバック動作を制御するブール値フィールド — `true` の場合、ユーザー認証情報がない場合はオーナーのデフォルトにフォールバックします。
+- **Connector/KB Toggle**: リソース状態管理用の新しいエンドポイント：
+  - `POST /api/connectors/{id}/toggle` — connector を一時停止/再開
+  - `POST /api/knowledge-bases/{id}/toggle` — knowledge base を一時停止/再開
+- **Standalone KB Conversations**: `ChatStreamRequest` と `Conversation` 上の新しい `kb_ids` フィールド — ユーザーは agent にバインドせずに knowledge bases と直接チャットできるようになりました。
+- **Platform Org Protection**: Platform org は削除できず、ユーザーは自分自身でそこから離脱することはできません。すべてのユーザーが organization ハブへの接続を維持することを保証します。
+- **Publish Review UI (Frontend)**: Org レベルの公開レビューシステムフロントエンド — org 編集ダイアログのレビュートグル、タイプ/ステータスフィルターと承認/却下ワークフロー付きの ReviewsSheet、agent カードの公開ステータスバッジ（保留中/承認済み/却下）と却下理由のツールチップ、レビューが必要な場合の公開ダイアログのレビュー通知、却下されたリソースの再提出アクション、org admin/owners 向けの「Review Management」ドロップダウン。すべてのリソースタイプ（agents、connectors、KBs、MCP servers）が `publish_status`、`reviewed_by`、`reviewed_at`、`review_note` 型フィールドを取得します。完全な i18n（EN + ZH）対応。### 修正
+
+- **`is_active` トグルで再レビューなし**: エージェント、コネクタ、ナレッジベース、または MCP サーバーの `is_active` をトグルしても、`publish_status` が `approved` から `pending_review` に戻らなくなりました。`check_edit_revert` ガードは、実際のコンテンツフィールドが変更された場合のみ発動します（`is_active` だけの変更では発動しません）。### 変更内容
+
+- **可視性の簡略化**: リソースの可視性が `personal | org | global` から `personal | org` に削減されました。「グローバル」リソースは現在プラットフォーム org に公開され、後方互換性を維持しながら可視性モデルを簡略化しています。
+- **公開インターフェースの統一**: 4 つのリソースタイプ（Agent、Connector、Knowledge Base、MCP Server）すべてが、公開時に `scope="org"` のみをサポートするようになりました。`scope="global"` や管理者限定のグローバル公開エンドポイントはなくなりました。
+- **自動プラットフォーム登録**: 新規ユーザーは登録時に自動的にプラットフォーム org に追加され、共有組織リソースへの即座のアクセスが保証されます。
+- **管理パネルのクリーンアップ**: グローバルリソースがプラットフォーム org を通じて管理されるようになったため、「グローバルエージェント」および「グローバル MCP」管理タブが削除されました。### 削除
+
+- AgentおよびMCPServerモデルとすべてのAPI応答から`is_global`フィールドを削除
+- AgentおよびMCPServerから`cloned_from_agent_id`および`cloned_from_mcp_server_id`フィールドを削除
+- グローバルエージェント管理エンドポイント（`/api/admin/global-agents/*`）を削除
+- グローバルMCPサーバーエンドポイント（`/api/admin/mcp-servers/*`）を削除
+- リソース、APIコントラクト、フロントエンドロジックからすべての`visibility="global"`概念参照を削除## [v0.7.5] - 2026-03-12### 追加
+- **フリーモード切り替え + ターンごとのモード追跡**: ユーザーは新しいチャットを開始することなく、会話の途中でAuto/React/DAGモード間を自由に切り替えられるようになりました。各アシスタントメッセージは、実際の実行モードを`metadata.mode`に保存します。履歴ターンは、メタデータまたはSSEイベントフィンガープリントから検出された、ターンごとの正しいエンジンでレンダリングされます。サイドバーモードアイコンは削除されました。ターンごとのモードバッジは、各ターンを処理したエンジンを表示します。
+- **3つのモデルロール (F5)**: General、Fast、Reasoningモデルティアの独立した環境設定。Fastモデルはメインモデルの推論設定を継承しなくなりました。新しい環境変数: `FAST_LLM_API_KEY`、`FAST_LLM_BASE_URL`、`FAST_LLM_TEMPERATURE`、`REASONING_LLM_MODEL`、`REASONING_LLM_API_KEY`、`REASONING_LLM_BASE_URL`、`REASONING_LLM_TEMPERATURE`、`REASONING_LLM_CONTEXT_SIZE`、`REASONING_LLM_MAX_OUTPUT_TOKENS`、`REASONING_LLM_EFFORT`、`REASONING_LLM_BUDGET`
+- **構造化ステップ出力 (F2)**: `StepOutput`データクラスがDAGステップの単純な文字列結果を置き換え、構造化データとステップ間のアーティファクト受け渡しの将来的なサポートを実現します
+- **ツールキャッシュ (F3)**: 単一のDAG実行内で同一のツール呼び出しがキャッシュされ、冗長なAPI呼び出しを回避します。キーごとの非同期ロックは雷群を防止します。`DAG_TOOL_CACHE`で設定可能（デフォルト: オン）
+- **ステップごとの検証 (F4)**: 各DAGステップ完了後のオプションのLLMベースの品質チェック。失敗時は検証フィードバック付きで1回再試行します。`DAG_STEP_VERIFICATION`で設定可能（デフォルト: オフ）
+- **自動ルーティング (F1)**: Fast LLMがクエリをReActまたはDAG実行モードに分類します。SSEルーティングイベント付きの新しい`/api/auto`エンドポイント。フロントエンド3方向モード切り替え（Auto/Standard/Planner）。`AUTO_ROUTING`で設定可能（デフォルト: オン）
+- **設計哲学ドキュメント**: アーキテクチャ上の決定を文書化した新しい`docs/design-philosophy.mdx` — Handoff、Backflow、Teams、およびagent_hintがDAG実行から意図的に除外された理由
+
+- **コネクタ認証情報の暗号化 + ユーザーごとのオーバーライド** — 認証トークン（`bearer`、`api_key`、`basic`）は`auth_config`から抽出され、新しい`connector_credentials`テーブルに個別に保存され、オプションのFernet暗号化が適用されます（`CREDENTIAL_ENCRYPTION_KEY`を設定）。機密フィールドはすべてのAPI応答から削除されます。新しいエンドポイント: `GET/PUT/DELETE /api/connectors/{id}/my-credentials`により、ユーザーは個人の認証情報オーバーライドを保存できます。コネクタの`allow_fallback`列は、個人の認証情報がない場合にコネクタ所有者のデフォルトにフォールバックするかどうかを制御します。チャットツール読み込みは、ユーザーごとの認証情報を最初に解決し、`allow_fallback=true`の場合は所有者の認証情報にフォールバックします。既存の認証情報は、マイグレーション`s9u1w3y5a678`により`auth_config`から自動的に移行されます。
+- **ModelConfig APIキーの保存時暗号化** — `ModelConfig.api_key`は、`EncryptedString` TypeDecorator（`CREDENTIAL_ENCRYPTION_KEY`経由のFernet対称暗号化）を使用して保存時に暗号化されるようになりました。透過的な書き込み時暗号化/読み取り時復号化と後方互換性のあるレガシープレーンテキスト検出。マイグレーション`f8g9h0a1b2c3`は既存のプレーンテキスト値をインプレースで変換します。### Fixed
+- Fast model (`get_fast_llm()`) no longer inherits `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_TEMPERATURE`, and reasoning settings from the main model configuration
+- Backend Pydantic schemas now accept `"auto"` mode for conversations and agent `execution_mode`, with default changed from `"react"` to `"auto"`
+- Frontend SSE routing event field names aligned with backend (`chosen_mode`→`mode`, `reason`→`reasoning`) — auto-routing was silently falling back to ReAct regardless of classifier decision
+- Agent settings form default execution mode changed from `"react"` to `"auto"` to match backend schema defaults### Changed
+- モード切り替えラベルにエンジン名を含めるようになりました: 「Standard (ReAct)」、「Planner (DAG)」で明確化
+- **スケルトンスクリーン** — すべてのリスト/グリッドページで、初期読み込み時に中央のスピナーの代わりにレイアウト対応のスケルトンプレースホルダーが表示されるようになりました。対象ページ: `/agents` (3列 `AgentCard` × 6)、`/chats` (`ListRow` × 8)、`/kb` (3列 `KbCard` × 6)、`/kb/[id]` (ヘッダー + ツールバー + `TableRow` × 5を含む構造スケルトン)、`/connectors` コネクタータブ (3列 `ConnectorCard` × 6)、`/artifacts` (4列 `ArtifactCard` × 8)。`skeleton.tsx` に3つの新しいコンポジットが追加されました: `ConnectorCard`、`ArtifactCard`、`TableRow`。タブ切り替えと二次読み込み状態 (さらに表示、検索、ダイアログ) は Loader2 スピナーを保持します。## [v0.7.4] - 2026-03-12### 追加
+- **Evaluation Center** — ポータルの新しい `/eval` セクション。定量的なエージェント品質ベンチマーク用。機能: Test Dataset管理（プロンプト + 期待される動作 + アサーション テストケースのコレクション作成/編集）; Eval Runs（エージェント + データセットを選択 → すべてのケースをライブエージェント経由で `asyncio.Semaphore(5)` で並列実行 → 高速LLM graderで各回答を採点 → ケースごとの合格/不合格 + レイテンシ + トークン結果を永続化）; 結果ビューア（展開可能な行、合格率プログレスバー、実行中の自動ポーリング（3秒））。エンタープライズ調達レビューに適しています。マイグレーション `r8t0v2x4z567`。
+- **Admin: モデルごとの `json_mode_enabled` フラグ** — 各モデル設定に Admin → Models → Advanced settings に明示的なJSON Mode トグル（デフォルト有効）が追加されました。これを無効にすると、LiteLLMがアシスタント プリフィル メッセージ（`{"role":"assistant","content":"{"}` ）の注入を防ぎ、AWS Bedrockが2回目以降のエージェント反復で `ValidationException` で会話を拒否することを回避します。ENV設定モデルは新しい `LLM_JSON_MODE_ENABLED` 環境変数で制御されます。すべてのURLパターン ヒューリスティック（`is_bedrock`、`is_anthropic_relay`）が削除されました。機能は明示的になりました。Alembic マイグレーション（`q7s9u1w3y456`）を含みます。
+- **Admin モデル フォーム UX** — Add/Edit Model ダイアログが再構成されました: デフォルトでは Name、Model Name、API Key のみが表示されます。その他すべての設定（Base URL、Provider、Temperature、Max Output Tokens、Context Size、JSON Mode）は「Advanced」トグルの下に折りたたまれており、一般的なケースの視覚的なノイズが軽減されます。
+- **Settings: Organizations タブ** — ユーザーは Settings ページから直接組織を作成、参加、管理できるようになりました。機能には Create Organization ダイアログ（名前、自動生成スラッグ、説明、絵文字アイコン）、Edit ダイアログ（オーナーのみ）、Members Sheet（メンバーロール管理：オーナー/管理者/メンバー、色分けされたバッジ付き）、インラインアクション（非オーナーは退出、オーナーは削除）が含まれます。すべての組織操作はユーザー向け `/api/orgs` エンドポイントを呼び出します。完全な i18n サポート（EN + ZH）。
+- **SSE Protocol v2 — リアルタイム回答ストリーミング**: Backend `StreamChunk` に `delta_reasoning` と `usage` フィールドが追加されました。LLM リクエストに使用状況追跡が含まれます。ReAct `_run_native()` は `stream_chat` 経由でストリーミングするようになりました。SSE プロトコルは回答直後に `done` を発行し、その後 `suggestions`、`title`、`end` を個別のイベントとして送信します。LLM 実行中のDB セッション早期リリース。SQLite プール サイズが5から20に増加。
+- **AI Builder 拡張 — 7つの新しいツール + `is_builder` フラグ**: 3つの新しいコネクタ ビルダー ツール（`GetSettings`、`TestConnection`、`ImportOpenAPI`）と4つの新しいエージェント ビルダー ツール（`ListConnectors`、`AddConnector`、`RemoveConnector`、`SetModel`）。エージェント上の新しい `is_builder` ブール値列（Alembic マイグレーション付き）。セッション作成時のビルダー プロンプト自動更新。OpenAPI インポート用の SSRF ガード。
+- **SSE v2 フロントエンド — ストリーミング カーソル、DAG ラウンド スナップショット、UI ポーリッシュ**: フロントエンド フックが `end` / `suggestions` / `title` イベントを解析します。DAG 再計画は前のラウンド失敗を折りたたみ可能なカードとして表示します。CSS ドット パルス ストリーミング カーソル。DAG レイアウトがステップ状態から分離されました。折りたたみサイドバー新規チャット ボタン。コネクタ エディタ オーバーフロー修正。`font-mono` を `tabular-nums` に置き換え。
+- **AI Builder コンセプト ページ**: コネクタおよびエージェント ビルダー ガイド付きの新しい `docs/concepts/ai-builder.mdx` と中国語翻訳。
+- **Builder Dialog — コネクタ管理用の ReAct エージェント**: AI アシスタント パネルを単一ショット LLM 呼び出しから完全な ReAct エージェント ループにアップグレードします。「Advanced Builder」ボタンが、埋め込み PlaygroundPage を含む全画面ダイアログを開きます（左側にチャット、右側にライブ アクション プレビュー）。6つのコネクタ ビルダー ツール（`connector_list_actions`、`connector_create_action`、`connector_update_action`、`connector_delete_action`、`connector_update_settings`、`connector_test_action`）は DB で直接動作し、Builder Agent がアクティブな場合に自動注入されます。`POST /api/builder/session` はコネクタごとのビルダー エージェントを作成または再利用し、会話履歴を永続化します。
+- **デュアル データベース サポート（SQLite + PostgreSQL）**: `DATABASE_URL` は SQLite（`sqlite+aiosqlite:///...`）と PostgreSQL（`postgresql+asyncpg://...`）の両方の接続文字列を受け入れるようになりました。SQLite はゼロ設定デフォルトのままです。PostgreSQL は本番環境とマルチワーカー デプロイメントに推奨されます。Docker Compose は自動的に PostgreSQL サービスをプロビジョニングし、ヘルスチェックを実行します。Alembic マイグレーションはダイアレクト対応です（json_extract vs `::json->>'key'`）。Admin ヘルスダッシュボードは実際のデータベース エンジンとバージョンを表示します。
+- **モデル設定ドキュメント**: モデル設定リファレンスを記載した新しい `docs/configuration/models.mdx` ページ。各プロバイダーの拡張思考/推論セットアップを含みます。
+- **拡張思考/推論サポート**: 拡張思考を備えたモデル（OpenAI o-series、Gemini 2.5+、Claude）用に `LLM_REASONING_EFFORT`（low/medium/high）と `LLM_REASONING_BUDGET_TOKENS` 環境変数を追加します。OpenAI/Gemini には `reasoning_effort` を、Anthropic には `thinking` を送信します（自動検出）。複数のプロバイダー フィールド名（DeepSeek R1、Claude プロキシ）から `reasoning_content` を抽出し、UI「thinking」ステップで表示します。
+- **Admin: ツール無効化**: ツールごとの有効/無効トグル付きの新しい admin Tools パネル（`disabled_builtin_tools` 設定として保存）。無効なツールはランタイムでチャット ツール解決からフィルタリングされます。`/api/tools/catalog` エンドポイントは `disabled` フラグを返し、Tools ページ UI は無効状態を表示します。
+- **Admin: Connectors ページの MCP サーバー**: MCP サーバー管理が Tools ページから Connectors ページの新しいタブに移動されました。`MCPServersSection` が再利用可能なコンポーネントとして抽出されました（命令型アクション refs 付き）。
+- **Admin: ヘルスダッシュボードの推論努力**: 推論努力ラベルが admin ヘルスチェック ダッシュボードに表示されるようになりました。
+- **Export: PDF 形式**: 会話を PDF ドキュメントとしてエクスポートできるようになりました（`reportlab` + `Markdown` extras が必要）。
+- **start.sh: WORKERS 環境変数**: `WORKERS=N` を設定して、portal/api モードで複数ワーカーを使用して uvicorn を実行します。### Changed
+- **Tests: NativeToolFakeLLM updated for stream-based ReAct**: Test fake LLM now produces `StreamChunk` sequences matching the new stream-based `_run_native()` loop
+- **LLM layer**: Replaced direct `AsyncOpenAI` client with [LiteLLM](https://github.com/BerriAI/litellm) for universal provider support. All provider-specific conditionals (Anthropic thinking, `max_completion_tokens`, GPT-5 tools workaround) have been removed. Anthropic models now route through LiteLLM's native API, enabling proper `reasoning_content` (extended thinking) support
+- **Tools page simplification**: Tools page now shows only built-in tools (no more tabs); MCP management moved to Connectors page
+- **Redis interrupt broker**: Cross-worker interrupt/inject relay via Redis Pub/Sub. Auto-enabled when `REDIS_URL` is set; falls back to in-process queues otherwise. Docker Compose now includes a Redis service (auto-configured, no user action needed)
+- **Export: default detail level**: Export dialog now defaults to summary (no execution details) instead of full
+- **Artifacts: sort by file mtime**: List-all-artifacts now uses per-file mtime for accurate ordering (reverts conversation-time workaround)
+- **Chat: async image loading**: `_load_image_data_urls` is now async, offloading file reads to a thread via `asyncio.to_thread` to unblock the event loop
+- **Multi-worker readiness**: SSE tickets, OAuth state, and bind tickets now use JWT-signed tokens instead of in-memory dicts; file index locks use `fcntl.flock()` for cross-process safety; maintenance cache TTL reduced from 30s to 5s for faster cross-worker propagation
+- **Health dashboard: infrastructure checks**: Added Database type (SQLite/PostgreSQL) and Redis status to admin health dashboard
+- **Smart relay routing**: Automatically detects API protocol from URL path patterns (e.g., `/claude` or `/anthropic` → Anthropic native, `/gemini` → Google native), enabling proper authentication headers and parameter translation for third-party relay platforms without manual provider configuration
+- **Structured output degradation**: Unified `structured_llm_call()` utility with 3-level extraction (Native FC → JSON Mode → plain text + regex fallback). Refactored DAG Planner, Plan Analyzer, and tool selection to use the shared utility, replacing ad-hoc JSON parsing with consistent retry and degradation across all structured LLM call sites### ドキュメント
+- **アーキテクチャ図レイアウト修正**: Mermaidフローチャートを左右（`LR`）からトップダウン（`TD`）に変更して読みやすさを向上させ、`mode: "wide"`フロントマターを削除し、Mermaid SVGの中央揃えレンダリング用に`custom.css`を追加しました
+- **Mermaidノードラベル改行**: アーキテクチャおよびコンセプトドキュメント（EN + ZH）全体のMermaidフローチャートノードラベルの`\n`を`<br/>`に置き換えました — Mermaidは引用符付きラベルの`\n`をリテラルテキストとしてレンダリングします### 修正
+- **Docker sandbox (DooD) ボリュームマウント**: `CODE_EXEC_BACKEND=docker` がコンテナ内で実行される場合の空の `-v` バインドマウントを修正 (docker-compose)。サンドボックスディレクトリを `tmp/conversations/` から `data/sandbox/` に移動 (マウントされた `./data:/app/data` ボリューム配下)。新しい `DOCKER_HOST_DATA_DIR` 環境変数がコンテナ内部パスをホスト側から見えるパスに変換し、Docker デーモン用に使用。`.parent` を使用して `_PROJECT_ROOT` が `/app/src/` ではなく `/app/` に解決されるように修正
+- **セキュリティ: Python sandbox AST ダンダー検証**: AST ダンダー属性検証によるサンドボックス脱出をブロック
+- **セキュリティ: MCP stdio デフォルト + コマンド許可リスト**: MCP stdio トランスポートデフォルトを調和 (デフォルトで無効) し、コマンド許可リスト (`ALLOWED_STDIO_COMMANDS`) を追加
+- **セキュリティ: SSRF DNS リバインディング防止**: トランスポートレベルの IP ピニング (`SSRFSafeTransport`) による SSRF DNS リバインディングを防止
+- **セキュリティ: シェルメタ文字回避検出**: ブロックリスト前にシェルメタ文字回避 (コマンド置換、バッククォート、変数展開、空クォート挿入) を検出
+- **セキュリティ: コネクタテンプレートインジェクション**: JSON インジェクションを防ぐため、コネクタテンプレートのインライン置換をエスケープ
+- **DAG: AnalysisCard マークダウン**: 分析推論は `<p>` ではなく `MarkdownContent` でレンダリングされるようになり、マルチステップ分析での太字/リストが修正
+- **DAG: 折りたたまれたステップでのスクロール**: サイドバーのステップノードをクリックすると、スクロール前に折りたたまれたステップセクションが自動展開
+- **DAG: 履歴ターンがステップカードを表示**: 履歴ターンは展開可能な折りたたみ内にステップカードをレンダリング (以前は `hideStepCards` で非表示)
+- **DAG: 再計画時の古い分析**: ラウンド 1 の「目標未達成」分析は再計画開始時に即座にクリアされ、ラウンド 2 の「分析中…」スピナーが正しく表示
+- **UI: チャット検索フォーカスリング**: 検索入力に `focus-visible:outline-none` を追加し、フォーカスリングのはみ出しを防止
+- **エクスポート: PDF 可読性**: すべての PDF スタイルの行間隔 (leading) とセルパディングを増加させ、テキスト可読性を向上
+- **エクスポート: 絵文字ストリップ削除**: DOCX および PDF エクスポートの最終回答レンダリングから不要な `_strip_emoji()` を削除し、元のコンテンツを保持
+- **管理者: ダッシュボード統計 PG クラッシュ**: PostgreSQL 上の管理者ダッシュボード統計ページクラッシュを修正 — パラメータ化された `coalesce()` を使用した `GROUP BY` が `GroupingError` を引き起こしていたため、`literal()` カラムデフォルトに置き換え
+
+- **Docker Compose デプロイメント**: 単一イメージ (API + Frontend)、データ永続化用の名前付きボリューム、スタンドアロン Next.js 出力モード
+- **管理者: ログイン履歴記録**: 認証エンドポイントがすべてのログイン試行 (IP アドレス、User-Agent、成功/失敗と理由) を `LoginHistory` テーブルに記録し、セキュリティ監査に対応
+- **管理者: ファイルブラウザ**: ページネーション対応でユーザーアップロードファイルをリストおよびダウンロードするための新しい管理者ファイルブラウザエンドポイント
+- **管理者: 充実したエージェント/KB ビュー**: 管理者エージェントリストとナレッジベースビューが `model_name`、`tools`、`kb_ids`、`embedding_model` フィールドを公開し、可視性を向上
+- **チャット: 機密単語ブロック**: ReAct と `inject_message` チャットエンドポイント両方が機密単語フィルタリングを実施し、設定された機密単語を含むメッセージをブロック
+- **SSE: 構造化エラーハンドリング**: `useSSE` フック内の `onError` コールバックが平文字列から `ApiError` オブジェクトにアップグレードされ、より豊富なエラーコンテキスト (エラーコード、引数) を提供
+- **UI: `formatTokens` ユーティリティ**: トークンカウント表示用のロケール対応数値フォーマット新規ヘルパー
+- **UI: `Checkbox` および `FadeIn` コンポーネント**: 新規 shadcn スタイルチェックボックスおよびフェードインアニメーションラッパーコンポーネント### Changed
+- **Docs: ASCII → Mermaid diagrams**: すべてのボックス描画ASCII図がネイティブMermaidチャートに変換されました（6ページにわたる12図）。レンダリングとインタラクティビティが向上しました
+- **Docs: dark mode theme**: Mintlifyカラー設定を改善 — ダークモードの温かみのあるアンバーアクセント、グラデーション背景装飾、プロジェクトテーマに合わせた適切な背景色### 修正
+- **Export: RFC 5987 filename support**: Content-Dispositionヘッダーで通常の`filename`より UTF-8 エンコードされた`filename*`を優先し、会話をエクスポートする際の CJK ファイル名の文字化けを修正
+- **Docker i18n broken**: スタンドアロン出力に`messages/`ディレクトリをコピーし、`outputFileTracingIncludes`を追加して、next-intl がランタイムにロケール JSON ファイルを検出できるようにしました
+- **Docker startup race condition**: Next.js を起動する前にエントリーポイントで API 準備完了待機ループ (Python ソケットポーリング) を追加し、`e.map is not a function` SSR エラーを防止
+- **Artifacts: sort by conversation created_at**: ファイル mtime ではなく会話作成時刻でアーティファクトをソート (mtime は Docker ボリュームで信頼性が低い)
+- **OAuth: auto-detect production API URL from window.location port**: ブラウザの自動検出が本番環境のカスタムポート (3000 だけでなく) で正しく機能するようになりました
+- **Docker: DooD sandbox volume mount path mismatch**: `CODE_EXEC_BACKEND=docker` (Docker-outside-of-Docker) でコンテナ内で実行している場合、サンドボックススクリプトはコンテナ内部パスに書き込まれ、ホスト Docker デーモンに見えず、空の`-v`マウントと「No such file or directory」エラーが発生していました。サンドボックスディレクトリを`data/sandbox/`に移動し、`_resolve_host_path()`でパス変換を行う`DOCKER_HOST_DATA_DIR`環境変数を追加し、空文字列環境変数のエッジケースを処理することで修正しました## [v0.7.3] - 2026-03-06### 追加
+- **グローバル MCP サーバー**: 管理者がプロビジョニングした MCP サーバーがすべてのチャット セッションで読み込まれます (ユーザー/エージェント単位ではなく); クエリ ロジック: `or_(is_global==True, user_id==current_user.id)`
+- **後方互換性モード**: Admin Platform は `registration_mode` が設定されていない場合、レガシー `registration_enabled` ブール値を読み込みます (自動的に「open」モードに移行);
+- **構造化監査ログ**: `write_audit()` ヘルパーが監査ログ書き込みを一元化します (admin_id、target_type、target_id、detail フィールド); アドホック `AuditLog()` 呼び出しに置き換わります### Changed
+- **Audit log schema**: Moved from raw `meta` dict to structured `admin_id` / `target_type` / `target_id` / `detail` columns for better compliance
+- **OAuth callback URL construction**: `{API_BASE_URL}/api/auth/oauth/{provider}/callback` (auto-constructed by backend, no hardcoding)### Fixed
+- **招待コード後方互換性**: registration_modeが明示的に設定されていない場合、正しく解釈します（registration_enabledから読み取ります）
+- **マルチユーザーシナリオ**: グローバルMCPサーバーがユーザーごとのツールと競合しなくなりました## [v0.7.2] - 2026-03-06### 追加
+- **招待制登録モード**: 3つのモード（open/invite/disabled）と招待コード CRUD を備えた新しい登録システム
+- **ストレージ管理**: ユーザーごとのディスク使用量計算、クリアコマンド、孤立ファイルのクリーンアップ
+- **ユーザーごとの強制ログアウト**: すべてのトークンを取り消し、再認証を強制する管理者機能
+- **会話のモデレーション**: すべてのユーザー会話をリストおよび削除する管理者機能### Changed
+- **Admin panels**: Separated into Admin List (users, API keys, agents, etc.) with consistent dropdown-menu action patterns### 修正
+- **管理者リストのページネーション**: すべての管理者データリストがページネーションと検索に対応しました## [v0.7.1] - 2026-03-06### 追加
+- **API ヘルスダッシュボード**: システム統計情報（ユーザー数、会話数、トークン数、モデル使用状況チャート、エージェント別トークン内訳）、コネクタコール メトリクス（成功率、レイテンシ）
+- **JWT 認証**: トークンベースの SSE 認証、会話の所有権、ユーザーごとのリソース分離
+- **Admin API**: エージェント管理、ユーザーごとのトークンクォータ強制（超過時に 429）### 修正
+- **Token quota enforcement**: ReAct と DAG エンドポイントは実行前にユーザーごとのクォータをチェックするようになりました## [v0.7] - 2026-03-06### 追加
+- **Admin Platform v0.7**: ユーザー管理（検索/ページネーション）、ロール切り替え、パスワードリセット、アカウント有効/無効化、招待制登録、ユーザーごとのクォータ、会話モデレーション、ストレージ管理
+- **初回セットアップウィザード**: 初回起動時、ポータルは管理者アカウント作成（ユーザー名、パスワード、メール）をガイド
+- **Personal Center**: ユーザーごとのグローバルシステム指示がすべての会話に適用
+- **言語設定**: ユーザーごとの言語設定（自動/en/zh）がすべてのLLM応答を選択言語に指示### Changed
+- **Multi-tenant auth**: JWTトークンは会話の所有権を強制します。エージェントはユーザーコンテキストを継承します### 修正
+- **OAuth アカウント バインディング**: すべてのプロバイダー全体でリンク/ログイン フローの適切なメール マッチング## [v0.6.5] - 2026-03-05### 追加
+- **ユーティリティツール**: `email_send`, `json_transform`, `template_render`, `text_utils`
+- **コネクタレスポンスフィルタリング**: `CONNECTOR_RESPONSE_MAX_CHARS` および `CONNECTOR_RESPONSE_MAX_ITEMS` 制限
+- **埋め込みモデルオプション**: Jina、OpenAI、およびカスタム埋め込みプロバイダーのサポート### 修正
+- **RAG パイプラインの安定性**: 失敗したチャンク操作のエラーハンドリングの改善## [v0.6] - 2026-03-01### 追加
+- **Connector Platform (コア機能)**:
+  - Connector CRUD (作成、読み取り、更新、削除)
+  - `ConnectorToolAdapter` は Connector → BaseTool を ToolRegistry で変換
+  - ユーザーごとの認証情報と AES-GCM 暗号化
+  - 書き込み操作の確認ゲート
+  - 接続失敗時のサーキットブレーカー
+  - 操作分類 (読み取り/書き込み/管理)
+  - すべてのツール呼び出しの監査ログ
+- **MCP 統合**: MCP プロトコル経由のツール自動検出、プロセス分離
+- **Connector データフロー例**: Query → Governance → MCP → Legacy System### Changed
+- **Tool architecture**: Unified ToolRegistry は組み込み、MCP、およびコネクタツールをサポートします### 修正
+- **ツールのカテゴリ分け**: すべての組み込みツールが適切にカテゴリでタグ付けされました## [v0.5] - 2026-02-28### 追加機能
+- **フル RAG パイプライン**: Jina embedding + LanceDB vector store + FTS + RRF ハイブリッド検索 + reranker
+- **Grounded Generation**: エビデンスアンカー RAG（`[N]` 引用付き）、競合検出、説明可能な信頼度スコア
+- **KB ドキュメント管理**: チャンクレベルの CRUD、テキスト検索、失敗したドキュメントの再試行、自動マイグレーション vector store スキーマ
+- **ContextGuard + ピン留めメッセージ**: トークン予算マネージャー、ピン留めメッセージは圧縮から保護### Changed
+- **Multi-turn memory**: DbMemory in `core/memory/db.py`, CompactUtils in `core/memory/compact.py`
+- **LLM Compact**: `CompactUtils.llm_compact()` summarizes old turns via fast LLM
+- **DAG Re-Planning**: Loop up to `MAX_REPLAN_ROUNDS=3`; re-plans when `analysis.achieved=False` and `confidence < 0.5`### 修正
+- **Token overflow handling**: Automatic LLM-powered summarization respects token budgets## [v0.4] - 2026-02-25### 追加
+- **マルチターン会話**: DbMemoryが会話履歴を永続化し、スマートな切り詰めが長いセッションに対応
+- **ツールステップ折りたたみ**: UIがツール呼び出しステップを折りたたみ/展開して読みやすさを向上
+- **HTTPリクエストツール**: カスタムヘッダー、認証、メソッド選択
+- **シェル実行ツール**: タイムアウト付きの安全なコマンド実行
+- **エージェント管理**: バインドされたモデル、ツール、指示を使用してエージェントを作成、構成、公開
+- **エージェントごとの実行モード**: Standard/Plannerモード切り替え、温度制御
+- **JWT認証**: API呼び出しのためのステートレストークンベース認証### Changed
+- **Memory architecture**: ReAct fully wired to DbMemory; DAG injects history as enriched query prefix
+- **Admin health check**: Monitors both ENV-configured and admin-configured models### 修正
+- **マルチユーザー分離**: 会話はユーザーごとに分離され、エージェントはユーザーにスコープされます## [v0.3] - 2026-02-25### 追加
+- **Web ツール**: `web_search` (Jina/Tavily/Brave)、`web_fetch`、設定可能なプロバイダー
+- **ファイル操作ツール**: パス検証を伴う読み取り、書き込み、リスト、削除
+- **MCP クライアント**: プロトコルファースト ツール統合、プロセス分離
+- **ツール自動検出**: `builtin/__init__.py` の `discover_builtin_tools()`
+- **ツール カテゴリ**: computation、web、filesystem、knowledge、mcp、connector、general
+- **DAG ビジュアライゼーション**: ライブ ステータス、依存関係エッジ、クリックでスクロール可能なインタラクティブ フロー グラフ
+- **Python/Node.js 実行**: 分離のための Docker でのコード実行 (`CODE_EXEC_BACKEND=docker`)
+- **サンドボックス強化**: `--network=none`、`--memory=256m`、タイムアウト実行### Changed
+- **Tool interface**: すべてのツールがカテゴリ化されました。レジストリはフィルタリングをサポートしています
+- **Execution model**: DAG Executor は asyncio を介してステップを並行実行します### Fixed
+- **Tool discovery robustness**: オプションの依存関係の欠落を適切に処理します## [v0.2] - 2026-02-24### 追加機能
+- **リトライとレート制限**: 一時的な障害に対する自動指数バックオフ
+- **使用状況追跡**: リクエストごとのトークン/コスト計算
+- **ネイティブ関数呼び出し**: ツール選択のための直接的なモデルサポート（JSON のみの解析なし）
+- **マルチモデルサポート**: DAG ステップ実行を安くするための `FAST_LLM_MODEL`
+- **メモリシステム**: WindowMemory（最新 N ターン）、SummaryMemory（LLM 要約）、DbMemory（永続化）
+- **FastAPI バックエンド**: `/api/execute`（ReAct）、`/api/stream`（SSE ストリーミング）### Changed
+- **LLM abstraction**: BaseLLM → OpenAICompatibleLLM with unified interface
+- **ModelRegistry**: Centralized configuration, provider auto-selection### 修正
+- **エラー回復**: 一時的なAPIエラーの自動リトライ## [v0.1] - 2026-02-22### 追加
+- **ReActAgent**: Reason → Act → Observe ループとツール
+- **DAGPlanner**: LLM生成の依存グラフ、並行実行用のDAGExecutor、結果検証用のPlanAnalyzer
+- **BaseTool フレームワーク**: すべてのツール向けの統一インターフェース
+- **Calculator ツール**: 算術式、数式評価
+- **Python exec ツール**: 隔離環境でのコード実行
+- **KaTeX レンダリング**: ストリーミング出力での数学記号
+- **JSON モード解析**: 堅牢な構造化出力処理
+- **Portal UI**: リアルタイムストリーミング対応、ダーク/ライト/システムテーマ対応の Next.js ウェブインターフェース
+- **初期ドキュメント**: 哲学、アーキテクチャ、ロードマップをカバーする Wiki ページ### 修正
+- **ストリーミング安定性**: 適切なSSEエラーハンドリングと接続クリーンアップ

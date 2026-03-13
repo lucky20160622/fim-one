@@ -1,0 +1,7 @@
+{
+  "title": "고급 빌더",
+  "previewTitle": "라이브 미리보기",
+  "noActions": "아직 작업이 없습니다. 빌더에게 작업을 만들도록 요청하세요.",
+  "actionCount": "{count}개 작업",
+  "initializingSession": "빌더 세션을 초기화 중입니다..."
+}

@@ -1,0 +1,16 @@
+{
+  "executionPlan": "Ausführungsplan",
+  "stepCount": "{count, plural, one {# Schritt} other {# Schritte}}",
+  "noActivityYet": "Noch keine Aktivität",
+  "executing": "Wird ausgeführt...",
+  "thinking": "Denken",
+  "input": "Eingabe",
+  "output": "Ausgabe",
+  "toolDetails": "{name} Werkzeugdetails",
+  "reasoning": "Begründung",
+  "arguments": "Argumente",
+  "download": "Herunterladen",
+  "openInNewTab": "In neuem Tab öffnen",
+  "generatedFiles": "Generierte Dateien",
+  "htmlPreview": "HTML-Vorschau"
+}

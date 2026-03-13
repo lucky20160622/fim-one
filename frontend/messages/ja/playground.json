@@ -1,0 +1,201 @@
+{
+  "injectFailed": "メッセージを挿入できませんでした — Enterキーを押して新しいターンとして送信してください。",
+  "switchModeTitle": "{mode}モードに切り替えますか？",
+  "switchModeDescription": "新しい会話が開始されます。現在の会話は保存され、サイドバーからアクセスできます。",
+  "switchButton": "切り替え",
+  "executionLog": "実行ログ",
+  "history": "履歴",
+  "executionPlan": "実行計画",
+  "waitingForPlan": "計画を待機中...",
+  "placeholderInterrupt": "エージェントを中断するメッセージを送信...",
+  "placeholderReact": "エージェントに問題を解決させてください... (コマンドは/を入力、ファイルをドラッグして添付)",
+  "placeholderDag": "DAGプランナーのマルチステップタスクを説明してください... (コマンドは/を入力、ファイルをドラッグして添付)",
+  "placeholderAuto": "何でも質問してください — 最適なモードが自動的に選択されます... (コマンドは/を入力、ファイルをドラッグして添付)",
+  "modeStandard": "標準 (ReAct)",
+  "modePlanner": "プランナー (DAG)",
+  "modeAuto": "自動",
+  "modeStandardTooltip": "標準 (ReAct) — 柔軟なツール使用による迅速な応答",
+  "modePlannerTooltip": "プランナー (DAG) — タスクを構造化された計画に分解",
+  "modeAutoTooltip": "自動 — クエリの複雑さに基づいて標準 (ReAct) またはプランナー (DAG) を自動的に選択",
+  "noAgent": "エージェントなし",
+  "searchAgents": "エージェントを検索...",
+  "noAgentFound": "エージェントが見つかりません。",
+  "uploadFiles": "ファイルをアップロード",
+  "dropFilesHere": "ここにファイルをドラッグしてアップロード",
+  "unsupportedFileType": "{name}: サポートされていないファイル形式",
+  "fileTooLarge": "{name}: {limit}MBの制限を超えています",
+  "newUpdates": "新しい更新",
+  "recall": "リコール",
+  "queued": "キュー中...",
+  "compactDivider": "以前のコンテキスト ({count}件のメッセージ) はAIによって要約されました",
+  "statusReplanning": "再計画中...",
+  "statusPlanning": "計画中...",
+  "statusPlanningRound": "計画中 (ラウンド {round})...",
+  "statusExecuting": "ステップを実行中...",
+  "statusExecutingRound": "ステップを実行中 (ラウンド {round})...",
+  "statusAnalyzing": "分析中...",
+  "statusAnalyzingRound": "分析中 (ラウンド {round})...",
+  "statusRouting": "最適なモードを選択中...",
+  "statusProcessing": "処理中...",
+  "answerGenerating": "回答を生成中...",
+  "standardMode": "標準モード",
+  "plannerMode": "プランナーモード",
+  "autoMode": "自動モード",
+  "autoSubtitle": "最適な実行戦略を自動的に選択",
+  "autoRoutedTo": "自動ルーティング先: {mode}",
+  "suggestedPrompts": "提案されたプロンプト",
+  "tryExample": "例を試す",
+  "reactSubtitle": "ツール使用を伴う単一エージェントタスク",
+  "dagSubtitle": "マルチステップ並列実行",
+  "categoryWeb": "Web + 分析",
+  "categoryCode": "コード",
+  "categoryHybrid": "Web + コード",
+  "achieved": "達成",
+  "partial": "部分的",
+  "noContent": "コンテンツなし",
+  "iterationLabel": "イテレーション {n}",
+  "iterationCount": "{count}回のイテレーション",
+  "iterationCountPlural": "{count}回のイテレーション",
+  "toolCallCount": "{count}回のツール呼び出し",
+  "toolCallCountPlural": "{count}回のツール呼び出し",
+  "thinking": "思考中",
+  "reasoning": "推論",
+  "result": "結果",
+  "followUp": "フォローアップ",
+  "stepsCompleted": "{completed}/{total}ステップ完了",
+  "stepsCompletedPlural": "{completed}/{total}ステップ完了",
+  "roundCount": "{count}ラウンド",
+  "planningSteps": "実行ステップを計画中...",
+  "replanningRound": "実行ステップを再計画中 (ラウンド {round})...",
+  "replanning": "再計画中...",
+  "analyzingResults": "結果を分析中...",
+  "analysis": "分析",
+  "goalAchieved": "目標達成",
+  "goalNotAchieved": "目標未達成",
+  "confidenceLabel": "{value}%の信頼度",
+  "stepResult": "ステップ結果",
+  "minimize": "最小化",
+  "maximize": "最大化",
+  "references": "参考資料",
+  "sourceCount": "{count}件のソース",
+  "sourceCountPlural": "{count}件のソース",
+  "showLess": "表示を減らす",
+  "showMore": "{count}件以上を表示",
+  "evidence": "証拠 ({count}件のソース)",
+  "conflictCount": "{count}件の競合",
+  "conflictCountPlural": "{count}件の競合",
+  "conflictsDetected": "競合が検出されました",
+  "tokenIn": "{value}k入力",
+  "tokenOut": "{value}k 出力",
+  "showMoreText": "もっと表示 ({chars} 文字)",
+  "showLessText": "表示を減らす",
+  "retryButton": "再試行",
+  "exportTitle": "会話をエクスポート",
+  "exportDescription": "エクスポートの形式と詳細レベルを選択してください。",
+  "exportFormatMd": "Markdown",
+  "exportFormatTxt": "プレーンテキスト",
+  "exportFormatDocx": "Word ドキュメント",
+  "exportFormatMdDesc": "ヘッダーとコードブロック付きの書式付きテキスト",
+  "exportFormatTxtDesc": "書式なしのシンプルなテキスト",
+  "exportFormatDocxDesc": "Microsoft Word 互換ドキュメント",
+  "exportFormatPdf": "PDF ドキュメント",
+  "exportFormatPdfDesc": "書式付きテキスト付きのポータブルドキュメント形式",
+  "exportIncludeDetails": "実行詳細を含める",
+  "exportDetailsDescription": "ツール呼び出し、推論ステップ、実行統計を含める",
+  "pastedContent": "貼り付けたコンテンツ",
+  "chars": "文字",
+  "expandClip": "展開",
+  "collapseClip": "折りたたむ",
+  "removeClip": "クリップを削除",
+  "exportButton": "エクスポート",
+  "previousRoundHeader": "ラウンド {round} · 失敗",
+  "previousRoundSummary": "{completed}/{total} ステップ · 目標が達成されませんでした",
+  "roundLabel": "ラウンド {round}",
+  "loadingNextRound": "次のラウンドを準備中...",
+  "slash": {
+    "newDesc": "新しい会話を開始",
+    "agentDesc": "名前でエージェントをクイック選択",
+    "modeDesc": "Auto、Standard、Planner モード間で切り替え",
+    "noMatch": "一致するアイテムがありません"
+  },
+  "examples": {
+    "react": [
+      {
+        "text": "GitHub で最もスター数が多い上位 5 つのリポジトリを見つけてください -- 1 位はどれで、何個のスターがありますか?",
+        "category": "web"
+      },
+      {
+        "text": "Wikipedia で「ソートアルゴリズム」を検索し、バブルソート、クイックソート、マージソートの時間計算量の比較表を作成してください",
+        "category": "web"
+      },
+      {
+        "text": "モンティ・ホール問題を 10,000 回シミュレートしてください -- ドアを切り替えるべきですか? 勝率を表示してください",
+        "category": "code"
+      },
+      {
+        "text": "最初の 30 個のフィボナッチ数とその黄金比収束を計算する Python を書き、結果を fibonacci.csv として保存してください",
+        "category": "code"
+      },
+      {
+        "text": "ニューヨーク、ロンドン、東京の現在時刻は何ですか? template_render を使用してスタイル付き HTML ワールドクロックダッシュボードを作成してください",
+        "category": "hybrid"
+      },
+      {
+        "text": "ダミー投稿を含むパブリック REST API を見つけ、100 個を取得してから、Python を使用して上位 5 人の最も投稿数が多い著者とその平均投稿タイトル長をランク付けしてください",
+        "category": "hybrid"
+      }
+    ],
+    "dag": [
+      {
+        "text": "GitHub で Facebook、Google、Microsoft の上位 3 つのスター数が多いリポジトリを並列で検索し、どのテック企業が最も高い平均スター数を持っているかを比較してください",
+        "category": "web"
+      },
+      {
+        "text": "Wikipedia で Python、Rust、Go を並列で検索し、比較表を作成してください: 作成年、作成者、型システム、主な強み",
+        "category": "web"
+      },
+      {
+        "text": "20x20 迷路を生成し、BFS と DFS を並列で実行してください -- どちらがより少ないセルを探索しますか? 両方のソリューションを ASCII アートで視覚化してください",
+        "category": "code"
+      },
+      {
+        "text": "最初の 50 個のフィボナッチ数、最初の 50 個の素数、最初の 50 個の三角数を並列で計算し、複数のシーケンスに表示される数字を見つけてください",
+        "category": "code"
+      },
+      {
+        "text": "ニューヨーク、ロンドン、東京、シドニー、ドバイの現在時刻を並列で取得し、template_render を使用してスタイル付き HTML ワールドクロックダッシュボードを作成してください",
+        "category": "hybrid"
+      },
+      {
+        "text": "投稿と todos を含むパブリック REST API を見つけ、両方を並列で取得してから、Python を使用して相関関係を分析してください: 最も投稿数が多い人は最も todos を完了していますか?",
+        "category": "hybrid"
+      }
+    ],
+    "auto": [
+      {
+        "text": "Node.js LTS 変更ログを取得し、一般的なバックエンド開発者にとって最も影響力のある 5 つの変更を要約してください",
+        "category": "web"
+      },
+      {
+        "text": "2つのサイコロを50,000回振るシミュレーション — すべての可能な合計の度数表を出力し、最も一般的な結果と最も一般的でない結果を特定します",
+        "category": "code"
+      },
+      {
+        "text": "JSONPlaceholderから100件の投稿を取得し、投稿数で最もアクティブなユーザーのトップ5をランク付けし、template_renderを使用してスタイル付きリーダーボードカードとして統計を表示します",
+        "category": "hybrid"
+      },
+      {
+        "text": "WikipediaでGPT-4とClaude 3を検索 — リリース日、コンテキストウィンドウ、主要な機能を比較 — その後、きれいなマークダウン比較表を作成します",
+        "category": "web"
+      },
+      {
+        "text": "React、Vue、Svelteを同時に調査 — 各々についてnpmの週間ダウンロード数、GitHubスター数、最新バージョンを取得 — その後、ランク付けしてメダルバッジ付きのスタイル付きHTMLスコアカードを作成します",
+        "category": "hybrid"
+      },
+      {
+        "text": "並列実行: (1) マージソートとクイックソートを実装し、10,000個のランダム整数でベンチマーク; (2) インデックス50までのすべてのフィボナッチ数で素数でもあるものを検索; (3) N=8のN-Queens問題を解き、すべての解を数える — すべてをスタイル付きHTMLレポートにコンパイルします",
+        "category": "code"
+      }
+    ]
+  }
+}

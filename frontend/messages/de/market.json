@@ -1,0 +1,15 @@
+{
+  "title": "Marktplatz",
+  "description": "Durchsuchen und abonnieren Sie gemeinsame Ressourcen aus Ihren Organisationen",
+  "empty": "Keine Ressourcen im Marktplatz verfügbar",
+  "subscribed": "Abonniert",
+  "subscribe": "Abonnieren",
+  "unsubscribe": "Abmelden",
+  "types": {
+    "all": "Alle",
+    "agent": "Agents",
+    "connector": "Connectors",
+    "knowledge_base": "Knowledge Bases",
+    "mcp_server": "MCP Servers"
+  }
+}

@@ -1,0 +1,257 @@
+---
+title: "환경 변수"
+description: "FIM One의 완전한 구성 참조."
+mode: "wide"
+---
+
+모든 구성은 `.env`를 통해 수행됩니다. `example.env`를 복사하고 값을 입력하세요:
+
+```bash
+cp example.env .env
+```## 구성 수준
+
+각 통합에는 중요도를 나타내는 구성 수준이 있습니다:
+
+| 수준 | 의미 | 구성되지 않았을 때의 동작 |
+|-------|---------|------------------------------|
+| **Required** | 핵심 시스템 종속성 | 시스템이 오류 발생 — 채팅 및 주요 기능이 작동하지 않음 |
+| **Recommended** | 중요한 기능 활성화 | 우아한 성능 저하 — 기능이 눈에 띄게 사용 불가능하지만 시스템은 실행됨 |
+| **Optional** | 향상 기능 | 투명한 성능 저하 — 시스템이 정상 작동하며, 기능만 없음 |
+
+> **참고**: 관리자가 구성한 모델(Admin → Models 페이지)은 LLM 환경 변수를 대체할 수 있습니다. 상태 확인은 두 소스를 모두 고려합니다.
+
+---## Frontend (로컬 개발 전용)
+
+프론트엔드는 **로컬 개발 전용** 별도의 env 파일을 가지고 있습니다: `frontend/.env.local`.
+
+> **이 파일은 Docker에서 사용되지 않습니다.** Docker 컨테이너 내에서 Next.js는 `/api/*`를 Python 백엔드로 내부적으로 프록시합니다 (포트 8000은 컨테이너 내부용이므로), 프론트엔드 env 파일이 필요하지 않습니다.
+
+로컬 개발의 경우 기본값이 그대로 작동합니다 — 백엔드가 기본이 아닌 포트에서 실행되지 않는 한 `frontend/.env.local`을 생성할 **필요가 없습니다**.
+
+재정의가 필요한 경우 `frontend/.env.local`을 수동으로 생성하세요:
+
+```bash
+echo 'NEXT_PUBLIC_API_URL=http://localhost:9000' > frontend/.env.local
+```
+
+| 변수 | 기본값 | 설명 |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` *(자동)* | **브라우저**가 직접 API 호출(OAuth 리다이렉트, 스트리밍)에 사용하는 백엔드 URL입니다. 설정되지 않은 경우 `window.location`에서 자동 감지됩니다 — 백엔드가 로컬에서 비표준 포트에서 실행되는 경우에만 재정의하세요. |
+
+> **빌드 타임 참고**: `NEXT_PUBLIC_*` 변수는 `pnpm build` 타임에 JS 번들에 포함됩니다. 런타임에 변경하는 것(예: 루트 `.env`를 통해)은 효과가 없습니다 — 이것이 로컬 개발 전용으로 `frontend/.env.local`에 있는 이유입니다.## LLM (필수)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `LLM_API_KEY` | **Yes** | — | LLM 제공자의 API 키 |
+| `LLM_BASE_URL` | No | `https://api.openai.com/v1` | OpenAI 호환 API의 기본 URL |
+| `LLM_MODEL` | No | `gpt-4o` | 주 모델 — 계획, 분석 및 ReAct 에이전트에 사용됨 |
+| `FAST_LLM_MODEL` | No | *(falls back to `LLM_MODEL`)* | 빠른 모델 — DAG 단계 실행에 사용됨 (더 저렴하고 빠름) |
+| `LLM_TEMPERATURE` | No | `0.7` | 기본 샘플링 온도 |
+| `LLM_CONTEXT_SIZE` | No | `128000` | 주 LLM의 컨텍스트 윈도우 크기 |
+| `LLM_MAX_OUTPUT_TOKENS` | No | `64000` | 주 LLM의 호출당 최대 출력 토큰 |
+| `FAST_LLM_API_KEY` | No | *(falls back to `LLM_API_KEY`)* | 빠른 모델 제공자의 API 키. 빠른 모델이 주 모델과 다른 제공자에서 호스팅될 때 사용 |
+| `FAST_LLM_BASE_URL` | No | *(falls back to `LLM_BASE_URL`)* | 빠른 모델 제공자의 기본 URL |
+| `FAST_LLM_TEMPERATURE` | No | *(falls back to `LLM_TEMPERATURE`)* | 빠른 모델의 샘플링 온도 |
+| `FAST_LLM_CONTEXT_SIZE` | No | *(falls back to `LLM_CONTEXT_SIZE`)* | 빠른 LLM의 컨텍스트 윈도우 크기 |
+| `FAST_LLM_MAX_OUTPUT_TOKENS` | No | *(falls back to `LLM_MAX_OUTPUT_TOKENS`)* | 빠른 LLM의 호출당 최대 출력 토큰 |
+| `LLM_REASONING_EFFORT` | No | *(disabled)* | 지원되는 모델의 확장 사고 수준 (OpenAI o-series, Gemini 2.5+, Claude). 값: `low`, `medium`, `high`. LiteLLM은 이를 각 제공자의 네이티브 형식으로 자동 변환합니다. 모델의 사고 과정은 UI "thinking" 단계에서 표시됩니다. |
+| `LLM_REASONING_BUDGET_TOKENS` | No | *(auto from effort)* | Anthropic 사고를 위한 명시적 토큰 예산 (최소 1024). OpenAI/Gemini의 경우 노력 수준이 직접 사용됩니다. `LLM_REASONING_EFFORT`가 설정된 경우에만 유효합니다. |
+| `LLM_JSON_MODE_ENABLED` | No | `true` | ENV 구성 모델에 대해 `response_format=json_object`를 비활성화하려면 `false`로 설정합니다. AWS Bedrock으로 지원되는 타사 릴레이를 사용할 때 필수 (최신 버전은 LiteLLM의 어시스턴트 프리필 주입을 거부하여 2번째 이상 에이전트 반복에서 `ValidationException` 발생). DB 구성 모델은 Admin → Models → Advanced settings를 통해 모델별로 이를 재정의합니다. |
+| `REASONING_LLM_MODEL` | No | *(falls back to `LLM_MODEL`)* | 추론 계층의 모델 이름. 깊은 분석이 필요한 작업에 사용됨 (예: DAG 계획, 계획 분석) |
+| `REASONING_LLM_API_KEY` | No | *(falls back to `LLM_API_KEY`)* | 추론 모델 제공자의 API 키 |
+| `REASONING_LLM_BASE_URL` | No | *(falls back to `LLM_BASE_URL`)* | 추론 모델 제공자의 기본 URL |
+| `REASONING_LLM_TEMPERATURE` | No | *(falls back to `LLM_TEMPERATURE`)* | 추론 모델의 샘플링 온도 |
+| `REASONING_LLM_CONTEXT_SIZE` | No | *(falls back to `LLM_CONTEXT_SIZE`)* | 추론 모델의 컨텍스트 윈도우 크기 |
+| `REASONING_LLM_MAX_OUTPUT_TOKENS` | No | *(falls back to `LLM_MAX_OUTPUT_TOKENS`)* | 추론 모델의 호출당 최대 출력 토큰 |
+| `REASONING_LLM_EFFORT` | No | *(falls back to `LLM_REASONING_EFFORT`)* | 추론 모델 계층의 추론 노력 수준. 값: `low`, `medium`, `high` |
+| `REASONING_LLM_BUDGET` | No | *(falls back to `LLM_REASONING_BUDGET_TOKENS`)* | 추론을 위한 토큰 예산 (주로 Anthropic). 추론 계층의 자동 계산 예산을 재정의합니다. |
+
+> **해결 순서**: 사용자 기본 설정 → Admin Models (DB) → ENV Fallback. Admin → Models에서 "General" 역할의 관리자 모델이 구성된 경우, 이 ENV 변수는 폴백으로만 제공됩니다. 상태 확인은 두 소스를 모두 고려합니다.### Extended Thinking (Reasoning)
+
+When `LLM_REASONING_EFFORT` is set, FIM One enables the model's extended thinking capability so the internal chain-of-thought is surfaced in the UI "thinking" step. FIM One uses [LiteLLM](https://github.com/BerriAI/litellm) to translate the reasoning effort parameter into each provider's native format automatically.#### 지원되는 제공자
+
+| 제공자 | `LLM_BASE_URL` | 작동 방식 | 추론 콘텐츠 반환? |
+|---|---|---|---|
+| **OpenAI** (o1 / o3 / o4-mini) | `https://api.openai.com/v1` | `reasoning_effort` 기본적으로 전송됨 | 예 |
+| **Anthropic** (Claude 3.7+) | `https://api.anthropic.com/v1/` | LiteLLM이 `thinking` 매개변수를 사용하여 기본 Anthropic API를 통해 라우팅 | 예 |
+| **Google Gemini** (2.5+) | `https://generativelanguage.googleapis.com/v1beta/openai/` | `reasoning_effort`를 호환성 엔드포인트에서 전송 | 예 |
+
+LiteLLM은 `LLM_BASE_URL`에서 제공자를 자동으로 감지하고 올바른 API 형식으로 매핑합니다. 알 수 없는 URL은 OpenAI 호환으로 처리됩니다.#### 중요한 주의사항
+
+<Warning>
+**타사 프록시 / 커스텀 엔드포인트는 보장되지 않습니다.**
+`LLM_BASE_URL`이 타사 API 프록시(예: OpenRouter, one-api, 커스텀 게이트웨이)를 가리키는 경우, LiteLLM은 URL을 기반으로 올바르게 라우팅하려고 시도합니다. 그러나 프록시가 비표준 형식을 예상하는 경우, 추론이 예상대로 작동하지 않을 수 있습니다. 프록시의 예상 매개변수 형식에 대해서는 프록시의 설명서를 참조하세요.
+</Warning>#### 추론을 사용할 때의 온도 제약
+
+일부 제공자는 추론이 활성화되었을 때 온도 제약을 부과합니다:
+
+- **Anthropic**: 확장 사고가 활성화되면 `temperature=1`이 필요합니다. Anthropic을 확장 사고와 함께 사용하는 경우 `LLM_TEMPERATURE=1`을 **반드시** 설정해야 합니다 — Anthropic은 사고가 활성화되었을 때 다른 값을 거부합니다.
+- **OpenAI GPT-5.x**: 항상 `temperature=1`만 지원합니다. LiteLLM의 `drop_params` 필터링이 이를 자동으로 처리합니다 — 지원되지 않는 온도 값은 자동으로 삭제됩니다. GPT-5.x의 경우 사용자 조치가 필요하지 않습니다.#### `LLM_REASONING_BUDGET_TOKENS` 작동 방식
+
+이 변수는 **주로 Anthropic 경로에서 의미가 있습니다**. 설정되면 자동 계산된 예산을 재정의하고 LiteLLM을 통해 `thinking` 매개변수에서 `budget_tokens`로 전송됩니다. 설정되지 않으면 예산은 `LLM_MAX_OUTPUT_TOKENS` x 노력 비율에서 파생됩니다:
+
+| `LLM_REASONING_EFFORT` | 예산 비율 | 예시 (max_tokens = 64000) |
+|---|---|---|
+| `low` | 20% | 12,800 tokens |
+| `medium` | 50% | 32,000 tokens |
+| `high` | 80% | 51,200 tokens |
+
+최소 예산은 1,024 tokens입니다 (Anthropic의 하드 최소값).
+
+OpenAI 및 Gemini의 경우, 제공자가 `reasoning_effort` 수준에 따라 내부적으로 토큰 할당을 처리합니다 — `LLM_REASONING_BUDGET_TOKENS`는 영향을 미치지 않습니다.
+
+---## Agent Execution
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `REACT_MAX_ITERATIONS` | No | `20` | ReAct 요청당 최대 도구 호출 반복 횟수 |
+| `MAX_CONCURRENCY` | No | `5` | DAG executor의 최대 병렬 단계 수 |
+| `DAG_STEP_MAX_ITERATIONS` | No | `15` | 각 DAG 단계 내 최대 도구 호출 반복 횟수 |
+| `DAG_MAX_REPLAN_ROUNDS` | No | `3` | 목표 달성 실패 시 최대 자율 재계획 시도 횟수 |
+| `DAG_REPLAN_STOP_CONFIDENCE` | No | `0.8` | 목표 달성 불가능 신뢰도가 이 임계값을 초과할 때 재시도 중지 (`0.0` = 조기 중지 안 함, `1.0` = 모든 실패 시 중지) |
+| `DAG_TOOL_CACHE` | No | `true` | 단일 DAG 실행 내에서 동일한 도구 호출 캐시. 키별 비동기 잠금으로 thundering herd 방지. 캐싱을 비활성화하려면 `false`로 설정 |
+| `DAG_STEP_VERIFICATION` | No | `false` | 각 DAG 단계 완료 후 LLM 기반 품질 검사 활성화. 실패 시 검증 피드백과 함께 단계가 한 번 재시도됨. 지연 시간이 증가하지만 결과 정확도 향상 |
+| `AUTO_ROUTING` | No | `true` | 자동 쿼리 분류 활성화. 빠른 LLM이 각 쿼리를 분석하고 ReAct(단일 단계) 또는 DAG(다중 단계) 실행 모드로 라우팅. `/api/auto` 엔드포인트가 이를 사용. 명시적 모드 선택을 요구하려면 `false`로 설정 |
+
+---## 웹 도구 (선택사항)
+
+| 변수 | 필수 | 기본값 | 설명 |
+|---|---|---|---|
+| `JINA_API_KEY` | 아니오 | — | Jina API 키 — 임베딩 및 리랭커에도 사용됨; [jina.ai](https://jina.ai/)에서 발급받기 |
+| `TAVILY_API_KEY` | 아니오 | — | Tavily Search API 키 (`WEB_SEARCH_PROVIDER`가 설정되지 않은 경우 자동 선택됨) |
+| `BRAVE_API_KEY` | 아니오 | — | Brave Search API 키 (`WEB_SEARCH_PROVIDER`가 설정되지 않은 경우 자동 선택됨) |
+| `WEB_SEARCH_PROVIDER` | 아니오 | `jina` | 검색 제공자 선택: `jina` / `tavily` / `brave` |
+| `WEB_FETCH_PROVIDER` | 아니오 | `jina` (키가 설정된 경우, 그 외 `httpx`) | 페치 제공자: `jina` / `httpx` |
+
+---## RAG & Knowledge Base (권장)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `EMBEDDING_MODEL` | No | `jina-embeddings-v3` | Embedding 모델 식별자 |
+| `EMBEDDING_DIMENSION` | No | `1024` | Embedding 벡터 차원 |
+| `EMBEDDING_API_KEY` | No | *(uses `JINA_API_KEY`)* | 다른 embedding 제공자를 위한 API 키 재정의 |
+| `EMBEDDING_BASE_URL` | No | `https://api.jina.ai/v1` | 다른 embedding 제공자를 위한 기본 URL 재정의 |
+| `RETRIEVAL_MODE` | No | `grounding` | `grounding` (인용/충돌/신뢰도가 포함된 전체 파이프라인) 또는 `simple` (기본 RAG) |
+| `RERANKER_MODEL` | No | `jina-reranker-v2-base-multilingual` | Reranker 모델 식별자 |
+| `RERANKER_PROVIDER` | No | `jina` | Reranker 제공자: `jina` / `cohere` / `openai` |
+| `COHERE_API_KEY` | No | — | Cohere API 키 (설정 시 Cohere reranker 자동 선택) |
+| `COHERE_RERANKER_MODEL` | No | `rerank-multilingual-v3.0` | Cohere reranker 모델 |
+| `VECTOR_STORE_DIR` | No | `./data/vector_store` | LanceDB 벡터 저장소 데이터 디렉토리 |
+
+> Embedding은 knowledge base 기능에 **권장**됩니다. Reranker는 **선택 사항**입니다 — 검색은 fusion scoring을 사용하여 이 없이도 작동합니다.
+
+---## 코드 실행
+
+| 변수 | 필수 | 기본값 | 설명 |
+|---|---|---|---|
+| `CODE_EXEC_BACKEND` | 아니오 | `local` | `local` (직접 호스트 실행) 또는 `docker` (격리된 컨테이너) |
+| `DOCKER_PYTHON_IMAGE` | 아니오 | `python:3.11-slim` | Python 실행용 Docker 이미지 |
+| `DOCKER_NODE_IMAGE` | 아니오 | `node:20-slim` | Node.js 실행용 Docker 이미지 |
+| `DOCKER_SHELL_IMAGE` | 아니오 | `python:3.11-slim` | 셸 실행용 Docker 이미지 |
+| `DOCKER_MEMORY` | 아니오 | *(Docker 기본값)* | 컨테이너당 RAM 제한 (예: `256m`, `512m`, `1g`) |
+| `DOCKER_CPUS` | 아니오 | *(Docker 기본값)* | 컨테이너당 CPU 할당량 (예: `0.5`, `1.0`) |
+| `SANDBOX_TIMEOUT` | 아니오 | `120` | 기본 실행 타임아웃(초) |
+| `DOCKER_HOST_DATA_DIR` | 아니오 | *(설정되지 않음)* | `./data` 볼륨 마운트의 호스트 측 절대 경로. DooD (Docker-outside-of-Docker) 배포에 필수이며, `docker-compose.yml`에서 `${PWD}/data`를 통해 자동 설정됩니다. |
+
+> **보안**: `local` 모드는 AI 생성 코드를 호스트에서 직접 실행합니다. 인터넷 공개 또는 다중 사용자 배포의 경우 항상 `CODE_EXEC_BACKEND=docker`로 설정하세요.
+
+---## 도구 아티팩트
+
+도구 실행(코드 실행, 템플릿 렌더링, 이미지 생성)으로 생성된 파일의 크기 제한입니다.
+
+| 변수 | 필수 | 기본값 | 설명 |
+|---|---|---|---|
+| `MAX_ARTIFACT_SIZE` | 아니오 | `10485760` (10 MB) | 단일 아티팩트 파일의 최대 크기(바이트) |
+| `MAX_ARTIFACTS_TOTAL` | 아니오 | `52428800` (50 MB) | 세션당 아티팩트의 최대 총 크기(바이트) |
+
+---## 이미지 생성 (선택사항)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `IMAGE_GEN_PROVIDER` | No | `google` | `google` (Gemini 네이티브 API) 또는 `openai` (OpenAI 호환 `/v1/images/generations`) |
+| `IMAGE_GEN_API_KEY` | No | — | Google AI Studio 키 (`google`) 또는 프록시/OpenAI API 키 (`openai`) |
+| `IMAGE_GEN_MODEL` | No | `gemini-3.1-flash-image-preview` | 이미지 생성 모델 (예: `dall-e-3`, `gemini-nano-banana-2`) |
+| `IMAGE_GEN_BASE_URL` | No | *(per provider)* | Google: `https://generativelanguage.googleapis.com/v1beta`; OpenAI: `https://api.openai.com/v1` |
+
+---## Email (SMTP) (권장)
+
+`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`가 모두 설정되면 `email_send` 기본 제공 도구를 자동으로 등록합니다.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `SMTP_HOST` | Cond. | — | SMTP 서버 호스트명 |
+| `SMTP_PORT` | No | `465` | SMTP 포트 |
+| `SMTP_SSL` | No | `ssl` | TLS 모드: `ssl` (포트 465) / `tls` (STARTTLS, 포트 587) / `""` (평문) |
+| `SMTP_USER` | Cond. | — | SMTP 로그인 사용자명 |
+| `SMTP_PASS` | Cond. | — | SMTP 로그인 비밀번호 |
+| `SMTP_FROM` | No | *(uses `SMTP_USER`)* | From 헤더에 표시되는 발신자 주소 |
+| `SMTP_FROM_NAME` | No | — | From 헤더에 표시되는 표시 이름 |
+| `SMTP_ALLOWED_DOMAINS` | No | — | 쉼표로 구분된 도메인 허용 목록 (예: `example.com,corp.io`); 나열된 도메인 외의 수신자 차단 |
+| `SMTP_ALLOWED_ADDRESSES` | No | — | 쉼표로 구분된 정확한 주소 허용 목록; `SMTP_ALLOWED_DOMAINS`과 결합됨; 모든 수신자를 허용하려면 둘 다 설정 해제 (공유 메일박스의 경우 권장하지 않음) |
+
+---## Connectors
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `CONNECTOR_RESPONSE_MAX_CHARS` | No | `50000` | connector 응답(배열이 아닌 JSON/일반 텍스트)의 최대 문자 수 |
+| `CONNECTOR_RESPONSE_MAX_ITEMS` | No | `10` | connector 응답이 JSON 배열일 때 유지할 최대 배열 항목 수 |
+| `CREDENTIAL_ENCRYPTION_KEY` | No | _(unset)_ | connector 자격증명 blob에 대한 Fernet 암호화 키. 설정하면 `connector_credentials`에 저장된 인증 토큰이 저장 시 암호화됩니다. 설정하지 않으면 자격증명이 일반 텍스트 JSON으로 저장됩니다(하위 호환성). 이 키를 변경하면 기존의 모든 암호화된 자격증명이 무효화됩니다. |
+
+---## Platform
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATABASE_URL` | No | `sqlite+aiosqlite:///./data/fim_one.db` | 데이터베이스 연결 문자열. **SQLite** (설정 불필요): `sqlite+aiosqlite:///./data/fim_one.db`. **PostgreSQL** (프로덕션): `postgresql+asyncpg://user:pass@localhost:5432/fim_one`. Docker Compose는 PostgreSQL을 자동으로 설정합니다. |
+| `JWT_SECRET_KEY` | No | `CHANGE_ME` | JWT 토큰 서명용 비밀 키. 플레이스홀더 값 `CHANGE_ME` (또는 기타 레거시 기본값)는 첫 시작 시 보안 256비트 난수 키를 자동 생성하도록 트리거하며, 이는 `.env`에 다시 기록됩니다. 프로덕션에서는 재시작 및 복제본 전체에서 토큰이 유효하도록 명시적으로 설정하세요. |
+| `CORS_ORIGINS` | No | — | 기본 localhost 항목 외에 허용되는 추가 CORS 원본의 쉼표로 구분된 목록. 프론트엔드가 비-localhost 도메인에서 실행될 때 필수입니다 (예: `https://app.example.com`). |
+| `UPLOADS_DIR` | No | `./uploads` | 업로드된 파일용 디렉토리 |
+| `MAX_UPLOAD_SIZE_MB` | No | `50` | 최대 파일 업로드 크기(메가바이트 단위, 백엔드 강제 적용) |
+| `NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB` | No | `50` | 프론트엔드 UI에 표시되는 최대 파일 업로드 크기. **빌드 타임 변수** — `MAX_UPLOAD_SIZE_MB`와 일치해야 합니다. |
+| `MCP_SERVERS` | No | — | MCP 서버 구성의 JSON 배열 (`uv sync --extra mcp` 필요) |
+| `ALLOW_STDIO_MCP` | No | `false` | stdio MCP 서버 허용. 신뢰할 수 있는 로컬 배포에서만 `true`로 설정하세요 |
+| `ALLOWED_STDIO_COMMANDS` | No | `npx,uvx,node,python,python3,deno,bun` | stdio MCP 서버에 허용되는 기본 명령의 쉼표로 구분된 목록. `ALLOW_STDIO_MCP=true`일 때만 유효합니다 |
+| `LOG_LEVEL` | No | `INFO` | 로깅 수준: `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
+| `REDIS_URL` | No | — | 크로스 워커 인터럽트 릴레이용 Redis 연결 URL. Docker Compose에서 자동 구성됩니다. 로컬 다중 워커 설정(`WORKERS>1`)에만 필요합니다. |
+| `WORKERS` | No | `1` | Uvicorn 워커 프로세스. `1`은 안전하며 외부 서비스가 필요하지 않습니다. `>1`은 **PostgreSQL 필수** (SQLite는 단일 쓰기). 인증, OAuth 및 파일 작업은 완전히 다중 워커 안전합니다 (JWT 기반). **제한 사항**: `REDIS_URL` 없이는 스트림 중간 인터럽트/주입이 동일한 워커 프로세스 내에서만 작동합니다. Docker Compose는 Redis를 자동으로 구성합니다. |
+
+---## OAuth (선택사항)
+
+공급자에 대해 `CLIENT_ID`와 `CLIENT_SECRET`이 모두 설정되면 로그인 페이지에 해당 OAuth 버튼이 자동으로 표시됩니다.
+
+| 변수 | 필수 | 기본값 | 설명 |
+|---|---|---|---|
+| `GITHUB_CLIENT_ID` | 아니오 | — | GitHub OAuth App 클라이언트 ID. [github.com/settings/developers](https://github.com/settings/developers) → OAuth Apps에서 생성 |
+| `GITHUB_CLIENT_SECRET` | 아니오 | — | GitHub OAuth App 클라이언트 시크릿 |
+| `GOOGLE_CLIENT_ID` | 아니오 | — | Google OAuth 클라이언트 ID. [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)에서 생성 |
+| `GOOGLE_CLIENT_SECRET` | 아니오 | — | Google OAuth 클라이언트 시크릿 |
+| `DISCORD_CLIENT_ID` | 아니오 | — | Discord OAuth2 클라이언트 ID. [discord.com/developers](https://discord.com/developers/applications)에서 생성 |
+| `DISCORD_CLIENT_SECRET` | 아니오 | — | Discord OAuth2 클라이언트 시크릿 |
+| `FEISHU_APP_ID` | 아니오 | — | Feishu (Lark) App ID. [open.feishu.cn](https://open.feishu.cn/app)에서 생성. `contact:user.email:readonly` 권한 필요 |
+| `FEISHU_APP_SECRET` | 아니오 | — | Feishu (Lark) App Secret |
+| `FRONTEND_URL` | **운영** | `http://localhost:3000` | OAuth 완료 후 브라우저가 이동할 위치. 운영 환경에서는 반드시 설정해야 함 (예: `https://yourdomain.com`) |
+| `API_BASE_URL` | **운영** | `http://localhost:8000` | 외부에서 접근 가능한 백엔드 URL, OAuth 콜백 URL 구성에 사용. 운영 환경에서는 반드시 설정해야 함 |
+| `NEXT_PUBLIC_API_URL` | **운영** | *(자동 감지: `<hostname>:8000`)* | OAuth 리다이렉트를 위한 브라우저 측 API 기본 URL. **이것은 프론트엔드 빌드 타임 변수**입니다 — 로컬 개발의 경우 `frontend/.env.local`에서 설정하거나, 커스텀 운영 배포의 경우 Docker 빌드 인자로 전달하세요. 자동 감지는 표준 역프록시 설정(포트 80/443)에서 작동합니다. |
+
+> **운영** = 로컬에서는 선택사항(기본값 작동), 하지만 인터넷에 노출되는 모든 배포에서는 **필수**입니다.### 각 제공자에 등록할 OAuth 콜백 URL
+
+백엔드는 콜백 URL을 다음과 같이 구성합니다: `{API_BASE_URL}/api/auth/oauth/{provider}/callback`
+
+| Provider | 등록할 콜백 URL |
+|----------|--------------------------|
+| GitHub | `https://yourdomain.com/api/auth/oauth/github/callback` |
+| Google | `https://yourdomain.com/api/auth/oauth/google/callback` |
+| Discord | `https://yourdomain.com/api/auth/oauth/discord/callback` |
+
+---## Analytics (선택사항)
+
+모든 분석 제공자는 선택사항입니다. 원하는 조합으로 설정하면 활성화된 모든 제공자가 동시에 로드됩니다. 모두 비워두면 분석을 완전히 비활성화할 수 있습니다(로컬 개발에 권장).
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | No | — | Google Analytics 4 측정 ID (예: `G-XXXXXXXXXX`). [analytics.google.com](https://analytics.google.com)에서 발급받으세요 |
+| `NEXT_PUBLIC_UMAMI_SCRIPT_URL` | No | — | Umami 분석 스크립트 URL (예: `https://your-umami.com/script.js`). 자체 호스팅, 개인정보 보호 친화적 대안 — [umami.is](https://umami.is) |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | No | — | Umami 웹사이트 ID. `NEXT_PUBLIC_UMAMI_SCRIPT_URL`이 설정되어 있을 때 필수 |
+| `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | No | — | Plausible 분석 도메인 (예: `yourdomain.com`). 경량, 개인정보 보호 친화적 — [plausible.io](https://plausible.io) |
+| `NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL` | No | `https://plausible.io/js/script.js` | 자체 호스팅 인스턴스용 커스텀 Plausible 스크립트 URL |
+
+> 모든 `NEXT_PUBLIC_*` 분석 변수는 **빌드 타임**입니다 — 변경 사항이 적용되려면 프론트엔드 재빌드가 필요합니다.

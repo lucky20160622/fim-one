@@ -1,0 +1,16 @@
+{
+  "executionPlan": "実行計画",
+  "stepCount": "{count, plural, one {# ステップ} other {# ステップ}}",
+  "noActivityYet": "まだアクティビティがありません",
+  "executing": "実行中...",
+  "thinking": "考え中",
+  "input": "入力",
+  "output": "出力",
+  "toolDetails": "{name} ツールの詳細",
+  "reasoning": "推論",
+  "arguments": "引数",
+  "download": "ダウンロード",
+  "openInNewTab": "新しいタブで開く",
+  "generatedFiles": "生成されたファイル",
+  "htmlPreview": "HTMLプレビュー"
+}

@@ -1,0 +1,101 @@
+---
+title: "競争環境"
+description: "内部戦略参考資料 — FIM Oneが競合他社の中でどこに位置するか。"
+mode: "wide"
+---
+
+> 内部戦略参考資料。最終更新: 2026-02。## ポジショニング
+
+```
+Dify:       "Build AI workflows visually"
+Manus:      "Your AI that does the work"
+FIM One:  "The hub where your systems meet AI"
+```
+
+Dify / Manus は**置き換え製品**です — ユーザーに新しいプラットフォームへの作業移行を求めます。FIM One は**コネクタハブ**です — ユーザーが既に持っているシステムを橋渡しし、AI を通じてそれらが通信できるようにします。## 競争マトリックス
+
+| Dimension | Dify | Manus | Coze | FIM One |
+|-----------|------|-------|------|-----------|
+| **Approach** | Visual DAG workflow builder | Autonomous consumer agent | Visual builder + agent space | AI Connector Hub |
+| **Delivery** | Standalone platform | Cloud SaaS + API | Cloud SaaS + self-hosted (Coze Studio) | Platform / API / embed |
+| **Planning** | Human-designed static DAGs | Multi-agent Chain-of-Thought | Static workflows + dynamic agents | LLM DAG planning + ReAct loops |
+| **Legacy system integration** | API nodes (manual wiring) | None | Plugin marketplace | Connector Platform (standardized) |
+| **Cross-system orchestration** | No | No | No | Hub Mode (N:N) |
+| **Embeddable** | iframe + script embed | API only | Chat SDK + 10+ channels | API / iframe (Widget planned) |
+| **Human confirmation** | No | No | No | Yes (pre-execution gate) |
+| **Self-hosted** | Yes (Docker Compose) | No | Yes (Coze Studio, Apache 2.0) | Yes (single process) |
+| **License** | Apache 2.0 | Proprietary | Apache 2.0 (Coze Studio) | Source Available |
+| **Traction** | 121K+ stars | Acquired by Meta ($2B+, China regulatory review) | ByteDance backed, 20K+ stars (Studio) | Early stage |## ベンチマーク戦略
+
+| 学習内容 | 参考元 | 優先度 |
+|---------------|-----------|----------|
+| プラットフォーム基礎（マルチテナント、エージェント管理、ナレッジベース、UI磨き上げ） | Dify | v0.4-v0.5 |
+| コンテキストエンジニアリング、plan-reflect ループの品質 | Manus | 継続中 |
+| エンタープライズ統合パターン、Lark/Feishu エコシステム | Coze | v0.6+ |
+| ホスト環境インタラクションパラダイムへの組み込み | Cursor / GitHub Copilot | v0.7 |
+| コネクタエコシステム、宣言的統合 | MuleSoft / Zapier | v0.8 |## FIM One の独自の差別化要因### 1. コネクタアーキテクチャ (MCP + ガバナンス)
+
+```
+Platform (ReAct / DAG / Portal)
+    ↓
+Connector Governance (audit, read_only, auth, confirmation gate)
+    ↓
+MCP Protocol (standard transport, process isolation)
+    ↓
+Legacy System (DB / API / message bus)
+```
+
+コネクタは**MCP Servers**として実装され、その上にガバナンスレイヤーが配置されます。エージェントはレガシーシステムと通信していることを認識しません。コネクタはToolRegistryの通常のツールとして表示されます。このスペースの他のプラットフォームには、エンタープライズガバナンスが組み込まれた標準化されたコネクタアーキテクチャを持つものはありません。完全な設計については[コネクタアーキテクチャ](/architecture/connector-architecture)を参照してください。### 2. デュアルモード配信
+
+```
+Standalone:  Full web UI, independent AI assistant
+Embedded:    <script src="fim-one.js"> injected into host page
+             OR iframe / standalone URL with auth passthrough
+```### 3. Human Confirmation Gate
+
+レガシーシステムへの書き込み操作には明示的なユーザー承認が必要です。実行前フックとして実装されており、エージェントループを変更しません。SSE イベント `confirmation_required` は、ユーザーが応答するまで実行を一時停止します。### 4. ページコンテキストインジェクション
+
+埋め込まれた場合、ウィジェットはホストページからコンテキスト（現在のコントラクトID、ページURL、DOMセレクタ）を読み取り、それをエージェントのコンテキストに注入します。エージェントは、ユーザーが*何を*尋ねたかだけでなく、ユーザーが*どこに*いるかを理解します。## カテゴリー耐久性分析
+
+**フロンティアモデルはこのカテゴリーを吸収するか？**
+
+| レイヤー | 吸収リスク | 根拠 |
+|-------|-------------------|-----------|
+| シンプルなオーケストレーション (ReAct ループ) | **高** | Claude/GPT/Gemini は現在ネイティブでこれを実行 |
+| 動的計画 | **高** | AWS Strands チームはフロンティアモデルがフレームワークなしで計画を処理することを確認 |
+| 本番インフラストラクチャ (可観測性、認証、状態) | **低** | モデルは ops ツールを提供しない |
+| マルチエージェント調整 | **低** | ガバナンス、競合解決、ルーティングはインフラストラクチャが必要 |
+| エンタープライズシステム統合 | **非常に低** | レガシー API/DB への接続は統合作業であり、モデル機能ではない |
+| コンテキストエンジニアリング | **低** | Manus ブログが確認: パフォーマンス向上はコンテキストから生じ、より高度なモデルからではない |
+
+**FIM One の防御可能性**: Connector Platform と組み込み配信モード は「非常に低い」吸収リスク ゾーンに位置します。純粋な LLM オーケストレーションからエンタープライズシステム統合に向かうほど、競争優位性はより耐久性があります。## 主要な競合他社の詳細分析### Dify（プラットフォーム機能の主要参考資料）
+
+- 121K+ GitHub スター、Apache 2.0
+- RAG、エージェント、ツールノードを備えたビジュアルワークフロービルダー
+- 強み：大規模なコミュニティ、本番環境で実証済み、非開発者にもアクセス可能
+- 弱み：静的な DAG は要件の変更時に破損、レガシーシステムコネクタアーキテクチャがない
+- 当社の見解：プラットフォーム機能（マルチテナント、エージェント管理、ナレッジベース）を学ぶ、ビジュアルワークフローで競争しない。クライアントの固定プロセスは既に OA/ERP に存在している――別のワークフローエディタではなく、それらのシステムに接続する AI が必要### Manus (Category validator)
+
+- Meta に 20 億ドル以上で買収 (2025 年 12 月); 2026 年 1 月以降、中国 MOFCOM の規制審査中
+- Consumer-facing autonomous agent (Cloud SaaS + REST API at open.manus.im)
+- GAIA ベンチマークで首位; Browser Operator 拡張機能により、エージェントがユーザーのローカルブラウザセッションを使用可能
+- ブログからの重要な洞察: **context engineering** (モデル能力ではなく) がパフォーマンスを駆動
+- 当社の見方: カテゴリを検証; 彼らの context engineering の洞察が当社のアーキテクチャに情報を提供### Coze (ByteDance)
+
+- Visual builder + Coze Space agents
+- Coze Studio (20K+ stars) / Loop open-sourced (July 2025, Apache 2.0); Docker経由で完全にセルフホスト可能
+- Chat SDK + 10以上のデプロイメントチャネル (Discord、Telegram、Slack、LINE、WhatsApp、WeChat等)
+- 強み: ByteDanceのリソース、広範なチャネルエコシステム、オープンソースの勢い
+- 当社の見方: 最強の埋め込み/チャネルカバレッジ; エンタープライズ統合パターンに注目## MuleSoft アナロジー
+
+FIM One の Connector アーキテクチャは概念的に **AI 時代の MuleSoft** です：
+
+| | MuleSoft | FIM One |
+|-|----------|-----------|
+| **What** | システム間 API 統合 | AI Connector Hub for system integration |
+| **How** | Connectors + declarative mapping | MCP Servers + Connector Governance Layer |
+| **Protocol** | Anypoint SDK | MCP (open standard) + governance layer |
+| **Standardization** | Anypoint connectors | Level 1 (Python MCP Server) -> Level 2 (YAML) -> Level 3 (AI-generated) |
+| **Value** | "Connect everything" | "The hub where all your systems meet AI" |
+
+このアナロジーはエンタープライズ ポジショニングに強力です。

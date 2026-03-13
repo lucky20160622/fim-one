@@ -1,0 +1,340 @@
+---
+title: "推奨モデル"
+description: "FIM One デプロイメント用に適切な LLM を選択します。"
+---
+
+FIM One は**プロバイダー非依存**です — OpenAI 互換のエンドポイントなら何でも動作します。このページは、ユースケースに最適なモデルの組み合わせを選択するのに役立ちます。設定の詳細については、[環境変数](/configuration/environment-variables)を参照してください。## FIM One がモデルを使用する方法
+
+FIM One には 2 つのモデルスロットがあります:
+
+| スロット | 環境変数 | 用途 |
+|---|---|---|
+| **Main LLM** | `LLM_MODEL` | Planning、analysis、ReAct agent、complex reasoning |
+| **Fast LLM** | `FAST_LLM_MODEL` | DAG step execution、context compaction (より安価で高速) |
+
+`FAST_LLM_MODEL` が設定されていない場合、`LLM_MODEL` にフォールバックします。本番環境のデプロイメントでは、2 つのモデルに分割することで、最適なコスト/品質のバランスが得られます。## クイック選択マトリックス
+
+| プロバイダー | メイン LLM | 高速 LLM | 推論 | 注記 |
+|---|---|---|---|---|
+| **OpenAI** | `gpt-5.4` / `o3` | `gpt-5-mini` / `gpt-5-nano` | ✅ `reasoning_effort` | ネイティブツール呼び出しが最高; GPT-5.4は最新フラッグシップ |
+| **Anthropic** | `claude-sonnet-4-6` | `claude-haiku-4-5` | ✅ LiteLLM経由 | ネイティブ API ルーティング; 完全な `reasoning_content` サポート |
+| **Google Gemini** | `gemini-2.5-pro` / `gemini-3.1-pro-preview` | `gemini-2.5-flash` / `gemini-3-flash-preview` | ✅ `reasoning_effort` | 2.5は安定GA; 3.xはプレビュー |
+| **DeepSeek** | `deepseek-chat` (V3.2) | `deepseek-chat` | ✅ `deepseek-reasoner` | 最高のコスト/パフォーマンス; V4は間もなく |
+| **Qwen (Alibaba)** | `qwen3.5-plus` / `qwen3-max` | `qwen-turbo` | ✅ `qwen3-max-thinking` | 最強の中国語サポート |
+| **ChatGLM (Zhipu)** | `glm-5` | `glm-4-flash` | ❌ | GLM-5は744B MoE; glm-4-flashで無料ティア |
+| **MiniMax** | `MiniMax-M2.5` | `MiniMax-M2.5-Lightning` | ❌ | オープンウェイト、強力なコーディング (80.2% SWE-Bench) |
+| **Kimi (Moonshot)** | `kimi-k2.5` | `kimi-k2.5` | ❌ | 256Kコンテキスト、強力なコーディング |
+| **Ollama (ローカル)** | `qwen3.5` / `llama4` | `qwen3.5:9b` | ❌ | 完全オフライン、APIキー不要 |
+
+---## プロバイダーの詳細### OpenAI
+
+最も実績のあるオプション。OpenAIモデルは最高のネイティブ関数呼び出し（ツール呼び出し）サポートを備えており、これはエージェントの信頼性に直接影響します。GPT-5ファミリー（2025年8月以降）はGPT-4に対する大きな世代交代です。
+
+**推奨モデル：**
+- メイン: `gpt-5.4`（最新フラッグシップ、2026年3月 — ビルトインコンピュータ使用）または`o3`（最高の推論精度）
+- 高速: `gpt-5-mini`（$0.25/$2.00 per MTok）または`gpt-5-nano`（最安値 $0.05/$0.40 per MTok）
+- レガシー: `gpt-4.1`（APIに残存、1Mコンテキスト、コーディングに最適）— 2026年2月にChatGPTから廃止
+
+**推論:** `LLM_REASONING_EFFORT=medium`を設定 — o-seriesおよびGPT-5.xモデルでネイティブに機能します。o-seriesは`max_tokens`の代わりに`max_completion_tokens`が必要で、LiteLLMが自動的に処理します。注意: GPT-5.xは`/v1/chat/completions`で`reasoning_effort`とツール呼び出しの組み合わせをサポートしていません — FIM Oneはエージェントツール使用ステップ中に自動的にそれをドロップするため、ワークフローは中断なく実行されます。GPT-5.xは`temperature=1`のみをサポート — FIM OneはLiteLLMのパラメータフィルタリング（`drop_params`）を介して自動的にこれを処理します。
+
+| モデル | 入力 $/MTok | 出力 $/MTok | コンテキスト |
+|---|---|---|---|
+| `gpt-5.4` | $2.50 | $15.00 | 272K |
+| `o3` | $2.00 | $8.00 | 200K |
+| `o4-mini` | $1.10 | $4.40 | 200K |
+| `gpt-5-mini` | $0.25 | $2.00 | — |
+| `gpt-5-nano` | $0.05 | $0.40 | — |
+
+```bash# .env — OpenAI (production with reasoning)
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-5.4
+FAST_LLM_MODEL=gpt-5-nano
+LLM_REASONING_EFFORT=medium
+```
+
+```bash# .env — OpenAI (予算推論)
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=o3
+FAST_LLM_MODEL=gpt-5-nano
+LLM_REASONING_EFFORT=medium
+```### Anthropic (Claude)
+
+Claude は微妙な推論と複雑なマルチステップタスクに優れています。FIM One は [LiteLLM](https://github.com/BerriAI/litellm) 経由で接続し、Anthropic モデルをネイティブ API を通じて自動的にルーティングします。現在の世代は Claude 4.6 (2026年2月) です。
+
+**推奨モデル:**
+- Main: `claude-sonnet-4-6` (機能とコストのベストバランス — $3/$15 per MTok)
+- Fast: `claude-haiku-4-5` (高速で安価 — $1/$5 per MTok)
+- Premium: `claude-opus-4-6` (最も高機能、最大出力 128K — $5/$25 per MTok)
+
+**ベース URL:** `https://api.anthropic.com/v1/`
+
+現在のすべての Claude モデルは拡張思考をサポートし、200K のコンテキストウィンドウを備えています (ベータ版では 1M)。
+
+**推論:** `LLM_REASONING_EFFORT=medium` を設定します — LiteLLM は Anthropic モデルをネイティブ API 経由でルーティングするため、`reasoning_content` (拡張思考) は完全に返され、UI の「thinking」ステップで表示されます。拡張思考が有効な場合、Anthropic は `temperature=1` を要求します — `.env` またはモデル設定で `LLM_TEMPERATURE=1` を設定してください。詳細は [Extended Thinking](/configuration/environment-variables#extended-thinking-reasoning) を参照してください。
+
+```bash
+
+
+```# .env — Anthropic Claude
+LLM_API_KEY=sk-ant-...
+LLM_BASE_URL=https://api.anthropic.com/v1/
+LLM_MODEL=claude-sonnet-4-6
+FAST_LLM_MODEL=claude-haiku-4-5
+LLM_REASONING_EFFORT=medium
+```
+
+---### Google Gemini
+
+Geminiモデルは、Googleの OpenAI互換エンドポイント経由で、競争力のある価格で強力なパフォーマンスを提供します。3.x世代（2025年後半以降）は大きな飛躍です — Gemini 3 Flashは2.5 Proを上回りながら、3倍高速です。
+
+**推奨モデル:**
+- 安定版（GA）: `gemini-2.5-pro`（メイン）+ `gemini-2.5-flash`（高速）— 本番環境対応
+- 最新版（プレビュー）: `gemini-3.1-pro-preview`（メイン）+ `gemini-3-flash-preview`（高速）— 最高のパフォーマンス、ただしプレビュー状態
+
+**ベースURL:** `https://generativelanguage.googleapis.com/v1beta/openai/`
+
+**推論:** `reasoning_effort`は互換性エンドポイントでサポートされています — `LLM_REASONING_EFFORT=medium`を設定すれば、すぐに動作します。
+
+| モデル | 入力 $/MTok | 出力 $/MTok | ステータス |
+|---|---|---|---|
+| `gemini-3.1-pro-preview` | $2.00 | $12.00 | プレビュー |
+| `gemini-3-flash-preview` | $0.50 | $3.00 | プレビュー |
+| `gemini-2.5-pro` | $1.25 | $10.00 | 安定版 GA |
+| `gemini-2.5-flash` | $0.30 | $2.50 | 安定版 GA |
+| `gemini-2.5-flash-lite` | $0.10 | $0.40 | 安定版 GA |
+
+```bash# .env — Gemini (stable)
+LLM_API_KEY=AIza...
+LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+LLM_MODEL=gemini-2.5-pro
+FAST_LLM_MODEL=gemini-2.5-flash
+LLM_REASONING_EFFORT=medium
+```
+
+```bash# .env — Gemini (latest preview)
+LLM_API_KEY=AIza...
+LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+LLM_MODEL=gemini-3.1-pro-preview
+FAST_LLM_MODEL=gemini-3-flash-preview
+LLM_REASONING_EFFORT=medium
+```
+
+---### DeepSeek
+
+DeepSeekは市場で最高のコスト/パフォーマンス比を提供しています。V3.2（2025年12月）はチャットと推論の系統を単一モデルに統合し、非常に低い価格設定を実現しています。
+
+**モデルID**（両方ともV3.2によってサポート）:
+- `deepseek-chat` — 汎用（非思考モード）
+- `deepseek-reasoner` — 思考の連鎖推論モード、`reasoning_content`を返す
+
+**ベースURL:** `https://api.deepseek.com`
+
+**価格:** $0.28/$0.42 per MTok（キャッシュヒット: $0.028）— 圧倒的に最も安いフロンティアクラスのAPI。
+
+> **V4が間近です**（2026年3月）: 1Mコンテキストウィンドウを備えた兆パラメータマルチモーダルモデル。起動時に新しいモデルIDが予想されます。
+
+```bash# .env — DeepSeek (予算に優しい)
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-chat
+FAST_LLM_MODEL=deepseek-chat
+```
+
+```bash# .env — DeepSeek (推論付き)
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-reasoner
+FAST_LLM_MODEL=deepseek-chat
+```
+
+---### 中国国内モデル
+
+すべての主要な中国モデルプロバイダーは、OpenAI互換のエンドポイントを公開しています。これらは中国語タスクに特に優れており、競争力のあるローカル価格を提供しています。#### Qwen / 通义千問 (Alibaba Cloud)
+
+Qwen 3.5（2026年2月）は最新世代です — 397B MoEフラッグシップはMMLU-ProでGPT-5.2を上回ります。
+
+- **Base URL:** `https://dashscope.aliyuncs.com/compatible-mode/v1`
+- **International:** `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
+- **Main:** `qwen3.5-plus`（フラッグシップ、1Mコンテキスト）または`qwen3-max`（兆パラメータ）
+- **Fast:** `qwen-turbo`（高速で安価）
+- **Reasoning:** `qwen3-max-thinking`（GPT-5.2-Thinkingに相当）
+
+```bash# .env — Qwen
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+LLM_MODEL=qwen3.5-plus
+FAST_LLM_MODEL=qwen-turbo
+```#### ChatGLM / 智谱
+
+GLM-5 (2026) は最新のフラッグシップ — 744B の総パラメータ (40B アクティブ)、コーディング/エージェントタスクで Claude Opus レベルに近い。
+
+- **Base URL:** `https://open.bigmodel.cn/api/paas/v4`
+- **Main:** `glm-5` (フラッグシップ)
+- **Fast:** `glm-4-flash` (無料ティア利用可能!)
+
+<Warning>
+一部の HTTP クライアントは自動的にベース URL に `/v1` を追加します。Zhipu は `/v4` を使用しています — クライアントが OpenAI スタイルのパス接尾辞を強制しないことを確認してください。そうしないと 404 エラーが発生します。
+</Warning>
+
+```bash# .env — ChatGLM
+LLM_API_KEY=...
+LLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+LLM_MODEL=glm-5
+FAST_LLM_MODEL=glm-4-flash
+```#### MiniMax
+
+MiniMax M2.5（2026年2月）はオープンウェイトで、SWE-Benchで80.2%のスコアを獲得しています。
+
+- **Base URL (中国):** `https://api.minimaxi.com/v1`
+- **Base URL (グローバル):** `https://api.minimax.io`
+- **Main:** `MiniMax-M2.5`
+- **Fast:** `MiniMax-M2.5-Lightning`
+
+```bash# .env — MiniMax
+LLM_API_KEY=...
+LLM_BASE_URL=https://api.minimaxi.com/v1
+LLM_MODEL=MiniMax-M2.5
+FAST_LLM_MODEL=MiniMax-M2.5-Lightning
+```#### Kimi / 月之暗面 (Moonshot)
+
+Kimi K2.5 (2026年1月) は256Kのコンテキストを持ち、強力なコーディング性能を備えています (オープンソースモデルの中でSWE-Bench 76.8%)。
+
+- **Base URL:** `https://api.moonshot.ai/v1`
+- **Model:** `kimi-k2.5`
+
+```bash
+
+```# .env — Kimi
+LLM_API_KEY=...
+LLM_BASE_URL=https://api.moonshot.ai/v1
+LLM_MODEL=kimi-k2.5
+FAST_LLM_MODEL=kimi-k2.5
+```
+
+---### ローカルモデル (Ollama)
+
+独自のハードウェア上でモデルを完全に実行 — APIキーは不要で、完全にオフライン。Ollama は OpenAI互換エンドポイントをそのまま公開しています。オープンソースの状況は劇的に変わりました — Qwen 3.5、Llama 4、GPT-OSS (OpenAI の最初のオープンウェイトモデル) がすべて利用可能です。
+
+**ベース URL:** `http://localhost:11434/v1`
+
+**VRAM別の推奨モデル:**
+
+| VRAM | メイン LLM | 高速 LLM | 注記 |
+|---|---|---|---|
+| 8 GB | `qwen3.5:9b` / `gemma3:4b` | `qwen3.5:4b` | Qwen 3.5 9B はこのティアで傑出している |
+| 16 GB | `gpt-oss:20b` / `deepseek-r1:14b` | `qwen3.5:9b` | GPT-OSS 20B はエージェント最適化 |
+| 24 GB | `qwen3:32b` / `deepseek-r1:32b` | `qwen3.5:9b` | Qwen 3 32B はツール呼び出しに最適 |
+| 48 GB+ | `llama3.3:70b` / `gpt-oss:120b` | `qwen3.5:14b` | ほぼ最先端の品質 |
+
+**ツール呼び出しに最適:** Qwen 3/3.5 (32B+)、GLM-4.7、GPT-OSS、Mistral — これらは明示的な関数呼び出しトレーニングを備えています。14B 以上のパラメータを持つモデルは信頼できるツール呼び出しの最小要件です。32B 以上が強く推奨されます。
+
+<Warning>
+**ツール呼び出しの品質はローカルモデル間で大きく異なります。** すべてのモデルが確実に有効な関数呼び出しを生成するわけではありません。本番環境で使用する前に、選択したモデルをエージェントワークフローでテストしてください。一般的なルール: 最小 14B、エージェントタスクには 32B 以上を推奨。
+</Warning>
+
+```bash# .env — Ollama (balanced, 16GB VRAM)
+LLM_API_KEY=ollama
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_MODEL=gpt-oss:20b
+FAST_LLM_MODEL=qwen3.5:9b
+LLM_CONTEXT_SIZE=32768
+LLM_MAX_OUTPUT_TOKENS=8192
+```
+
+```bash# .env — Ollama (agent-optimized, 24GB VRAM)
+LLM_API_KEY=ollama
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_MODEL=qwen3:32b
+FAST_LLM_MODEL=qwen3.5:9b
+LLM_CONTEXT_SIZE=32768
+LLM_MAX_OUTPUT_TOKENS=8192
+```## サードパーティリレープラットフォーム
+
+多くのユーザーは、単一のリレー（プロキシ）サービスを通じて複数のモデルプロバイダーにアクセスします。FIM One は URL パスパターンに基づいて正しい API プロトコルを自動的に検出します。`LLM_BASE_URL` を入力するだけで動作します。### 仕組み
+
+ベースURLがサードパーティリレーを指している場合、FIM OneはURLパスを検査してどのプロトコルを使用するかを決定します：
+
+| URLパスに含まれる内容 | 検出されたプロトコル | 認証ヘッダー | 主な利点 |
+|---|---|---|---|
+| `/v1`（またはマッチなし） | OpenAI互換 | `Authorization: Bearer` | ユニバーサルフォールバック、ほとんどのリレーで動作 |
+| `/claude`または`/anthropic` | Anthropic ネイティブ | `x-api-key` | 完全な`reasoning_content`（拡張思考）サポート |
+| `/gemini` | Google ネイティブ | `x-goog-api-key` | ネイティブGeminiパラメータ変換 |
+
+**解決順序：** 明示的なDBプロバイダフィールド > ドメインマッチ（公式API） > URLパスヒント（リレープラットフォーム） > OpenAI互換フォールバック。### 例: 1つのリレー、3つのプロトコル
+
+単一のリレーアカウントで、ベースURLパスを変更するだけで異なるプロバイダーにアクセスできます:
+
+```bash
+
+
+```# .env — Claude via relay (Anthropic native protocol)
+LLM_API_KEY=your-relay-key
+LLM_BASE_URL=https://relay.example.com/anthropic
+LLM_MODEL=claude-sonnet-4-6
+```
+
+```bash# .env — Gemini via relay (Google native protocol)
+LLM_API_KEY=your-relay-key
+LLM_BASE_URL=https://relay.example.com/gemini
+LLM_MODEL=gemini-2.5-pro
+```
+
+```bash# .env — GPT via relay (OpenAI compatible protocol)
+LLM_API_KEY=your-relay-key
+LLM_BASE_URL=https://relay.example.com/v1
+LLM_MODEL=gpt-5.4
+```
+
+追加の設定は不要です — 認証ヘッダー、パラメータ形式、レスポンス解析はすべて自動的に切り替わります。### ステップバイステップ: パス検出の仕組み
+
+リレーを設定するときに内部で何が起こるかを示す具体例を以下に示します:
+
+```bash
+
+```# .env — Claude via a relay platform
+LLM_API_KEY=your-relay-key
+LLM_BASE_URL=https://my-relay.example.com/claude
+LLM_MODEL=claude-sonnet-4-6
+LLM_REASONING_EFFORT=medium
+```
+
+1. FIM One は URL パスの `/claude` を認識 → **Anthropic ネイティブ** プロトコルを検出
+2. モデルは LiteLLM ルーティング用に `anthropic/claude-sonnet-4-6` としてプレフィックス付与
+3. リクエストは Anthropic の `/v1/messages` フォーマットを使用し、`x-api-key` 認証ヘッダーで認証
+4. `reasoning_effort=medium` は Anthropic のネイティブ `thinking` パラメータに変換（OpenAI の `reasoning_effort` ではない）
+
+<Warning>
+同じリレー URL が `https://my-relay.example.com/v1` だった場合、`/claude` ヒントが欠落するため、FIM One は OpenAI 互換プロトコルにフォールバックし、Claude ネイティブエンドポイントに `/v1/chat/completions` リクエストを送信して失敗します。**URL パスが重要です。**
+</Warning>### なぜこれが重要なのか
+
+- **Anthropic ネイティブエンドポイント**は、適切な `reasoning_content` サポート（UI に表示される拡張思考）、正しいツール呼び出し形式、および `x-api-key` 認証を提供します。これらの機能は OpenAI 互換の変換を使用する場合に失われます。
+- **Google ネイティブエンドポイント**は、ネイティブ Gemini パラメータと `x-goog-api-key` 認証を提供します。
+- **OpenAI 互換**はユニバーサルフォールバックであり、任意のリレーで機能しますが、プロバイダー固有の機能（拡張思考出力など）は利用できない場合があります。
+
+<Note>
+リレープラットフォームが非標準のパス規則を使用している場合（例：URL に `/claude` または `/anthropic` がない場合）、FIM One は OpenAI 互換プロトコルにフォールバックします。これはほとんどのユースケースで機能します。完全なネイティブプロトコルサポートについては、管理者モデル設定 UI を通じて `provider` フィールドを明示的に設定できます。
+</Note>## 設定戦略### Main vs Fast: 分割するタイミング
+
+- **分割する** メインモデルが高価または遅い場合（例：`gpt-5.4` + `gpt-5-nano`）。DAG モードは多くの並列ステップを実行します — より安価な高速モデルを使用することで大幅なコスト削減になります。
+- **同じモデル** モデルが既に安価な場合（例：両方に `deepseek-chat`）。2つのモデルを管理するオーバーヘッドは価値がありません。### 推論を有効にする時期
+
+- **有効にする** 複雑な分析タスク、複数ステップの計画、および慎重な判断が必要なタスク
+- **無効にする**（デフォルト）ルーチンタスク、シンプルなQ&A、およびコスト効率重視のデプロイメント
+- 推論は通常、リクエストあたりのコストを2～5倍増加させます — `medium`の努力レベルが良い出発点です### コンテキストウィンドウサイジング
+
+`LLM_CONTEXT_SIZE` をモデルの実際のウィンドウに合わせて設定します:
+
+| モデル | コンテキストウィンドウ |
+|---|---|
+| GPT-5.4 | 272K |
+| o3 / o4-mini | 200K |
+| Claude Sonnet 4.6 | 200K (1M beta) |
+| Gemini 2.5 Pro | 1M |
+| Gemini 3.1 Pro | 1M |
+| DeepSeek V3.2 | 128K |
+| Qwen 3.5 Plus | 1M |
+| Local (Ollama) | 4K–128K (varies) |
+
+ローカルモデルの場合、`LLM_CONTEXT_SIZE` と `LLM_MAX_OUTPUT_TOKENS` の両方を明示的に設定してください — デフォルト値はローカルモデルがサポートできないクラウドスケールのコンテキストウィンドウを想定しています。

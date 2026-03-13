@@ -1,0 +1,23 @@
+{
+  "title": "Artefakte",
+  "count": "{count, plural, one {# Artefakt} other {# Artefakte}}",
+  "filterAll": "Alle",
+  "filterImages": "Bilder",
+  "filterHtml": "HTML",
+  "filterCode": "Code",
+  "filterFiles": "Dateien",
+  "noArtifacts": "Noch keine Artefakte",
+  "noArtifactsDesc": "Von Agents generierte Artefakte werden hier angezeigt.",
+  "noResults": "Keine Artefakte entsprechen diesem Filter",
+  "fromConversation": "Aus Konversation",
+  "openConversation": "Konversation öffnen",
+  "download": "Herunterladen",
+  "preview": "Vorschau",
+  "loading": "Wird geladen...",
+  "previous": "Zurück",
+  "next": "Weiter",
+  "page": "Seite",
+  "of": "von",
+  "previousPage": "Vorherige Seite",
+  "nextPage": "Nächste Seite"
+}

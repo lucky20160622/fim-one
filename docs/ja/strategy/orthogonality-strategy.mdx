@@ -1,0 +1,101 @@
+---
+title: "直交性戦略"
+description: "アーキテクチャ決定記録 — LLM進歩との関係によって機能を分類する。"
+---
+
+> **Status**: Accepted (March 2026)
+>
+> **Context**: LLM機能が急速に進化する中、エンジニアリング努力をどこに投資し、どこで静止するかを決定するためのフレームワークが必要です。## 決定
+
+LLMの進歩との関係性に基づいてすべての機能を分類し、それに応じて努力を配分します。
+
+| カテゴリ | 戦略 | 投資 | 例 |
+|----------|----------|------------|---------|
+| **Orthogonal** | モデルが賢くなってもこれらは減少しない — 純粋なエンジニアリング/統合の問題 | 全面投資 | Connectors、credentials、OAuth、audit、RBAC、security、deployment |
+| **Tailwind** | モデルの改善がこれらを*より良く*する — 相互に有利な関係 | 投資（利益が複合する） | AI Connector Builder（より賢いモデル = より高品質なconnector出力） |
+| **Frozen** | すでにリリース済み、良好に動作 — ただしモデルがこれらの機能を吸収している | メンテナンスのみ、新機能なし | ReAct loop、DAG planning、RAG pipeline、Memory、Grounded Generation |
+| **Consider** | プロバイダーがプラットフォームレベルでネイティブに構築 — 冗長性の高いリスク | 無期限に延期 | Multi-Agent orchestration、semantic memory、memory lifecycle |
+
+**経験則**: 機能が*「モデルをより賢くする方法」*を解決する場合、それは吸収されています。*「モデルを安全に現実世界に接続する方法」*を解決する場合、それはorthogonalです。# 分析### Connector Platform が完全に直交している理由
+
+モデルは決してネイティブに以下を行いません:
+- API 認証情報を保存および暗号化する (AES-GCM)
+- OAuth フローを管理する (認可ページ → コールバック → リフレッシュトークン)
+- クライアントの Kingdee/金蝶 ERP データベースに接続する
+- Lark/飞书 または WeCom/企微 に通知をプッシュする
+- どのコネクタを使用できるかについて RBAC を適用する
+- コンプライアンス監査のためにすべてのツール呼び出しをログに記録する
+
+これらはインテリジェンスの問題ではなく、エンジニアリングの問題です。10 倍スマートなモデルでも、インフラストラクチャなしではこれらのことを実行できません。### AI Connector Builder が「吸収される」のではなく「先導する」理由
+
+Builder Agent はモデルインテリジェンスを使用して、**管理された永続的な Connector エンティティ**を作成します — DB に保存され、エージェント全体で再利用可能で、認証情報管理と監査証跡を備えています。モデルの API 理解が向上することで、Builder が不要になるのではなく、Builder がより*優れた* Connector を生成するようになります。
+
+類似例：Cursor は Claude を使用してコードを記述します。Claude がより賢くなることで、Cursor が*冗長*になるのではなく、Cursor が*より優れた*ものになります。なぜなら、Cursor はエンジニアリング価値（プロジェクト管理、ファイル構成、バージョン管理）を提供し、これはモデルが置き換えられないものだからです。### v0.1～v0.5の機能が「凍結」されている理由
+
+| 機能 | 業界で起きていること |
+|---------|--------------------------------|
+| ReAct ループ | モデルはネイティブなツール呼び出し機能を持つようになった（OpenAI、Anthropic）。外部の推論ループは、モデルがそれを内部化するにつれて、付加価値が減少している。 |
+| DAG Planning | モデルの推論能力は急速に向上している。外部プランナーが必要だった複雑なタスク分解が、単一ショットの能力になりつつある。 |
+| Memory management | コンテキストウィンドウが急速に拡大している（Gemini 2M+、Claude 200K+）。外部ウィンドウ管理、要約、圧縮の必要性が縮小している。 |
+| RAG pipeline | プロバイダーが自社プラットフォームに検索機能を組み込んでいる（OpenAI file_search、Google NotebookLM、Gemini Search Grounding）。公開知識については、従来のチャンク・埋め込み・検索パイプラインが置き換わりつつある。 |
+| Grounded Generation | モデルはネイティブにソースを引用することがますます上手になっている。私たちが構築した5段階のグラウンディングパイプラインは、付加価値が減少している。 |
+
+**これらの機能は悪いものではありません** — リリースされ、機能し、今日の製品を実用的にしています。決定は単にこれらへの追加を停止し、努力を別の方向にリダイレクトすることです。### マルチエージェントオーケストレーションが延期された理由
+
+LLMプロバイダーはオーケストレーションをネイティブに構築しています：
+- **OpenAI Swarm**: ハンドオフプロトコルを備えたマルチエージェントフレームワーク
+- **Anthropic Claude Code Teams**: タスクグラフを備えたリーダー/ワーカーエージェントプール
+- **Google A2A (Agent-to-Agent)**: エージェント間通信プロトコル
+
+競合するオーケストレーションレイヤーを構築することは、より深いモデル統合を備えたファーストパーティ実装と競争することを意味します。これは持続可能な差別化要因ではありません。### セマンティックメモリとメモリライフサイクルが延期された理由
+
+- コンテキストウィンドウが急速に拡大しており、セッション間のメモリ取得の必要性が減少している
+- プロバイダーがネイティブメモリ機能を追加している（ChatGPT Memory、Claude Projects）
+- 信頼性の高いメモリシステム（TTL、重要度スコアリング、セマンティック検索）を構築するエンジニアリングコストが、それが埋める縮小するギャップに比べて高い## 機能レベルの分類### 直交性 (v0.6+)
+
+| 機能 | バージョン | 直交性の理由 |
+|---------|---------|---------------|
+| Connector エンティティ + CRUD | v0.6.1 | エンタープライズ統合、純粋なエンジニアリング |
+| ユーザーごとの認証情報 (AES-GCM) | v0.6.2 | セキュリティインフラストラクチャ |
+| Confirmation Gate | v0.6.2 | 書き込み操作の安全メカニズム |
+| Connector エクスポート/インポート/フォーク | v0.7 | 配布メカニズム |
+| OAuth 2.0 | v0.7 | プロトコル実装 |
+| MCP Server エクスポート | v0.7 | 相互運用性 (MCP採用に依存) |
+| Database Connector | v0.8 | 直接DB アクセス、接続プール |
+| Message Push | v0.8 | 通知チャネル |
+| RBAC | v0.8 | アクセス制御、ガバナンス |
+| Operation Audit Log | v0.8 | コンプライアンス |
+| Sandbox Hardening | v0.9 | セキュリティ分離 |
+| Observability (OTel、circuit breaker) | v0.9 | 本番運用 |
+| Connector Analytics | v0.9 | 使用状況追跡 |
+| Docker Compose | v0.9 | デプロイメント |
+| Admin Dashboard | v1.0 | 管理 UI |
+| Scheduled Jobs / Webhooks | v1.0 | 自動化トリガー |
+| Batch Execution | v1.0 | エンタープライズスケール処理 |
+| Embeddable Widget / iframe | v1.0 | 配信モード |
+| Enterprise Security | v1.0 | コンプライアンス (暗号化、IP ホワイトリスト) |### Tailwind
+
+| Feature | Version | Relationship |
+|---------|---------|-------------|
+| AI Connector Builder | v0.6.3 | より優れたモデル → より良いビルダー出力 |
+| AI Connector Generation (OpenAPI) | v1.0 | 同じ — モデルがAPI仕様をより良く理解 → より正確な自動生成 |### Frozen (shipped, maintain only)
+
+| Feature | Version | Status |
+|---------|---------|--------|
+| ReAct Agent | v0.1 | Shipped, working |
+| DAG Planning / Re-Planning | v0.1, v0.5 | Shipped, working |
+| Memory (Window, Summary, Compact) | v0.2, v0.5 | Shipped, working |
+| RAG pipeline (embedding, vector store, chunking, hybrid retrieval) | v0.5 | Shipped, working |
+| Grounded Generation | v0.5 | Shipped, working |
+| ContextGuard / Pinned Messages | v0.5 | Shipped, working |### 検討中（無期限延期）
+
+| 機能 | 元のバージョン | 延期理由 |
+|---------|-----------------|----------------|
+| Multi-Agent Orchestration | v1.0 | プロバイダーがネイティブに構築中 |
+| Semantic Memory Store | Backlog | コンテキストウィンドウが拡大中；プロバイダーがネイティブメモリを追加中 |
+| Memory Lifecycle | Backlog | 上記と同じ |## 含意
+
+1. **v0.5の機能に戻らない。** バグ修正はあるが、新しい機能はない。
+2. **コネクタプラットフォームがコア投資である。** v0.6–v0.8は大多数のエンジニアリング時間を受け取るべきである。
+3. **エンタープライズエンジニアリング（RBAC、監査、セキュリティ、デプロイメント）が競争優位性である。** これらは退屈だが防御可能である。
+4. **年1回再評価する。** モデルの進歩が停滞するか、「凍結された」機能にまだ重大なギャップがあることが判明した場合は、再検討する。

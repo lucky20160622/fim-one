@@ -1,0 +1,16 @@
+{
+  "executionPlan": "실행 계획",
+  "stepCount": "{count, plural, one {# step} other {# steps}}",
+  "noActivityYet": "아직 활동 없음",
+  "executing": "실행 중...",
+  "thinking": "생각 중",
+  "input": "입력",
+  "output": "출력",
+  "toolDetails": "{name} 도구 세부정보",
+  "reasoning": "추론",
+  "arguments": "인수",
+  "download": "다운로드",
+  "openInNewTab": "새 탭에서 열기",
+  "generatedFiles": "생성된 파일",
+  "htmlPreview": "HTML 미리보기"
+}
