@@ -47,6 +47,10 @@ CMD="${1:-portal}"
 # Set WORKERS=4 (or higher) when Redis is configured for cross-worker state.
 WORKERS="${WORKERS:-1}"
 
+# Ensure Python deps are up-to-date (--all-extras for lancedb, redis, etc.)
+echo "Syncing Python dependencies..."
+uv sync --all-extras --quiet
+
 # Run database migrations (idempotent — safe on fresh, legacy, and current DBs)
 echo "Running database migrations..."
 uv run alembic upgrade head
