@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Added
 
+- **Workflow Publish Flow** — Publish/unpublish/resubmit endpoints for workflows, matching the existing Agent publish pattern. New `review_workflows` flag on Organization model (with Alembic migration) to enable org-level workflow review gating. Publish actions wired into workflow-card and toolbar UI.
 - **Workflow Blueprint System** — Visual workflow editor for designing and executing multi-step automation blueprints. Full-stack implementation:
   - **Backend**: `Workflow` and `WorkflowRun` ORM models with Alembic migration; Pydantic schemas for CRUD + validation; full REST API (`/api/workflows/*`) with create, read, update, delete, list, import/export; SSE-based execution endpoint for real-time run status streaming; encrypted environment variables via existing `CREDENTIAL_ENCRYPTION_KEY`.
   - **Execution Engine**: `WorkflowEngine` with topological sort for node execution order, condition branching support, and `VariableStore` for cross-node data passing. 12 node executors: Start, End, LLM, ConditionBranch, QuestionClassifier, Agent, KnowledgeRetrieval, Connector, HTTPRequest, VariableAssign, TemplateTransform, CodeExecution.
@@ -40,10 +41,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Fixed
 
+- **Workflow SSE event name mismatch**: Fixed SSE event names — `node_status` renamed to `node_started`/`node_completed`/`node_failed`/`node_skipped` to match the frontend SSE handler expectations.
+- **Workflow `NodeRunResult.duration` field name**: Fixed `duration` to `duration_ms` to match the Pydantic schema and frontend parsing.
+- **Workflow export/import API response wrapping**: Fixed response envelope wrapping for workflow export and import endpoints.
 - **No re-review on `is_active` toggle**: Toggling `is_active` on agents, connectors, knowledge bases, or MCP servers no longer reverts `publish_status` from `approved` back to `pending_review`. The `check_edit_revert` guard now only fires when actual content fields change (not just `is_active`).
 
 ### Changed
 
+- **Compact Workflow Node UI**: Reduced node width from 240px to 200px, thinner color bar, smaller icons and handles for a denser visual layout. Capped `fitView` maxZoom to 1 to prevent oversized nodes on small canvases.
 - **Visibility Simplified**: Resource visibility reduced from `personal | org | global` to `personal | org`. "Global" resources are now published to the Platform org, maintaining backwards-compatible behavior while simplifying the visibility model.
 - **Publish Interface Unified**: All 4 resource types (Agent, Connector, Knowledge Base, MCP Server) now only support `scope="org"` for publishing. No more `scope="global"` or admin-only global publishing endpoints.
 - **Auto-Platform Enrollment**: New users are automatically added to the Platform org on registration, ensuring immediate access to shared organizational resources.
