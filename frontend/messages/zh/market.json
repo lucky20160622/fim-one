@@ -1,7 +1,7 @@
 {
-  "title": "资源市场",
-  "description": "浏览并订阅来自您组织的共享资源",
-  "empty": "市场中暂无可用资源",
+  "title": "市场",
+  "description": "浏览并订阅来自您的组织的共享资源",
+  "empty": "市场中没有可用的资源",
   "subscribed": "已订阅",
   "subscribe": "订阅",
   "unsubscribe": "取消订阅",

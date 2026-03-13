@@ -1,46 +1,34 @@
 ---
-title: "简介"
-description: "AI 驱动的连接器枢纽——接入各类系统，交由 AI 统筹编排。"
+title: "介绍"
+description: "AI 驱动的连接器中心 — 接入系统，让 AI 编排一切。"
 ---
 
 <Frame>
-  <img src="/banner.jpg" alt="FIM One — AI 驱动的连接器枢纽" />
+  <img src="/banner.jpg" alt="FIM One — AI-Powered Connector Hub" />
 </Frame>
 
-欢迎使用 FIM One，这是一个 AI 驱动的框架，用于构建能够在企业各系统间动态规划并执行复杂任务的智能体。
+欢迎来到 FIM One，这是一个 AI 驱动的框架，用于构建能够跨企业系统动态规划和执行复杂任务的代理。
 
 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
-  <a href="https://one.fim.ai/">官网</a> · <a href="https://github.com/fim-ai/fim-one">GitHub</a> · <a href="https://discord.gg/z64czxdC7z">Discord</a> · <a href="https://x.com/FIM_One">Twitter</a> · <a href="https://www.producthunt.com/products/fim-one">Product Hunt</a>
+  <a href="https://one.fim.ai/">网站</a> · <a href="https://github.com/fim-ai/fim-one">GitHub</a> · <a href="https://discord.gg/z64czxdC7z">Discord</a> · <a href="https://x.com/FIM_One">Twitter</a> · <a href="https://www.producthunt.com/products/fim-one">Product Hunt</a>
 </div>
 
 <Tip>
-  **☁️ 云版本已上线，无需任何配置即可体验。**
-  托管版本已在 [**cloud.fim.ai**](https://cloud.fim.ai/) 开放：无需 Docker、无需 API Key，登录即用，立刻开始连接您的系统。_早期访问阶段，欢迎反馈。_
-</Tip>
+  **☁️ 在云端尝试 FIM One — 无需设置。**
+  托管版本已在 [**cloud.fim.ai**](https://cloud.fim.ai/) 上线：无需 Docker，无需 API 密钥，只需登录即可开始连接您的系统。_早期访问 — 欢迎反馈。_
+</Tip>## FIM One 是什么？
 
-<div id="what-is-fim-one">
-  ## 什么是 FIM One？
-</div>
+FIM One 是一个与提供商无关的 Python 框架，用于构建与现有系统协作的 AI 代理。与要求你复制逻辑的工作流构建器不同，FIM One 主动连接你的系统——读取数据库、调用 API、推送通知——所有这些都通过统一的 AI 界面完成。
 
-FIM One 是一个不依赖特定提供商的 Python 框架，用于构建可与您现有系统协同工作的 AI 智能体。不同于要求您重复搭建逻辑的工作流构建工具，FIM One 会主动打通您的各个系统——读取数据库、调用 API、推送通知——全部通过统一的 AI 接口完成。
+核心理念：**三种交付模式，一个代理核心**。## 三种交付模式
 
-核心理念：**三种交付模式，一个智能体核心**。
-
-<div id="three-delivery-modes">
-  ## 三种交付模式
-</div>
-
-| 模式 | 是什么 | 交付形式 | 使用场景 |
+| 模式 | 定义 | 交付方式 | 使用场景 |
 |------|-----------|----------|----------|
-| **独立模式** | 通用型 AI 助手——搜索、代码、知识库 | 门户 | 对话、代码执行、知识库问答 |
-| **Copilot** | 嵌入宿主系统的 AI——在用户现有 UI 中协同工作 | iframe / widget / embed | 您的 ERP Web UI 中的”财务 Copilot” |
-| **Hub** | 跨系统的中央编排——连接您的所有系统 | 门户 / API | 智能体查询 ERP、检查 OA，并通过 Lark 发送通知 |
+| **独立模式** | 通用AI助手 — 搜索、代码、知识库 | Portal | 聊天、代码执行、知识库问答 |
+| **Copilot** | 嵌入式AI — 在用户现有UI中与用户协作 | iframe / widget / embed | ERP网页UI中的"财务Copilot" |
+| **Hub** | 中央跨系统编排 — 连接所有系统 | Portal / API | Agent查询ERP、检查OA、通过Lark通知 |## Hub 架构
 
-<div id="the-hub-architecture">
-  ## Hub 架构
-</div>
-
-Hub 是核心差异化特性——一个让您的所有系统与 AI 在此汇聚的中央门户：
+Hub 是核心差异化因素——一个中央门户，您的所有系统在这里与 AI 相遇：
 
 ```mermaid
 flowchart LR
@@ -52,16 +40,12 @@ flowchart LR
   Hub["FIM One Hub<br/>(AI orchestration)"] --> CustomAPI["Custom API"]
 ```
 
-每个连接器都是一个标准化的桥梁。智能体并不知道，也不关心它连接的是 SAP 还是自定义的 PostgreSQL 数据库。您的数据始终保留在您的系统中；FIM One 提供的是在这些系统之间进行统一编排的 AI 层。
+每个 connector 都是一个标准化的桥接。agent 不知道也不关心它是在与 SAP 还是自定义 PostgreSQL 数据库通信。您的数据保留在您的系统中；FIM One 提供了跨系统编排的 AI 层。## 开始使用
 
-<div id="get-started">
-  ## 开始使用
-</div>
+探索以下部分以了解 FIM One 的架构并部署它：
 
-阅读以下章节，了解 FIM One 的架构并完成部署：
-
-* **[快速开始](/zh/quickstart)** — 使用 Docker 或本地开发，在几分钟内启动 FIM One
-* **[执行模式](/zh/concepts/execution-modes)** — 深入了解独立模式、副驾模式和枢纽模式
-* **[AI 构建器](/zh/concepts/ai-builder)** — 用自然语言构建连接器和智能体
-* **[连接器架构](/zh/architecture/connector-architecture)** — FIM One 如何通过 AI 连接遗留系统
-* **[设计理念](/zh/architecture/philosophy)** — 为什么动态规划是在僵化工作流与完全自主智能体之间的最佳平衡
+- **[快速开始](/quickstart)** — 使用 Docker 或本地开发在几分钟内运行 FIM One
+- **[执行模式](/concepts/execution-modes)** — 深入了解 Standalone、Copilot 和 Hub 模式
+- **[AI Builder](/concepts/ai-builder)** — 使用 AI 通过自然语言构建 Connectors 和 Agents
+- **[Connector 架构](/architecture/connector-architecture)** — FIM One 如何通过 AI 连接遗留系统
+- **[哲学](/architecture/philosophy)** — 为什么动态规划是刚性工作流和完全自主代理之间的正确中间地带
