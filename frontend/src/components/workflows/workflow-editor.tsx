@@ -71,6 +71,24 @@ const edgeTypes: EdgeTypes = {
   default: AddNodeEdge,
 }
 
+// Minimap node colors — mirrors categoryColorMap in base-workflow-node.tsx
+const minimapNodeColor: Record<string, string> = {
+  start: "#22c55e",
+  end: "#ef4444",
+  llm: "#3b82f6",
+  questionClassifier: "#14b8a6",
+  agent: "#6366f1",
+  knowledgeRetrieval: "#14b8a6",
+  conditionBranch: "#f97316",
+  connector: "#a855f7",
+  httpRequest: "#64748b",
+  variableAssign: "#6b7280",
+  templateTransform: "#f59e0b",
+  codeExecution: "#10b981",
+}
+
+const getMinimapNodeColor = (node: Node) => minimapNodeColor[node.type ?? ""] ?? "#6b7280"
+
 const defaultNodeData: Record<WorkflowNodeType, Record<string, unknown>> = {
   start: { variables: [] },
   end: { output_mapping: {} },
@@ -530,6 +548,7 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
           <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
           <Controls showInteractive={false} />
           <MiniMap
+            nodeColor={getMinimapNodeColor}
             nodeStrokeWidth={3}
             pannable
             zoomable
