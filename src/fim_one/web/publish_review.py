@@ -1,8 +1,8 @@
 """Shared publish review logic for all resource types.
 
-When an organization has ``require_publish_review`` enabled, resources
-published to that org enter a ``pending_review`` state instead of being
-immediately visible to other members.
+When an organization has per-resource review enabled, resources published to
+that org enter a ``pending_review`` state instead of being immediately visible
+to other members.
 """
 
 from __future__ import annotations
@@ -12,25 +12,51 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from fim_one.web.models.organization import Organization
 
+_REVIEW_COLUMN_MAP = {
+    "agent": "review_agents",
+    "connector": "review_connectors",
+    "knowledge_base": "review_kbs",
+    "mcp_server": "review_mcp_servers",
+}
 
-async def get_org_requires_review(org_id: str, db: AsyncSession) -> bool:
-    """Check if an org requires publish review."""
+_TABLE_TO_RESOURCE_TYPE = {
+    "agents": "agent",
+    "connectors": "connector",
+    "knowledge_bases": "knowledge_base",
+    "mcp_servers": "mcp_server",
+}
+
+
+async def get_org_requires_review(
+    org_id: str, db: AsyncSession, resource_type: str
+) -> bool:
+    """Check if an org requires publish review for a given resource type."""
+    column_name = _REVIEW_COLUMN_MAP.get(resource_type)
+    if not column_name:
+        return False
+
     result = await db.execute(
-        select(Organization.require_publish_review).where(Organization.id == org_id)
+        select(Organization).where(Organization.id == org_id)
     )
-    val = result.scalar_one_or_none()
-    return bool(val)
+    org = result.scalar_one_or_none()
+    if org is None:
+        return False
+    return bool(getattr(org, column_name, False))
 
 
-async def apply_publish_status(resource, org_id: str, db: AsyncSession) -> None:
+async def apply_publish_status(
+    resource, org_id: str, db: AsyncSession, resource_type: str
+) -> None:
     """Set publish_status based on org review setting. Call during publish."""
-    if await get_org_requires_review(org_id, db):
+    if await get_org_requires_review(org_id, db, resource_type):
         resource.publish_status = "pending_review"
     else:
         resource.publish_status = None  # no review needed
 
 
-async def check_edit_revert(resource, db: AsyncSession) -> bool:
+async def check_edit_revert(
+    resource, db: AsyncSession, resource_type: str | None = None
+) -> bool:
     """Auto-revert publish_status on edit if resource is in a review-required org
     and currently approved.
 
@@ -41,7 +67,13 @@ async def check_edit_revert(resource, db: AsyncSession) -> bool:
         return False
     if getattr(resource, "publish_status", None) != "approved":
         return False
-    if not await get_org_requires_review(resource.org_id, db):
+
+    # Auto-detect resource_type from table name if not provided
+    if resource_type is None:
+        table_name = getattr(resource.__class__, "__tablename__", None)
+        resource_type = _TABLE_TO_RESOURCE_TYPE.get(table_name, "")
+
+    if not await get_org_requires_review(resource.org_id, db, resource_type):
         return False
     # Auto-revert
     resource.publish_status = "pending_review"

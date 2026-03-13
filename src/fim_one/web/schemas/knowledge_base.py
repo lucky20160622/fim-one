@@ -14,12 +14,14 @@ class KBCreate(BaseModel):
     chunk_size: int = Field(default=1000, ge=100, le=6000)
     chunk_overlap: int = Field(default=200, ge=0, le=1000)
     retrieval_mode: Literal["hybrid", "dense", "fts"] = "hybrid"
+    is_active: bool = True
 
 
 class KBUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     retrieval_mode: Literal["hybrid", "dense", "fts"] | None = None
+    is_active: bool | None = None
 
 
 class KBResponse(BaseModel):
@@ -34,6 +36,7 @@ class KBResponse(BaseModel):
     document_count: int
     total_chunks: int
     status: str
+    is_active: bool = True
     visibility: str = "personal"
     org_id: str | None = None
     publish_status: str | None = None

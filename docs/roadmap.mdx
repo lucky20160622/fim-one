@@ -163,13 +163,14 @@ flowchart LR
 
 ### v0.8 — Connector Declarative Config + Progressive Disclosure
 
-**Goal**: Make it easier to define connectors without writing Python code, and optimize how tools are exposed to the LLM.
+**Goal**: Make it easier to define connectors without writing Python code, and optimize how tools and instructions are exposed to the LLM.
 
 - [x] ~~**Database connectors**: direct SQL access (PostgreSQL, MySQL, Oracle)~~ *(shipped in v0.7.x — Phase 1-3)*
 - [x] ~~**RBAC**: per-user/role connector access control~~ *(shipped in v0.7.x — org system + three-tier visibility)*
 - [x] **Connector credential encryption + per-user override**: `connector_credentials` table, Fernet encryption via `CREDENTIAL_ENCRYPTION_KEY`, `allow_fallback` flag, `GET/PUT/DELETE /my-credentials` endpoints, per-user credential resolution in chat tool loading
 - [x] **Publish review UI**: Org-level publish review system — review toggle per org, ReviewsSheet with approve/reject workflow, status badges on resource cards, review notice in publish dialog, resubmit for rejected resources
-- [ ] **Connector Progressive Disclosure (Phase 1-2)**: single `ConnectorMetaTool` replaces per-action tools; Tier 1 connector catalog in system prompt (~30 tokens/connector vs ~250 tokens/action); `discover` + `execute` subcommands; feature flag for backward compatibility
+- [ ] **Connector Progressive Disclosure (Phase 1-2)**: single `ConnectorMetaTool` replaces per-action tools; system prompt receives lightweight **stubs** only (name + 1-line description, ~30 tokens/connector vs ~250 tokens/action); agent calls `discover(connector)` to load full action schema on demand — schema only loads when the model selects a connector, keeping the prompt prefix stable for caching. Mirrors Claude Code's `defer_loading: true` internal pattern. `execute` subcommand; feature flag for backward compatibility.
+- [ ] **Agent Skill System + Compact Instructions**: On-demand skill loading for agent instructions — `Skill` model (name, content/SOP, optional scripts) attached to agents; referenced in system prompt by name only (~10 tokens/skill); agent calls `read_skill(name)` to load full content on demand. Reduces per-conversation instruction token cost by ~80% while allowing richer SOP libraries. Counterpart to ConnectorMetaTool's progressive disclosure applied at the instruction level. Enables the "指令 + 工具 + 技能" differentiation story. Also adds `compact_instructions` field to Agent model — per-agent compression priority list injected into `ContextGuard` when compacting (e.g., "preserve order IDs and amounts, drop raw API responses"), replacing the current static generic prompt. Inspired by Claude Code's Compact Instructions pattern.
 - [ ] **YAML/JSON connector config**: platform auto-generates MCP server
 - [ ] **Connector import/export**: share connector templates
 - [ ] **Connector fork**: clone + customize existing connectors
@@ -178,23 +179,24 @@ flowchart LR
 - [x] **Operation audit**: detailed logging of who did what — admin review log audit tab added (publish review trail per org/resource)
 - [ ] **Semantic Schema Annotations**: extend connector schema fields with `semantic_tag`, `description`, and `pii` flags; annotations surfaced in LLM tool descriptions so the agent understands field intent without guessing from column names
 
-**Impact**: Implementation engineers (no Python required) can add connectors in 1-2 hours. Token cost for tool definitions drops by 93%+ at scale.
+**Impact**: Implementation engineers (no Python required) can add connectors in 1-2 hours. Token cost for tool definitions and agent instructions drops by ~80–93% at scale.
 
 ### v0.9 — Observability + Production Hardening
 
-**Goal**: Production-grade operations, debugging, and monitoring.
+**Goal**: Production-grade operations, debugging, and monitoring. Introduces the **Hook System** — a deterministic enforcement layer that sits below agent instructions and cannot be overridden by the LLM.
 
 - [ ] **Connector Progressive Disclosure (Phase 3-4)**: unified `ConnectorExecutor` interface (API/DB/MCP behind one abstraction); action parameter validation with `jsonschema`; protocol-agnostic discover/execute
-- [ ] **Distributed tracing**: OpenTelemetry integration
+- [ ] **Agent Trace Layer (Observability++)**: Application-level run/trace/thread hierarchy for agent debugging — each conversation → `Trace`, each LLM call / tool call / DAG step → `Span` with input/output/tokens/timing. Frontend trace viewer with timeline and expandable LLM call payloads. This goes beyond OTel (infrastructure-level) to provide actionable agent-loop debugging for developers and enterprise clients. OpenTelemetry export as a data sink option. Modeled after LangSmith's run/trace/thread concepts — the industry-validated pattern for agent observability.
+- [ ] **Metrics dashboard**: latency, success rate, token usage, connector call analytics — per-agent, per-user, per-org breakdowns
 - [ ] **Circuit breaker**: exponential backoff, failure detection
-- [ ] **Observability**: metrics (latency, success rate, token usage)
-- [ ] **Connector analytics**: usage patterns, failure modes
+- [ ] **Agent Hook System**: A deterministic enforcement layer that runs **outside the LLM loop** — hooks execute automatically on tool events and cannot be bypassed by agent instructions. Three hook points: `PreToolUse` (validate / block before execution), `PostToolUse` (side effects after execution), `SessionStart` (inject dynamic context). Built-in hooks: auto-write `ConnectorCallLog` on every connector call (currently manual); block write operations when org is in read-only mode; auto-truncate oversized DB query results before they hit the agent; rate-limit per-connector call frequency. User-defined hooks: per-agent YAML config (`hooks:` field) declaring shell commands or Python callables triggered on matching tool events — same pattern as Claude Code's hooks. Key design principle: **hooks are for "must always happen" logic that should never depend on the LLM remembering to do it**. Instructions say "record all calls"; hooks actually record them. Instructions say "don't write in read-only mode"; hooks actually block it.
+- [ ] **Agent Workspace (Tool Output Offloading + Handoff)**: When MCP / connector / DB tool responses exceed a threshold (default: 8K chars), auto-save full output to a per-conversation workspace file (`workspace://tool_result_xxx.txt`) and return a truncated preview + file URI to the agent. Three new builtin tools: `read_workspace_file(path, start_line, end_line)` for selective access, `list_workspace_files()` for discovery, and `write_handoff(summary)` for context transitions — agent writes a structured HANDOFF note (progress, what worked, what failed, next step) before context compression or session switch; the next agent instance reads it instead of relying on the compression algorithm's summary quality. Mirrors Claude Code's workspace + handoff patterns. Prevents attention dilution on large result sets and eliminates silent data loss from truncation. Minimal change: extend `truncate_tool_output()` in `MCPToolAdapter` and `ConnectorToolAdapter` to write to workspace storage.
 - [ ] **Sandbox hardening**: v2 improvements to code execution isolation
 - [ ] **Performance testing**: concurrent load benchmarks
-- [ ] **Scheduled jobs (Loop)**: cron-like background task triggers; `scheduled_jobs` + `job_runs` DB tables; APScheduler integration; job CRUD API + job history UI; result notification via message push connectors
+- [ ] **Scheduled jobs + Event-triggered Agents (Loop)**: cron-like background task triggers; `scheduled_jobs` + `job_runs` DB tables; APScheduler integration; job CRUD API + job history UI; result notification via message push connectors. Scope covers both time-triggered (cron) and event-triggered (webhook inbound) patterns — an agent running asynchronously in the background IS the async sub-agent use case for Hub mode.
 - [ ] **DB Schema Advanced Builder**: AI-driven schema management agent for large-scale databases — strategic table annotation (pattern-based, SQL-execution-informed), bulk visibility management by domain prefix, iterative multi-round annotation for 1K–7K+ table deployments; complements existing batch-annotation job with selectivity and business-context reasoning
 
-**Impact**: Run FIM One at scale with confidence — scheduled automations + observability form a complete production background-automation story.
+**Impact**: Run FIM One at scale with confidence. Three architectural layers now complete: **Trace Layer** (see what happened), **Hook System** (enforce what must happen), **Agent Workspace** (agent manages its own data access). Together they close the gap between "instructions the agent might follow" and "guarantees the system enforces" — the difference between a demo and a production enterprise tool.
 
 ### v1.0 — Hot-Plug + Embeddable
 
@@ -220,7 +222,7 @@ Per the [Orthogonality Strategy](/strategy/orthogonality-strategy), these featur
 | Feature | Version | Why frozen |
 |---------|---------|-----------|
 | ReAct Agent | v0.1 | Models now have native tool calling |
-| DAG Planning / Re-Planning | v0.1, v0.5 | Model reasoning capabilities improving; decomposition becoming single-shot |
+| DAG Planning / Re-Planning | v0.1, v0.5, v0.7.5 | Model reasoning capabilities improving; decomposition becoming single-shot. Per-step verification shipped in v0.7.5 (`DAG_STEP_VERIFICATION`) — no further planning primitives planned |
 | Memory (Window, Summary, Compact) | v0.2, v0.5 | Context windows growing (200K+); less need for external memory management |
 | RAG pipeline | v0.5 | Providers building retrieval natively (OpenAI file_search, Gemini Search Grounding) |
 | Grounded Generation | v0.5 | Models improving at citations; 5-stage pipeline adds diminishing value |
@@ -232,9 +234,12 @@ Per the Orthogonality Strategy, these would be high-effort and face absorption r
 
 | Feature | Why deferred |
 |---------|------------|
-| Multi-Agent Orchestration | Providers building natively (OpenAI Swarm, Claude Code Teams, Google A2A) |
+| Multi-Agent Orchestration (deep hierarchies) | Providers building natively (OpenAI Swarm, Claude Code Teams, Google A2A). FIM One's CallAgentTool covers the one-level delegation case; event-triggered background agents are covered by Scheduled Jobs in v0.9 |
+| Agent Self-modifying Skills (Procedural Memory) | Agents updating their own `skill.md` during execution — high complexity, safety/audit surface area. Depends on Agent Skill System (v0.8) shipping first. Re-evaluate if enterprise customers request self-improving agents explicitly |
+| ~~Agent Workspace (Tool Output File Offloading)~~ | Promoted to v0.9. The value is **selective reading**, not context capacity — Claude Code validation confirmed. Original deferral reasoning ("200K+ windows reduce urgency") was wrong. |
 | Cross-Session Long-Term Memory | Context windows growing rapidly (200K–2M); providers adding built-in memory (OpenAI memory, Gemini context caching); high implementation cost vs diminishing differentiation value. Re-evaluate when enterprise customers explicitly request it |
 | Memory Lifecycle (TTL, quotas) | Depends on cross-session memory; deferred together |
+| Active Context Compression Tool (agent-triggered) | Explicitly frozen with ContextGuard (v0.5). Context windows at 200K+ reduce value. Will not be revisited unless context costs become a major enterprise complaint |
 
 ## How Versions Align With Modes
 
@@ -255,9 +260,9 @@ The Orthogonality Strategy shapes where effort goes:
 
 | Category | Allocation | Versions | Why |
 |----------|-----------|----------|-----|
-| **Connector Platform** (v0.6+) | 60% | Ongoing | Core differentiation; no absorption risk |
-| **Enterprise Features** (RBAC, audit, security) | 25% | v0.8–v1.0 | Boring but durable; production requirement |
-| **Embedded/Delivery** (widget, hot-plug) | 10% | v0.9–v1.0 | Strategic for land-and-expand GTM |
+| **Connector Platform** (v0.6+) | 50% | Ongoing | Core differentiation; no absorption risk |
+| **Enterprise Features** (RBAC, audit, security, observability) | 30% | v0.8–v1.0 | Boring but durable; production requirement. Agent Trace Layer is commercial anchor |
+| **Agent Intelligence** (Skill System, scheduled agents) | 15% | v0.8–v0.9 | 指令+工具+技能 differentiation story; low absorption risk — frameworks validate patterns, but enterprise SOPs are customer-specific |
 | **v0.1–v0.5 maintenance** | 5% | Ongoing | Bug fixes only; no new features |
 
 ## Metric-Driven Milestones

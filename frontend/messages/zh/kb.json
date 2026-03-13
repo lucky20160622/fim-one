@@ -130,5 +130,28 @@
   "aiEmptyTitle": "知识库 AI 助手",
   "aiEmptySubtitle": "测试检索质量、标注文档或询问配置建议",
   "aiError": "发生错误，请重试。",
-  "send": "发送"
+  "send": "发送",
+
+  "disableOrgKb": "对整个组织禁用此知识库？",
+  "disableOrgKbDescription": "此操作将立即停止组织内所有成员使用该知识库，您随时可以重新启用。",
+  "kbEnabled": "知识库已启用",
+  "kbDisabled": "知识库已禁用",
+  "kbToggleFailed": "更新知识库状态失败",
+
+  "publishTitle": "发布知识库",
+  "publishDescription": "将此知识库发布到组织，让其他成员也可以使用",
+  "publishSelectOrg": "选择组织",
+  "publishReviewWarning": "该组织需要审核。发布后，知识库将进入待审核状态。",
+  "publishSuccess": "知识库发布成功",
+  "publishError": "发布知识库失败",
+  "unpublishTitle": "恢复为个人",
+  "unpublishDescription": "这将使知识库变为私有，组织成员将无法再使用它。",
+  "unpublishSuccess": "知识库已恢复为个人",
+  "unpublishError": "恢复知识库失败",
+  "resubmitSuccess": "知识库已重新提交审核",
+  "resubmitError": "重新提交失败",
+  "publish": "发布到组织",
+  "unpublish": "恢复为个人",
+  "resubmit": "重新提交审核",
+  "orgBadge": "组织"
 }

@@ -15,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -42,7 +41,6 @@ export default function AgentsPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [pendingPublishId, setPendingPublishId] = useState<string | null>(null)
   const [pendingUnpublishId, setPendingUnpublishId] = useState<string | null>(null)
-  const [publishScope, setPublishScope] = useState<"personal" | "org">("personal")
   const [publishOrgId, setPublishOrgId] = useState<string>("")
   const [userOrgs, setUserOrgs] = useState<UserOrg[]>([])
   const [orgsLoading, setOrgsLoading] = useState(false)
@@ -73,14 +71,24 @@ export default function AgentsPage() {
   const handleDelete = (id: string) => setPendingDeleteId(id)
   const handlePublish = (id: string) => {
     setPendingPublishId(id)
-    setPublishScope("personal")
     setPublishOrgId("")
     setOrgsLoading(true)
     orgApi.list().then((orgs) => {
       setUserOrgs(orgs)
+      if (orgs.length > 0) setPublishOrgId(orgs[0].id)
     }).catch(() => {}).finally(() => setOrgsLoading(false))
   }
   const handleUnpublish = (id: string) => setPendingUnpublishId(id)
+
+  const handleToggleActive = async (id: string, isActive: boolean) => {
+    try {
+      const updated = await agentApi.toggleActive(id, isActive)
+      setAgents((prev) => prev.map((a) => (a.id === id ? updated : a)))
+      toast.success(isActive ? t("agentEnabled") : t("agentDisabled"))
+    } catch {
+      toast.error(t("agentToggleFailed"))
+    }
+  }
 
   const handleResubmit = async (id: string) => {
     try {
@@ -106,13 +114,13 @@ export default function AgentsPage() {
   }
 
   const confirmPublish = async () => {
-    if (!pendingPublishId) return
+    if (!pendingPublishId || !publishOrgId) return
     const id = pendingPublishId
     setPendingPublishId(null)
     try {
       const updated = await agentApi.publish(id, {
-        scope: publishScope,
-        org_id: publishScope === "org" ? publishOrgId : undefined,
+        scope: "org",
+        org_id: publishOrgId,
       })
       setAgents((prev) => prev.map((a) => (a.id === id ? updated : a)))
       toast.success(t("agentPublished"))
@@ -135,7 +143,7 @@ export default function AgentsPage() {
   }
 
   // Find selected org for review notice
-  const selectedOrg = publishScope === "org" && publishOrgId
+  const selectedOrg = publishOrgId
     ? userOrgs.find((o) => o.id === publishOrgId)
     : null
 
@@ -197,6 +205,7 @@ export default function AgentsPage() {
                 onDelete={handleDelete}
                 onPublish={handlePublish}
                 onUnpublish={handleUnpublish}
+                onToggleActive={(isActive) => handleToggleActive(agent.id, isActive)}
                 onResubmit={handleResubmit}
               />
             ))}
@@ -234,66 +243,42 @@ export default function AgentsPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label className="text-sm font-medium">{t("publishScopeLabel")}</Label>
-              <div className="flex gap-2">
-                {(["personal", "org"] as const).map((scope) => (
-                  <button
-                    key={scope}
-                    type="button"
-                    onClick={() => {
-                      setPublishScope(scope)
-                      if (scope === "org" && userOrgs.length > 0) setPublishOrgId(userOrgs[0].id)
-                    }}
-                    className={`flex-1 rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                      publishScope === scope
-                        ? "border-primary bg-primary/10 text-primary font-medium"
-                        : "border-input text-muted-foreground hover:border-foreground/30"
-                    }`}
-                  >
-                    {scope === "personal" ? t("publishScopePersonal") : t("publishScopeOrg")}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {publishScope === "org" && (
-              <div className="space-y-2">
-                {orgsLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  </div>
-                ) : userOrgs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t("publishNoOrgs")}</p>
-                ) : (
-                  <>
-                    <Select value={publishOrgId} onValueChange={setPublishOrgId}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder={t("publishSelectOrg")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {userOrgs.map((org) => (
-                          <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+              {orgsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                </div>
+              ) : userOrgs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t("publishNoOrgs")}</p>
+              ) : (
+                <>
+                  <Select value={publishOrgId} onValueChange={setPublishOrgId}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t("publishSelectOrg")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {userOrgs.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                    {/* Review notice */}
-                    {selectedOrg?.require_publish_review && (
-                      <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-md">
-                        <Clock className="h-4 w-4 shrink-0" />
-                        <span>{to("publishRequiresReview")}</span>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
+                  {/* Review notice */}
+                  {selectedOrg?.review_agents && (
+                    <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-md">
+                      <Clock className="h-4 w-4 shrink-0" />
+                      <span>{to("publishRequiresReview")}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" className="px-6" onClick={() => setPendingPublishId(null)}>{tc("cancel")}</Button>
             <Button
               className="px-6"
               onClick={confirmPublish}
-              disabled={publishScope === "org" && (orgsLoading || userOrgs.length === 0 || !publishOrgId)}
+              disabled={orgsLoading || userOrgs.length === 0 || !publishOrgId}
             >
               {tc("publish")}
             </Button>

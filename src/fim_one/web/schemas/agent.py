@@ -20,6 +20,7 @@ class AgentCreate(BaseModel):
     grounding_config: dict | None = None
     sandbox_config: dict | None = None
     execution_mode: Literal["react", "dag", "auto"] = "auto"
+    is_active: bool = True
 
 
 class AgentUpdate(BaseModel):
@@ -35,6 +36,7 @@ class AgentUpdate(BaseModel):
     grounding_config: dict | None = None
     sandbox_config: dict | None = None
     execution_mode: Literal["react", "dag", "auto"] | None = None
+    is_active: bool | None = None
 
 
 class AgentResponse(BaseModel):
@@ -54,6 +56,7 @@ class AgentResponse(BaseModel):
     execution_mode: str
     status: str
     published_at: str | None
+    is_active: bool = True
     is_builder: bool = False
     discoverable: bool = False
     sub_agent_ids: list[str] | None = None

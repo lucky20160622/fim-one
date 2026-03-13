@@ -16,11 +16,17 @@ import {
   ShieldCheck,
   Crown,
   Building2,
+  Globe,
+  ClipboardCheck,
+  Check,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
 import {
   Dialog,
   DialogContent,
@@ -60,12 +66,261 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { adminApi } from "@/lib/api"
+import { adminApi, orgApi, type ReviewItem } from "@/lib/api"
 import { getErrorMessage } from "@/lib/error-utils"
+import { PLATFORM_ORG_ID } from "@/lib/constants"
 import { EmojiPickerPopover } from "@/components/ui/emoji-picker-popover"
 import type { AdminOrganization, OrgMember } from "@/types/admin"
 
 const PAGE_SIZE = 20
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function resourceTypeLabel(type: string, t: (key: string) => string): string {
+  switch (type) {
+    case "agent": return t("resourceTypeAgent")
+    case "connector": return t("resourceTypeConnector")
+    case "knowledge_base": return t("resourceTypeKb")
+    case "mcp_server": return t("resourceTypeMcpServer")
+    default: return type
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AdminReviewsSheet -- system admin review management for any org
+// ---------------------------------------------------------------------------
+
+interface AdminReviewsSheetProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  org: { id: string; name: string } | null
+}
+
+function AdminReviewsSheet({ open, onOpenChange, org }: AdminReviewsSheetProps) {
+  const t = useTranslations("organizations")
+  const tc = useTranslations("common")
+
+  const [reviews, setReviews] = useState<ReviewItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [resourceTypeFilter, setResourceTypeFilter] = useState<string>("__default__")
+  const [statusFilter, setStatusFilter] = useState<string>("pending_review")
+
+  // Reject dialog state
+  const [rejectTarget, setRejectTarget] = useState<ReviewItem | null>(null)
+  const [rejectNote, setRejectNote] = useState("")
+
+  const loadReviews = useCallback(async () => {
+    if (!org) return
+    setLoading(true)
+    try {
+      const params: { resource_type?: string; status?: string } = {}
+      if (resourceTypeFilter !== "__default__") params.resource_type = resourceTypeFilter
+      if (statusFilter !== "__default__") params.status = statusFilter
+      const data = await orgApi.listReviews(org.id, params)
+      setReviews(data)
+    } catch {
+      toast.error(t("reviewLoadFailed"))
+    } finally {
+      setLoading(false)
+    }
+  }, [org, resourceTypeFilter, statusFilter, t])
+
+  useEffect(() => {
+    if (open && org) {
+      loadReviews()
+    }
+  }, [open, loadReviews, org])
+
+  const handleApprove = async (item: ReviewItem) => {
+    if (!org) return
+    try {
+      await orgApi.approveReview(org.id, {
+        resource_type: item.resource_type,
+        resource_id: item.resource_id,
+      })
+      toast.success(t("reviewApproved"))
+      setReviews((prev) => prev.filter((r) => r.resource_id !== item.resource_id))
+    } catch {
+      toast.error(t("reviewApproveFailed"))
+    }
+  }
+
+  const handleReject = async () => {
+    if (!rejectTarget || !org) return
+    try {
+      await orgApi.rejectReview(org.id, {
+        resource_type: rejectTarget.resource_type,
+        resource_id: rejectTarget.resource_id,
+        note: rejectNote.trim() || undefined,
+      })
+      toast.success(t("reviewRejected"))
+      setReviews((prev) => prev.filter((r) => r.resource_id !== rejectTarget.resource_id))
+    } catch {
+      toast.error(t("reviewRejectFailed"))
+    } finally {
+      setRejectTarget(null)
+      setRejectNote("")
+    }
+  }
+
+  if (!org) return null
+
+  return (
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="w-full sm:max-w-lg flex flex-col">
+          <SheetHeader className="shrink-0">
+            <SheetTitle>{t("reviewManagement")}</SheetTitle>
+            <SheetDescription>{t("reviewsSheetDescription")}</SheetDescription>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-4 mt-4">
+            {/* Filters */}
+            <div className="flex gap-2">
+              <Select value={resourceTypeFilter} onValueChange={setResourceTypeFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">{t("filterAll")}</SelectItem>
+                  <SelectItem value="agent">{t("filterAgents")}</SelectItem>
+                  <SelectItem value="connector">{t("filterConnectors")}</SelectItem>
+                  <SelectItem value="knowledge_base">{t("filterKBs")}</SelectItem>
+                  <SelectItem value="mcp_server">{t("filterMcpServers")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">{t("filterAll")}</SelectItem>
+                  <SelectItem value="pending_review">{t("filterPending")}</SelectItem>
+                  <SelectItem value="rejected">{t("filterRejected")}</SelectItem>
+                  <SelectItem value="approved">{t("filterApproved")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
+
+            {/* Review list */}
+            {loading ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">{tc("loading")}</p>
+            ) : reviews.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">{t("noReviewsPending")}</p>
+            ) : (
+              <div className="space-y-2">
+                {reviews.map((item) => (
+                  <div
+                    key={`${item.resource_type}-${item.resource_id}`}
+                    className="rounded-md border border-border p-3 space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center text-sm shrink-0">
+                          {item.resource_icon ?? <Building2 className="h-4 w-4 text-muted-foreground" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{item.resource_name}</p>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                              {resourceTypeLabel(item.resource_type, t)}
+                            </Badge>
+                            {item.owner_username && (
+                              <span>{t("submittedBy", { owner: item.owner_username })}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status badge */}
+                      {item.publish_status === "pending_review" && (
+                        <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400 shrink-0">
+                          {t("pendingReview")}
+                        </Badge>
+                      )}
+                      {item.publish_status === "approved" && (
+                        <Badge variant="outline" className="border-emerald-400 text-emerald-600 dark:text-emerald-400 shrink-0">
+                          {t("approved")}
+                        </Badge>
+                      )}
+                      {item.publish_status === "rejected" && (
+                        <Badge variant="outline" className="border-destructive text-destructive shrink-0">
+                          {t("rejected")}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Review note for rejected items */}
+                    {item.publish_status === "rejected" && item.review_note && (
+                      <p className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1">
+                        {t("rejectedNote", { note: item.review_note })}
+                      </p>
+                    )}
+
+                    {/* Action buttons -- only for pending items */}
+                    {item.publish_status === "pending_review" && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs gap-1 text-emerald-600 dark:text-emerald-400 border-emerald-400/40 hover:bg-emerald-500/10"
+                          onClick={() => handleApprove(item)}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          {t("approveResource")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs gap-1 text-destructive border-destructive/40 hover:bg-destructive/10"
+                          onClick={() => { setRejectTarget(item); setRejectNote("") }}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          {t("rejectResource")}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Reject confirmation dialog -- sibling of Sheet */}
+      <Dialog open={!!rejectTarget} onOpenChange={(v) => { if (!v) { setRejectTarget(null); setRejectNote("") } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("rejectDialogTitle")}</DialogTitle>
+            <DialogDescription>{t("rejectDialogDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Textarea
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+              placeholder={t("rejectReasonPlaceholder")}
+              rows={3}
+              className="resize-none"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectTarget(null); setRejectNote("") }}>
+              {tc("cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleReject}>
+              {t("rejectResource")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
 
 export function AdminOrganizations() {
   const t = useTranslations("organizations")
@@ -88,6 +343,9 @@ export function AdminOrganizations() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<AdminOrganization | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AdminOrganization | null>(null)
+
+  // --- Reviews sheet ---
+  const [reviewsTarget, setReviewsTarget] = useState<AdminOrganization | null>(null)
 
   // --- Members sheet ---
   const [membersOrg, setMembersOrg] = useState<AdminOrganization | null>(null)
@@ -115,6 +373,16 @@ export function AdminOrganizations() {
   const [editName, setEditName] = useState("")
   const [editDescription, setEditDescription] = useState("")
   const [editIcon, setEditIcon] = useState<string | null>(null)
+  const [editReviewAgents, setEditReviewAgents] = useState(false)
+  const [editReviewConnectors, setEditReviewConnectors] = useState(false)
+  const [editReviewKbs, setEditReviewKbs] = useState(false)
+  const [editReviewMcpServers, setEditReviewMcpServers] = useState(false)
+
+  // --- Create review fields ---
+  const [createReviewAgents, setCreateReviewAgents] = useState(false)
+  const [createReviewConnectors, setCreateReviewConnectors] = useState(false)
+  const [createReviewKbs, setCreateReviewKbs] = useState(false)
+  const [createReviewMcpServers, setCreateReviewMcpServers] = useState(false)
 
   // --- Field errors ---
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -177,12 +445,20 @@ export function AdminOrganizations() {
         name: createName.trim(),
         description: createDescription.trim() || undefined,
         icon: createIcon || undefined,
+        review_agents: createReviewAgents,
+        review_connectors: createReviewConnectors,
+        review_kbs: createReviewKbs,
+        review_mcp_servers: createReviewMcpServers,
       })
       toast.success(t("createSuccess"))
       setCreateOpen(false)
       setCreateName("")
       setCreateDescription("")
       setCreateIcon(null)
+      setCreateReviewAgents(false)
+      setCreateReviewConnectors(false)
+      setCreateReviewKbs(false)
+      setCreateReviewMcpServers(false)
       setFieldErrors({})
       await loadOrgs()
     } catch (err: unknown) {
@@ -198,6 +474,10 @@ export function AdminOrganizations() {
     setEditName(org.name)
     setEditDescription(org.description ?? "")
     setEditIcon(org.icon ?? null)
+    setEditReviewAgents(org.review_agents ?? false)
+    setEditReviewConnectors(org.review_connectors ?? false)
+    setEditReviewKbs(org.review_kbs ?? false)
+    setEditReviewMcpServers(org.review_mcp_servers ?? false)
     setFieldErrors({})
   }
 
@@ -217,6 +497,10 @@ export function AdminOrganizations() {
         name: editName.trim(),
         description: editDescription.trim() || undefined,
         icon: editIcon || undefined,
+        review_agents: editReviewAgents,
+        review_connectors: editReviewConnectors,
+        review_kbs: editReviewKbs,
+        review_mcp_servers: editReviewMcpServers,
       })
       toast.success(t("updateSuccess"))
       setEditTarget(null)
@@ -404,6 +688,9 @@ export function AdminOrganizations() {
                   {tc("status")}
                 </th>
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
+                  {t("reviewSettings")}
+                </th>
+                <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">
                   {t("createdAt")}
                 </th>
                 <th className="px-4 py-2.5 text-right font-medium text-muted-foreground">
@@ -420,6 +707,9 @@ export function AdminOrganizations() {
                         {org.icon ?? <Building2 className="h-4 w-4 text-muted-foreground" />}
                       </span>
                       {org.name}
+                      {org.id === PLATFORM_ORG_ID && (
+                        <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs font-mono">
@@ -442,6 +732,21 @@ export function AdminOrganizations() {
                       </Badge>
                     )}
                   </td>
+                  <td className="px-4 py-3">
+                    {(org.review_agents || org.review_connectors || org.review_kbs || org.review_mcp_servers) ? (
+                      <Badge variant="outline" className="border-amber-500/40 text-amber-600 dark:text-amber-400 gap-1">
+                        <ShieldCheck className="h-3 w-3" />
+                        {[
+                          org.review_agents && t("reviewAgentsLabel"),
+                          org.review_connectors && t("reviewConnectorsLabel"),
+                          org.review_kbs && t("reviewKbsLabel"),
+                          org.review_mcp_servers && t("reviewMcpServersLabel"),
+                        ].filter(Boolean).length}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">--</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
                     {new Date(org.created_at).toLocaleDateString(locale)}
                   </td>
@@ -461,14 +766,24 @@ export function AdminOrganizations() {
                           <Pencil className="mr-2 h-4 w-4" />
                           {tc("edit")}
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setDeleteTarget(org)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          {t("forceDelete")}
-                        </DropdownMenuItem>
+                        {(org.review_agents || org.review_connectors || org.review_kbs || org.review_mcp_servers) && (
+                          <DropdownMenuItem onClick={() => setReviewsTarget(org)}>
+                            <ClipboardCheck className="mr-2 h-4 w-4" />
+                            {t("reviewManagement")}
+                          </DropdownMenuItem>
+                        )}
+                        {org.id !== PLATFORM_ORG_ID && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => setDeleteTarget(org)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {t("forceDelete")}
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -508,7 +823,7 @@ export function AdminOrganizations() {
       )}
 
       {/* --- Create Organization Dialog --- */}
-      <Dialog open={createOpen} onOpenChange={(open) => { if (!open) { setCreateOpen(false); setCreateIcon(null); setFieldErrors({}) } }}>
+      <Dialog open={createOpen} onOpenChange={(open) => { if (!open) { setCreateOpen(false); setCreateIcon(null); setCreateReviewAgents(false); setCreateReviewConnectors(false); setCreateReviewKbs(false); setCreateReviewMcpServers(false); setFieldErrors({}) } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("createTitle")}</DialogTitle>
@@ -551,9 +866,36 @@ export function AdminOrganizations() {
                 />
               </div>
             </div>
+
+            {/* Review settings */}
+            <Separator />
+            <div className="space-y-3">
+              <div className="space-y-0.5">
+                <label className="text-sm font-medium">{t("reviewSettings")}</label>
+                <p className="text-xs text-muted-foreground">{t("reviewSettingsDescription")}</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm">{t("reviewAgentsLabel")}</label>
+                  <Switch checked={createReviewAgents} onCheckedChange={setCreateReviewAgents} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm">{t("reviewConnectorsLabel")}</label>
+                  <Switch checked={createReviewConnectors} onCheckedChange={setCreateReviewConnectors} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm">{t("reviewKbsLabel")}</label>
+                  <Switch checked={createReviewKbs} onCheckedChange={setCreateReviewKbs} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm">{t("reviewMcpServersLabel")}</label>
+                  <Switch checked={createReviewMcpServers} onCheckedChange={setCreateReviewMcpServers} />
+                </div>
+              </div>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setCreateOpen(false); setCreateIcon(null); setFieldErrors({}) }}>
+            <Button variant="outline" onClick={() => { setCreateOpen(false); setCreateIcon(null); setCreateReviewAgents(false); setCreateReviewConnectors(false); setCreateReviewKbs(false); setCreateReviewMcpServers(false); setFieldErrors({}) }}>
               {tc("cancel")}
             </Button>
             <Button
@@ -612,6 +954,33 @@ export function AdminOrganizations() {
                   placeholder={t("descriptionPlaceholder")}
                   rows={3}
                 />
+              </div>
+            </div>
+
+            {/* Review settings */}
+            <Separator />
+            <div className="space-y-3">
+              <div className="space-y-0.5">
+                <label className="text-sm font-medium">{t("reviewSettings")}</label>
+                <p className="text-xs text-muted-foreground">{t("reviewSettingsDescription")}</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm">{t("reviewAgentsLabel")}</label>
+                  <Switch checked={editReviewAgents} onCheckedChange={setEditReviewAgents} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm">{t("reviewConnectorsLabel")}</label>
+                  <Switch checked={editReviewConnectors} onCheckedChange={setEditReviewConnectors} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm">{t("reviewKbsLabel")}</label>
+                  <Switch checked={editReviewKbs} onCheckedChange={setEditReviewKbs} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm">{t("reviewMcpServersLabel")}</label>
+                  <Switch checked={editReviewMcpServers} onCheckedChange={setEditReviewMcpServers} />
+                </div>
               </div>
             </div>
           </div>
@@ -822,6 +1191,13 @@ export function AdminOrganizations() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* --- Reviews Sheet --- */}
+      <AdminReviewsSheet
+        open={reviewsTarget !== null}
+        onOpenChange={(open) => { if (!open) setReviewsTarget(null) }}
+        org={reviewsTarget}
+      />
 
       {/* --- Change Role Dialog --- */}
       <Dialog

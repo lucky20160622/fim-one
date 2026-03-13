@@ -123,6 +123,12 @@
   "requirePublishReview": "发布需要审核",
   "requirePublishReviewDescription": "启用后，发布到此组织的资源需要管理员审核通过后才对成员可见。",
   "requirePublishReviewUpdated": "发布审核设置已更新",
+  "reviewSettings": "审核设置",
+  "reviewSettingsDescription": "发布到此组织的资源需要管理员审核后才对其他成员可见",
+  "reviewAgentsLabel": "智能体审核",
+  "reviewConnectorsLabel": "连接器审核",
+  "reviewKbsLabel": "知识库审核",
+  "reviewMcpServersLabel": "MCP 服务器审核",
   "reviewManagement": "审核管理",
   "pendingReviews": "待审核",
   "noReviewsPending": "暂无待审核资源",
@@ -162,5 +168,7 @@
   "resourceTypeAgent": "智能体",
   "resourceTypeConnector": "连接器",
   "resourceTypeKb": "知识库",
-  "resourceTypeMcpServer": "MCP 服务器"
+  "resourceTypeMcpServer": "MCP 服务器",
+  "platformOrgName": "平台组织",
+  "platformOrgDescription": "默认全局组织，所有用户自动加入。"
 }

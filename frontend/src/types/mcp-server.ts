@@ -53,4 +53,5 @@ export interface MCPServerUpdate {
   working_dir?: string | null
   headers?: Record<string, string> | null
   is_active?: boolean
+  allow_fallback?: boolean
 }

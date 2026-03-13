@@ -7,7 +7,7 @@ import { ShoppingBag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { api } from '@/lib/api'
+import { api, type MarketItem } from '@/lib/api'
 import { toast } from 'sonner'
 
 const RESOURCE_TYPES = ['all', 'agent', 'connector', 'knowledge_base', 'mcp_server'] as const
@@ -17,7 +17,7 @@ function MarketContent() {
   const tc = useTranslations('common')
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [items, setItems] = useState<any[]>([])
+  const [items, setItems] = useState<MarketItem[]>([])
   const [loading, setLoading] = useState(true)
   const [subscribing, setSubscribing] = useState<string | null>(null)
 
@@ -29,7 +29,7 @@ function MarketContent() {
       const params: Parameters<typeof api.browseMarket>[0] = { page: 1, size: 50 }
       if (activeType !== 'all') params.resource_type = activeType
       const res = await api.browseMarket(params)
-      setItems(res?.items || res?.data?.items || [])
+      setItems(res?.items ?? [])
     } catch {
       toast.error(tc('error'))
     } finally {
@@ -39,15 +39,15 @@ function MarketContent() {
 
   useEffect(() => { fetchMarket() }, [activeType]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSubscribe = async (item: any) => {
+  const handleSubscribe = async (item: MarketItem) => {
     setSubscribing(item.id)
     try {
       if (item.is_subscribed) {
         await api.unsubscribeResource({ resource_type: item.resource_type, resource_id: item.id, org_id: item.org_id })
-        toast.success(tc('unsubscribed' as any))
+        toast.success(tc('unsubscribed' as 'loading'))
       } else {
         await api.subscribeResource({ resource_type: item.resource_type, resource_id: item.id, org_id: item.org_id })
-        toast.success(tc('subscribed' as any))
+        toast.success(tc('subscribed' as 'loading'))
       }
       fetchMarket()
     } catch {
@@ -98,7 +98,7 @@ function MarketContent() {
           <div className="text-center py-12 text-muted-foreground">{t('empty')}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {items.map((item: any) => (
+            {items.map((item) => (
               <div key={item.id} className="border rounded-lg p-4 space-y-3 bg-card">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">

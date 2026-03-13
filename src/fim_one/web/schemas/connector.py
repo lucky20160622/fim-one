@@ -71,6 +71,7 @@ class ConnectorCreate(BaseModel):
     auth_type: str = "none"
     auth_config: dict[str, Any] | None = None
     db_config: dict[str, Any] | None = None
+    is_active: bool = True
 
     @field_validator("base_url")
     @classmethod
@@ -95,6 +96,7 @@ class ConnectorUpdate(BaseModel):
     auth_config: dict[str, Any] | None = None
     db_config: dict[str, Any] | None = None
     allow_fallback: bool | None = None
+    is_active: bool | None = None
 
 
 class ConnectorResponse(BaseModel):
@@ -111,6 +113,7 @@ class ConnectorResponse(BaseModel):
     is_official: bool
     forked_from: str | None
     version: int
+    is_active: bool = True
     visibility: str = "personal"
     org_id: str | None = None
     allow_fallback: bool = True

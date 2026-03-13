@@ -20,6 +20,9 @@ export interface AgentResponse {
   sandbox_config: SandboxConfig | null
   execution_mode: "react" | "dag" | "auto"
   status: string
+  is_active: boolean
+  visibility?: string // "personal" | "org" | "global"
+  org_id?: string | null
   is_builder?: boolean
   discoverable?: boolean
   sub_agent_ids?: string[] | null
@@ -28,7 +31,6 @@ export interface AgentResponse {
   reviewed_at: string | null
   review_note: string | null
   visibility?: string
-  org_id?: string | null
   published_at: string | null
   created_at: string
   updated_at: string | null

@@ -1205,6 +1205,11 @@ function PlaygroundContent({
                   <span className="shiny-text">{statusText}</span>
                 </span>
               )}
+              {mode === "auto" && routingEvent && (
+                <span className="ml-3 text-xs text-muted-foreground">
+                  {t("autoRoutedTo", { mode: routingEvent.mode })}
+                </span>
+              )}
               {retryQuery && (
                 <Button
                   variant="ghost"

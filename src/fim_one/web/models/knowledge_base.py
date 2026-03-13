@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text
+import sqlalchemy as sa
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from fim_one.db.base import Base, TimestampMixin, UUIDPKMixin
@@ -34,6 +35,10 @@ class KnowledgeBase(UUIDPKMixin, TimestampMixin, Base):
     )
     org_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("organizations.id"), nullable=True, index=True
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False, server_default=sa.text("TRUE")
     )
 
     # Publish review fields

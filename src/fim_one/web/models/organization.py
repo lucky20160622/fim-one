@@ -33,7 +33,16 @@ class Organization(UUIDPKMixin, TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False, server_default="TRUE"
     )
-    require_publish_review: Mapped[bool] = mapped_column(
+    review_agents: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default=sa.text("FALSE")
+    )
+    review_connectors: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default=sa.text("FALSE")
+    )
+    review_kbs: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default=sa.text("FALSE")
+    )
+    review_mcp_servers: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False, server_default=sa.text("FALSE")
     )
 

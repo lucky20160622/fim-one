@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useTranslations } from "next-intl"
 import {
   Building2,
+  Globe,
   MoreHorizontal,
   Plus,
   Settings,
@@ -65,12 +66,12 @@ import {
 } from "@/components/ui/select"
 import { useAuth } from "@/contexts/auth-context"
 import { orgApi, type UserOrg, type OrgMember, type ReviewItem } from "@/lib/api"
+import { PLATFORM_ORG_ID } from "@/lib/constants"
 import { EmojiPickerPopover } from "@/components/ui/emoji-picker-popover"
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
 
 function roleBadgeClass(role: "owner" | "admin" | "member"): string {
   switch (role) {
@@ -111,7 +112,10 @@ function OrgFormDialog({ open, onOpenChange, initial, onSaved }: OrgFormDialogPr
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [icon, setIcon] = useState<string | null>(null)
-  const [requireReview, setRequireReview] = useState(false)
+  const [reviewAgents, setReviewAgents] = useState(false)
+  const [reviewConnectors, setReviewConnectors] = useState(false)
+  const [reviewKbs, setReviewKbs] = useState(false)
+  const [reviewMcpServers, setReviewMcpServers] = useState(false)
   const [saving, setSaving] = useState(false)
   const [nameError, setNameError] = useState("")
   const [dirty, setDirty] = useState(false)
@@ -123,7 +127,10 @@ function OrgFormDialog({ open, onOpenChange, initial, onSaved }: OrgFormDialogPr
       setName(initial?.name ?? "")
       setDescription(initial?.description ?? "")
       setIcon(initial?.icon ?? null)
-      setRequireReview(initial?.require_publish_review ?? false)
+      setReviewAgents(initial?.review_agents ?? false)
+      setReviewConnectors(initial?.review_connectors ?? false)
+      setReviewKbs(initial?.review_kbs ?? false)
+      setReviewMcpServers(initial?.review_mcp_servers ?? false)
       setNameError("")
       setDirty(false)
     }
@@ -156,7 +163,10 @@ function OrgFormDialog({ open, onOpenChange, initial, onSaved }: OrgFormDialogPr
           name: name.trim(),
           description: description.trim() || null,
           icon: icon || null,
-          require_publish_review: requireReview,
+          review_agents: reviewAgents,
+          review_connectors: reviewConnectors,
+          review_kbs: reviewKbs,
+          review_mcp_servers: reviewMcpServers,
         })
         toast.success(t("orgUpdated"))
       } else {
@@ -164,6 +174,10 @@ function OrgFormDialog({ open, onOpenChange, initial, onSaved }: OrgFormDialogPr
           name: name.trim(),
           description: description.trim() || null,
           icon: icon || null,
+          review_agents: reviewAgents,
+          review_connectors: reviewConnectors,
+          review_kbs: reviewKbs,
+          review_mcp_servers: reviewMcpServers,
         })
         toast.success(t("orgCreated", { name: saved.name }))
       }
@@ -237,22 +251,44 @@ function OrgFormDialog({ open, onOpenChange, initial, onSaved }: OrgFormDialogPr
               </div>
             </div>
 
-            {/* Publish review toggle -- only when editing */}
-            {isEdit && (
-              <>
-                <Separator />
+            {/* Review settings */}
+            <Separator />
+            <div className="space-y-3">
+              <div className="space-y-0.5">
+                <label className="text-sm font-medium">{t("reviewSettings")}</label>
+                <p className="text-xs text-muted-foreground">{t("reviewSettingsDescription")}</p>
+              </div>
+              <div className="space-y-2">
                 <div className="flex items-center justify-between gap-4">
-                  <div className="space-y-0.5">
-                    <label className="text-sm font-medium">{t("requirePublishReview")}</label>
-                    <p className="text-xs text-muted-foreground">{t("requirePublishReviewDescription")}</p>
-                  </div>
+                  <label className="text-sm">{t("reviewAgentsLabel")}</label>
                   <Switch
-                    checked={requireReview}
-                    onCheckedChange={(v) => { setRequireReview(v); setDirty(true) }}
+                    checked={reviewAgents}
+                    onCheckedChange={(v) => { setReviewAgents(v); setDirty(true) }}
                   />
                 </div>
-              </>
-            )}
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm">{t("reviewConnectorsLabel")}</label>
+                  <Switch
+                    checked={reviewConnectors}
+                    onCheckedChange={(v) => { setReviewConnectors(v); setDirty(true) }}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm">{t("reviewKbsLabel")}</label>
+                  <Switch
+                    checked={reviewKbs}
+                    onCheckedChange={(v) => { setReviewKbs(v); setDirty(true) }}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm">{t("reviewMcpServersLabel")}</label>
+                  <Switch
+                    checked={reviewMcpServers}
+                    onCheckedChange={(v) => { setReviewMcpServers(v); setDirty(true) }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
@@ -807,10 +843,55 @@ function OrgCard({ org, currentUserId, onEdit, onDelete, onLeave, onManageMember
   const t = useTranslations("organizations")
   const tc = useTranslations("common")
 
+  const isPlatform = org.id === PLATFORM_ORG_ID
   const isOwner = org.role === "owner"
   const isAdminOrOwner = org.role === "owner" || org.role === "admin"
   const canLeave = !isOwner
 
+  // --- Platform org: special card ---
+  if (isPlatform) {
+    return (
+      <div className="rounded-lg border border-primary/20 bg-gradient-to-r from-primary/[0.04] to-transparent p-4 flex items-start gap-3">
+        <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+          <Globe className="h-5 w-5 text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-semibold truncate">{t("platformOrgName")}</p>
+            <Badge variant="outline" className="border-primary/30 text-primary text-[10px] px-1.5 py-0">
+              {t(`role${org.role.charAt(0).toUpperCase()}${org.role.slice(1)}` as "roleOwner" | "roleAdmin" | "roleMember")}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{t("platformOrgDescription")}</p>
+        </div>
+        {/* Only admin/owner see the menu — limited to member management */}
+        {isAdminOrOwner && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7 p-0 shrink-0">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">{tc("actions")}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onManageMembers(org)}>
+                <Users className="mr-2 h-4 w-4" />
+                {t("manageMembers")}
+              </DropdownMenuItem>
+              {(org.review_agents || org.review_connectors || org.review_kbs || org.review_mcp_servers) && (
+                <DropdownMenuItem onClick={() => onManageReviews(org)}>
+                  <ClipboardCheck className="mr-2 h-4 w-4" />
+                  {t("reviewManagement")}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    )
+  }
+
+  // --- Regular org card ---
   return (
     <div className="rounded-lg border border-border bg-card p-4 flex items-start justify-between gap-3">
       <div className="flex items-start gap-3 min-w-0">
@@ -826,10 +907,10 @@ function OrgCard({ org, currentUserId, onEdit, onDelete, onLeave, onManageMember
             <Badge variant="outline" className={roleBadgeClass(org.role)}>
               {t(`role${org.role.charAt(0).toUpperCase()}${org.role.slice(1)}` as "roleOwner" | "roleAdmin" | "roleMember")}
             </Badge>
-            {org.require_publish_review && (
-              <Badge variant="outline" className="border-amber-400/40 text-amber-600 dark:text-amber-400 text-[10px] px-1.5 py-0 h-5">
-                <ShieldCheck className="h-3 w-3 mr-0.5" />
-                {t("reviewEnabled")}
+            {(org.review_agents || org.review_connectors || org.review_kbs || org.review_mcp_servers) && (
+              <Badge variant="outline" className="border-amber-400/40 text-amber-600 dark:text-amber-400 text-[10px] px-1.5 py-0 h-5 gap-0.5">
+                <ShieldCheck className="h-3 w-3" />
+                {[org.review_agents, org.review_connectors, org.review_kbs, org.review_mcp_servers].filter(Boolean).length}
               </Badge>
             )}
           </div>
@@ -861,7 +942,7 @@ function OrgCard({ org, currentUserId, onEdit, onDelete, onLeave, onManageMember
               {t("manageMembers")}
             </DropdownMenuItem>
           )}
-          {isAdminOrOwner && org.require_publish_review && (
+          {isAdminOrOwner && (org.review_agents || org.review_connectors || org.review_kbs || org.review_mcp_servers) && (
             <DropdownMenuItem onClick={() => onManageReviews(org)}>
               <ClipboardCheck className="mr-2 h-4 w-4" />
               {t("reviewManagement")}

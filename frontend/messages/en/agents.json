@@ -10,9 +10,6 @@
   "deleteDialogDescription": "This agent will be permanently deleted. This action cannot be undone.",
   "publishDialogTitle": "Publish agent?",
   "publishDialogDescription": "Once published, this agent will be available for use in conversations.",
-  "publishScopeLabel": "Publish to",
-  "publishScopePersonal": "Personal use",
-  "publishScopeOrg": "My organization",
   "publishSelectOrg": "Select organization",
   "publishNoOrgs": "No organizations found. Join or create one in Settings.",
   "unpublishDialogTitle": "Unpublish agent?",
@@ -147,5 +144,11 @@
   "global": "Global",
   "globalAgentNotice": "This is a global agent managed by an administrator.",
   "discoverable": "Auto-discoverable",
-  "discoverableHelp": "Allow LLM to automatically discover and delegate tasks to this agent"
+  "discoverableHelp": "Allow LLM to automatically discover and delegate tasks to this agent",
+
+  "disableOrgAgent": "Disable agent for entire org?",
+  "disableOrgAgentDescription": "This will immediately stop all org members from using this agent. You can re-enable it at any time.",
+  "agentEnabled": "Agent enabled",
+  "agentDisabled": "Agent disabled",
+  "agentToggleFailed": "Failed to update agent status"
 }

@@ -23,6 +23,10 @@ async def ensure_platform_org(db: AsyncSession, owner_id: str) -> str:
             slug=PLATFORM_ORG_SLUG,
             description="Default platform-wide organization. All users are members.",
             owner_id=owner_id,
+            review_agents=True,
+            review_connectors=True,
+            review_kbs=True,
+            review_mcp_servers=True,
         )
         db.add(org)
         await db.flush()

@@ -133,6 +133,10 @@ export interface AdminOrganization {
   owner_email: string
   parent_id: string | null
   is_active: boolean
+  review_agents: boolean
+  review_connectors: boolean
+  review_kbs: boolean
+  review_mcp_servers: boolean
   member_count: number
   created_at: string
   updated_at: string | null

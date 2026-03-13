@@ -45,6 +45,9 @@ class Connector(UUIDPKMixin, TimestampMixin, Base):
     allow_fallback: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=sa.text("TRUE")
     )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False, server_default=sa.text("TRUE")
+    )
 
     # Publish review fields
     publish_status: Mapped[str | None] = mapped_column(String(20), nullable=True)

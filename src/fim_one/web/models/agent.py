@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+import sqlalchemy as sa
 from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -48,6 +49,10 @@ class Agent(UUIDPKMixin, TimestampMixin, Base):
     sub_agent_ids: Any = Column(JSON, nullable=True)  # list[str] — explicit whitelist
     grounding_config: Any = Column(JSON, nullable=True)
     sandbox_config: Any = Column(JSON, nullable=True)
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False, server_default=sa.text("TRUE")
+    )
 
     # Publish review fields
     publish_status: Mapped[str | None] = mapped_column(String(20), nullable=True)

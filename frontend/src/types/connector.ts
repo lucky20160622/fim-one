@@ -63,6 +63,7 @@ export interface ConnectorResponse {
   auth_config: Record<string, unknown> | null
   db_config?: DbConnectionConfig | null // Present when type="database"
   is_official: boolean
+  is_active: boolean
   forked_from: string | null
   version: number
   visibility: string // "personal" | "org" | "global"

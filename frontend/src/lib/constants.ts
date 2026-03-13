@@ -20,6 +20,9 @@ export function getApiDirectUrl() {
   return "http://localhost:8000"
 }
 
+/** The built-in "Platform" organisation that is available to all users */
+export const PLATFORM_ORG_ID = "00000000-0000-0000-0000-000000000001"
+
 export const ACCESS_TOKEN_KEY = "fim_access_token"
 export const REFRESH_TOKEN_KEY = "fim_refresh_token"
 export const USER_KEY = "fim_user"

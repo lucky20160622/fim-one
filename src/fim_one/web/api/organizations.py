@@ -23,6 +23,7 @@ from fim_one.web.auth import (
 from fim_one.web.exceptions import AppError
 from fim_one.web.models.organization import OrgMembership, Organization
 from fim_one.web.models.user import User
+from fim_one.web.platform import PLATFORM_ORG_ID
 from fim_one.web.schemas.common import ApiResponse, PaginatedResponse
 
 # ---------------------------------------------------------------------------
@@ -52,7 +53,10 @@ class OrgUpdate(BaseModel):
     slug: str | None = Field(None, max_length=100)
     is_active: bool | None = None
     settings: dict | None = None
-    require_publish_review: bool | None = None
+    review_agents: bool | None = None
+    review_connectors: bool | None = None
+    review_kbs: bool | None = None
+    review_mcp_servers: bool | None = None
 
 
 class MemberAdd(BaseModel):
@@ -75,7 +79,10 @@ class OrgResponse(BaseModel):
     parent_id: str | None = None
     settings: dict | None = None
     is_active: bool
-    require_publish_review: bool = False
+    review_agents: bool = False
+    review_connectors: bool = False
+    review_kbs: bool = False
+    review_mcp_servers: bool = False
     created_at: str
     updated_at: str | None = None
 
@@ -120,7 +127,10 @@ def _org_to_response(org: Organization) -> OrgResponse:
         parent_id=org.parent_id,
         settings=org.settings,
         is_active=org.is_active,
-        require_publish_review=getattr(org, "require_publish_review", False),
+        review_agents=getattr(org, "review_agents", False),
+        review_connectors=getattr(org, "review_connectors", False),
+        review_kbs=getattr(org, "review_kbs", False),
+        review_mcp_servers=getattr(org, "review_mcp_servers", False),
         created_at=org.created_at.isoformat() if org.created_at else "",
         updated_at=org.updated_at.isoformat() if org.updated_at else None,
     )
@@ -137,7 +147,10 @@ def _org_with_role(org: Organization, role: str, member_count: int = 0) -> OrgWi
         parent_id=org.parent_id,
         settings=org.settings,
         is_active=org.is_active,
-        require_publish_review=getattr(org, "require_publish_review", False),
+        review_agents=getattr(org, "review_agents", False),
+        review_connectors=getattr(org, "review_connectors", False),
+        review_kbs=getattr(org, "review_kbs", False),
+        review_mcp_servers=getattr(org, "review_mcp_servers", False),
         created_at=org.created_at.isoformat() if org.created_at else "",
         updated_at=org.updated_at.isoformat() if org.updated_at else None,
         role=role,
@@ -255,7 +268,9 @@ async def list_my_orgs(
     for m in memberships:
         org = orgs_by_id.get(m.org_id)
         if org:
-            items.append(_org_with_role(org, m.role, counts_by_org.get(m.org_id, 0)).model_dump())
+            # Hide member count for Platform org (prevents leaking total user count)
+            count = 0 if org.id == PLATFORM_ORG_ID else counts_by_org.get(m.org_id, 0)
+            items.append(_org_with_role(org, m.role, count).model_dump())
 
     return ApiResponse(data=items)
 
@@ -276,10 +291,14 @@ async def get_org(
     if org is None:
         raise AppError("org_not_found", status_code=404)
 
-    count_result = await db.execute(
-        select(func.count(OrgMembership.id)).where(OrgMembership.org_id == org_id)
-    )
-    member_count = count_result.scalar_one()
+    # Hide member count for Platform org (prevents leaking total user count)
+    if org_id == PLATFORM_ORG_ID:
+        member_count = 0
+    else:
+        count_result = await db.execute(
+            select(func.count(OrgMembership.id)).where(OrgMembership.org_id == org_id)
+        )
+        member_count = count_result.scalar_one()
     return ApiResponse(data=_org_with_role(org, membership.role, member_count).model_dump())
 
 
@@ -332,7 +351,7 @@ async def delete_org(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
     """Delete an organization. Owner only."""
-    from fim_one.web.platform import PLATFORM_ORG_ID
+
     if org_id == PLATFORM_ORG_ID:
         raise AppError("cannot_delete_platform_org", status_code=403)
     await require_org_owner(org_id, current_user, db)
@@ -509,7 +528,6 @@ async def remove_member(
     """
     is_self = user_id == current_user.id
 
-    from fim_one.web.platform import PLATFORM_ORG_ID
     if org_id == PLATFORM_ORG_ID and is_self:
         raise AppError("cannot_leave_platform_org", status_code=403)
 
@@ -562,11 +580,17 @@ async def remove_member(
 async def admin_list_orgs(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
+    search: str | None = Query(None, alias="q"),
     _admin: User = Depends(get_current_admin),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> PaginatedResponse:
     """List all organizations (paginated). Admin only."""
     base = select(Organization)
+    if search:
+        pattern = f"%{search}%"
+        base = base.where(
+            or_(Organization.name.ilike(pattern), Organization.slug.ilike(pattern))
+        )
 
     count_result = await db.execute(
         select(func.count()).select_from(base.subquery())
@@ -580,13 +604,80 @@ async def admin_list_orgs(
     )
     orgs = result.scalars().all()
 
+    if not orgs:
+        return PaginatedResponse(items=[], total=total, page=page, size=size, pages=0)
+
+    # Fetch owner info
+    owner_ids = list({o.owner_id for o in orgs if o.owner_id})
+    owners_by_id: dict[str, User] = {}
+    if owner_ids:
+        owner_result = await db.execute(
+            select(User).where(User.id.in_(owner_ids))
+        )
+        owners_by_id = {u.id: u for u in owner_result.scalars().all()}
+
+    # Count members per org
+    org_ids = [o.id for o in orgs]
+    member_counts: dict[str, int] = {}
+    if org_ids:
+        cnt_result = await db.execute(
+            select(OrgMembership.org_id, func.count(OrgMembership.id).label("cnt"))
+            .where(OrgMembership.org_id.in_(org_ids))
+            .group_by(OrgMembership.org_id)
+        )
+        member_counts = {row.org_id: row.cnt for row in cnt_result.all()}
+
+    items = []
+    for o in orgs:
+        owner = owners_by_id.get(o.owner_id)
+        d = _org_to_response(o).model_dump()
+        d["owner_username"] = owner.username if owner else None
+        d["owner_email"] = owner.email if owner else ""
+        d["member_count"] = member_counts.get(o.id, 0)
+        items.append(d)
+
     return PaginatedResponse(
-        items=[_org_to_response(o).model_dump() for o in orgs],
+        items=items,
         total=total,
         page=page,
         size=size,
         pages=math.ceil(total / size) if total else 0,
     )
+
+
+@admin_router.put("/{org_id}", response_model=ApiResponse)
+async def admin_update_org(
+    org_id: str,
+    body: OrgUpdate,
+    _admin: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Update any organization. Admin only."""
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = result.scalar_one_or_none()
+    if org is None:
+        raise AppError("org_not_found", status_code=404)
+
+    update_data = body.model_dump(exclude_unset=True)
+
+    if "slug" in update_data and update_data["slug"] is not None:
+        update_data["slug"] = await _ensure_unique_slug(
+            update_data["slug"], db, exclude_id=org_id
+        )
+
+    for field, value in update_data.items():
+        setattr(org, field, value)
+
+    await db.commit()
+    await db.refresh(org)
+
+    count_result = await db.execute(
+        select(func.count(OrgMembership.id)).where(OrgMembership.org_id == org_id)
+    )
+    member_count = count_result.scalar_one()
+    d = _org_to_response(org).model_dump()
+    d["member_count"] = member_count
+    return ApiResponse(data=d)
 
 
 @admin_router.delete("/{org_id}", response_model=ApiResponse)
@@ -596,7 +687,7 @@ async def admin_delete_org(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
     """Force-delete an organization. Admin only."""
-    from fim_one.web.platform import PLATFORM_ORG_ID
+
     if org_id == PLATFORM_ORG_ID:
         raise AppError("cannot_delete_platform_org", status_code=403)
     result = await db.execute(

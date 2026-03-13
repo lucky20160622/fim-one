@@ -81,16 +81,87 @@ async def _check_review_permission(
     await require_org_admin(org_id, current_user, db)
 
 
+async def log_review_event(
+    db: AsyncSession,
+    org_id: str,
+    resource_type: str,
+    resource_id: str,
+    resource_name: str,
+    action: str,
+    actor: User | None = None,
+    note: str | None = None,
+) -> None:
+    """Append a review audit log entry.  Caller must commit after calling this."""
+    from fim_one.web.models.review_log import ReviewLog
+
+    entry = ReviewLog(
+        org_id=org_id,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        resource_name=resource_name,
+        action=action,
+        actor_id=actor.id if actor else None,
+        actor_username=actor.username if actor else None,
+        note=note,
+    )
+    db.add(entry)
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+
+@router.get("/log", response_model=ApiResponse)
+async def list_review_log(
+    org_id: str,
+    resource_type: str | None = Query(None),
+    resource_id: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Return the review audit trail for an org (newest first)."""
+    await _check_review_permission(org_id, current_user, db)
+
+    from fim_one.web.models.review_log import ReviewLog
+
+    query = select(ReviewLog).where(ReviewLog.org_id == org_id)
+    if resource_type:
+        query = query.where(ReviewLog.resource_type == resource_type)
+    if resource_id:
+        query = query.where(ReviewLog.resource_id == resource_id)
+    query = query.order_by(ReviewLog.created_at.desc()).limit(limit)
+
+    result = await db.execute(query)
+    logs = result.scalars().all()
+
+    return ApiResponse(
+        data=[
+            {
+                "id": log.id,
+                "org_id": log.org_id,
+                "resource_type": log.resource_type,
+                "resource_id": log.resource_id,
+                "resource_name": log.resource_name,
+                "action": log.action,
+                "actor_id": log.actor_id,
+                "actor_username": log.actor_username,
+                "note": log.note,
+                "created_at": (
+                    log.created_at.isoformat() if log.created_at else None
+                ),
+            }
+            for log in logs
+        ]
+    )
 
 
 @router.get("", response_model=ApiResponse)
 async def list_reviews(
     org_id: str,
     resource_type: str | None = Query(None),
-    status: str = Query("pending_review"),
+    status: str | None = Query(None),
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
@@ -105,10 +176,9 @@ async def list_reviews(
 
     items: list[dict] = []
     for rtype, model in models_to_query.items():
-        query = select(model).where(
-            model.org_id == org_id,
-            model.publish_status == status,
-        )
+        query = select(model).where(model.org_id == org_id)
+        if status:
+            query = query.where(model.publish_status == status)
         result = await db.execute(query)
         resources = result.scalars().all()
 
@@ -173,6 +243,17 @@ async def approve_resource(
     if body.note:
         resource.review_note = body.note
 
+    await log_review_event(
+        db=db,
+        org_id=org_id,
+        resource_type=body.resource_type,
+        resource_id=body.resource_id,
+        resource_name=resource.name,
+        action="approved",
+        actor=current_user,
+        note=body.note,
+    )
+
     await db.commit()
     return ApiResponse(
         data={
@@ -212,6 +293,17 @@ async def reject_resource(
     resource.reviewed_by = current_user.id
     resource.reviewed_at = datetime.now(UTC)
     resource.review_note = body.note
+
+    await log_review_event(
+        db=db,
+        org_id=org_id,
+        resource_type=body.resource_type,
+        resource_id=body.resource_id,
+        resource_name=resource.name,
+        action="rejected",
+        actor=current_user,
+        note=body.note,
+    )
 
     await db.commit()
     return ApiResponse(

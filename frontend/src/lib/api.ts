@@ -499,6 +499,12 @@ export const agentApi = {
     apiFetch<ApiResponse<AgentResponse>>(`/api/agents/${id}/resubmit`, {
       method: "POST",
     }).then((r) => r.data),
+
+  toggleActive: (id: string, isActive: boolean) =>
+    apiFetch<ApiResponse<AgentResponse>>(`/api/agents/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ is_active: isActive }),
+    }).then((r) => r.data),
 }
 
 // --- File API ---
@@ -664,9 +670,26 @@ export const kbApi = {
       },
     ),
 
+  publish: (id: string, body: { scope: string; org_id?: string }) =>
+    apiFetch<ApiResponse<KBResponse>>(`/api/knowledge-bases/${id}/publish`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).then((r) => r.data),
+
+  unpublish: (id: string) =>
+    apiFetch<ApiResponse<KBResponse>>(`/api/knowledge-bases/${id}/unpublish`, {
+      method: "POST",
+    }).then((r) => r.data),
+
   resubmit: (id: string) =>
     apiFetch<ApiResponse<KBResponse>>(`/api/knowledge-bases/${id}/resubmit`, {
       method: "POST",
+    }).then((r) => r.data),
+
+  toggleActive: (id: string, isActive: boolean) =>
+    apiFetch<ApiResponse<KBResponse>>(`/api/knowledge-bases/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ is_active: isActive }),
     }).then((r) => r.data),
 }
 
@@ -862,9 +885,26 @@ export const connectorApi = {
       { method: "DELETE" },
     ).then(() => undefined),
 
+  publish: (id: string, body: { scope: string; org_id?: string; allow_fallback?: boolean }) =>
+    apiFetch<ApiResponse<ConnectorResponse>>(`/api/connectors/${id}/publish`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).then((r) => r.data),
+
+  unpublish: (id: string) =>
+    apiFetch<ApiResponse<ConnectorResponse>>(`/api/connectors/${id}/unpublish`, {
+      method: "POST",
+    }).then((r) => r.data),
+
   resubmit: (id: string) =>
     apiFetch<ApiResponse<ConnectorResponse>>(`/api/connectors/${id}/resubmit`, {
       method: "POST",
+    }).then((r) => r.data),
+
+  toggleActive: (id: string, isActive: boolean) =>
+    apiFetch<ApiResponse<ConnectorResponse>>(`/api/connectors/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ is_active: isActive }),
     }).then((r) => r.data),
 }
 
@@ -1228,10 +1268,10 @@ export const adminApi = {
     apiFetch(`/api/admin/organizations/${orgId}`, { method: 'DELETE' }),
 
   // --- Organizations (regular CRUD) ---
-  createOrganization: (data: { name: string; description?: string; icon?: string }) =>
+  createOrganization: (data: { name: string; description?: string; icon?: string; review_agents?: boolean; review_connectors?: boolean; review_kbs?: boolean; review_mcp_servers?: boolean }) =>
     apiFetch<AdminOrganization>('/api/orgs', { method: 'POST', body: JSON.stringify(data) }),
-  updateOrganization: (orgId: string, data: { name?: string; description?: string; icon?: string }) =>
-    apiFetch<AdminOrganization>(`/api/orgs/${orgId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  updateOrganization: (orgId: string, data: { name?: string; description?: string; icon?: string; review_agents?: boolean; review_connectors?: boolean; review_kbs?: boolean; review_mcp_servers?: boolean }) =>
+    apiFetch<AdminOrganization>(`/api/admin/organizations/${orgId}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteOrganization: (orgId: string) =>
     apiFetch(`/api/orgs/${orgId}`, { method: 'DELETE' }),
 
@@ -1313,6 +1353,17 @@ export const mcpServerApi = {
       method: "PUT",
       body: JSON.stringify(body),
     }).then((r) => r.data),
+
+  publish: (id: string, body: { scope: "org"; org_id: string; allow_fallback?: boolean }) =>
+    apiFetch<ApiResponse<MCPServerResponse>>(`/api/mcp-servers/${id}/publish`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).then((r) => r.data),
+
+  unpublish: (id: string) =>
+    apiFetch<ApiResponse<MCPServerResponse>>(`/api/mcp-servers/${id}/unpublish`, {
+      method: "POST",
+    }).then((r) => r.data),
 }
 
 // --- Model Config API ---
@@ -1365,7 +1416,10 @@ export interface UserOrg {
   member_count: number
   created_at: string
   role: "owner" | "admin" | "member"
-  require_publish_review: boolean
+  review_agents: boolean
+  review_connectors: boolean
+  review_kbs: boolean
+  review_mcp_servers: boolean
 }
 
 export interface ReviewItem {
@@ -1393,13 +1447,13 @@ export const orgApi = {
   list: () =>
     apiFetch<{ data: UserOrg[] }>("/api/orgs").then(r => r.data ?? []),
 
-  create: (body: { name: string; slug?: string; description?: string | null; icon?: string | null }) =>
+  create: (body: { name: string; slug?: string; description?: string | null; icon?: string | null; review_agents?: boolean; review_connectors?: boolean; review_kbs?: boolean; review_mcp_servers?: boolean }) =>
     apiFetch<{ data: UserOrg }>("/api/orgs", {
       method: "POST",
       body: JSON.stringify(body),
     }).then(r => r.data),
 
-  update: (orgId: string, body: { name?: string; description?: string | null; icon?: string | null; require_publish_review?: boolean }) =>
+  update: (orgId: string, body: { name?: string; description?: string | null; icon?: string | null; review_agents?: boolean; review_connectors?: boolean; review_kbs?: boolean; review_mcp_servers?: boolean }) =>
     apiFetch<{ data: UserOrg }>(`/api/orgs/${orgId}`, {
       method: "PUT",
       body: JSON.stringify(body),
@@ -1569,6 +1623,26 @@ export const dashboardApi = {
   stats: () => apiFetch<DashboardStats>("/api/dashboard/stats"),
 }
 
+// --- Market Types ---
+export interface MarketItem {
+  id: string
+  name: string
+  description: string | null
+  icon: string | null
+  resource_type: string
+  org_id: string
+  org_name: string | null
+  owner_username: string | null
+  is_subscribed: boolean
+  publish_status: string | null
+}
+
+export interface MarketSubscription {
+  resource_type: string
+  resource_id: string
+  org_id: string
+}
+
 // --- Market API ---
 export const marketApi = {
   browse: (params?: { org_id?: string; resource_type?: string; page?: number; size?: number }) => {
@@ -1577,18 +1651,18 @@ export const marketApi = {
     if (params?.resource_type) sp.set('resource_type', params.resource_type)
     if (params?.page) sp.set('page', String(params.page))
     if (params?.size) sp.set('size', String(params.size))
-    return apiFetch<any>(`/api/market?${sp}`)
+    return apiFetch<PaginatedResponse<MarketItem>>(`/api/market?${sp}`)
   },
 
   subscribe: (body: { resource_type: string; resource_id: string; org_id: string }) =>
-    apiFetch<any>('/api/market/subscribe', { method: 'POST', body: JSON.stringify(body) }),
+    apiFetch<ApiResponse<unknown>>('/api/market/subscribe', { method: 'POST', body: JSON.stringify(body) }),
 
   unsubscribe: (body: { resource_type: string; resource_id: string; org_id: string }) =>
-    apiFetch<any>('/api/market/unsubscribe', { method: 'DELETE', body: JSON.stringify(body) }),
+    apiFetch<ApiResponse<unknown>>('/api/market/unsubscribe', { method: 'DELETE', body: JSON.stringify(body) }),
 
   listSubscriptions: (resource_type?: string) => {
     const sp = resource_type ? `?resource_type=${resource_type}` : ''
-    return apiFetch<any>(`/api/market/subscriptions${sp}`)
+    return apiFetch<ApiResponse<MarketSubscription[]>>(`/api/market/subscriptions${sp}`)
   },
 }
 
@@ -1600,11 +1674,11 @@ export const api = {
   listSubscriptions: marketApi.listSubscriptions,
 
   setMcpMyCredentials: (serverId: string, body: { env?: Record<string, string>; headers?: Record<string, string> }) =>
-    apiFetch<any>(`/api/mcp-servers/${serverId}/my-credentials`, { method: 'PUT', body: JSON.stringify(body) }),
+    apiFetch<ApiResponse<unknown>>(`/api/mcp-servers/${serverId}/my-credentials`, { method: 'PUT', body: JSON.stringify(body) }),
 
   toggleConnector: (connectorId: string) =>
-    apiFetch<any>(`/api/connectors/${connectorId}/toggle`, { method: 'POST', body: JSON.stringify({}) }),
+    apiFetch<ApiResponse<unknown>>(`/api/connectors/${connectorId}/toggle`, { method: 'POST', body: JSON.stringify({}) }),
 
   toggleKnowledgeBase: (kbId: string) =>
-    apiFetch<any>(`/api/knowledge-bases/${kbId}/toggle`, { method: 'POST', body: JSON.stringify({}) }),
+    apiFetch<ApiResponse<unknown>>(`/api/knowledge-bases/${kbId}/toggle`, { method: 'POST', body: JSON.stringify({}) }),
 }
