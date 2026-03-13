@@ -6,6 +6,7 @@ export interface SandboxConfig {
 
 export interface AgentResponse {
   id: string
+  user_id: string
   name: string
   description: string | null
   icon: string | null
@@ -21,6 +22,8 @@ export interface AgentResponse {
   status: string
   is_global?: boolean
   is_builder?: boolean
+  visibility?: string
+  org_id?: string | null
   published_at: string | null
   created_at: string
   updated_at: string | null

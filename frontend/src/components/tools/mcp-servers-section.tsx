@@ -17,9 +17,10 @@ export interface MCPServersSectionActions {
 
 interface MCPServersSectionProps {
   onReady?: (actions: MCPServersSectionActions) => void
+  currentUserId?: string
 }
 
-export function MCPServersSection({ onReady }: MCPServersSectionProps) {
+export function MCPServersSection({ onReady, currentUserId }: MCPServersSectionProps) {
   const t = useTranslations("tools")
 
   const [servers, setServers] = useState<MCPServerResponse[]>([])
@@ -132,10 +133,14 @@ export function MCPServersSection({ onReady }: MCPServersSectionProps) {
             <MCPServerCard
               key={server.id}
               server={server}
+              currentUserId={currentUserId}
               onEdit={() => handleEdit(server)}
               onDelete={() => handleDelete(server.id)}
               onToggleActive={(isActive) => handleToggleActive(server.id, isActive)}
               onTest={() => handleTest(server.id)}
+              onCredentialsSaved={(serverId) => {
+                setServers((prev) => prev.map((s) => s.id === serverId ? { ...s, my_has_credentials: true } : s))
+              }}
             />
           ))}
         </div>

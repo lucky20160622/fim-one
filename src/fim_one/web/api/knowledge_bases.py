@@ -54,6 +54,7 @@ _SUPPORTED_EXTENSIONS = {
 def _kb_to_response(kb: KnowledgeBase) -> KBResponse:
     return KBResponse(
         id=kb.id,
+        user_id=kb.user_id or "",
         name=kb.name,
         description=kb.description,
         chunk_strategy=kb.chunk_strategy,

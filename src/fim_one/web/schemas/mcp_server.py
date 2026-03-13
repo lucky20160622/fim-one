@@ -37,10 +37,12 @@ class MCPServerUpdate(BaseModel):
     working_dir: str | None = None
     headers: dict[str, str] | None = None
     is_active: bool | None = None
+    allow_fallback: bool | None = None
 
 
 class MCPServerResponse(BaseModel):
     id: str
+    user_id: str
     name: str
     description: str | None
     transport: str
@@ -52,7 +54,19 @@ class MCPServerResponse(BaseModel):
     headers: dict[str, str] | None
     is_active: bool
     tool_count: int
+    allow_fallback: bool = True
+    my_has_credentials: bool = False
     visibility: str = "personal"
     org_id: str | None = None
     created_at: str
     updated_at: str | None
+
+
+class MCPMyCredentialStatus(BaseModel):
+    has_credentials: bool
+    env_keys: list[str] = []  # list of env var names (values masked)
+
+
+class MCPMyCredentialUpsert(BaseModel):
+    env: dict[str, str] | None = None
+    headers: dict[str, str] | None = None

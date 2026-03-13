@@ -1,5 +1,6 @@
 export interface KBResponse {
   id: string
+  user_id: string
   name: string
   description: string | null
   chunk_strategy: string
@@ -9,6 +10,8 @@ export interface KBResponse {
   document_count: number
   total_chunks: number
   status: string
+  visibility?: string
+  org_id?: string | null
   created_at: string
   updated_at: string | null
 }

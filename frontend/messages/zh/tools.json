@@ -135,6 +135,13 @@
   "searchServers": "搜索服务器...",
   "noServersFound": "未找到服务器",
   "configure": "配置",
+  "configureMyKeys": "配置我的密钥",
+  "myCredentialsSaved": "凭据已保存",
+  "keyRequiredWarning": "请配置密钥才能使用",
+  "myKeysDialogTitle": "配置我的密钥",
+  "myKeysDialogDescription": "输入您用于此 MCP 服务器的个人凭据，将替代共享服务器凭据使用。",
+  "myKeysEnvVars": "环境变量",
+  "myKeysSave": "保存",
   "mcpHub": {
     "categories": {
       "All": "全部",

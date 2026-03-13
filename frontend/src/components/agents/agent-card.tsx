@@ -17,6 +17,7 @@ import type { AgentResponse } from "@/types/agent"
 
 interface AgentCardProps {
   agent: AgentResponse
+  currentUserId?: string
   onDelete: (id: string) => void
   onPublish: (id: string) => void
   onUnpublish: (id: string) => void
@@ -24,6 +25,7 @@ interface AgentCardProps {
 
 export function AgentCard({
   agent,
+  currentUserId,
   onDelete,
   onPublish,
   onUnpublish,
@@ -32,6 +34,7 @@ export function AgentCard({
   const tc = useTranslations("common")
   const isPublished = agent.status === "published"
   const isGlobal = agent.is_global === true
+  const isOwner = !currentUserId || agent.user_id === currentUserId
 
   return (
     <div className="group flex flex-col rounded-lg border border-border bg-card p-4 transition-colors hover:border-ring/40 hover:bg-accent/10">
@@ -45,7 +48,7 @@ export function AgentCard({
           )}
           {agent.name}
         </h3>
-        {!isGlobal && (
+        {!isGlobal && isOwner && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

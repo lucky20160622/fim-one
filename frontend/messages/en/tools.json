@@ -69,6 +69,13 @@
   "searchServers": "Search servers...",
   "noServersFound": "No servers found",
   "configure": "Configure",
+  "configureMyKeys": "Configure My Keys",
+  "myCredentialsSaved": "Credentials saved",
+  "keyRequiredWarning": "Configure keys to use this tool",
+  "myKeysDialogTitle": "Configure My Keys",
+  "myKeysDialogDescription": "Enter your personal credentials for this MCP server. These are used instead of the shared server credentials.",
+  "myKeysEnvVars": "Environment Variables",
+  "myKeysSave": "Save",
   "mcpHub": {
     "categories": {
       "All": "All",

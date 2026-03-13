@@ -150,6 +150,7 @@ export default function KBPage() {
               <KBCard
                 key={kb.id}
                 kb={kb}
+                currentUserId={user.id}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
               />

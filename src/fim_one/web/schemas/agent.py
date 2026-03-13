@@ -39,6 +39,7 @@ class AgentUpdate(BaseModel):
 
 class AgentResponse(BaseModel):
     id: str
+    user_id: str
     name: str
     icon: str | None
     description: str | None

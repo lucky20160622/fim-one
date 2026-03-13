@@ -17,17 +17,20 @@ import type { KBResponse } from "@/types/kb"
 
 interface KBCardProps {
   kb: KBResponse
+  currentUserId?: string
   onEdit: (kb: KBResponse) => void
   onDelete: (id: string) => void
 }
 
 export function KBCard({
   kb,
+  currentUserId,
   onEdit,
   onDelete,
 }: KBCardProps) {
   const t = useTranslations("kb")
   const tc = useTranslations("common")
+  const isOwner = !currentUserId || kb.user_id === currentUserId
   return (
     <div className="group flex flex-col rounded-lg border border-border bg-card p-4 transition-colors hover:border-ring/40 hover:bg-accent/10">
       {/* Header: name + hover menu */}
@@ -35,34 +38,56 @@ export function KBCard({
         <h3 className="flex-1 min-w-0 text-sm font-medium truncate text-card-foreground">
           {kb.name}
         </h3>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href={`/kb/${kb.id}`}>
-                <Eye className="h-4 w-4" />
-                {t("view")}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit(kb)}>
-              <Pencil className="h-4 w-4" />
-              {tc("edit")}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={() => onDelete(kb.id)}>
-              <Trash2 className="h-4 w-4" />
-              {tc("delete")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {isOwner ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/kb/${kb.id}`}>
+                  <Eye className="h-4 w-4" />
+                  {t("view")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(kb)}>
+                <Pencil className="h-4 w-4" />
+                {tc("edit")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => onDelete(kb.id)}>
+                <Trash2 className="h-4 w-4" />
+                {tc("delete")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/kb/${kb.id}`}>
+                  <Eye className="h-4 w-4" />
+                  {t("view")}
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Badges */}

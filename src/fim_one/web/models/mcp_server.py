@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import sqlalchemy as sa
 from sqlalchemy import JSON, Boolean, Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -44,6 +45,9 @@ class MCPServer(UUIDPKMixin, TimestampMixin, Base):
     )
     org_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("organizations.id"), nullable=True, index=True
+    )
+    allow_fallback: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False, server_default=sa.text("TRUE")
     )
 
     user: Mapped[User | None] = relationship(back_populates="mcp_servers", lazy="raise")

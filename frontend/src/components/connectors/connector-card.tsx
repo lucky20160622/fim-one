@@ -16,6 +16,7 @@ import type { ConnectorResponse } from "@/types/connector"
 
 interface ConnectorCardProps {
   connector: ConnectorResponse
+  currentUserId?: string
   onDelete: (id: string) => void
 }
 
@@ -29,10 +30,12 @@ const AUTH_LABELS: Record<string, string> = {
 
 export function ConnectorCard({
   connector,
+  currentUserId,
   onDelete,
 }: ConnectorCardProps) {
   const t = useTranslations("connectors")
   const tc = useTranslations("common")
+  const isOwner = !currentUserId || connector.user_id === currentUserId
 
   const isDatabase = connector.type === "database"
   const authLabel = AUTH_LABELS[connector.auth_type]
@@ -55,30 +58,32 @@ export function ConnectorCard({
           )}
           {connector.name}
         </h3>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href={`/connectors/${connector.id}`}>
-                <Pencil className="h-4 w-4" />
-                {tc("edit")}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={() => onDelete(connector.id)}>
-              <Trash2 className="h-4 w-4" />
-              {tc("delete")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {isOwner && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/connectors/${connector.id}`}>
+                  <Pencil className="h-4 w-4" />
+                  {tc("edit")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => onDelete(connector.id)}>
+                <Trash2 className="h-4 w-4" />
+                {tc("delete")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Type badge */}
