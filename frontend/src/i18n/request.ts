@@ -66,8 +66,19 @@ export default getRequestConfig(async () => {
     locale = detectFromAcceptLanguage(acceptLang) ?? DEFAULT_LOCALE
   }
 
+  // Merge English as base so untranslated keys fall back to English
+  // instead of throwing MISSING_MESSAGE errors during dev.
+  const enMessages = locale === "en" ? {} : loadMessages("en")
+  const localeMessages = loadMessages(locale)
+
+  // Shallow-merge per namespace: locale keys override English keys
+  const merged: Record<string, Record<string, string>> = { ...enMessages }
+  for (const [ns, msgs] of Object.entries(localeMessages)) {
+    merged[ns] = { ...enMessages[ns], ...msgs }
+  }
+
   return {
     locale,
-    messages: loadMessages(locale),
+    messages: merged,
   }
 })
