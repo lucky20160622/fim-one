@@ -21,15 +21,29 @@ description: "FIM One 的所有重要更改。"
 
 ### 新增
 
-- **智能体技能系统** — 按需加载智能体指令的技能：`Skill` 模型（名称、描述、内容、脚本）具有完整的 CRUD、发布审查和可见性生命周期；`read_skill(name)` 内置工具用于渐进式披露（~80% 令牌减少）；技能存根注入到系统提示中（~15 个令牌/技能）；每个智能体的 `compact_instructions` 字段用于自定义 ContextGuard 压缩策略。
-- **技能 UI** — 技能列表页面、全页编辑器（内容/脚本/设置选项卡）、SkillCard 组件、侧边栏导航、智能体编辑器技能选择器（带紧凑指令文本区域）。
-- **工作流发布流程** — 工作流的发布/取消发布/重新提交端点，与现有的智能体发布模式相匹配。组织模型上的新 `review_workflows` 标志（带 Alembic 迁移）以启用组织级工作流审查门控。发布操作连接到工作流卡片和工具栏 UI。
-- **工作流蓝图系统** — 用于设计和执行多步自动化蓝图的可视化工作流编辑器。完整的全栈实现：
-  - **后端**：`Workflow` 和 `WorkflowRun` ORM 模型（带 Alembic 迁移）；用于 CRUD + 验证的 Pydantic 模式；完整的 REST API（`/api/workflows/*`）支持创建、读取、更新、删除、列表、导入/导出；基于 SSE 的执行端点用于实时运行状态流；通过现有 `CREDENTIAL_ENCRYPTION_KEY` 的加密环境变量。
-  - **执行引擎**：`WorkflowEngine` 支持节点执行顺序的拓扑排序、条件分支支持和用于跨节点数据传递的 `VariableStore`。12 个节点执行器：Start、End、LLM、ConditionBranch、QuestionClassifier、Agent、KnowledgeRetrieval、Connector、HTTPRequest、VariableAssign、TemplateTransform、CodeExecution。
-  - **前端**：使用 React Flow v12 构建的可视化工作流编辑器 — 拖放节点调色板、12 个带有类型特定图标和配置的自定义节点组件、带有每种类型表单的节点配置面板、连接验证、带有 SSE 驱动的实时执行状态的运行面板、带有卡片网格的工作流列表页面。完整的 i18n 支持（6 种语言）。
-  - **安全性**：代码执行节点使用 `subprocess` 而不是裸 `exec()` 以实现操作系统级隔离；环境变量从 eval/模板执行上下文中过滤；SSE keepalive 用于长时间运行的工作流；跨所有节点执行器的正确 `ExecutionContext` 连接。
-- **管理员：审查日志审计选项卡** — 管理员审计页面现在具有分段的"系统日志/审查日志"切换。审查日志面板查询新的 `GET /api/admin/review-log` 端点（过滤器：组织、资源类型、操作；限制/偏移分页）并显示包含时间、组织名称、资源类型、资源名称、操作徽章（颜色编码：绿色=已批准、红色=已拒绝、琥珀色=已提交/已重新提交、静音=已取消发布）和操作员的表格。完整的 i18n（EN + ZH）。
+- **智能体技能系统** — 按需加载智能体指令的技能系统：`Skill` 模型（名称、描述、内容、脚本）具有完整的 CRUD、发布审核和可见性生命周期；`read_skill(name)` 内置工具用于渐进式信息披露（~80% 令牌减少）；技能存根注入系统提示（~15 令牌/技能）；每个智能体的 `compact_instructions` 字段用于自定义 ContextGuard 压缩策略。
+- **技能 UI** — 技能列表页面、全页编辑器（内容/脚本/设置选项卡）、SkillCard 组件、侧边栏导航、智能体编辑器技能选择器，带有紧凑指令文本区域。
+- **工作流发布流程** — 工作流的发布/取消发布/重新提交端点，与现有的智能体发布模式相匹配。组织模型上的新 `review_workflows` 标志（带有 Alembic 迁移）以启用组织级工作流审核门控。发布操作连接到工作流卡片和工具栏 UI。
+- **工作流蓝图系统** — 用于设计和执行多步自动化蓝图的可视化工作流编辑器：
+  - **12 种节点类型**：Start、End、LLM、ConditionBranch、QuestionClassifier、Agent、KnowledgeRetrieval、Connector、HTTPRequest、VariableAssign、TemplateTransform、CodeExecution — 每种都有自定义 React Flow 节点组件、特定类型的图标和专用配置面板表单。
+  - **执行引擎**：`WorkflowEngine` 具有用于节点执行顺序的拓扑排序、基于 `asyncio.Semaphore` 的并发控制，以及根据 `active_handles` 激活/停用下游边的条件/分类器分支。
+  - **SSE 流式传输**：通过服务器发送事件的实时工作流执行进度 — 发出 `run_started`、`node_started`、`node_completed`、`node_failed`、`node_skipped`、`run_completed` 和 `run_failed` 事件。SSE 保活用于长时间运行的工作流；客户端断开连接检测触发取消。
+  - **变量存储**：线程安全的 `VariableStore`，支持 `{{node_id.output}}` 插值、平面名称回退解析、用于加密环境变量的 `env.*` 命名空间、`snapshot_safe()`（排除机密）和 `list_available_variables()`（用于前端选择器）。
+  - **边标签**：`WorkflowEdgeDef` 携带 `source_handle` 和 `target_handle` 用于条件/分类器分支，启用标记边，直观指示每个连接代表的分支路径。
+  - **变量选择器组合框**：可搜索的组合框（基于 `Command` 的弹出框）用于从上游节点插入 `{{node_id.output}}` 引用 — 按节点类型分组，带有图标，集成到所有提示/模板/正文字段。
+  - **运行历史表单**：显示过去工作流执行运行的侧表单，包括状态、持续时间、输入/输出数据和每个节点的结果。通过 `GET /api/workflows/{id}/runs` 进行分页。
+  - **工作流复制**：`POST /api/workflows/{id}/duplicate` 端点和 UI 操作用于克隆现有工作流（复制蓝图、架构、描述；将状态重置为草稿）。
+  - **蓝图验证**：`POST /api/workflows/validate` 端点 — 验证蓝图而不保存（检查 Start/End 节点存在、重复 ID、未知节点类型、边引用、循环检测）。成功时返回节点/边计数，或返回特定验证错误。
+  - **错误策略**：每个节点的 `error_strategy` 字段，具有三种模式 — `STOP_WORKFLOW`（默认：停止所有剩余节点）、`CONTINUE`（标记为失败但让下游继续）、`FAIL_BRANCH`（跳过仅通过失败节点可达的所有节点）。
+  - **每个节点超时**：每个节点可配置的 `timeout_ms`（默认 30 秒），通过 `asyncio.wait_for` 强制执行；超时产生具有描述性错误消息的结构化 `FAILED` 结果。
+  - **节点配置面板**：按类型的配置表单 — LLM 节点具有系统提示、模型选择器、模型层级（快速/主要）切换、温度滑块、最大令牌数；ConditionBranch 具有操作符下拉菜单（==、!=、>、<、contains 等）和表达式/LLM 模式；HTTPRequest 具有方法选择器、URL、标题编辑器（添加/删除键值对）、带有变量插入的正文；CodeExecution 具有语言选择器（Python/JavaScript）和语法适当的提示；所有输出节点都包括 `OutputVariableField` 和 `InsertVariableBar`。
+  - **在边上添加节点**：自定义 `AddNodeEdge` 组件，带有"+"中点按钮 — 单击打开节点类型选择器弹出框，在内联插入新节点，将现有边分成两个连接。
+  - **自动布局（ELK.js）**：使用 ELK.js 分层算法的 `getAutoLayoutedNodes()` 实用程序，具有 `elk.direction: RIGHT` 用于水平从左到右的节点排列。可配置的节点间距（节点之间 60px，层之间 120px）。
+  - **综合测试套件**：34 个测试涵盖解析器验证（Start/End 存在、重复 ID、未知类型、循环检测、错误策略/超时解析）、拓扑排序（线性和并行分支）、`VariableStore`（获取/设置、插值、环境注入、快照安全性、节点输出）、引擎执行（Start-to-End、输入传递、取消、STOP_WORKFLOW、CONTINUE 策略）和节点执行器（VariableAssign、带变量的 CodeExecution、错误处理）。
+  - **后端 CRUD + API**：`Workflow` 和 `WorkflowRun` ORM 模型，带有 Alembic 迁移；Pydantic 架构；完整的 REST API（`/api/workflows/*`），包括创建、读取、更新、删除、列表、导入/导出；通过 `CREDENTIAL_ENCRYPTION_KEY` 的加密环境变量；变量内省端点（`GET /api/workflows/{id}/variables`）用于前端配置面板。
+  - **安全性**：代码执行节点使用 `subprocess` 而不是裸 `exec()` 以实现操作系统级隔离；环境变量从 eval/模板执行上下文中过滤；`ExecutionContext` 跨所有节点执行器的连接。
+  - **前端**：使用 React Flow v12 构建的可视化编辑器 — 带有类别分组的拖放节点调色板（可折叠的仅图标模式）、12 个自定义节点组件、带有 SSE 驱动的实时执行状态的运行面板、带有卡片网格的工作流列表页面。完整的 i18n 支持（6 种语言）。
+- **管理员：审核日志审计选项卡** — 管理员审计页面现在具有分段的"系统日志/审核日志"切换。审核日志面板查询新的 `GET /api/admin/review-log` 端点（过滤器：组织、资源类型、操作；限制/偏移分页）并显示包含时间、组织名称、资源类型、资源名称、操作徽章（颜色编码：绿色=已批准、红色=已拒绝、琥珀色=已提交/已重新提交、静音=已取消发布）和操作员的表格。完整的 i18n（EN + ZH）。
 - **平台组织**：内置组织 `platform`（ID：`00000000-0000-0000-0000-000000000001`）— 所有新用户自动加入。此组织替代了"全局"可见性概念，并为跨所有用户共享资源提供了中心枢纽。
 - **资源订阅**：用户现在可以从组织市场订阅/取消订阅共享资源（智能体、连接器、知识库、MCP 服务器）。新的 `resource_subscriptions` 数据库表跟踪订阅关系。
 - **市场 API**：用于浏览和管理订阅的新端点：
@@ -38,18 +52,18 @@ description: "FIM One 的所有重要更改。"
   - `DELETE /api/market/unsubscribe` — 取消订阅资源
   - `GET /api/market/subscriptions` — 列出用户的当前订阅
 - **市场页面**：Portal 中的新 `/market` 页面，用于浏览和管理对组织资源的订阅。
-- **智能体自动发现**：智能体上的新 `discoverable` 布尔字段。`discoverable=true` 的智能体可以通过 `call_agent` 工具被 LLM 自动发现和调用（单级委托，无递归）。
-- **子智能体绑定**：智能体上的新 `sub_agent_ids` 字段 — 可调用子智能体的显式白名单，用于细粒度访问控制。
-- **CallAgentTool**：内置工具，使用结构化输入验证和结果处理将任务委托给专家智能体。
-- **MCP 服务器凭证**：新的 `mcp_server_credentials` 表为 MCP 服务器启用每个用户的环境变量和 HTTP 标头覆盖。
+- **智能体自动发现**：智能体上的新 `discoverable` 布尔字段。具有 `discoverable=true` 的智能体可以通过 `call_agent` 工具由 LLM 自动发现和调用（一级委托，无递归）。
+- **子智能体绑定**：智能体上的新 `sub_agent_ids` 字段 — 用于细粒度访问控制的可调用子智能体的显式白名单。
+- **CallAgentTool**：内置工具，通过结构化输入验证和结果处理将任务委托给专家智能体。
+- **MCP 服务器凭证**：新的 `mcp_server_credentials` 表启用 MCP 服务器的每用户环境变量和 HTTP 标头覆盖。
 - **MCP 凭证端点**：`PUT /api/mcp-servers/{id}/my-credentials` 允许用户为共享 MCP 服务器存储个人凭证覆盖。
-- **MCPServer 上的 `allow_fallback`**：布尔字段控制凭证回退行为 — 当为 `true` 时，缺失的用户凭证回退到所有者默认值。
+- **MCPServer 上的 `allow_fallback`**：控制凭证回退行为的布尔字段 — 当为 `true` 时，缺失的用户凭证回退到所有者默认值。
 - **连接器/知识库切换**：用于资源状态管理的新端点：
   - `POST /api/connectors/{id}/toggle` — 暂停/恢复连接器
   - `POST /api/knowledge-bases/{id}/toggle` — 暂停/恢复知识库
 - **独立知识库对话**：`ChatStreamRequest` 和 `Conversation` 上的新 `kb_ids` 字段 — 用户现在可以直接与知识库聊天，而无需将其绑定到智能体。
-- **平台组织保护**：平台组织无法删除，用户无法自行离开。确保所有用户保持与组织枢纽的连接。
-- **发布审查 UI（前端）**：组织级发布审查系统前端 — 组织编辑对话框中的审查切换、带有类型/状态过滤器的 ReviewsSheet 和批准/拒绝工作流、智能体卡片上的发布状态徽章（待处理/已批准/已拒绝）（带有拒绝注释的工具提示）、发布对话框中的审查通知（当目标组织需要审查时）、被拒绝资源的重新提交操作、组织管理员/所有者的"审查管理"下拉菜单。所有资源类型（智能体、连接器、知识库、MCP 服务器）都获得 `publish_status`、`reviewed_by`、`reviewed_at`、`review_note` 类型字段。完整的 i18n（EN + ZH）。
+- **平台组织保护**：平台组织无法删除，用户无法自行离开。确保所有用户保持与组织中心的连接。
+- **发布审核 UI（前端）**：组织级发布审核系统前端 — 组织编辑对话框中的审核切换、带有类型/状态过滤器的 ReviewsSheet 和批准/拒绝工作流、智能体卡片上的发布状态徽章（待处理/已批准/已拒绝）及拒绝备注的工具提示、发布对话框中的审核通知（当目标组织需要审核时）、被拒绝资源的重新提交操作、组织管理员/所有者的"审核管理"下拉菜单。所有资源类型（智能体、连接器、知识库、MCP 服务器）获得 `publish_status`、`reviewed_by`、`reviewed_at`、`review_note` 类型字段。完整的 i18n（EN + ZH）。
 
 ### 已修复
 
