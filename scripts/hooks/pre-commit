@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -e
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+# ---------------------------------------------------------------------------
+# Discover locale subdirs from frontend/messages/ (excluding 'en')
+# Used to build the exclusion list for docs locale subdirs.
+# ---------------------------------------------------------------------------
+LOCALE_EXCLUDE_PATTERN=""
+if [ -d "$ROOT/frontend/messages" ]; then
+  for locale_dir in "$ROOT/frontend/messages"/*/; do
+    locale_name="$(basename "$locale_dir")"
+    if [ "$locale_name" != "en" ]; then
+      if [ -z "$LOCALE_EXCLUDE_PATTERN" ]; then
+        LOCALE_EXCLUDE_PATTERN="^docs/${locale_name}/"
+      else
+        LOCALE_EXCLUDE_PATTERN="${LOCALE_EXCLUDE_PATTERN}|^docs/${locale_name}/"
+      fi
+    fi
+  done
+fi
+
+# ---------------------------------------------------------------------------
+# Detect staged EN source files
+# ---------------------------------------------------------------------------
+STAGED_JSON=$(git diff --cached --name-only --diff-filter=ACM \
+  | grep -E '^frontend/messages/en/.*\.json$' || true)
+
+# MDX files under docs/ but NOT under any locale subdir
+RAW_MDX=$(git diff --cached --name-only --diff-filter=ACM \
+  | grep -E '^docs/.*\.mdx$' || true)
+
+if [ -n "$RAW_MDX" ] && [ -n "$LOCALE_EXCLUDE_PATTERN" ]; then
+  STAGED_MDX=$(echo "$RAW_MDX" | grep -vE "$LOCALE_EXCLUDE_PATTERN" || true)
+else
+  STAGED_MDX="$RAW_MDX"
+fi
+
+STAGED_README=$(git diff --cached --name-only --diff-filter=ACM \
+  | grep -E '^README\.md$' || true)
+
+# ---------------------------------------------------------------------------
+# Skip hook if nothing relevant is staged
+# ---------------------------------------------------------------------------
+if [ -z "$STAGED_JSON" ] && [ -z "$STAGED_MDX" ] && [ -z "$STAGED_README" ]; then
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Run the translation script
+# ---------------------------------------------------------------------------
+echo "i18n: translating changed files..."
+cd "$ROOT"
+GIT_HOOK=1 uv run scripts/translate.py
