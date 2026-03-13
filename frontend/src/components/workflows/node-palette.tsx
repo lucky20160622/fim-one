@@ -15,9 +15,13 @@ import {
   Variable,
   FileText,
   Code,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import type { WorkflowNodeType } from "@/types/workflow"
 
@@ -72,9 +76,14 @@ const categories: NodePaletteCategory[] = [
   },
 ]
 
-export function NodePalette() {
+interface NodePaletteProps {
+  existingNodeTypes?: Set<string>
+}
+
+export function NodePalette({ existingNodeTypes }: NodePaletteProps) {
   const t = useTranslations("workflows")
   const [search, setSearch] = useState("")
+  const [collapsed, setCollapsed] = useState(false)
 
   const handleDragStart = (
     event: React.DragEvent,
@@ -86,12 +95,83 @@ export function NodePalette() {
 
   const searchLower = search.toLowerCase()
 
+  const isSingletonDisabled = (type: WorkflowNodeType) => {
+    if (type === "start" && existingNodeTypes?.has("start")) return true
+    if (type === "end" && existingNodeTypes?.has("end")) return true
+    return false
+  }
+
+  // Collapsed view: show only icons
+  if (collapsed) {
+    return (
+      <div className="flex flex-col h-full border-r border-border/40 bg-background w-[48px] items-center">
+        <div className="pt-2 pb-2 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setCollapsed(false)}
+            className="h-7 w-7"
+          >
+            <PanelLeftOpen className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <ScrollArea className="flex-1 min-h-0 w-full">
+          <div className="flex flex-col items-center gap-0.5 pb-2">
+            {categories.flatMap((cat) =>
+              cat.items.map((item) => {
+                const disabled = isSingletonDisabled(item.type)
+                return (
+                  <Tooltip key={item.type}>
+                    <TooltipTrigger asChild>
+                      <div
+                        draggable={!disabled}
+                        onDragStart={(e) => {
+                          if (disabled) {
+                            e.preventDefault()
+                            return
+                          }
+                          handleDragStart(e, item.type)
+                        }}
+                        className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                          disabled
+                            ? "opacity-30 cursor-not-allowed"
+                            : "cursor-grab active:cursor-grabbing hover:bg-accent/50",
+                          item.color,
+                        )}
+                      >
+                        {item.icon}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="text-xs">
+                      {t(`nodeType_${item.type}` as Parameters<typeof t>[0])}
+                    </TooltipContent>
+                  </Tooltip>
+                )
+              }),
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full border-r border-border/40 bg-background w-[220px]">
-      <div className="px-3 pt-3 pb-2 shrink-0">
-        <h3 className="text-xs font-semibold text-foreground mb-2">
+      <div className="flex items-center justify-between px-3 pt-3 pb-2 shrink-0">
+        <h3 className="text-xs font-semibold text-foreground">
           {t("paletteTitle")}
         </h3>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => setCollapsed(true)}
+          className="h-6 w-6"
+        >
+          <PanelLeftClose className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      <div className="px-3 pb-2 shrink-0">
         <Input
           placeholder={t("paletteSearch")}
           value={search}
@@ -110,30 +190,44 @@ export function NodePalette() {
             if (filtered.length === 0) return null
             return (
               <div key={cat.key}>
-                <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1">
+                <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider mb-1.5 border-b border-border/30 pb-1">
                   {t(cat.key as Parameters<typeof t>[0])}
                 </p>
                 <div className="space-y-0.5">
-                  {filtered.map((item) => (
-                    <div
-                      key={item.type}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, item.type)}
-                      className="flex items-center gap-2 rounded-md px-2 py-1.5 cursor-grab active:cursor-grabbing hover:bg-accent/50 transition-colors"
-                    >
-                      <div className={cn("shrink-0", item.color)}>
-                        {item.icon}
+                  {filtered.map((item) => {
+                    const disabled = isSingletonDisabled(item.type)
+                    return (
+                      <div
+                        key={item.type}
+                        draggable={!disabled}
+                        onDragStart={(e) => {
+                          if (disabled) {
+                            e.preventDefault()
+                            return
+                          }
+                          handleDragStart(e, item.type)
+                        }}
+                        className={cn(
+                          "flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors",
+                          disabled
+                            ? "opacity-30 cursor-not-allowed"
+                            : "cursor-grab active:cursor-grabbing hover:bg-accent/50",
+                        )}
+                      >
+                        <div className={cn("shrink-0", item.color)}>
+                          {item.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate">
+                            {t(`nodeType_${item.type}` as Parameters<typeof t>[0])}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground/60 truncate">
+                            {t(`nodeDesc_${item.type}` as Parameters<typeof t>[0])}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-foreground truncate">
-                          {t(`nodeType_${item.type}` as Parameters<typeof t>[0])}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground/60 truncate">
-                          {t(`nodeDesc_${item.type}` as Parameters<typeof t>[0])}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )

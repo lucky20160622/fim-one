@@ -152,15 +152,18 @@ FIM One führt kein BPM/FSM durch — Workflow-Logik gehört zum Zielsystem, Con
 - **DAG Visualization** — Interaktiver Flussgraph mit Live-Status, Abhängigkeitskanten, Klick-zum-Scrollen und Re-Plan-Runden-Snapshots als zusammenklappbare Karten.
 - **Conversational Interrupt** — Senden Sie Folgefragen, während der Agent läuft; eingefügt an der nächsten Iterationsgrenze.
 - **Dark / Light / System Theme** — Vollständige Theme-Unterstützung mit Systemeinstellungs-Erkennung.
-- **Command Palette** — Konversationssuche, Favoriten, Batch-Operationen und Titel-Umbenennung.#### Plattform & Multi-Mandant
+- **Command Palette** — Konversationssuche, Favoriten, Batch-Operationen und Titel-Umbenennung.#### Plattform & Multi-Mandantenfähigkeit
 - **JWT Auth** — Token-basierte SSE-Authentifizierung, Gesprächseigentümerschaft, Ressourcenisolation pro Benutzer.
-- **Agent Management** — Erstellen, konfigurieren und veröffentlichen Sie Agents mit gebundenen Modellen, Tools und Anweisungen. Ausführungsmodus pro Agent (Standard/Planner) und Temperaturkontrolle. Optionales `discoverable` Flag ermöglicht LLM-Autodiscovery über CallAgentTool.
-- **Platform Organization** — Integrierte `platform` Org tritt automatisch allen Benutzern bei und ersetzt das Legacy-Konzept der „globalen" Sichtbarkeit. Zentraler Hub zum Teilen von Ressourcen (Agents, Connectors, Knowledge Bases, MCP Server) in der gesamten Organisation.
-- **Resource Subscriptions & Market** — Benutzer durchsuchen und abonnieren gemeinsam genutzte Ressourcen aus dem Org Market. Abonnieren/Abmelden über UI oder API. Alle Ressourcentypen unterstützen Veröffentlichungs- und Abonnementverwaltung auf Org-Ebene.
-- **Admin Panel** — System-Statistik-Dashboard (Benutzer, Gespräche, Tokens, Modellnutzungsdiagramme, Tokens-nach-Agent-Aufschlüsselung), Connector-Call-Metriken (Erfolgsquote, Latenz, Call-Anzahl), Benutzerverwaltung mit Suche/Pagination, Rollenwechsel, Passwort-Zurücksetzen, Konto aktivieren/deaktivieren und Pro-Tool-Aktivierungs-/Deaktivierungssteuerungen.
-- **First-Run Setup Wizard** — Beim ersten Start führt das Portal Sie durch die Erstellung eines Admin-Kontos (Benutzername, Passwort, E-Mail). Dieses einmalige Setup wird zu Ihren Login-Anmeldedaten – keine Konfigurationsdateien erforderlich.
-- **Personal Center** — Globale Systemanweisungen pro Benutzer, angewendet auf alle Gespräche.
-- **Language Preference** — Spracheinstellung pro Benutzer (auto/en/zh), die alle LLM-Antworten in die gewählte Sprache lenkt.#### Kontext & Speicher
+- **Agent-Verwaltung** — Erstellen, konfigurieren und veröffentlichen Sie Agenten mit gebundenen Modellen, Tools und Anweisungen. Ausführungsmodus pro Agent (Standard/Planner) und Temperaturkontrolle. Das optionale Flag `discoverable` ermöglicht die automatische LLM-Erkennung über CallAgentTool.
+- **Agent-Fähigkeitensystem** — Progressive Anweisungsladung für Agenten. Fähigkeiten (SOPs, Skripte, Domänenwissen) werden im System-Prompt als leichte Stubs (~15 Token pro Stück) referenziert; Agenten rufen `read_skill(name)` auf, um vollständige Inhalte bei Bedarf zu laden, wodurch die Anweisungs-Token-Kosten pro Gespräch um ~80% reduziert werden. Feld `compact_instructions` pro Agent für benutzerdefinierte ContextGuard-Kompaktierungsstrategie.
+- **Plattform-Organisation** — Integrierte `platform`-Organisation tritt automatisch allen Benutzern bei und ersetzt das veraltete Konzept der „globalen" Sichtbarkeit. Zentraler Hub zum Teilen von Ressourcen (Agenten, Konnektoren, Wissensdatenbanken, MCP-Server) in der gesamten Organisation.
+- **Ressourcen-Abos & Marktplatz** — Benutzer durchsuchen und abonnieren gemeinsam genutzte Ressourcen aus dem Organisations-Marktplatz. Abonnieren/Abmelden über UI oder API. Alle Ressourcentypen unterstützen Veröffentlichung und Abonnementverwaltung auf Organisationsebene.
+- **Admin-Panel** — System-Statistik-Dashboard (Benutzer, Gespräche, Token, Modellnutzungsdiagramme, Token-nach-Agent-Aufschlüsselung), Konnektor-Aufrufsmetriken (Erfolgsquote, Latenz, Aufrufsanzahl), Benutzerverwaltung mit Suche/Paginierung, Rollenwechsel, Passwort-Zurücksetzen, Konto aktivieren/deaktivieren und Steuerelemente zum Aktivieren/Deaktivieren pro Tool.
+- **First-Run-Setup-Assistent** — Beim ersten Start führt Sie das Portal durch die Erstellung eines Admin-Kontos (Benutzername, Passwort, E-Mail). Dieses einmalige Setup wird zu Ihren Anmeldedaten – keine Konfigurationsdateien erforderlich.
+- **Persönliches Zentrum** — Globale Systemanweisungen pro Benutzer, angewendet auf alle Gespräche.
+- **Spracheinstellung** — Spracheinstellung pro Benutzer (auto/en/zh), die alle LLM-Antworten in die gewählte Sprache lenkt.
+
+#### Kontext & Speicher
 - **LLM Compact** — Automatische LLM-gestützte Zusammenfassung, um innerhalb von Token-Budgets zu bleiben.
 - **ContextGuard + Pinned Messages** — Token-Budget-Manager; angeheftete Nachrichten sind vor Komprimierung geschützt.
 - **Dual Database Support** — SQLite (Standard ohne Konfiguration) für schnelle Inbetriebnahme in Sekunden; PostgreSQL für Production und Multi-Worker-Deployments. Docker Compose stellt PostgreSQL automatisch mit Health Checks bereit. `docker compose up` und du bist live.## Architektur### Systemübersicht

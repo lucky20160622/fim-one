@@ -13,6 +13,10 @@ function QuestionClassifierNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as unknown as QuestionClassifierNodeData & { runStatus?: NodeRunStatus }
   const classes = nodeData.classes ?? []
 
+  // Calculate vertical spacing for stacked source handles on the right
+  const handleCount = classes.length > 0 ? classes.length : 1
+  const handleSpacing = 100 / (handleCount + 1)
+
   return (
     <BaseWorkflowNode
       nodeType="questionClassifier"
@@ -32,27 +36,28 @@ function QuestionClassifierNodeComponent({ data, selected }: NodeProps) {
       )}
       <Handle
         type="target"
-        position={Position.Top}
+        position={Position.Left}
         id="target"
-        className="!w-1.5 !h-1.5 !bg-teal-500 !border-teal-500"
+        className="!w-2 !h-2 !bg-teal-500 !border-teal-600/30 !-left-1"
       />
+      {/* Source handles stacked vertically on the right */}
       {classes.length > 0
         ? classes.map((c, i) => (
             <Handle
               key={c.id ?? i}
               type="source"
-              position={Position.Bottom}
+              position={Position.Right}
               id={`class-${c.id ?? i}`}
-              className="!w-1.5 !h-1.5 !bg-teal-500 !border-teal-500"
-              style={{ left: `${((i + 1) / (classes.length + 1)) * 100}%` }}
+              className="!w-2 !h-2 !bg-teal-500 !border-teal-600/30 !-right-1"
+              style={{ top: `${handleSpacing * (i + 1)}%` }}
             />
           ))
         : (
             <Handle
               type="source"
-              position={Position.Bottom}
+              position={Position.Right}
               id="source-default"
-              className="!w-1.5 !h-1.5 !bg-teal-500 !border-teal-500"
+              className="!w-2 !h-2 !bg-teal-500 !border-teal-600/30 !-right-1"
             />
           )}
     </BaseWorkflowNode>

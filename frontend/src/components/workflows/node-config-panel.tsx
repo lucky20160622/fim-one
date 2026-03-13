@@ -2,7 +2,7 @@
 
 import { useCallback } from "react"
 import { useTranslations } from "next-intl"
-import { Plus, Trash2, X } from "lucide-react"
+import { Plus, Trash2, X, Braces } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
 import type { Node } from "@xyflow/react"
 import type { WorkflowNodeType } from "@/types/workflow"
 
@@ -112,6 +113,49 @@ type ConfigProps = {
   updateField: (field: string, value: unknown) => void
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   t: any
+}
+
+/** Reusable section header */
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <>
+      <Separator className="my-1" />
+      <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider">
+        {label}
+      </p>
+    </>
+  )
+}
+
+/** Reusable output variable field */
+function OutputVariableField({ data, updateField, t }: ConfigProps) {
+  return (
+    <>
+      <SectionHeader label={t("configSectionOutput")} />
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configOutputVariable")}</label>
+        <Input
+          className="h-7 text-xs"
+          placeholder="result"
+          value={(data.output_variable ?? "") as string}
+          onChange={(e) => updateField("output_variable", e.target.value)}
+        />
+        <p className="text-[10px] text-muted-foreground/60">
+          {t("configVariableRefHint")}
+        </p>
+      </div>
+    </>
+  )
+}
+
+/** Variable insert button (hint) */
+function InsertVariableHint({ t }: { t: ConfigProps["t"] }) {
+  return (
+    <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
+      <Braces className="h-3 w-3" />
+      <span>{t("configVariableRefHint")}</span>
+    </div>
+  )
 }
 
 function StartConfig({ data, updateField, t }: ConfigProps) {
@@ -237,6 +281,7 @@ function EndConfig({ data, updateField, t }: ConfigProps) {
           </Button>
         </div>
       ))}
+      <InsertVariableHint t={t} />
     </div>
   )
 }
@@ -244,36 +289,54 @@ function EndConfig({ data, updateField, t }: ConfigProps) {
 function LLMConfig({ data, updateField, t }: ConfigProps) {
   return (
     <div className="space-y-3">
+      {/* Model section */}
+      <SectionHeader label={t("configSectionModel")} />
       <div className="space-y-1.5">
         <label className="text-xs font-medium">{t("configModel")}</label>
-        <Input
-          className="h-7 text-xs"
-          placeholder="gpt-4o"
-          value={(data.model ?? "") as string}
-          onChange={(e) => updateField("model", e.target.value)}
-        />
+        <Select
+          value={(data.model ?? "__default__") as string}
+          onValueChange={(v) => updateField("model", v === "__default__" ? "" : v)}
+        >
+          <SelectTrigger className="w-full h-7 text-xs">
+            <SelectValue placeholder={t("configModelPlaceholder")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__default__">{t("configModelPlaceholder")}</SelectItem>
+            <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+            <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+            <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+            <SelectItem value="claude-sonnet-4-20250514">Claude Sonnet 4</SelectItem>
+            <SelectItem value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</SelectItem>
+            <SelectItem value="deepseek-chat">DeepSeek Chat</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
+      {/* Prompt section */}
+      <SectionHeader label={t("configSectionPrompt")} />
       <div className="space-y-1.5">
-        <label className="text-xs font-medium">{t("configPromptTemplate")}</label>
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium">{t("configPromptTemplate")}</label>
+        </div>
         <Textarea
           className="text-xs resize-none"
-          rows={4}
+          rows={5}
           placeholder={t("configPromptHint")}
           value={(data.prompt_template ?? "") as string}
           onChange={(e) => updateField("prompt_template", e.target.value)}
         />
+        <InsertVariableHint t={t} />
       </div>
+
+      {/* Parameters section */}
+      <SectionHeader label={t("configSectionParameters")} />
       <div className="space-y-1.5">
-        <label className="text-xs font-medium">{t("configOutputVariable")}</label>
-        <Input
-          className="h-7 text-xs"
-          placeholder="result"
-          value={(data.output_variable ?? "") as string}
-          onChange={(e) => updateField("output_variable", e.target.value)}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium">{t("configTemperature")}: {((data.temperature ?? 0.7) as number).toFixed(1)}</label>
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium">{t("configTemperature")}</label>
+          <span className="text-[10px] font-mono text-muted-foreground tabular-nums">
+            {((data.temperature ?? 0.7) as number).toFixed(1)}
+          </span>
+        </div>
         <Slider
           value={[(data.temperature ?? 0.7) as number]}
           onValueChange={([v]) => updateField("temperature", v)}
@@ -292,17 +355,28 @@ function LLMConfig({ data, updateField, t }: ConfigProps) {
           onChange={(e) => updateField("max_tokens", e.target.value ? Number(e.target.value) : undefined)}
         />
       </div>
+
+      {/* Output section */}
+      <OutputVariableField data={data} updateField={updateField} t={t} />
     </div>
   )
 }
 
 function ConditionConfig({ data, updateField, t }: ConfigProps) {
   const mode = (data.mode ?? "expression") as string
-  const conditions = (data.conditions ?? []) as Array<{ id: string; label: string; expression?: string; llm_prompt?: string }>
+  const conditions = (data.conditions ?? []) as Array<{
+    id: string
+    label: string
+    variable?: string
+    operator?: string
+    value?: string
+    expression?: string
+    llm_prompt?: string
+  }>
 
   const addCondition = () => {
     const newId = `cond_${Date.now()}`
-    updateField("conditions", [...conditions, { id: newId, label: "" }])
+    updateField("conditions", [...conditions, { id: newId, label: "", variable: "", operator: "==", value: "" }])
   }
 
   const removeCondition = (idx: number) => {
@@ -328,6 +402,8 @@ function ConditionConfig({ data, updateField, t }: ConfigProps) {
           </SelectContent>
         </Select>
       </div>
+
+      <SectionHeader label={t("configConditions")} />
       <div className="flex items-center justify-between">
         <label className="text-xs font-medium">{t("configConditions")}</label>
         <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={addCondition}>
@@ -349,12 +425,43 @@ function ConditionConfig({ data, updateField, t }: ConfigProps) {
             </Button>
           </div>
           {mode === "expression" ? (
-            <Input
-              className="h-7 text-xs"
-              placeholder={t("configExpression")}
-              value={c.expression ?? ""}
-              onChange={(e) => updateCondition(i, "expression", e.target.value)}
-            />
+            <div className="space-y-1.5">
+              {/* Variable selector */}
+              <Input
+                className="h-7 text-xs"
+                placeholder={t("configConditionVariable")}
+                value={c.variable ?? ""}
+                onChange={(e) => updateCondition(i, "variable", e.target.value)}
+              />
+              {/* Operator selector */}
+              <Select
+                value={c.operator ?? "=="}
+                onValueChange={(v) => updateCondition(i, "operator", v)}
+              >
+                <SelectTrigger className="w-full h-7 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="==">== (equals)</SelectItem>
+                  <SelectItem value="!=">!= (not equals)</SelectItem>
+                  <SelectItem value=">">&gt; (greater than)</SelectItem>
+                  <SelectItem value="<">&lt; (less than)</SelectItem>
+                  <SelectItem value="contains">contains</SelectItem>
+                  <SelectItem value="not_contains">not contains</SelectItem>
+                  <SelectItem value="is_empty">is empty</SelectItem>
+                  <SelectItem value="is_not_empty">is not empty</SelectItem>
+                </SelectContent>
+              </Select>
+              {/* Value input (hidden for is_empty/is_not_empty) */}
+              {c.operator !== "is_empty" && c.operator !== "is_not_empty" && (
+                <Input
+                  className="h-7 text-xs"
+                  placeholder={t("configConditionValue")}
+                  value={c.value ?? ""}
+                  onChange={(e) => updateCondition(i, "value", e.target.value)}
+                />
+              )}
+            </div>
           ) : (
             <Textarea
               className="text-xs resize-none"
@@ -366,6 +473,17 @@ function ConditionConfig({ data, updateField, t }: ConfigProps) {
           )}
         </div>
       ))}
+
+      {/* Default (else) branch */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium">{t("configDefaultBranchLabel")}</label>
+        <Input
+          className="h-7 text-xs"
+          placeholder={t("configDefaultBranchPlaceholder")}
+          value={(data.default_branch_label ?? "") as string}
+          onChange={(e) => updateField("default_branch_label", e.target.value)}
+        />
+      </div>
     </div>
   )
 }
@@ -389,6 +507,7 @@ function QuestionClassifierConfig({ data, updateField, t }: ConfigProps) {
 
   return (
     <div className="space-y-3">
+      <SectionHeader label={t("configSectionModel")} />
       <div className="space-y-1.5">
         <label className="text-xs font-medium">{t("configModel")}</label>
         <Input
@@ -407,6 +526,8 @@ function QuestionClassifierConfig({ data, updateField, t }: ConfigProps) {
           onChange={(e) => updateField("prompt", e.target.value)}
         />
       </div>
+
+      <SectionHeader label={t("configClasses")} />
       <div className="flex items-center justify-between">
         <label className="text-xs font-medium">{t("configClasses")}</label>
         <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={addClass}>
@@ -451,6 +572,8 @@ function AgentConfig({ data, updateField, t }: ConfigProps) {
           onChange={(e) => updateField("agent_id", e.target.value)}
         />
       </div>
+
+      <SectionHeader label={t("configSectionPrompt")} />
       <div className="space-y-1.5">
         <label className="text-xs font-medium">{t("configPromptTemplate")}</label>
         <Textarea
@@ -460,16 +583,10 @@ function AgentConfig({ data, updateField, t }: ConfigProps) {
           value={(data.prompt_template ?? "") as string}
           onChange={(e) => updateField("prompt_template", e.target.value)}
         />
+        <InsertVariableHint t={t} />
       </div>
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium">{t("configOutputVariable")}</label>
-        <Input
-          className="h-7 text-xs"
-          placeholder="result"
-          value={(data.output_variable ?? "") as string}
-          onChange={(e) => updateField("output_variable", e.target.value)}
-        />
-      </div>
+
+      <OutputVariableField data={data} updateField={updateField} t={t} />
     </div>
   )
 }
@@ -486,6 +603,8 @@ function KnowledgeRetrievalConfig({ data, updateField, t }: ConfigProps) {
           onChange={(e) => updateField("kb_id", e.target.value)}
         />
       </div>
+
+      <SectionHeader label={t("configSectionPrompt")} />
       <div className="space-y-1.5">
         <label className="text-xs font-medium">{t("configQueryTemplate")}</label>
         <Textarea
@@ -495,7 +614,10 @@ function KnowledgeRetrievalConfig({ data, updateField, t }: ConfigProps) {
           value={(data.query_template ?? "") as string}
           onChange={(e) => updateField("query_template", e.target.value)}
         />
+        <InsertVariableHint t={t} />
       </div>
+
+      <SectionHeader label={t("configSectionParameters")} />
       <div className="space-y-1.5">
         <label className="text-xs font-medium">{t("configTopK")}</label>
         <Input
@@ -506,49 +628,100 @@ function KnowledgeRetrievalConfig({ data, updateField, t }: ConfigProps) {
           onChange={(e) => updateField("top_k", e.target.value ? Number(e.target.value) : undefined)}
         />
       </div>
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium">{t("configOutputVariable")}</label>
-        <Input
-          className="h-7 text-xs"
-          placeholder="result"
-          value={(data.output_variable ?? "") as string}
-          onChange={(e) => updateField("output_variable", e.target.value)}
-        />
-      </div>
+
+      <OutputVariableField data={data} updateField={updateField} t={t} />
     </div>
   )
 }
 
 function ConnectorConfig({ data, updateField, t }: ConfigProps) {
+  const parameters = (data.parameters ?? {}) as Record<string, string>
+  const paramEntries = Object.entries(parameters)
+
+  const addParam = () => {
+    updateField("parameters", { ...parameters, "": "" })
+  }
+
+  const removeParam = (key: string) => {
+    const updated = { ...parameters }
+    delete updated[key]
+    updateField("parameters", updated)
+  }
+
+  const updateParam = (oldKey: string, newKey: string, value: string) => {
+    const updated: Record<string, string> = {}
+    for (const [k, v] of Object.entries(parameters)) {
+      if (k === oldKey) {
+        updated[newKey] = value
+      } else {
+        updated[k] = v
+      }
+    }
+    updateField("parameters", updated)
+  }
+
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
         <label className="text-xs font-medium">{t("configSelectConnector")}</label>
-        <Input
-          className="h-7 text-xs"
-          placeholder="Connector ID"
-          value={(data.connector_id ?? "") as string}
-          onChange={(e) => updateField("connector_id", e.target.value)}
-        />
+        <Select
+          value={(data.connector_id ?? "__default__") as string}
+          onValueChange={(v) => updateField("connector_id", v === "__default__" ? "" : v)}
+        >
+          <SelectTrigger className="w-full h-7 text-xs">
+            <SelectValue placeholder={t("configConnectorPlaceholder")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__default__">{t("configConnectorPlaceholder")}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-1.5">
         <label className="text-xs font-medium">{t("configSelectAction")}</label>
-        <Input
-          className="h-7 text-xs"
-          placeholder="Action name"
-          value={(data.action ?? "") as string}
-          onChange={(e) => updateField("action", e.target.value)}
-        />
+        <Select
+          value={(data.action ?? "__default__") as string}
+          onValueChange={(v) => updateField("action", v === "__default__" ? "" : v)}
+        >
+          <SelectTrigger className="w-full h-7 text-xs">
+            <SelectValue placeholder={t("configActionPlaceholder")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__default__">{t("configActionPlaceholder")}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium">{t("configOutputVariable")}</label>
-        <Input
-          className="h-7 text-xs"
-          placeholder="result"
-          value={(data.output_variable ?? "") as string}
-          onChange={(e) => updateField("output_variable", e.target.value)}
-        />
+
+      {/* Parameter mapping */}
+      <SectionHeader label={t("configParameters")} />
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium">{t("configParameters")}</label>
+        <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={addParam}>
+          <Plus className="h-3 w-3" />
+          {t("configAddParam")}
+        </Button>
       </div>
+      {paramEntries.map(([key, value], i) => (
+        <div key={i} className="flex items-center gap-2">
+          <Input
+            className="h-7 text-xs flex-1"
+            placeholder={t("configKey")}
+            value={key}
+            onChange={(e) => updateParam(key, e.target.value, value)}
+          />
+          <Input
+            className="h-7 text-xs flex-1"
+            placeholder={t("configValue")}
+            value={value}
+            onChange={(e) => updateParam(key, key, e.target.value)}
+          />
+          <Button variant="ghost" size="icon-sm" onClick={() => removeParam(key)}>
+            <Trash2 className="h-3 w-3 text-destructive" />
+          </Button>
+        </div>
+      ))}
+      <InsertVariableHint t={t} />
+
+      <OutputVariableField data={data} updateField={updateField} t={t} />
     </div>
   )
 }
@@ -580,6 +753,8 @@ function HTTPRequestConfig({ data, updateField, t }: ConfigProps) {
           onChange={(e) => updateField("url", e.target.value)}
         />
       </div>
+
+      <SectionHeader label={t("configBody")} />
       <div className="space-y-1.5">
         <label className="text-xs font-medium">{t("configBody")}</label>
         <Textarea
@@ -589,16 +764,10 @@ function HTTPRequestConfig({ data, updateField, t }: ConfigProps) {
           value={(data.body ?? "") as string}
           onChange={(e) => updateField("body", e.target.value)}
         />
+        <InsertVariableHint t={t} />
       </div>
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium">{t("configOutputVariable")}</label>
-        <Input
-          className="h-7 text-xs"
-          placeholder="response"
-          value={(data.output_variable ?? "") as string}
-          onChange={(e) => updateField("output_variable", e.target.value)}
-        />
-      </div>
+
+      <OutputVariableField data={data} updateField={updateField} t={t} />
     </div>
   )
 }
@@ -647,6 +816,7 @@ function VariableAssignConfig({ data, updateField, t }: ConfigProps) {
           </Button>
         </div>
       ))}
+      <InsertVariableHint t={t} />
     </div>
   )
 }
@@ -662,16 +832,10 @@ function TemplateTransformConfig({ data, updateField, t }: ConfigProps) {
           value={(data.template ?? "") as string}
           onChange={(e) => updateField("template", e.target.value)}
         />
+        <InsertVariableHint t={t} />
       </div>
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium">{t("configOutputVariable")}</label>
-        <Input
-          className="h-7 text-xs"
-          placeholder="result"
-          value={(data.output_variable ?? "") as string}
-          onChange={(e) => updateField("output_variable", e.target.value)}
-        />
-      </div>
+
+      <OutputVariableField data={data} updateField={updateField} t={t} />
     </div>
   )
 }
@@ -691,6 +855,8 @@ function CodeExecutionConfig({ data, updateField, t }: ConfigProps) {
           </SelectContent>
         </Select>
       </div>
+
+      <SectionHeader label={t("configCode")} />
       <div className="space-y-1.5">
         <label className="text-xs font-medium">{t("configCode")}</label>
         <Textarea
@@ -700,15 +866,8 @@ function CodeExecutionConfig({ data, updateField, t }: ConfigProps) {
           onChange={(e) => updateField("code", e.target.value)}
         />
       </div>
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium">{t("configOutputVariable")}</label>
-        <Input
-          className="h-7 text-xs"
-          placeholder="result"
-          value={(data.output_variable ?? "") as string}
-          onChange={(e) => updateField("output_variable", e.target.value)}
-        />
-      </div>
+
+      <OutputVariableField data={data} updateField={updateField} t={t} />
     </div>
   )
 }

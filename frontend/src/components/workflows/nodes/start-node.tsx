@@ -26,9 +26,9 @@ function StartNodeComponent({ data, selected }: NodeProps) {
       </p>
       <Handle
         type="source"
-        position={Position.Bottom}
+        position={Position.Right}
         id="source"
-        className="!w-1.5 !h-1.5 !bg-green-500 !border-green-500"
+        className="!w-2 !h-2 !bg-green-500 !border-green-600/30 !-right-1"
       />
     </BaseWorkflowNode>
   )

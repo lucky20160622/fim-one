@@ -13,6 +13,10 @@ function ConditionBranchNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as unknown as ConditionNodeData & { runStatus?: NodeRunStatus }
   const conditions = nodeData.conditions ?? []
 
+  // Calculate vertical spacing for stacked source handles on the right
+  const handleCount = conditions.length > 0 ? conditions.length : 1
+  const handleSpacing = 100 / (handleCount + 1)
+
   return (
     <BaseWorkflowNode
       nodeType="conditionBranch"
@@ -32,28 +36,28 @@ function ConditionBranchNodeComponent({ data, selected }: NodeProps) {
       )}
       <Handle
         type="target"
-        position={Position.Top}
+        position={Position.Left}
         id="target"
-        className="!w-1.5 !h-1.5 !bg-orange-500 !border-orange-500"
+        className="!w-2 !h-2 !bg-orange-500 !border-orange-600/30 !-left-1"
       />
-      {/* One source handle per condition */}
+      {/* Source handles stacked vertically on the right */}
       {conditions.length > 0
         ? conditions.map((c, i) => (
             <Handle
               key={c.id ?? i}
               type="source"
-              position={Position.Bottom}
+              position={Position.Right}
               id={`condition-${c.id ?? i}`}
-              className="!w-1.5 !h-1.5 !bg-orange-500 !border-orange-500"
-              style={{ left: `${((i + 1) / (conditions.length + 1)) * 100}%` }}
+              className="!w-2 !h-2 !bg-orange-500 !border-orange-600/30 !-right-1"
+              style={{ top: `${handleSpacing * (i + 1)}%` }}
             />
           ))
         : (
             <Handle
               type="source"
-              position={Position.Bottom}
+              position={Position.Right}
               id="source-default"
-              className="!w-1.5 !h-1.5 !bg-orange-500 !border-orange-500"
+              className="!w-2 !h-2 !bg-orange-500 !border-orange-600/30 !-right-1"
             />
           )}
     </BaseWorkflowNode>

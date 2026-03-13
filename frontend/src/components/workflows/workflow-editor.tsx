@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useState, useEffect } from "react"
+import { useCallback, useRef, useState, useEffect, useMemo } from "react"
 import { useTheme } from "next-themes"
 import {
   ReactFlow,
@@ -16,12 +16,16 @@ import type {
   Connection,
   NodeMouseHandler,
   Node,
+  EdgeTypes,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
+import { toast } from "sonner"
+import { useTranslations } from "next-intl"
 
 import { NodePalette } from "./node-palette"
 import { NodeConfigPanel } from "./node-config-panel"
 import { RunPanel } from "./run-panel"
+import { AddNodeEdge } from "./add-node-edge"
 import type {
   WorkflowBlueprint,
   WorkflowNodeType,
@@ -56,6 +60,11 @@ const nodeTypes = {
   variableAssign: VariableAssignNode,
   templateTransform: TemplateTransformNode,
   codeExecution: CodeExecutionNode,
+}
+
+// Custom edge types - defined outside component for stability
+const edgeTypes: EdgeTypes = {
+  default: AddNodeEdge,
 }
 
 const defaultNodeData: Record<WorkflowNodeType, Record<string, unknown>> = {
@@ -102,6 +111,7 @@ export function WorkflowEditor({
   onCancelRun,
   onCloseRunPanel,
 }: WorkflowEditorProps) {
+  const t = useTranslations("workflows")
   const { resolvedTheme } = useTheme()
   const rfColorMode = resolvedTheme === "dark" ? "dark" : "light"
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
@@ -124,6 +134,15 @@ export function WorkflowEditor({
     })),
   )
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+
+  // Track which node types exist for palette dimming
+  const existingNodeTypes = useMemo(() => {
+    const types = new Set<string>()
+    for (const n of nodes) {
+      if (n.type) types.add(n.type)
+    }
+    return types
+  }, [nodes])
 
   // Sync node run results into node data
   useEffect(() => {
@@ -217,13 +236,23 @@ export function WorkflowEditor({
       const nodeType = event.dataTransfer.getData("application/reactflow-node-type") as WorkflowNodeType
       if (!nodeType) return
 
+      // Single Start/End validation
+      if (nodeType === "start" && nodes.some((n) => n.type === "start")) {
+        toast.error(t("errorDuplicateStart"))
+        return
+      }
+      if (nodeType === "end" && nodes.some((n) => n.type === "end")) {
+        toast.error(t("errorDuplicateEnd"))
+        return
+      }
+
       const wrapper = reactFlowWrapper.current
       if (!wrapper) return
 
       const bounds = wrapper.getBoundingClientRect()
       const position = {
-        x: event.clientX - bounds.left - 100,
-        y: event.clientY - bounds.top - 20,
+        x: event.clientX - bounds.left - 110,
+        y: event.clientY - bounds.top - 30,
       }
 
       const newNode: Node = {
@@ -235,7 +264,7 @@ export function WorkflowEditor({
 
       setNodes((nds) => [...nds, newNode])
     },
-    [setNodes],
+    [setNodes, nodes, t],
   )
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -267,7 +296,7 @@ export function WorkflowEditor({
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden relative">
       {/* Left palette */}
-      <NodePalette />
+      <NodePalette existingNodeTypes={existingNodeTypes} />
 
       {/* Center: React Flow canvas */}
       <div className="flex-1 min-w-0 relative" ref={reactFlowWrapper}>
@@ -275,6 +304,8 @@ export function WorkflowEditor({
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          defaultEdgeOptions={{ type: "default" }}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}

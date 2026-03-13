@@ -65,34 +65,39 @@ function BaseWorkflowNodeComponent({
   return (
     <div
       className={cn(
-        "w-[200px] rounded-md border bg-card shadow-sm transition-all duration-150 overflow-hidden",
+        "w-[220px] rounded-md border bg-card shadow-sm transition-all duration-150",
         statusStyle ? statusStyle.border : "border-border",
         statusStyle?.extra,
-        selected && "outline-2 outline-primary",
+        selected && "outline-2 outline-offset-1 outline-primary",
       )}
     >
-      {/* Top colored bar */}
-      <div className={cn("h-0.5 w-full", barColor)} />
+      <div className="flex flex-row">
+        {/* Left color bar */}
+        <div className={cn("w-1 shrink-0 rounded-l-md", barColor)} />
 
-      {/* Icon + title row */}
-      <div className="flex items-center gap-1.5 px-2.5 pt-1.5 pb-1">
-        <div className="flex h-4 w-4 shrink-0 items-center justify-center">
-          {icon}
+        {/* Content area */}
+        <div className="flex-1 min-w-0">
+          {/* Icon + title row */}
+          <div className="flex items-center gap-1.5 px-2.5 pt-2 pb-1">
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-muted/60">
+              {icon}
+            </div>
+            <span className="text-[11px] font-medium text-card-foreground truncate flex-1">
+              {title}
+            </span>
+            {runStatus && runStatus !== "pending" && (
+              <RunStatusBadge status={runStatus} />
+            )}
+          </div>
+
+          {/* Node-specific content */}
+          {children && (
+            <div className="px-2.5 pb-2 pt-0">
+              {children}
+            </div>
+          )}
         </div>
-        <span className="text-[11px] font-medium text-card-foreground truncate flex-1">
-          {title}
-        </span>
-        {runStatus && runStatus !== "pending" && (
-          <RunStatusBadge status={runStatus} />
-        )}
       </div>
-
-      {/* Node-specific content */}
-      {children && (
-        <div className="px-2.5 pb-1.5 pt-0">
-          {children}
-        </div>
-      )}
     </div>
   )
 }

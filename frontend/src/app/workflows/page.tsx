@@ -138,8 +138,8 @@ export default function WorkflowsPage() {
         name: t("editorUntitled"),
         blueprint: {
           nodes: [
-            { id: "start_1", type: "start", position: { x: 250, y: 50 }, data: { variables: [] } },
-            { id: "end_1", type: "end", position: { x: 250, y: 400 }, data: { output_mapping: {} } },
+            { id: "start_1", type: "start", position: { x: 100, y: 200 }, data: { variables: [] } },
+            { id: "end_1", type: "end", position: { x: 600, y: 200 }, data: { output_mapping: {} } },
           ],
           edges: [],
           viewport: { x: 0, y: 0, zoom: 1 },

@@ -11,6 +11,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Added
 
+- **Agent Skill System** — On-demand skill loading for agent instructions: `Skill` model (name, description, content, script) with full CRUD, publish review, and visibility lifecycle; `read_skill(name)` builtin tool for progressive disclosure (~80% token reduction); skill stubs injected into system prompt (~15 tokens/skill); `compact_instructions` per-agent field for custom ContextGuard compaction strategy.
+- **Skills UI** — Skill list page, full-page editor (content/script/settings tabs), SkillCard component, sidebar navigation, agent editor skill selector with compact instructions textarea.
 - **Workflow Publish Flow** — Publish/unpublish/resubmit endpoints for workflows, matching the existing Agent publish pattern. New `review_workflows` flag on Organization model (with Alembic migration) to enable org-level workflow review gating. Publish actions wired into workflow-card and toolbar UI.
 - **Workflow Blueprint System** — Visual workflow editor for designing and executing multi-step automation blueprints. Full-stack implementation:
   - **Backend**: `Workflow` and `WorkflowRun` ORM models with Alembic migration; Pydantic schemas for CRUD + validation; full REST API (`/api/workflows/*`) with create, read, update, delete, list, import/export; SSE-based execution endpoint for real-time run status streaming; encrypted environment variables via existing `CREDENTIAL_ENCRYPTION_KEY`.

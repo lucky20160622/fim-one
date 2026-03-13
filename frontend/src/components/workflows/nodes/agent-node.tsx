@@ -27,15 +27,15 @@ function AgentNodeComponent({ data, selected }: NodeProps) {
       )}
       <Handle
         type="target"
-        position={Position.Top}
+        position={Position.Left}
         id="target"
-        className="!w-1.5 !h-1.5 !bg-indigo-500 !border-indigo-500"
+        className="!w-2 !h-2 !bg-indigo-500 !border-indigo-600/30 !-left-1"
       />
       <Handle
         type="source"
-        position={Position.Bottom}
+        position={Position.Right}
         id="source"
-        className="!w-1.5 !h-1.5 !bg-indigo-500 !border-indigo-500"
+        className="!w-2 !h-2 !bg-indigo-500 !border-indigo-600/30 !-right-1"
       />
     </BaseWorkflowNode>
   )

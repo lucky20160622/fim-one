@@ -28,9 +28,9 @@ function EndNodeComponent({ data, selected }: NodeProps) {
       </p>
       <Handle
         type="target"
-        position={Position.Top}
+        position={Position.Left}
         id="target"
-        className="!w-1.5 !h-1.5 !bg-red-500 !border-red-500"
+        className="!w-2 !h-2 !bg-red-500 !border-red-600/30 !-left-1"
       />
     </BaseWorkflowNode>
   )
