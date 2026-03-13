@@ -2868,3 +2868,227 @@ class TestTimeoutAndErrorStrategy:
         llm = next(n for n in bp.nodes if n.id == "llm_neg")
         # Parser rejects negative values, falls back to default 30000
         assert llm.timeout_ms == 30000
+
+
+# =========================================================================
+# ConditionBranch LLM mode tests
+# =========================================================================
+
+
+class TestConditionBranchLLMMode:
+    """Test the ConditionBranch executor in LLM mode (_evaluate_llm)."""
+
+    def _make_llm_condition_node(
+        self,
+        conditions: list[dict],
+        default_handle: str = "source-default",
+        **extra_data: Any,
+    ) -> "WorkflowNodeDef":
+        """Build a ConditionBranch node configured for LLM mode."""
+        return WorkflowNodeDef(
+            id="cond_llm_1",
+            type=NodeType.CONDITION_BRANCH,
+            data={
+                "type": "CONDITION_BRANCH",
+                "mode": "llm",
+                "conditions": conditions,
+                "default_handle": default_handle,
+                **extra_data,
+            },
+        )
+
+    def _mock_llm(self, answer: str):
+        """Create a mock LLM that returns the given answer string."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        mock_llm = MagicMock()
+        mock_result = MagicMock()
+        mock_result.message.content = answer
+        mock_llm.chat = AsyncMock(return_value=mock_result)
+        return mock_llm
+
+    def _patch_llm_deps(self, mock_llm):
+        """Return a sys.modules patch dict that stubs fim_one.db and fim_one.web.deps."""
+        import sys
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        mock_cm = AsyncMock()
+        mock_cm.__aenter__ = AsyncMock(return_value=AsyncMock())
+        mock_cm.__aexit__ = AsyncMock(return_value=False)
+
+        mock_create_session = MagicMock(return_value=mock_cm)
+        mock_get_fast_llm = AsyncMock(return_value=mock_llm)
+
+        return patch.dict(sys.modules, {
+            "fim_one.db": MagicMock(create_session=mock_create_session),
+            "fim_one.web.deps": MagicMock(get_effective_fast_llm=mock_get_fast_llm),
+        })
+
+    @pytest.mark.asyncio
+    async def test_llm_mode_exact_label_match(self):
+        """When LLM returns the exact condition label, the correct handle is activated."""
+        from fim_one.core.workflow.nodes import ConditionBranchExecutor
+
+        conditions = [
+            {"id": "c1", "label": "Positive", "llm_prompt": "User sentiment is positive"},
+            {"id": "c2", "label": "Negative", "llm_prompt": "User sentiment is negative"},
+        ]
+        node = self._make_llm_condition_node(conditions)
+        store = VariableStore()
+        await store.set("input.text", "I love this product!")
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        mock_llm = self._mock_llm("Positive")
+
+        with self._patch_llm_deps(mock_llm):
+            executor = ConditionBranchExecutor()
+            result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.active_handles == ["condition-c1"]
+
+    @pytest.mark.asyncio
+    async def test_llm_mode_case_insensitive_match(self):
+        """LLM returns label with different case, should still match."""
+        from fim_one.core.workflow.nodes import ConditionBranchExecutor
+
+        conditions = [
+            {"id": "c1", "label": "Positive", "llm_prompt": "User sentiment is positive"},
+            {"id": "c2", "label": "Negative", "llm_prompt": "User sentiment is negative"},
+        ]
+        node = self._make_llm_condition_node(conditions)
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        mock_llm = self._mock_llm("POSITIVE")
+
+        with self._patch_llm_deps(mock_llm):
+            executor = ConditionBranchExecutor()
+            result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.active_handles == ["condition-c1"]
+
+    @pytest.mark.asyncio
+    async def test_llm_mode_fuzzy_match(self):
+        """LLM returns a sentence containing exactly one label, should use fuzzy matching."""
+        from fim_one.core.workflow.nodes import ConditionBranchExecutor
+
+        conditions = [
+            {"id": "c1", "label": "Positive", "llm_prompt": "User sentiment is positive"},
+            {"id": "c2", "label": "Negative", "llm_prompt": "User sentiment is negative"},
+        ]
+        node = self._make_llm_condition_node(conditions)
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        # LLM returns a sentence that contains "Negative" but not "Positive"
+        mock_llm = self._mock_llm("The sentiment is clearly negative based on the input.")
+
+        with self._patch_llm_deps(mock_llm):
+            executor = ConditionBranchExecutor()
+            result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.active_handles == ["condition-c2"]
+
+    @pytest.mark.asyncio
+    async def test_llm_mode_no_match_falls_to_default(self):
+        """LLM returns unrecognized text, should fall back to default handle."""
+        from fim_one.core.workflow.nodes import ConditionBranchExecutor
+
+        conditions = [
+            {"id": "c1", "label": "Positive", "llm_prompt": "User sentiment is positive"},
+            {"id": "c2", "label": "Negative", "llm_prompt": "User sentiment is negative"},
+        ]
+        node = self._make_llm_condition_node(conditions, default_handle="source-default")
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        mock_llm = self._mock_llm("I cannot determine the sentiment.")
+
+        with self._patch_llm_deps(mock_llm):
+            executor = ConditionBranchExecutor()
+            result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.active_handles == ["source-default"]
+
+    @pytest.mark.asyncio
+    async def test_llm_mode_default_response(self):
+        """LLM returns 'DEFAULT', should fall back to default handle."""
+        from fim_one.core.workflow.nodes import ConditionBranchExecutor
+
+        conditions = [
+            {"id": "c1", "label": "Positive", "llm_prompt": "User sentiment is positive"},
+            {"id": "c2", "label": "Negative", "llm_prompt": "User sentiment is negative"},
+        ]
+        node = self._make_llm_condition_node(conditions, default_handle="source-default")
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        mock_llm = self._mock_llm("DEFAULT")
+
+        with self._patch_llm_deps(mock_llm):
+            executor = ConditionBranchExecutor()
+            result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.active_handles == ["source-default"]
+
+    @pytest.mark.asyncio
+    async def test_llm_mode_no_candidates(self):
+        """No conditions have llm_prompt set, should return None (default handle)."""
+        from fim_one.core.workflow.nodes import ConditionBranchExecutor
+
+        # Conditions without llm_prompt — will produce no candidates
+        conditions = [
+            {"id": "c1", "label": "Positive"},
+            {"id": "c2", "label": "Negative"},
+        ]
+        node = self._make_llm_condition_node(conditions, default_handle="source-default")
+        store = VariableStore()
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        # LLM should not be called at all, but we provide a mock just in case
+        mock_llm = self._mock_llm("Positive")
+
+        with self._patch_llm_deps(mock_llm):
+            executor = ConditionBranchExecutor()
+            result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.active_handles == ["source-default"]
+        # LLM should not have been called since no candidates
+        mock_llm.chat.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_llm_mode_variable_interpolation(self):
+        """llm_prompt contains {{var}} references, should be interpolated before sending to LLM."""
+        from fim_one.core.workflow.nodes import ConditionBranchExecutor
+
+        conditions = [
+            {"id": "c1", "label": "High", "llm_prompt": "The score {{score}} is above threshold"},
+            {"id": "c2", "label": "Low", "llm_prompt": "The score {{score}} is below threshold"},
+        ]
+        node = self._make_llm_condition_node(conditions)
+        store = VariableStore()
+        await store.set("score", 95)
+        ctx = ExecutionContext(run_id="r", user_id="u", workflow_id="w")
+
+        mock_llm = self._mock_llm("High")
+
+        with self._patch_llm_deps(mock_llm):
+            executor = ConditionBranchExecutor()
+            result = await executor.execute(node, store, ctx)
+
+        assert result.status == NodeStatus.COMPLETED
+        assert result.active_handles == ["condition-c1"]
+
+        # Verify the LLM was called and the system prompt contains the interpolated value
+        mock_llm.chat.assert_called_once()
+        call_args = mock_llm.chat.call_args[0][0]  # First positional arg = messages list
+        system_msg = call_args[0]
+        # The interpolated prompt should contain "95" (the variable value), not "{{score}}"
+        assert "95" in system_msg.content
+        assert "{{score}}" not in system_msg.content
