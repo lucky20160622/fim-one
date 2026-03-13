@@ -407,7 +407,12 @@ export default function WorkflowEditorPage() {
             if (line.startsWith("event:")) {
               currentEvent = line.slice(6).trim()
             } else if (line.startsWith("data:")) {
-              currentData = line.slice(5).trim()
+              // SSE spec allows multi-line data — append with newline separator
+              currentData = currentData
+                ? currentData + "\n" + line.slice(5).trim()
+                : line.slice(5).trim()
+            } else if (line.startsWith(":")) {
+              // SSE comment (keepalive) — ignore
             } else if (line === "") {
               if (currentData) dispatch(currentEvent, currentData)
               currentEvent = "message"
