@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Changed
 
+- **Workflow test suite expanded to 220 tests** — Added 20 tests for DocumentExtractor (12 tests: full_text/pages/metadata/tables modes, base64 decode, page_range parsing, URL stub error, empty input, dash delimiter) and QuestionUnderstanding (8 tests: rewrite/classify/decompose/expand modes with LLM mocking, custom system prompt, variable interpolation, missing input). Total: 200 → 220.
 - **Workflow test suite expanded to 200 tests** — Added 50 tests for ListOperation (21 tests: filter, map, sort, slice, flatten, unique, reverse, length, JSON string input, invalid types, missing config, index-in-scope, default output variable) and Transform (29 tests: json_path, type_cast all types, format template, regex_extract, string_op all variants, math_op all variants, 5-step pipeline chaining, divide-by-zero, wildcard path, unknown ops). Total: 150 → 200.
 - **Workflow test suite expanded to 150 tests** — Added 12 tests for Loop (6 tests: basic counting, max_iterations safety, zero iterations, empty condition, custom variable name, variable interpolation) and ParameterExtractor (6 tests: basic extraction, missing input, empty params, invalid JSON, variable interpolation, extraction prompt inclusion). Total: 138 → 150.
 - **Workflow test suite expanded to 138 tests** — Added 20 tests for Phase 2 Iterator (9 tests: basic list, JSON parsing, max_iterations, empty list, missing config, None-to-empty, template refs, non-list rejection, metadata) and VariableAggregator (11 tests: list/concat/merge/first_non_empty modes, edge cases for empty inputs, None skipping, unknown mode). Total: 118 → 138.
@@ -38,6 +39,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **Workflow ConditionBranch LLM Mode** — Proper LLM-based condition evaluation replacing the naive "match first" stub. Builds a classification prompt from condition labels, calls the fast LLM, and uses case-insensitive + fuzzy matching.
 - **Reactive Edge Labels** — Edge labels for condition/classifier branches now use `useNodesData()` for real-time updates when conditions or classes are edited in the config panel.
 - **Workflow Statistics Panel** — Sheet-based stats display showing total runs, completed/failed/cancelled counts, success rate with visual progress bar, average duration, and last run time with relative formatting. Triggered from a BarChart3 icon in the toolbar.
+- **Phase 2 Workflow Nodes: DocumentExtractor & QuestionUnderstanding** — Two more node types:
+  - **DocumentExtractor**: Stub executor for document text processing — supports text/base64 input types and 4 extract modes (full_text, pages with page_range, metadata with word/char/line/page counts, tables with markdown table detection). URL input deferred for later implementation.
+  - **QuestionUnderstanding**: LLM-based question preprocessing with 4 modes — rewrite (clarity), expand (context + sub-questions), classify (intent/topic/confidence JSON), decompose (sub-question array). Uses fast LLM with optional custom system prompt override.
+  - Full frontend: node components, config panels, palette entries (AI category for QU, Data category for DE), variable picker support.
 - **Phase 2 Workflow Nodes: ListOperation & Transform** — Two data processing node types:
   - **ListOperation**: 8 list operations (filter, map, sort, slice, flatten, unique, reverse, length) with simpleeval expressions for filter/map/sort. Supports JSON string input auto-parsing.
   - **Transform**: Pipeline-based data transformation with 6 operation types (json_path, type_cast, format, regex_extract, string_op, math_op). Operations applied sequentially — output of one feeds into the next.
