@@ -439,5 +439,19 @@
   "configToolName": "Tool Name",
   "configToolNamePlaceholder": "Tool to execute",
   "configToolId": "Tool",
-  "configToolIdPlaceholder": "Select a builtin tool"
+  "configToolIdPlaceholder": "Select a builtin tool",
+
+  "shortcutsTitle": "Keyboard Shortcuts",
+  "shortcutsSection_general": "General",
+  "shortcutsSection_selection": "Selection & Editing",
+  "shortcutsAction_save": "Save workflow",
+  "shortcutsAction_undo": "Undo",
+  "shortcutsAction_redo": "Redo",
+  "shortcutsAction_deselect": "Deselect all / Close panel",
+  "shortcutsAction_shortcuts": "Show this dialog",
+  "shortcutsAction_selectAll": "Select all nodes",
+  "shortcutsAction_copy": "Copy selected nodes",
+  "shortcutsAction_paste": "Paste copied nodes",
+  "shortcutsAction_duplicate": "Duplicate selected nodes",
+  "shortcutsAction_delete": "Delete selected"
 }

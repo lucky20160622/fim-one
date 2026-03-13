@@ -391,5 +391,18 @@
   "configRetryCount": "재시도 횟수",
   "configRetryCountHint": "실패 시 재시도 횟수 (0 = 재시도 없음, 최대 10)",
   "configRetryDelay": "재시도 지연 시간 (ms)",
-  "configRetryDelayHint": "재시도 간 초기 지연 시간 (매 시도마다 2배 증가, 최대 60초)"
+  "configRetryDelayHint": "재시도 간 초기 지연 시간 (매 시도마다 2배 증가, 최대 60초)",
+  "shortcutsTitle": "키보드 단축키",
+  "shortcutsSection_general": "일반",
+  "shortcutsSection_selection": "선택 및 편집",
+  "shortcutsAction_save": "워크플로우 저장",
+  "shortcutsAction_undo": "실행 취소",
+  "shortcutsAction_redo": "다시 실행",
+  "shortcutsAction_deselect": "모두 선택 해제 / 패널 닫기",
+  "shortcutsAction_shortcuts": "이 대화상자 표시",
+  "shortcutsAction_selectAll": "모든 노드 선택",
+  "shortcutsAction_copy": "선택한 노드 복사",
+  "shortcutsAction_paste": "복사한 노드 붙여넣기",
+  "shortcutsAction_duplicate": "선택한 노드 복제",
+  "shortcutsAction_delete": "선택한 항목 삭제"
 }

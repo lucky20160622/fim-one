@@ -391,5 +391,18 @@
   "configRetryCount": "Nombre de tentatives",
   "configRetryCountHint": "Nombre de tentatives en cas d'échec (0 = pas de tentative, max 10)",
   "configRetryDelay": "Délai de tentative (ms)",
-  "configRetryDelayHint": "Délai initial entre les tentatives (double à chaque tentative, max 60s)"
+  "configRetryDelayHint": "Délai initial entre les tentatives (double à chaque tentative, max 60s)",
+  "shortcutsTitle": "Raccourcis clavier",
+  "shortcutsSection_general": "Général",
+  "shortcutsSection_selection": "Sélection et édition",
+  "shortcutsAction_save": "Enregistrer le flux de travail",
+  "shortcutsAction_undo": "Annuler",
+  "shortcutsAction_redo": "Rétablir",
+  "shortcutsAction_deselect": "Désélectionner tout / Fermer le panneau",
+  "shortcutsAction_shortcuts": "Afficher cette boîte de dialogue",
+  "shortcutsAction_selectAll": "Sélectionner tous les nœuds",
+  "shortcutsAction_copy": "Copier les nœuds sélectionnés",
+  "shortcutsAction_paste": "Coller les nœuds copiés",
+  "shortcutsAction_duplicate": "Dupliquer les nœuds sélectionnés",
+  "shortcutsAction_delete": "Supprimer la sélection"
 }

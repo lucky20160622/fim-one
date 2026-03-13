@@ -391,5 +391,18 @@
   "configRetryCount": "重试次数",
   "configRetryCountHint": "失败时的重试次数（0 = 不重试，最多 10 次）",
   "configRetryDelay": "重试延迟（毫秒）",
-  "configRetryDelayHint": "重试之间的初始延迟（每次尝试翻倍，最多 60 秒）"
+  "configRetryDelayHint": "重试之间的初始延迟（每次尝试翻倍，最多 60 秒）",
+  "shortcutsTitle": "键盘快捷键",
+  "shortcutsSection_general": "常规",
+  "shortcutsSection_selection": "选择和编辑",
+  "shortcutsAction_save": "保存工作流",
+  "shortcutsAction_undo": "撤销",
+  "shortcutsAction_redo": "重做",
+  "shortcutsAction_deselect": "取消全选 / 关闭面板",
+  "shortcutsAction_shortcuts": "显示此对话框",
+  "shortcutsAction_selectAll": "选择所有节点",
+  "shortcutsAction_copy": "复制选定节点",
+  "shortcutsAction_paste": "粘贴复制的节点",
+  "shortcutsAction_duplicate": "复制选定节点",
+  "shortcutsAction_delete": "删除选定项"
 }

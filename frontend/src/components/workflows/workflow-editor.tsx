@@ -31,6 +31,7 @@ import { NodePalette } from "./node-palette"
 import { NodeConfigPanel } from "./node-config-panel"
 import { RunPanel } from "./run-panel"
 import { AddNodeEdge } from "./add-node-edge"
+import { KeyboardShortcutsDialog } from "./keyboard-shortcuts-dialog"
 import type {
   WorkflowBlueprint,
   WorkflowNodeType,
@@ -223,6 +224,7 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
     | { type: "pane"; x: number; y: number }
     | null
   >(null)
+  const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false)
 
   // --- Undo/Redo history ---
   const initialNodesRef = useRef(
@@ -499,6 +501,13 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
       if (modKey && key === "d" && !e.shiftKey) {
         e.preventDefault()
         handleDuplicateSelected()
+        return
+      }
+
+      // Show shortcuts dialog: ?
+      if (e.key === "?" && !modKey) {
+        e.preventDefault()
+        setShortcutsDialogOpen(true)
         return
       }
 
@@ -930,6 +939,12 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
           onClose={() => setSelectedNodeId(null)}
         />
       )}
+
+      {/* Keyboard shortcuts help dialog */}
+      <KeyboardShortcutsDialog
+        open={shortcutsDialogOpen}
+        onOpenChange={setShortcutsDialogOpen}
+      />
     </div>
   )
 })

@@ -391,5 +391,18 @@
   "configRetryCount": "Wiederholungsanzahl",
   "configRetryCountHint": "Anzahl der Wiederholungen bei Fehler (0 = keine Wiederholung, max. 10)",
   "configRetryDelay": "Wiederholungsverzögerung (ms)",
-  "configRetryDelayHint": "Anfängliche Verzögerung zwischen Wiederholungen (verdoppelt sich bei jedem Versuch, max. 60s)"
+  "configRetryDelayHint": "Anfängliche Verzögerung zwischen Wiederholungen (verdoppelt sich bei jedem Versuch, max. 60s)",
+  "shortcutsTitle": "Tastenkombinationen",
+  "shortcutsSection_general": "Allgemein",
+  "shortcutsSection_selection": "Auswahl & Bearbeitung",
+  "shortcutsAction_save": "Workflow speichern",
+  "shortcutsAction_undo": "Rückgängig machen",
+  "shortcutsAction_redo": "Wiederherstellen",
+  "shortcutsAction_deselect": "Alle abwählen / Panel schließen",
+  "shortcutsAction_shortcuts": "Diesen Dialog anzeigen",
+  "shortcutsAction_selectAll": "Alle Knoten auswählen",
+  "shortcutsAction_copy": "Ausgewählte Knoten kopieren",
+  "shortcutsAction_paste": "Kopierte Knoten einfügen",
+  "shortcutsAction_duplicate": "Ausgewählte Knoten duplizieren",
+  "shortcutsAction_delete": "Ausgewählte löschen"
 }
