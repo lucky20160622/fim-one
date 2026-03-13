@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl"
 import { Plus, Loader2, Clock } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -56,6 +58,7 @@ export function MCPServersSection({ onReady, currentUserId }: MCPServersSectionP
   const [pendingPublishId, setPendingPublishId] = useState<string | null>(null)
   const [pendingUnpublishId, setPendingUnpublishId] = useState<string | null>(null)
   const [publishOrgId, setPublishOrgId] = useState<string>("")
+  const [allowFallback, setAllowFallback] = useState(true)
   const [userOrgs, setUserOrgs] = useState<UserOrg[]>([])
   const [orgsLoading, setOrgsLoading] = useState(false)
 
@@ -136,6 +139,7 @@ export function MCPServersSection({ onReady, currentUserId }: MCPServersSectionP
   const handlePublish = (id: string) => {
     setPendingPublishId(id)
     setPublishOrgId("")
+    setAllowFallback(true)
     setOrgsLoading(true)
     orgApi.list().then((orgs) => {
       setUserOrgs(orgs)
@@ -165,7 +169,7 @@ export function MCPServersSection({ onReady, currentUserId }: MCPServersSectionP
       const updated = await mcpServerApi.publish(id, {
         scope: "org",
         org_id: publishOrgId,
-        allow_fallback: true,
+        allow_fallback: allowFallback,
       })
       setServers((prev) => prev.map((s) => (s.id === id ? updated : s)))
       toast.success(t("mcpServerPublished"))
@@ -225,8 +229,8 @@ export function MCPServersSection({ onReady, currentUserId }: MCPServersSectionP
               onPublish={(id) => handlePublish(id)}
               onUnpublish={(id) => handleUnpublish(id)}
               onResubmit={(id) => handleResubmit(id)}
-              onCredentialsSaved={(serverId) => {
-                setServers((prev) => prev.map((s) => s.id === serverId ? { ...s, my_has_credentials: true } : s))
+              onCredentialsSaved={(serverId, hasCredentials) => {
+                setServers((prev) => prev.map((s) => s.id === serverId ? { ...s, my_has_credentials: hasCredentials } : s))
               }}
             />
           ))}
@@ -303,6 +307,24 @@ export function MCPServersSection({ onReady, currentUserId }: MCPServersSectionP
                       <span>{to("publishRequiresReview")}</span>
                     </div>
                   )}
+
+                  {/* allow_fallback toggle */}
+                  <div className="flex items-start gap-3 pt-1">
+                    <Switch
+                      id="allow-fallback"
+                      checked={allowFallback}
+                      onCheckedChange={setAllowFallback}
+                      className="mt-0.5 shrink-0"
+                    />
+                    <div className="space-y-0.5">
+                      <Label htmlFor="allow-fallback" className="text-sm font-medium cursor-pointer">
+                        {t("allowFallback")}
+                      </Label>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {t("allowFallbackHelp")}
+                      </p>
+                    </div>
+                  </div>
                 </>
               )}
             </div>

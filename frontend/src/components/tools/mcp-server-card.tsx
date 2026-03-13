@@ -50,7 +50,7 @@ interface MCPServerCardProps {
   onPublish?: (id: string) => void
   onUnpublish?: (id: string) => void
   onResubmit?: (id: string) => void
-  onCredentialsSaved?: (serverId: string) => void
+  onCredentialsSaved?: (serverId: string, hasCredentials: boolean) => void
 }
 
 export function MCPServerCard({
@@ -77,13 +77,14 @@ export function MCPServerCard({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [myKeysOpen, setMyKeysOpen] = useState(false)
   const [myKeysEnv, setMyKeysEnv] = useState<Record<string, string>>({})
+  const [myKeysEnvErrors, setMyKeysEnvErrors] = useState<Record<string, string>>({})
   const [myKeysSaving, setMyKeysSaving] = useState(false)
   const [myKeysLoading, setMyKeysLoading] = useState(false)
 
   const isOwner = !currentUserId || server.user_id === currentUserId
+  // true for any org-visibility state (pending_review, approved, rejected — visibility already set to "org")
   const isOrgResource = server.visibility === "org" || server.visibility === "global"
-  const isPublished = server.publish_status === "approved" || server.visibility === "org"
-  const needsKeyConfig = !server.allow_fallback && !server.my_has_credentials
+  const needsKeyConfig = !isOwner && !server.allow_fallback && !server.my_has_credentials
 
   const handleTest = async () => {
     setTesting(true)
@@ -98,17 +99,16 @@ export function MCPServerCard({
 
   const handleOpenMyKeys = async () => {
     setMyKeysEnv({})
+    setMyKeysEnvErrors({})
     setMyKeysLoading(true)
     setMyKeysOpen(true)
     try {
       const status = await mcpServerApi.getMyCredentials(server.id)
-      if (status.has_credentials && status.env_keys.length > 0) {
-        const prefilled: Record<string, string> = {}
-        for (const k of status.env_keys) {
-          prefilled[k] = ""
-        }
-        setMyKeysEnv(prefilled)
+      if (status.has_credentials && status.env && Object.keys(status.env).length > 0) {
+        // Show actual saved values so user can see / edit them
+        setMyKeysEnv(status.env)
       } else if (server.env) {
+        // First time: pre-fill key names from server template, values empty
         const template: Record<string, string> = {}
         for (const k of Object.keys(server.env)) {
           template[k] = ""
@@ -138,6 +138,7 @@ export function MCPServerCard({
 
   const handleEnvValueChange = (key: string, value: string) => {
     setMyKeysEnv((prev) => ({ ...prev, [key]: value }))
+    if (value.trim()) setMyKeysEnvErrors((prev) => { const next = { ...prev }; delete next[key]; return next })
   }
 
   const handleRemoveEnvRow = (key: string) => {
@@ -149,16 +150,28 @@ export function MCPServerCard({
   }
 
   const handleSaveMyKeys = async () => {
+    // Validate: skip blank-key rows, reject empty-value rows
+    const errors: Record<string, string> = {}
     const env: Record<string, string> = {}
     for (const [k, v] of Object.entries(myKeysEnv)) {
-      if (k.trim()) env[k.trim()] = v
+      if (!k.trim()) continue  // blank key row → silently skip
+      if (!v.trim()) {
+        errors[k] = t("myKeysValueRequired")
+      } else {
+        env[k.trim()] = v
+      }
+    }
+    if (Object.keys(errors).length > 0) {
+      setMyKeysEnvErrors(errors)
+      return
     }
     setMyKeysSaving(true)
     try {
       await mcpServerApi.upsertMyCredentials(server.id, { env })
-      toast.success(t("myCredentialsSaved"))
+      const hasCredentials = Object.keys(env).length > 0
+      toast.success(hasCredentials ? t("myCredentialsSaved") : t("myCredentialsCleared"))
       setMyKeysOpen(false)
-      onCredentialsSaved?.(server.id)
+      onCredentialsSaved?.(server.id, hasCredentials)
     } catch {
       toast.error(t("failedToSaveMcpServer"))
     } finally {
@@ -220,17 +233,17 @@ export function MCPServerCard({
               {/* Publish / Unpublish */}
               {onPublish && onUnpublish && (
                 <DropdownMenuItem
-                  onClick={() => isPublished ? onUnpublish(server.id) : onPublish(server.id)}
+                  onClick={() => isOrgResource ? onUnpublish(server.id) : onPublish(server.id)}
                 >
-                  {isPublished
+                  {isOrgResource
                     ? <GlobeLock className="mr-2 h-4 w-4" />
                     : <Globe className="mr-2 h-4 w-4" />
                   }
-                  {isPublished ? tc("unpublish") : t("publishToOrg")}
+                  {isOrgResource ? tc("unpublish") : t("publishToOrg")}
                 </DropdownMenuItem>
               )}
-              {/* Resubmit — only when pending_review or rejected */}
-              {onResubmit && (server.publish_status === "pending_review" || server.publish_status === "rejected") && (
+              {/* Resubmit — only when rejected (API enforces this; pending_review would return 400) */}
+              {onResubmit && server.publish_status === "rejected" && (
                 <DropdownMenuItem onClick={() => onResubmit(server.id)}>
                   <RotateCw className="mr-2 h-4 w-4" />
                   {t("resubmit")}
@@ -264,8 +277,8 @@ export function MCPServerCard({
         ) : null}
       </div>
 
-      {/* Publish review status badges */}
-      {(server.publish_status === "pending_review" || server.publish_status === "approved" || server.publish_status === "rejected") && (
+      {/* Publish review status badges — only visible to owner (non-owners just see it as a shared org resource) */}
+      {isOwner && (server.publish_status === "pending_review" || server.publish_status === "approved" || server.publish_status === "rejected") && (
         <div className="flex items-center gap-1.5 mb-2 flex-wrap">
           {server.publish_status === "pending_review" && (
             <Badge
@@ -408,7 +421,7 @@ export function MCPServerCard({
                 className="h-7 text-xs"
                 onClick={handleAddEnvRow}
               >
-                + Add
+                {t("myKeysAddRow")}
               </Button>
             </div>
             {myKeysLoading ? (
@@ -418,29 +431,34 @@ export function MCPServerCard({
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {Object.entries(myKeysEnv).map(([key, value], idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <Input
-                      className="h-8 text-xs font-mono flex-1"
-                      placeholder="KEY_NAME"
-                      value={key}
-                      onChange={(e) => handleEnvKeyChange(key, e.target.value)}
-                    />
-                    <Input
-                      className="h-8 text-xs font-mono flex-1"
-                      placeholder="value"
-                      type="password"
-                      value={value}
-                      onChange={(e) => handleEnvValueChange(key, e.target.value)}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="shrink-0 text-muted-foreground hover:text-destructive"
-                      onClick={() => handleRemoveEnvRow(key)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                  <div key={idx} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        className="h-8 text-xs font-mono flex-1"
+                        placeholder="KEY_NAME"
+                        value={key}
+                        onChange={(e) => handleEnvKeyChange(key, e.target.value)}
+                      />
+                      <Input
+                        className={`h-8 text-xs font-mono flex-1 ${myKeysEnvErrors[key] ? "border-destructive" : ""}`}
+                        placeholder="value"
+                        value={value}
+                        onChange={(e) => handleEnvValueChange(key, e.target.value)}
+                        aria-invalid={!!myKeysEnvErrors[key]}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleRemoveEnvRow(key)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    {myKeysEnvErrors[key] && (
+                      <p className="text-xs text-destructive pl-1">{myKeysEnvErrors[key]}</p>
+                    )}
                   </div>
                 ))}
                 {Object.keys(myKeysEnv).length === 0 && (

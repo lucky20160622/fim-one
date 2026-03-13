@@ -27,6 +27,7 @@ export interface MCPServerResponse {
 export interface MCPMyCredentialStatus {
   has_credentials: boolean
   env_keys: string[]
+  env: Record<string, string>
 }
 
 export interface MCPServerCreate {

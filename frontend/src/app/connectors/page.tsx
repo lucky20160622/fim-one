@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Plus, Plug, Trash2, LayoutGrid, Database, Globe, ChevronDown, Loader2 } from "lucide-react"
+import { Plus, Plug, Trash2, LayoutGrid, Database, Globe, ChevronDown, Loader2, Clock } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -16,12 +16,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -45,25 +56,18 @@ function ConnectorsPageInner() {
   const t = useTranslations("connectors")
   const tt = useTranslations("tools")
   const tc = useTranslations("common")
+  const to = useTranslations("organizations")
   const mcpActionsRef = useRef<MCPServersSectionActions | null>(null)
 
   const activeTab = searchParams.get("tab") === "mcp" ? "mcp" : "connectors"
-
-  const handleTabChange = (tab: string) => {
-    if (tab === "connectors") {
-      router.replace("/connectors")
-    } else {
-      router.replace(`/connectors?tab=${tab}`)
-    }
-  }
 
   const [connectors, setConnectors] = useState<ConnectorResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [pendingPublishId, setPendingPublishId] = useState<string | null>(null)
   const [pendingUnpublishId, setPendingUnpublishId] = useState<string | null>(null)
-  const [publishScope, setPublishScope] = useState<"personal" | "org">("personal")
   const [publishOrgId, setPublishOrgId] = useState<string>("")
+  const [publishAllowFallback, setPublishAllowFallback] = useState(true)
   const [userOrgs, setUserOrgs] = useState<UserOrg[]>([])
   const [orgsLoading, setOrgsLoading] = useState(false)
 
@@ -104,8 +108,8 @@ function ConnectorsPageInner() {
 
   const handlePublish = (id: string) => {
     setPendingPublishId(id)
-    setPublishScope("personal")
     setPublishOrgId("")
+    setPublishAllowFallback(true)
     setOrgsLoading(true)
     orgApi.list().then((orgs) => {
       setUserOrgs(orgs)
@@ -144,7 +148,8 @@ function ConnectorsPageInner() {
     try {
       const updated = await connectorApi.publish(id, {
         scope: "org",
-        org_id: publishOrgId || undefined,
+        org_id: publishOrgId,
+        allow_fallback: publishAllowFallback,
       })
       setConnectors((prev) => prev.map((c) => (c.id === id ? updated : c)))
       toast.success(t("connectorPublished"))
@@ -166,6 +171,11 @@ function ConnectorsPageInner() {
     }
   }
 
+
+  // Find selected org for review notice
+  const selectedOrg = publishOrgId
+    ? userOrgs.find((o) => o.id === publishOrgId)
+    : null
 
   if (authLoading || !user) return null
 
@@ -224,11 +234,15 @@ function ConnectorsPageInner() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col flex-1 overflow-hidden">
+      <Tabs value={activeTab} className="flex flex-col flex-1 overflow-hidden">
         <div className="px-6 pt-4 shrink-0">
           <TabsList>
-            <TabsTrigger value="connectors">{t("connectorsTab")}</TabsTrigger>
-            <TabsTrigger value="mcp">{t("mcpTab")}</TabsTrigger>
+            <TabsTrigger value="connectors" asChild>
+              <Link href="/connectors">{t("connectorsTab")}</Link>
+            </TabsTrigger>
+            <TabsTrigger value="mcp" asChild>
+              <Link href="/connectors?tab=mcp">{t("mcpTab")}</Link>
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -299,50 +313,28 @@ function ConnectorsPageInner() {
         </DialogContent>
       </Dialog>
 
-      {/* Publish Confirmation */}
+      {/* Publish Dialog */}
       <Dialog open={pendingPublishId !== null} onOpenChange={(open) => { if (!open) setPendingPublishId(null) }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>{tc("publish")}</DialogTitle>
+            <DialogTitle>{t("publishTitle")}</DialogTitle>
             <DialogDescription>
-              {t("subtitle")}
+              {t("publishDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label className="text-sm font-medium">{tc("publish")}</Label>
-              <div className="flex gap-2">
-                {(["personal", "org"] as const).map((scope) => (
-                  <button
-                    key={scope}
-                    type="button"
-                    onClick={() => {
-                      setPublishScope(scope)
-                      if (scope === "org" && userOrgs.length > 0) setPublishOrgId(userOrgs[0].id)
-                    }}
-                    className={`flex-1 rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                      publishScope === scope
-                        ? "border-primary bg-primary/10 text-primary font-medium"
-                        : "border-input text-muted-foreground hover:border-foreground/30"
-                    }`}
-                  >
-                    {scope === "personal" ? tc("draft") : tc("publish")}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {publishScope === "org" && (
-              <div className="space-y-2">
-                {orgsLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  </div>
-                ) : userOrgs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{tc("unpublished")}</p>
-                ) : (
+              {orgsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                </div>
+              ) : userOrgs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t("publishNoOrgs")}</p>
+              ) : (
+                <>
                   <Select value={publishOrgId} onValueChange={setPublishOrgId}>
                     <SelectTrigger className="w-full">
-                      <SelectValue />
+                      <SelectValue placeholder={t("publishSelectOrg")} />
                     </SelectTrigger>
                     <SelectContent>
                       {userOrgs.map((org) => (
@@ -350,16 +342,42 @@ function ConnectorsPageInner() {
                       ))}
                     </SelectContent>
                   </Select>
-                )}
-              </div>
-            )}
+
+                  {/* Review notice */}
+                  {selectedOrg?.review_connectors && (
+                    <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-md">
+                      <Clock className="h-4 w-4 shrink-0" />
+                      <span>{to("publishRequiresReview")}</span>
+                    </div>
+                  )}
+
+                  {/* allow_fallback toggle */}
+                  <div className="flex items-start gap-3 pt-1">
+                    <Switch
+                      id="allow-fallback"
+                      checked={publishAllowFallback}
+                      onCheckedChange={setPublishAllowFallback}
+                      className="mt-0.5 shrink-0"
+                    />
+                    <div className="space-y-0.5">
+                      <Label htmlFor="allow-fallback" className="text-sm font-medium cursor-pointer">
+                        {t("publishAllowFallback")}
+                      </Label>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {t("publishAllowFallbackDescription")}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" className="px-6" onClick={() => setPendingPublishId(null)}>{tc("cancel")}</Button>
             <Button
               className="px-6"
               onClick={confirmPublish}
-              disabled={publishScope === "org" && (orgsLoading || userOrgs.length === 0 || !publishOrgId)}
+              disabled={orgsLoading || userOrgs.length === 0 || !publishOrgId}
             >
               {tc("publish")}
             </Button>
@@ -368,20 +386,22 @@ function ConnectorsPageInner() {
       </Dialog>
 
       {/* Unpublish Confirmation */}
-      <Dialog open={pendingUnpublishId !== null} onOpenChange={(open) => { if (!open) setPendingUnpublishId(null) }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{tc("unpublish")}</DialogTitle>
-            <DialogDescription>
-              {t("subtitle")}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" className="px-6" onClick={() => setPendingUnpublishId(null)}>{tc("cancel")}</Button>
-            <Button variant="secondary" className="px-6" onClick={confirmUnpublish}>{tc("unpublish")}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={pendingUnpublishId !== null} onOpenChange={(open) => { if (!open) setPendingUnpublishId(null) }}>
+        <AlertDialogContent className="sm:max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("unpublishTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("unpublishDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tc("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmUnpublish}>
+              {t("unpublish")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
