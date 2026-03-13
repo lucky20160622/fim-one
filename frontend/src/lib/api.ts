@@ -955,12 +955,30 @@ export const workflowApi = {
     ).then((r) => r.data),
 
   export: (id: string) =>
-    apiFetch<WorkflowResponse>(`/api/workflows/${id}/export`),
+    apiFetch<ApiResponse<Record<string, unknown>>>(`/api/workflows/${id}/export`).then(
+      (r) => r.data,
+    ),
 
   import: (data: Record<string, unknown>) =>
     apiFetch<ApiResponse<WorkflowResponse>>("/api/workflows/import", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({ data }),
+    }).then((r) => r.data),
+
+  publish: (id: string, body: { scope: "org" | "global"; org_id?: string }) =>
+    apiFetch<ApiResponse<WorkflowResponse>>(`/api/workflows/${id}/publish`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).then((r) => r.data),
+
+  unpublish: (id: string) =>
+    apiFetch<ApiResponse<WorkflowResponse>>(`/api/workflows/${id}/unpublish`, {
+      method: "POST",
+    }).then((r) => r.data),
+
+  resubmit: (id: string) =>
+    apiFetch<ApiResponse<WorkflowResponse>>(`/api/workflows/${id}/resubmit`, {
+      method: "POST",
     }).then((r) => r.data),
 }
 
@@ -1324,9 +1342,9 @@ export const adminApi = {
     apiFetch(`/api/admin/organizations/${orgId}`, { method: 'DELETE' }),
 
   // --- Organizations (regular CRUD) ---
-  createOrganization: (data: { name: string; description?: string; icon?: string; review_agents?: boolean; review_connectors?: boolean; review_kbs?: boolean; review_mcp_servers?: boolean }) =>
+  createOrganization: (data: { name: string; description?: string; icon?: string; review_agents?: boolean; review_connectors?: boolean; review_kbs?: boolean; review_mcp_servers?: boolean; review_workflows?: boolean }) =>
     apiFetch<AdminOrganization>('/api/orgs', { method: 'POST', body: JSON.stringify(data) }),
-  updateOrganization: (orgId: string, data: { name?: string; description?: string; icon?: string; review_agents?: boolean; review_connectors?: boolean; review_kbs?: boolean; review_mcp_servers?: boolean }) =>
+  updateOrganization: (orgId: string, data: { name?: string; description?: string; icon?: string; review_agents?: boolean; review_connectors?: boolean; review_kbs?: boolean; review_mcp_servers?: boolean; review_workflows?: boolean }) =>
     apiFetch<AdminOrganization>(`/api/admin/organizations/${orgId}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteOrganization: (orgId: string) =>
     apiFetch(`/api/orgs/${orgId}`, { method: 'DELETE' }),
@@ -1476,6 +1494,7 @@ export interface UserOrg {
   review_connectors: boolean
   review_kbs: boolean
   review_mcp_servers: boolean
+  review_workflows: boolean
 }
 
 export interface ReviewItem {
@@ -1503,13 +1522,13 @@ export const orgApi = {
   list: () =>
     apiFetch<{ data: UserOrg[] }>("/api/orgs").then(r => r.data ?? []),
 
-  create: (body: { name: string; slug?: string; description?: string | null; icon?: string | null; review_agents?: boolean; review_connectors?: boolean; review_kbs?: boolean; review_mcp_servers?: boolean }) =>
+  create: (body: { name: string; slug?: string; description?: string | null; icon?: string | null; review_agents?: boolean; review_connectors?: boolean; review_kbs?: boolean; review_mcp_servers?: boolean; review_workflows?: boolean }) =>
     apiFetch<{ data: UserOrg }>("/api/orgs", {
       method: "POST",
       body: JSON.stringify(body),
     }).then(r => r.data),
 
-  update: (orgId: string, body: { name?: string; description?: string | null; icon?: string | null; review_agents?: boolean; review_connectors?: boolean; review_kbs?: boolean; review_mcp_servers?: boolean }) =>
+  update: (orgId: string, body: { name?: string; description?: string | null; icon?: string | null; review_agents?: boolean; review_connectors?: boolean; review_kbs?: boolean; review_mcp_servers?: boolean; review_workflows?: boolean }) =>
     apiFetch<{ data: UserOrg }>(`/api/orgs/${orgId}`, {
       method: "PUT",
       body: JSON.stringify(body),

@@ -2,6 +2,7 @@
 
 export interface WorkflowResponse {
   id: string
+  user_id: string
   name: string
   icon: string | null
   description: string | null
@@ -11,6 +12,12 @@ export interface WorkflowResponse {
   status: "draft" | "active"
   is_active: boolean
   visibility: string
+  org_id?: string | null
+  publish_status: string | null
+  published_at: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  review_note: string | null
   created_at: string
   updated_at: string
 }
@@ -180,7 +187,7 @@ export interface NodeRunResult {
   error: string | null
   started_at: string | null
   completed_at: string | null
-  duration: number | null
+  duration_ms: number | null
 }
 
 // --- Node run status for canvas overlay ---

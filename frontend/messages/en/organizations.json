@@ -129,6 +129,7 @@
   "reviewConnectorsLabel": "Connector Review",
   "reviewKbsLabel": "Knowledge Base Review",
   "reviewMcpServersLabel": "MCP Server Review",
+  "reviewWorkflowsLabel": "Workflow Review",
   "reviewManagement": "Review Management",
   "pendingReviews": "Pending Reviews",
   "noReviewsPending": "No resources pending review",
@@ -160,6 +161,7 @@
   "filterConnectors": "Connectors",
   "filterKBs": "Knowledge Bases",
   "filterMcpServers": "MCP Servers",
+  "filterWorkflows": "Workflows",
   "filterPending": "Pending",
   "filterRejected": "Rejected",
   "filterApproved": "Approved",
@@ -169,6 +171,7 @@
   "resourceTypeConnector": "Connector",
   "resourceTypeKb": "Knowledge Base",
   "resourceTypeMcpServer": "MCP Server",
+  "resourceTypeWorkflow": "Workflow",
   "platformOrgName": "Platform",
   "platformOrgDescription": "Default platform-wide organization. All users are automatically enrolled.",
 

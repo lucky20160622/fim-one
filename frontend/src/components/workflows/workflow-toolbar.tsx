@@ -6,13 +6,17 @@ import { useTranslations } from "next-intl"
 import {
   ArrowLeft,
   Download,
+  Globe,
+  GlobeLock,
   Loader2,
   MoreHorizontal,
   Play,
+  RotateCw,
   Save,
   Trash2,
   Upload,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -27,6 +31,8 @@ import {
 interface WorkflowToolbarProps {
   name: string
   status: "draft" | "active"
+  visibility?: string
+  publishStatus?: string | null
   isSaving: boolean
   isRunning: boolean
   onNameChange: (name: string) => void
@@ -35,11 +41,16 @@ interface WorkflowToolbarProps {
   onExport: () => void
   onImport: () => void
   onDelete: () => void
+  onPublish?: () => void
+  onUnpublish?: () => void
+  onResubmit?: () => void
 }
 
 export function WorkflowToolbar({
   name,
   status,
+  visibility = "personal",
+  publishStatus,
   isSaving,
   isRunning,
   onNameChange,
@@ -48,11 +59,16 @@ export function WorkflowToolbar({
   onExport,
   onImport,
   onDelete,
+  onPublish,
+  onUnpublish,
+  onResubmit,
 }: WorkflowToolbarProps) {
   const t = useTranslations("workflows")
+  const to = useTranslations("organizations")
   const tc = useTranslations("common")
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(name)
+  const isPublished = visibility !== "personal"
 
   const startEditing = () => {
     setEditValue(name)
@@ -106,10 +122,31 @@ export function WorkflowToolbar({
         )}
         <Badge
           variant="secondary"
-          className="text-[10px] px-1.5 py-0 h-5 shrink-0"
+          className={cn(
+            "text-[10px] px-1.5 py-0 h-5 shrink-0",
+            isPublished
+              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+              : ""
+          )}
         >
-          {status === "active" ? t("statusActive") : t("statusDraft")}
+          {isPublished ? tc("published") : status === "active" ? t("statusActive") : t("statusDraft")}
         </Badge>
+        {publishStatus === "pending_review" && (
+          <Badge
+            variant="outline"
+            className="text-[10px] px-1.5 py-0 h-5 shrink-0 border-amber-400 text-amber-600 dark:text-amber-400"
+          >
+            {to("publishStatusPending")}
+          </Badge>
+        )}
+        {publishStatus === "rejected" && (
+          <Badge
+            variant="outline"
+            className="text-[10px] px-1.5 py-0 h-5 shrink-0 border-destructive text-destructive"
+          >
+            {to("publishStatusRejected")}
+          </Badge>
+        )}
       </div>
 
       {/* Action buttons */}
@@ -158,6 +195,21 @@ export function WorkflowToolbar({
               <Download className="h-4 w-4" />
               {tc("export")}
             </DropdownMenuItem>
+            {(onPublish || onUnpublish) && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={isPublished ? onUnpublish : onPublish}>
+                  {isPublished ? <GlobeLock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
+                  {isPublished ? tc("unpublish") : tc("publish")}
+                </DropdownMenuItem>
+              </>
+            )}
+            {publishStatus === "rejected" && onResubmit && (
+              <DropdownMenuItem onClick={onResubmit}>
+                <RotateCw className="h-4 w-4" />
+                {to("resubmit")}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={onDelete}>
               <Trash2 className="h-4 w-4" />

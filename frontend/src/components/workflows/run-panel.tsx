@@ -151,9 +151,9 @@ export function RunPanel({
                   {statusIcons[result.status]}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground truncate">{nodeId}</p>
-                    {result.duration != null && (
+                    {result.duration_ms != null && (
                       <p className="text-[10px] text-muted-foreground tabular-nums">
-                        {fmtDuration(result.duration)}
+                        {fmtDuration(result.duration_ms)}
                       </p>
                     )}
                     {result.error && (

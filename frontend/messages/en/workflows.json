@@ -17,6 +17,18 @@
   "workflowImported": "Workflow imported",
   "workflowImportFailed": "Failed to import workflow",
 
+  "publishDialogTitle": "Publish workflow?",
+  "publishDialogDescription": "Once published, this workflow will be available to organization members.",
+  "publishSelectOrg": "Select organization",
+  "publishNoOrgs": "No organizations found. Join or create one in Settings.",
+  "unpublishDialogTitle": "Unpublish workflow?",
+  "unpublishDialogDescription": "This workflow will be set back to personal and no longer available to organization members.",
+
+  "workflowPublished": "Workflow published",
+  "workflowPublishFailed": "Failed to publish workflow",
+  "workflowUnpublished": "Workflow unpublished",
+  "workflowUnpublishFailed": "Failed to unpublish workflow",
+
   "nodeCount": "{count} nodes",
   "statusDraft": "Draft",
   "statusActive": "Active",

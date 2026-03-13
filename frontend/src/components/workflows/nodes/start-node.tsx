@@ -16,7 +16,7 @@ function StartNodeComponent({ data, selected }: NodeProps) {
   return (
     <BaseWorkflowNode
       nodeType="start"
-      icon={<Play className="h-3.5 w-3.5 text-green-500" />}
+      icon={<Play className="h-3 w-3 text-green-500" />}
       title={t("nodeType_start")}
       selected={selected}
       runStatus={nodeData.runStatus}
@@ -28,7 +28,7 @@ function StartNodeComponent({ data, selected }: NodeProps) {
         type="source"
         position={Position.Bottom}
         id="source"
-        className="!w-2 !h-2 !bg-green-500 !border-green-500"
+        className="!w-1.5 !h-1.5 !bg-green-500 !border-green-500"
       />
     </BaseWorkflowNode>
   )

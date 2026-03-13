@@ -15,7 +15,7 @@ function HTTPRequestNodeComponent({ data, selected }: NodeProps) {
   return (
     <BaseWorkflowNode
       nodeType="httpRequest"
-      icon={<Globe className="h-3.5 w-3.5 text-slate-500" />}
+      icon={<Globe className="h-3 w-3 text-slate-500" />}
       title={t("nodeType_httpRequest")}
       selected={selected}
       runStatus={nodeData.runStatus}
@@ -36,13 +36,13 @@ function HTTPRequestNodeComponent({ data, selected }: NodeProps) {
         type="target"
         position={Position.Top}
         id="target"
-        className="!w-2 !h-2 !bg-slate-500 !border-slate-500"
+        className="!w-1.5 !h-1.5 !bg-slate-500 !border-slate-500"
       />
       <Handle
         type="source"
         position={Position.Bottom}
         id="source"
-        className="!w-2 !h-2 !bg-slate-500 !border-slate-500"
+        className="!w-1.5 !h-1.5 !bg-slate-500 !border-slate-500"
       />
     </BaseWorkflowNode>
   )

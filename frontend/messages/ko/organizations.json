@@ -180,5 +180,8 @@
   "reviewHistoryColAction": "작업",
   "reviewHistoryColActor": "운영자",
   "reviewHistoryActionUnpublished": "게시 취소됨",
-  "reviewHistoryActionResubmitted": "재제출됨"
+  "reviewHistoryActionResubmitted": "재제출됨",
+  "reviewWorkflowsLabel": "워크플로우 검토",
+  "filterWorkflows": "워크플로우",
+  "resourceTypeWorkflow": "워크플로우"
 }

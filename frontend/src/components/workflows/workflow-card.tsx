@@ -4,9 +4,12 @@ import Link from "next/link"
 import { useTranslations } from "next-intl"
 import {
   GitBranch,
+  Globe,
+  GlobeLock,
   MoreHorizontal,
   Pencil,
   Play,
+  RotateCw,
   Trash2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -19,16 +22,36 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type { WorkflowResponse } from "@/types/workflow"
 
 interface WorkflowCardProps {
   workflow: WorkflowResponse
+  currentUserId?: string
   onDelete: (id: string) => void
+  onPublish: (id: string) => void
+  onUnpublish: (id: string) => void
+  onResubmit?: (id: string) => void
 }
 
-export function WorkflowCard({ workflow, onDelete }: WorkflowCardProps) {
+export function WorkflowCard({
+  workflow,
+  currentUserId,
+  onDelete,
+  onPublish,
+  onUnpublish,
+  onResubmit,
+}: WorkflowCardProps) {
   const t = useTranslations("workflows")
+  const to = useTranslations("organizations")
   const tc = useTranslations("common")
+  const isPublished = workflow.visibility !== "personal"
+  const isOwner = !currentUserId || workflow.user_id === currentUserId
   const isActive = workflow.status === "active"
   const nodeCount = workflow.blueprint?.nodes?.length ?? 0
 
@@ -44,36 +67,48 @@ export function WorkflowCard({ workflow, onDelete }: WorkflowCardProps) {
           )}
           {workflow.name}
         </h3>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href={`/workflows/${workflow.id}`}>
-                <Pencil className="h-4 w-4" />
-                {tc("edit")}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/workflows/${workflow.id}?run=true`}>
-                <Play className="h-4 w-4" />
-                {t("editorRun")}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={() => onDelete(workflow.id)}>
-              <Trash2 className="h-4 w-4" />
-              {tc("delete")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {isOwner && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/workflows/${workflow.id}`}>
+                  <Pencil className="h-4 w-4" />
+                  {tc("edit")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/workflows/${workflow.id}?run=true`}>
+                  <Play className="h-4 w-4" />
+                  {t("editorRun")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => isPublished ? onUnpublish(workflow.id) : onPublish(workflow.id)}>
+                {isPublished ? <GlobeLock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
+                {isPublished ? tc("unpublish") : tc("publish")}
+              </DropdownMenuItem>
+              {workflow.publish_status === "rejected" && onResubmit && (
+                <DropdownMenuItem onClick={() => onResubmit(workflow.id)}>
+                  <RotateCw className="h-4 w-4" />
+                  {to("resubmit")}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => onDelete(workflow.id)}>
+                <Trash2 className="h-4 w-4" />
+                {tc("delete")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Status badges */}
@@ -82,17 +117,56 @@ export function WorkflowCard({ workflow, onDelete }: WorkflowCardProps) {
           variant="secondary"
           className={cn(
             "text-[10px] px-1.5 py-0 h-5",
-            isActive
+            isPublished
               ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-              : "opacity-60",
+              : isActive
+                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                : "opacity-60",
           )}
         >
-          {isActive ? t("statusActive") : t("statusDraft")}
+          {isPublished ? tc("published") : isActive ? t("statusActive") : t("statusDraft")}
         </Badge>
         {nodeCount > 0 && (
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 opacity-60">
             {t("nodeCount", { count: nodeCount })}
           </Badge>
+        )}
+
+        {/* Publish review status badges */}
+        {workflow.publish_status === "pending_review" && (
+          <Badge
+            variant="outline"
+            className="text-[10px] px-1.5 py-0 h-5 border-amber-400 text-amber-600 dark:text-amber-400"
+          >
+            {to("publishStatusPending")}
+          </Badge>
+        )}
+        {workflow.publish_status === "approved" && (
+          <Badge
+            variant="outline"
+            className="text-[10px] px-1.5 py-0 h-5 border-emerald-400 text-emerald-600 dark:text-emerald-400"
+          >
+            {to("publishStatusApproved")}
+          </Badge>
+        )}
+        {workflow.publish_status === "rejected" && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0 h-5 border-destructive text-destructive cursor-default"
+                >
+                  {to("publishStatusRejected")}
+                </Badge>
+              </TooltipTrigger>
+              {workflow.review_note && (
+                <TooltipContent>
+                  <p>{to("rejectedNote", { note: workflow.review_note })}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         )}
       </div>
 

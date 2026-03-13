@@ -15,7 +15,7 @@ function TemplateTransformNodeComponent({ data, selected }: NodeProps) {
   return (
     <BaseWorkflowNode
       nodeType="templateTransform"
-      icon={<FileText className="h-3.5 w-3.5 text-amber-500" />}
+      icon={<FileText className="h-3 w-3 text-amber-500" />}
       title={t("nodeType_templateTransform")}
       selected={selected}
       runStatus={nodeData.runStatus}
@@ -29,13 +29,13 @@ function TemplateTransformNodeComponent({ data, selected }: NodeProps) {
         type="target"
         position={Position.Top}
         id="target"
-        className="!w-2 !h-2 !bg-amber-500 !border-amber-500"
+        className="!w-1.5 !h-1.5 !bg-amber-500 !border-amber-500"
       />
       <Handle
         type="source"
         position={Position.Bottom}
         id="source"
-        className="!w-2 !h-2 !bg-amber-500 !border-amber-500"
+        className="!w-1.5 !h-1.5 !bg-amber-500 !border-amber-500"
       />
     </BaseWorkflowNode>
   )

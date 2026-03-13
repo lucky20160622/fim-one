@@ -15,7 +15,7 @@ function CodeExecutionNodeComponent({ data, selected }: NodeProps) {
   return (
     <BaseWorkflowNode
       nodeType="codeExecution"
-      icon={<Code className="h-3.5 w-3.5 text-emerald-500" />}
+      icon={<Code className="h-3 w-3 text-emerald-500" />}
       title={t("nodeType_codeExecution")}
       selected={selected}
       runStatus={nodeData.runStatus}
@@ -29,13 +29,13 @@ function CodeExecutionNodeComponent({ data, selected }: NodeProps) {
         type="target"
         position={Position.Top}
         id="target"
-        className="!w-2 !h-2 !bg-emerald-500 !border-emerald-500"
+        className="!w-1.5 !h-1.5 !bg-emerald-500 !border-emerald-500"
       />
       <Handle
         type="source"
         position={Position.Bottom}
         id="source"
-        className="!w-2 !h-2 !bg-emerald-500 !border-emerald-500"
+        className="!w-1.5 !h-1.5 !bg-emerald-500 !border-emerald-500"
       />
     </BaseWorkflowNode>
   )

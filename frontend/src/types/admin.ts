@@ -137,6 +137,7 @@ export interface AdminOrganization {
   review_connectors: boolean
   review_kbs: boolean
   review_mcp_servers: boolean
+  review_workflows: boolean
   member_count: number
   created_at: string
   updated_at: string | null

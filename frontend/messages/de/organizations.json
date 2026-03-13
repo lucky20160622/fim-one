@@ -180,5 +180,8 @@
   "reviewHistoryColAction": "Aktion",
   "reviewHistoryColActor": "Operator",
   "reviewHistoryActionUnpublished": "Veröffentlichung aufgehoben",
-  "reviewHistoryActionResubmitted": "Erneut eingereicht"
+  "reviewHistoryActionResubmitted": "Erneut eingereicht",
+  "reviewWorkflowsLabel": "Workflow-Überprüfung",
+  "filterWorkflows": "Workflows",
+  "resourceTypeWorkflow": "Workflow"
 }

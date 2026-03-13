@@ -16,7 +16,7 @@ function VariableAssignNodeComponent({ data, selected }: NodeProps) {
   return (
     <BaseWorkflowNode
       nodeType="variableAssign"
-      icon={<Variable className="h-3.5 w-3.5 text-gray-500" />}
+      icon={<Variable className="h-3 w-3 text-gray-500" />}
       title={t("nodeType_variableAssign")}
       selected={selected}
       runStatus={nodeData.runStatus}
@@ -28,13 +28,13 @@ function VariableAssignNodeComponent({ data, selected }: NodeProps) {
         type="target"
         position={Position.Top}
         id="target"
-        className="!w-2 !h-2 !bg-gray-500 !border-gray-500"
+        className="!w-1.5 !h-1.5 !bg-gray-500 !border-gray-500"
       />
       <Handle
         type="source"
         position={Position.Bottom}
         id="source"
-        className="!w-2 !h-2 !bg-gray-500 !border-gray-500"
+        className="!w-1.5 !h-1.5 !bg-gray-500 !border-gray-500"
       />
     </BaseWorkflowNode>
   )

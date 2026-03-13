@@ -15,7 +15,7 @@ function LLMNodeComponent({ data, selected }: NodeProps) {
   return (
     <BaseWorkflowNode
       nodeType="llm"
-      icon={<Brain className="h-3.5 w-3.5 text-blue-500" />}
+      icon={<Brain className="h-3 w-3 text-blue-500" />}
       title={t("nodeType_llm")}
       selected={selected}
       runStatus={nodeData.runStatus}
@@ -34,13 +34,13 @@ function LLMNodeComponent({ data, selected }: NodeProps) {
         type="target"
         position={Position.Top}
         id="target"
-        className="!w-2 !h-2 !bg-blue-500 !border-blue-500"
+        className="!w-1.5 !h-1.5 !bg-blue-500 !border-blue-500"
       />
       <Handle
         type="source"
         position={Position.Bottom}
         id="source"
-        className="!w-2 !h-2 !bg-blue-500 !border-blue-500"
+        className="!w-1.5 !h-1.5 !bg-blue-500 !border-blue-500"
       />
     </BaseWorkflowNode>
   )

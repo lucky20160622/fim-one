@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
-import { Plus, GitBranch, Upload } from "lucide-react"
+import { Plus, GitBranch, Upload, Loader2, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,14 +14,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useAuth } from "@/contexts/auth-context"
-import { workflowApi } from "@/lib/api"
+import { workflowApi, orgApi } from "@/lib/api"
+import type { UserOrg } from "@/lib/api"
 import { WorkflowCard } from "@/components/workflows/workflow-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { WorkflowResponse } from "@/types/workflow"
 
 export default function WorkflowsPage() {
   const t = useTranslations("workflows")
+  const to = useTranslations("organizations")
   const tc = useTranslations("common")
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
@@ -29,6 +38,11 @@ export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<WorkflowResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [pendingPublishId, setPendingPublishId] = useState<string | null>(null)
+  const [pendingUnpublishId, setPendingUnpublishId] = useState<string | null>(null)
+  const [publishOrgId, setPublishOrgId] = useState<string>("")
+  const [userOrgs, setUserOrgs] = useState<UserOrg[]>([])
+  const [orgsLoading, setOrgsLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Auth guard
@@ -55,6 +69,26 @@ export default function WorkflowsPage() {
   }, [user, loadWorkflows])
 
   const handleDelete = (id: string) => setPendingDeleteId(id)
+  const handlePublish = (id: string) => {
+    setPendingPublishId(id)
+    setPublishOrgId("")
+    setOrgsLoading(true)
+    orgApi.list().then((orgs) => {
+      setUserOrgs(orgs)
+      if (orgs.length > 0) setPublishOrgId(orgs[0].id)
+    }).catch(() => {}).finally(() => setOrgsLoading(false))
+  }
+  const handleUnpublish = (id: string) => setPendingUnpublishId(id)
+
+  const handleResubmit = async (id: string) => {
+    try {
+      const updated = await workflowApi.resubmit(id)
+      setWorkflows((prev) => prev.map((w) => (w.id === id ? updated : w)))
+      toast.success(to("resubmitSuccess"))
+    } catch {
+      toast.error(to("resubmitFailed"))
+    }
+  }
 
   const confirmDelete = async () => {
     if (!pendingDeleteId) return
@@ -66,6 +100,35 @@ export default function WorkflowsPage() {
       toast.success(t("workflowDeleted"))
     } catch {
       toast.error(t("workflowDeleteFailed"))
+    }
+  }
+
+  const confirmPublish = async () => {
+    if (!pendingPublishId || !publishOrgId) return
+    const id = pendingPublishId
+    setPendingPublishId(null)
+    try {
+      const updated = await workflowApi.publish(id, {
+        scope: "org",
+        org_id: publishOrgId,
+      })
+      setWorkflows((prev) => prev.map((w) => (w.id === id ? updated : w)))
+      toast.success(t("workflowPublished"))
+    } catch {
+      toast.error(t("workflowPublishFailed"))
+    }
+  }
+
+  const confirmUnpublish = async () => {
+    if (!pendingUnpublishId) return
+    const id = pendingUnpublishId
+    setPendingUnpublishId(null)
+    try {
+      const updated = await workflowApi.unpublish(id)
+      setWorkflows((prev) => prev.map((w) => (w.id === id ? updated : w)))
+      toast.success(t("workflowUnpublished"))
+    } catch {
+      toast.error(t("workflowUnpublishFailed"))
     }
   }
 
@@ -107,6 +170,11 @@ export default function WorkflowsPage() {
     // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
+
+  // Find selected org for review notice
+  const selectedOrg = publishOrgId
+    ? userOrgs.find((o) => o.id === publishOrgId)
+    : null
 
   if (authLoading || !user) return null
 
@@ -173,7 +241,11 @@ export default function WorkflowsPage() {
               <WorkflowCard
                 key={workflow.id}
                 workflow={workflow}
+                currentUserId={user.id}
                 onDelete={handleDelete}
+                onPublish={handlePublish}
+                onUnpublish={handleUnpublish}
+                onResubmit={handleResubmit}
               />
             ))}
           </div>
@@ -195,6 +267,76 @@ export default function WorkflowsPage() {
           <DialogFooter>
             <Button variant="ghost" className="px-6" onClick={() => setPendingDeleteId(null)}>{tc("cancel")}</Button>
             <Button variant="destructive" className="px-6" onClick={confirmDelete}>{tc("delete")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Publish Confirmation */}
+      <Dialog open={pendingPublishId !== null} onOpenChange={(open) => { if (!open) setPendingPublishId(null) }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("publishDialogTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("publishDialogDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              {orgsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                </div>
+              ) : userOrgs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t("publishNoOrgs")}</p>
+              ) : (
+                <>
+                  <Select value={publishOrgId} onValueChange={setPublishOrgId}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t("publishSelectOrg")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {userOrgs.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Review notice */}
+                  {selectedOrg?.review_workflows && (
+                    <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-md">
+                      <Clock className="h-4 w-4 shrink-0" />
+                      <span>{to("publishRequiresReview")}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" className="px-6" onClick={() => setPendingPublishId(null)}>{tc("cancel")}</Button>
+            <Button
+              className="px-6"
+              onClick={confirmPublish}
+              disabled={orgsLoading || userOrgs.length === 0 || !publishOrgId}
+            >
+              {tc("publish")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unpublish Confirmation */}
+      <Dialog open={pendingUnpublishId !== null} onOpenChange={(open) => { if (!open) setPendingUnpublishId(null) }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("unpublishDialogTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("unpublishDialogDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" className="px-6" onClick={() => setPendingUnpublishId(null)}>{tc("cancel")}</Button>
+            <Button variant="secondary" className="px-6" onClick={confirmUnpublish}>{tc("unpublish")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

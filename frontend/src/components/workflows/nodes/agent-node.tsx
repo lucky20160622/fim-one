@@ -15,7 +15,7 @@ function AgentNodeComponent({ data, selected }: NodeProps) {
   return (
     <BaseWorkflowNode
       nodeType="agent"
-      icon={<Bot className="h-3.5 w-3.5 text-indigo-500" />}
+      icon={<Bot className="h-3 w-3 text-indigo-500" />}
       title={t("nodeType_agent")}
       selected={selected}
       runStatus={nodeData.runStatus}
@@ -29,13 +29,13 @@ function AgentNodeComponent({ data, selected }: NodeProps) {
         type="target"
         position={Position.Top}
         id="target"
-        className="!w-2 !h-2 !bg-indigo-500 !border-indigo-500"
+        className="!w-1.5 !h-1.5 !bg-indigo-500 !border-indigo-500"
       />
       <Handle
         type="source"
         position={Position.Bottom}
         id="source"
-        className="!w-2 !h-2 !bg-indigo-500 !border-indigo-500"
+        className="!w-1.5 !h-1.5 !bg-indigo-500 !border-indigo-500"
       />
     </BaseWorkflowNode>
   )

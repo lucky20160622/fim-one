@@ -17,6 +17,7 @@ _REVIEW_COLUMN_MAP = {
     "connector": "review_connectors",
     "knowledge_base": "review_kbs",
     "mcp_server": "review_mcp_servers",
+    "workflow": "review_workflows",
 }
 
 _TABLE_TO_RESOURCE_TYPE = {
@@ -24,6 +25,7 @@ _TABLE_TO_RESOURCE_TYPE = {
     "connectors": "connector",
     "knowledge_bases": "knowledge_base",
     "mcp_servers": "mcp_server",
+    "workflows": "workflow",
 }
 
 

@@ -27,6 +27,7 @@ async def ensure_platform_org(db: AsyncSession, owner_id: str) -> str:
             review_connectors=True,
             review_kbs=True,
             review_mcp_servers=True,
+            review_workflows=True,
         )
         db.add(org)
         await db.flush()

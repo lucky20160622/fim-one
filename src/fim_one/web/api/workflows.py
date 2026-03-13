@@ -21,7 +21,7 @@ from fim_one.db import get_session, create_session
 from fim_one.web.exceptions import AppError
 from fim_one.web.auth import get_current_user, get_user_org_ids
 from fim_one.web.models import User, Workflow, WorkflowRun
-from fim_one.web.schemas.common import ApiResponse, PaginatedResponse
+from fim_one.web.schemas.common import ApiResponse, PaginatedResponse, PublishRequest
 from fim_one.web.schemas.workflow import (
     WorkflowCreate,
     WorkflowEnvVarsUpdate,
@@ -252,10 +252,21 @@ async def update_workflow(
         wf.input_schema = input_schema
         wf.output_schema = output_schema
 
+    content_changed = bool(update_data.keys() - {"is_active"})
+    if content_changed:
+        from fim_one.web.publish_review import check_edit_revert
+
+        reverted = await check_edit_revert(wf, db)
+    else:
+        reverted = False
+
     await db.commit()
     result = await db.execute(select(Workflow).where(Workflow.id == wf.id))
     wf = result.scalar_one()
-    return ApiResponse(data=_workflow_to_response(wf).model_dump())
+    data = _workflow_to_response(wf).model_dump()
+    if reverted:
+        data["publish_status_reverted"] = True
+    return ApiResponse(data=data)
 
 
 @router.delete("/{workflow_id}", response_model=ApiResponse)
@@ -268,6 +279,141 @@ async def delete_workflow(
     await db.delete(wf)
     await db.commit()
     return ApiResponse(data={"deleted": workflow_id})
+
+
+# ---------------------------------------------------------------------------
+# Publish / Unpublish / Resubmit
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{workflow_id}/publish", response_model=ApiResponse)
+async def publish_workflow(
+    workflow_id: str,
+    body: PublishRequest,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Publish workflow to org or global scope."""
+    wf = await _get_owned_workflow(workflow_id, current_user.id, db)
+
+    if body.scope == "org":
+        if not body.org_id:
+            raise AppError("org_id_required", status_code=400)
+        from fim_one.web.auth import require_org_member
+        await require_org_member(body.org_id, current_user, db)
+        wf.visibility = "org"
+        wf.org_id = body.org_id
+        from fim_one.web.publish_review import apply_publish_status
+        await apply_publish_status(wf, body.org_id, db, resource_type="workflow")
+    elif body.scope == "global":
+        if not current_user.is_admin:
+            raise AppError("admin_required_for_global", status_code=403)
+        wf.visibility = "global"
+        wf.org_id = None
+    else:
+        raise AppError("invalid_scope", status_code=400)
+
+    wf.published_at = datetime.now(UTC)
+
+    # Audit log: submitted (org scope only)
+    if body.scope == "org" and body.org_id:
+        from fim_one.web.api.reviews import log_review_event
+        await log_review_event(
+            db=db,
+            org_id=body.org_id,
+            resource_type="workflow",
+            resource_id=wf.id,
+            resource_name=wf.name,
+            action="submitted",
+            actor=current_user,
+        )
+
+    await db.commit()
+    await db.refresh(wf)
+
+    return ApiResponse(data=_workflow_to_response(wf).model_dump())
+
+
+@router.post("/{workflow_id}/resubmit", response_model=ApiResponse)
+async def resubmit_workflow(
+    workflow_id: str,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Resubmit a rejected workflow for review."""
+    wf = await _get_owned_workflow(workflow_id, current_user.id, db)
+    if wf.publish_status != "rejected":
+        raise AppError("not_rejected", status_code=400)
+    wf.publish_status = "pending_review"
+    wf.reviewed_by = None
+    wf.reviewed_at = None
+    wf.review_note = None
+
+    if wf.org_id:
+        from fim_one.web.api.reviews import log_review_event
+        await log_review_event(
+            db=db,
+            org_id=wf.org_id,
+            resource_type="workflow",
+            resource_id=wf.id,
+            resource_name=wf.name,
+            action="resubmitted",
+            actor=current_user,
+        )
+
+    await db.commit()
+    await db.refresh(wf)
+    return ApiResponse(data=_workflow_to_response(wf).model_dump())
+
+
+@router.post("/{workflow_id}/unpublish", response_model=ApiResponse)
+async def unpublish_workflow(
+    workflow_id: str,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Revert workflow to personal visibility."""
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
+    wf = result.scalar_one_or_none()
+    if wf is None:
+        raise AppError("workflow_not_found", status_code=404)
+
+    is_owner = wf.user_id == current_user.id
+    is_admin = current_user.is_admin
+    is_org_admin = False
+
+    if wf.visibility == "org" and wf.org_id and not is_owner:
+        try:
+            from fim_one.web.auth import require_org_admin
+            await require_org_admin(wf.org_id, current_user, db)
+            is_org_admin = True
+        except Exception:
+            pass
+
+    if not (is_owner or is_admin or is_org_admin):
+        raise AppError("unpublish_denied", status_code=403)
+
+    # Log BEFORE clearing org_id
+    if wf.org_id:
+        from fim_one.web.api.reviews import log_review_event
+        await log_review_event(
+            db=db,
+            org_id=wf.org_id,
+            resource_type="workflow",
+            resource_id=wf.id,
+            resource_name=wf.name,
+            action="unpublished",
+            actor=current_user,
+        )
+
+    wf.visibility = "personal"
+    wf.org_id = None
+    wf.published_at = None
+    wf.publish_status = None
+
+    await db.commit()
+    await db.refresh(wf)
+    return ApiResponse(data=_workflow_to_response(wf).model_dump())
 
 
 # ---------------------------------------------------------------------------

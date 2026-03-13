@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
-import { Loader2 } from "lucide-react"
+import { Loader2, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -14,8 +14,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useAuth } from "@/contexts/auth-context"
-import { workflowApi } from "@/lib/api"
+import { workflowApi, orgApi } from "@/lib/api"
+import type { UserOrg } from "@/lib/api"
 import { getApiBaseUrl, ACCESS_TOKEN_KEY } from "@/lib/constants"
 import { WorkflowToolbar } from "@/components/workflows/workflow-toolbar"
 import { WorkflowEditor } from "@/components/workflows/workflow-editor"
@@ -28,6 +36,7 @@ import type {
 
 export default function WorkflowEditorPage() {
   const t = useTranslations("workflows")
+  const to = useTranslations("organizations")
   const tc = useTranslations("common")
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
@@ -40,6 +49,11 @@ export default function WorkflowEditorPage() {
   const [isDirty, setIsDirty] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
+  const [showPublishDialog, setShowPublishDialog] = useState(false)
+  const [showUnpublishDialog, setShowUnpublishDialog] = useState(false)
+  const [publishOrgId, setPublishOrgId] = useState<string>("")
+  const [userOrgs, setUserOrgs] = useState<UserOrg[]>([])
+  const [orgsLoading, setOrgsLoading] = useState(false)
   const pendingNavigationRef = useRef<string | null>(null)
 
   // Run state
@@ -217,12 +231,28 @@ export default function WorkflowEditorPage() {
           try {
             const data = JSON.parse(rawData) as Record<string, unknown>
 
-            if (eventType === "node_status") {
+            if (
+              eventType === "node_started" ||
+              eventType === "node_completed" ||
+              eventType === "node_failed" ||
+              eventType === "node_skipped"
+            ) {
               const nodeId = data.node_id as string
-              const result = data.result as NodeRunResult
+              const status: NodeRunResult["status"] =
+                eventType === "node_started" ? "running"
+                : eventType === "node_completed" ? "completed"
+                : eventType === "node_failed" ? "failed"
+                : "skipped"
               setNodeResults((prev) => ({
                 ...(prev ?? {}),
-                [nodeId]: result,
+                [nodeId]: {
+                  status,
+                  output: data.output_preview ?? null,
+                  error: (data.error as string) ?? null,
+                  started_at: null,
+                  completed_at: null,
+                  duration_ms: (data.duration_ms as number) ?? null,
+                },
               }))
             } else if (eventType === "run_completed") {
               setFinalOutputs((data.outputs ?? null) as Record<string, unknown> | null)
@@ -332,6 +362,63 @@ export default function WorkflowEditorPage() {
     }
   }, [workflow, router, t])
 
+  const handlePublishClick = useCallback(() => {
+    setShowPublishDialog(true)
+    setPublishOrgId("")
+    setOrgsLoading(true)
+    orgApi.list().then((orgs) => {
+      setUserOrgs(orgs)
+      if (orgs.length > 0) setPublishOrgId(orgs[0].id)
+    }).catch(() => {}).finally(() => setOrgsLoading(false))
+  }, [])
+
+  const confirmPublish = useCallback(async () => {
+    if (!workflow || !publishOrgId) return
+    setShowPublishDialog(false)
+    try {
+      const updated = await workflowApi.publish(workflow.id, {
+        scope: "org",
+        org_id: publishOrgId,
+      })
+      setWorkflow(updated)
+      toast.success(t("workflowPublished"))
+    } catch {
+      toast.error(t("workflowPublishFailed"))
+    }
+  }, [workflow, publishOrgId, t])
+
+  const handleUnpublishClick = useCallback(() => {
+    setShowUnpublishDialog(true)
+  }, [])
+
+  const confirmUnpublish = useCallback(async () => {
+    if (!workflow) return
+    setShowUnpublishDialog(false)
+    try {
+      const updated = await workflowApi.unpublish(workflow.id)
+      setWorkflow(updated)
+      toast.success(t("workflowUnpublished"))
+    } catch {
+      toast.error(t("workflowUnpublishFailed"))
+    }
+  }, [workflow, t])
+
+  const handleResubmit = useCallback(async () => {
+    if (!workflow) return
+    try {
+      const updated = await workflowApi.resubmit(workflow.id)
+      setWorkflow(updated)
+      toast.success(to("resubmitSuccess"))
+    } catch {
+      toast.error(to("resubmitFailed"))
+    }
+  }, [workflow, to])
+
+  // Find selected org for review notice
+  const selectedOrg = publishOrgId
+    ? userOrgs.find((o) => o.id === publishOrgId)
+    : null
+
   // Get start variables for run panel
   const startNode = blueprintRef.current.nodes.find((n) => n.type === "start")
   const startData = startNode?.data as StartNodeData | undefined
@@ -354,6 +441,8 @@ export default function WorkflowEditorPage() {
       <WorkflowToolbar
         name={workflow.name}
         status={workflow.status}
+        visibility={workflow.visibility}
+        publishStatus={workflow.publish_status}
         isSaving={isSaving}
         isRunning={isRunning}
         onNameChange={handleNameChange}
@@ -362,6 +451,9 @@ export default function WorkflowEditorPage() {
         onExport={handleExport}
         onImport={handleImport}
         onDelete={() => setShowDeleteDialog(true)}
+        onPublish={handlePublishClick}
+        onUnpublish={handleUnpublishClick}
+        onResubmit={handleResubmit}
       />
 
       <WorkflowEditor
@@ -425,6 +517,76 @@ export default function WorkflowEditorPage() {
             >
               {t("discardAndLeave")}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Publish Confirmation */}
+      <Dialog open={showPublishDialog} onOpenChange={setShowPublishDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("publishDialogTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("publishDialogDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              {orgsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                </div>
+              ) : userOrgs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t("publishNoOrgs")}</p>
+              ) : (
+                <>
+                  <Select value={publishOrgId} onValueChange={setPublishOrgId}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t("publishSelectOrg")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {userOrgs.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Review notice */}
+                  {selectedOrg?.review_workflows && (
+                    <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-md">
+                      <Clock className="h-4 w-4 shrink-0" />
+                      <span>{to("publishRequiresReview")}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" className="px-6" onClick={() => setShowPublishDialog(false)}>{tc("cancel")}</Button>
+            <Button
+              className="px-6"
+              onClick={confirmPublish}
+              disabled={orgsLoading || userOrgs.length === 0 || !publishOrgId}
+            >
+              {tc("publish")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unpublish Confirmation */}
+      <Dialog open={showUnpublishDialog} onOpenChange={setShowUnpublishDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("unpublishDialogTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("unpublishDialogDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" className="px-6" onClick={() => setShowUnpublishDialog(false)}>{tc("cancel")}</Button>
+            <Button variant="secondary" className="px-6" onClick={confirmUnpublish}>{tc("unpublish")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

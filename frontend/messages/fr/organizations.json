@@ -180,5 +180,8 @@
   "reviewHistoryColAction": "Action",
   "reviewHistoryColActor": "Opérateur",
   "reviewHistoryActionUnpublished": "Dépublié",
-  "reviewHistoryActionResubmitted": "Resoumis"
+  "reviewHistoryActionResubmitted": "Resoumis",
+  "reviewWorkflowsLabel": "Examen du flux de travail",
+  "filterWorkflows": "Flux de travail",
+  "resourceTypeWorkflow": "Flux de travail"
 }

@@ -84,6 +84,7 @@ function resourceTypeLabel(type: string, t: (key: string) => string): string {
     case "connector": return t("resourceTypeConnector")
     case "knowledge_base": return t("resourceTypeKb")
     case "mcp_server": return t("resourceTypeMcpServer")
+    case "workflow": return t("resourceTypeWorkflow")
     default: return type
   }
 }
@@ -377,12 +378,14 @@ export function AdminOrganizations() {
   const [editReviewConnectors, setEditReviewConnectors] = useState(false)
   const [editReviewKbs, setEditReviewKbs] = useState(false)
   const [editReviewMcpServers, setEditReviewMcpServers] = useState(false)
+  const [editReviewWorkflows, setEditReviewWorkflows] = useState(false)
 
   // --- Create review fields ---
   const [createReviewAgents, setCreateReviewAgents] = useState(false)
   const [createReviewConnectors, setCreateReviewConnectors] = useState(false)
   const [createReviewKbs, setCreateReviewKbs] = useState(false)
   const [createReviewMcpServers, setCreateReviewMcpServers] = useState(false)
+  const [createReviewWorkflows, setCreateReviewWorkflows] = useState(false)
 
   // --- Field errors ---
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -449,6 +452,7 @@ export function AdminOrganizations() {
         review_connectors: createReviewConnectors,
         review_kbs: createReviewKbs,
         review_mcp_servers: createReviewMcpServers,
+        review_workflows: createReviewWorkflows,
       })
       toast.success(t("createSuccess"))
       setCreateOpen(false)
@@ -459,6 +463,7 @@ export function AdminOrganizations() {
       setCreateReviewConnectors(false)
       setCreateReviewKbs(false)
       setCreateReviewMcpServers(false)
+      setCreateReviewWorkflows(false)
       setFieldErrors({})
       await loadOrgs()
     } catch (err: unknown) {
@@ -478,6 +483,7 @@ export function AdminOrganizations() {
     setEditReviewConnectors(org.review_connectors ?? false)
     setEditReviewKbs(org.review_kbs ?? false)
     setEditReviewMcpServers(org.review_mcp_servers ?? false)
+    setEditReviewWorkflows(org.review_workflows ?? false)
     setFieldErrors({})
   }
 
@@ -501,6 +507,7 @@ export function AdminOrganizations() {
         review_connectors: editReviewConnectors,
         review_kbs: editReviewKbs,
         review_mcp_servers: editReviewMcpServers,
+        review_workflows: editReviewWorkflows,
       })
       toast.success(t("updateSuccess"))
       setEditTarget(null)
@@ -733,7 +740,7 @@ export function AdminOrganizations() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {(org.review_agents || org.review_connectors || org.review_kbs || org.review_mcp_servers) ? (
+                    {(org.review_agents || org.review_connectors || org.review_kbs || org.review_mcp_servers || org.review_workflows) ? (
                       <Badge variant="outline" className="border-amber-500/40 text-amber-600 dark:text-amber-400 gap-1">
                         <ShieldCheck className="h-3 w-3" />
                         {[
@@ -741,6 +748,7 @@ export function AdminOrganizations() {
                           org.review_connectors && t("reviewConnectorsLabel"),
                           org.review_kbs && t("reviewKbsLabel"),
                           org.review_mcp_servers && t("reviewMcpServersLabel"),
+                          org.review_workflows && t("reviewWorkflowsLabel"),
                         ].filter(Boolean).length}
                       </Badge>
                     ) : (
@@ -766,7 +774,7 @@ export function AdminOrganizations() {
                           <Pencil className="mr-2 h-4 w-4" />
                           {tc("edit")}
                         </DropdownMenuItem>
-                        {(org.review_agents || org.review_connectors || org.review_kbs || org.review_mcp_servers) && (
+                        {(org.review_agents || org.review_connectors || org.review_kbs || org.review_mcp_servers || org.review_workflows) && (
                           <DropdownMenuItem onClick={() => setReviewsTarget(org)}>
                             <ClipboardCheck className="mr-2 h-4 w-4" />
                             {t("reviewManagement")}
@@ -891,11 +899,15 @@ export function AdminOrganizations() {
                   <label className="text-sm">{t("reviewMcpServersLabel")}</label>
                   <Switch checked={createReviewMcpServers} onCheckedChange={setCreateReviewMcpServers} />
                 </div>
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm">{t("reviewWorkflowsLabel")}</label>
+                  <Switch checked={createReviewWorkflows} onCheckedChange={setCreateReviewWorkflows} />
+                </div>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setCreateOpen(false); setCreateIcon(null); setCreateReviewAgents(false); setCreateReviewConnectors(false); setCreateReviewKbs(false); setCreateReviewMcpServers(false); setFieldErrors({}) }}>
+            <Button variant="outline" onClick={() => { setCreateOpen(false); setCreateIcon(null); setCreateReviewAgents(false); setCreateReviewConnectors(false); setCreateReviewKbs(false); setCreateReviewMcpServers(false); setCreateReviewWorkflows(false); setFieldErrors({}) }}>
               {tc("cancel")}
             </Button>
             <Button
@@ -980,6 +992,10 @@ export function AdminOrganizations() {
                 <div className="flex items-center justify-between gap-4">
                   <label className="text-sm">{t("reviewMcpServersLabel")}</label>
                   <Switch checked={editReviewMcpServers} onCheckedChange={setEditReviewMcpServers} />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <label className="text-sm">{t("reviewWorkflowsLabel")}</label>
+                  <Switch checked={editReviewWorkflows} onCheckedChange={setEditReviewWorkflows} />
                 </div>
               </div>
             </div>

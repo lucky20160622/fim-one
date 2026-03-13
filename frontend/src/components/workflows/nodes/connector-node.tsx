@@ -15,7 +15,7 @@ function ConnectorNodeComponent({ data, selected }: NodeProps) {
   return (
     <BaseWorkflowNode
       nodeType="connector"
-      icon={<Plug className="h-3.5 w-3.5 text-purple-500" />}
+      icon={<Plug className="h-3 w-3 text-purple-500" />}
       title={t("nodeType_connector")}
       selected={selected}
       runStatus={nodeData.runStatus}
@@ -36,13 +36,13 @@ function ConnectorNodeComponent({ data, selected }: NodeProps) {
         type="target"
         position={Position.Top}
         id="target"
-        className="!w-2 !h-2 !bg-purple-500 !border-purple-500"
+        className="!w-1.5 !h-1.5 !bg-purple-500 !border-purple-500"
       />
       <Handle
         type="source"
         position={Position.Bottom}
         id="source"
-        className="!w-2 !h-2 !bg-purple-500 !border-purple-500"
+        className="!w-1.5 !h-1.5 !bg-purple-500 !border-purple-500"
       />
     </BaseWorkflowNode>
   )

@@ -65,21 +65,21 @@ function BaseWorkflowNodeComponent({
   return (
     <div
       className={cn(
-        "w-[240px] rounded-lg border bg-card transition-all duration-200 hover:brightness-[1.03] dark:hover:brightness-110 overflow-hidden",
+        "w-[200px] rounded-md border bg-card shadow-sm transition-all duration-150 overflow-hidden",
         statusStyle ? statusStyle.border : "border-border",
         statusStyle?.extra,
         selected && "outline-2 outline-primary",
       )}
     >
       {/* Top colored bar */}
-      <div className={cn("h-1 w-full", barColor)} />
+      <div className={cn("h-0.5 w-full", barColor)} />
 
       {/* Icon + title row */}
-      <div className="flex items-center gap-2 px-3 pt-2 pb-1">
-        <div className="flex h-5 w-5 shrink-0 items-center justify-center">
+      <div className="flex items-center gap-1.5 px-2.5 pt-1.5 pb-1">
+        <div className="flex h-4 w-4 shrink-0 items-center justify-center">
           {icon}
         </div>
-        <span className="text-xs font-medium text-card-foreground truncate flex-1">
+        <span className="text-[11px] font-medium text-card-foreground truncate flex-1">
           {title}
         </span>
         {runStatus && runStatus !== "pending" && (
@@ -89,7 +89,7 @@ function BaseWorkflowNodeComponent({
 
       {/* Node-specific content */}
       {children && (
-        <div className="px-3 pb-2 pt-0.5">
+        <div className="px-2.5 pb-1.5 pt-0">
           {children}
         </div>
       )}

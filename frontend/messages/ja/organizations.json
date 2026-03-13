@@ -180,5 +180,8 @@
   "reviewHistoryColAction": "アクション",
   "reviewHistoryColActor": "オペレーター",
   "reviewHistoryActionUnpublished": "非公開",
-  "reviewHistoryActionResubmitted": "再提出"
+  "reviewHistoryActionResubmitted": "再提出",
+  "reviewWorkflowsLabel": "ワークフロー レビュー",
+  "filterWorkflows": "ワークフロー",
+  "resourceTypeWorkflow": "ワークフロー"
 }

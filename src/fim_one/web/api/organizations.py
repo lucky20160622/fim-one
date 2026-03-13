@@ -57,6 +57,7 @@ class OrgUpdate(BaseModel):
     review_connectors: bool | None = None
     review_kbs: bool | None = None
     review_mcp_servers: bool | None = None
+    review_workflows: bool | None = None
 
 
 class MemberAdd(BaseModel):
@@ -83,6 +84,7 @@ class OrgResponse(BaseModel):
     review_connectors: bool = False
     review_kbs: bool = False
     review_mcp_servers: bool = False
+    review_workflows: bool = False
     created_at: str
     updated_at: str | None = None
 
@@ -131,6 +133,7 @@ def _org_to_response(org: Organization) -> OrgResponse:
         review_connectors=getattr(org, "review_connectors", False),
         review_kbs=getattr(org, "review_kbs", False),
         review_mcp_servers=getattr(org, "review_mcp_servers", False),
+        review_workflows=getattr(org, "review_workflows", False),
         created_at=org.created_at.isoformat() if org.created_at else "",
         updated_at=org.updated_at.isoformat() if org.updated_at else None,
     )
@@ -151,6 +154,7 @@ def _org_with_role(org: Organization, role: str, member_count: int = 0) -> OrgWi
         review_connectors=getattr(org, "review_connectors", False),
         review_kbs=getattr(org, "review_kbs", False),
         review_mcp_servers=getattr(org, "review_mcp_servers", False),
+        review_workflows=getattr(org, "review_workflows", False),
         created_at=org.created_at.isoformat() if org.created_at else "",
         updated_at=org.updated_at.isoformat() if org.updated_at else None,
         role=role,

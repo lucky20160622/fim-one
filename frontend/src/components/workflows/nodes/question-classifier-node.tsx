@@ -16,7 +16,7 @@ function QuestionClassifierNodeComponent({ data, selected }: NodeProps) {
   return (
     <BaseWorkflowNode
       nodeType="questionClassifier"
-      icon={<MessageSquareMore className="h-3.5 w-3.5 text-teal-500" />}
+      icon={<MessageSquareMore className="h-3 w-3 text-teal-500" />}
       title={t("nodeType_questionClassifier")}
       selected={selected}
       runStatus={nodeData.runStatus}
@@ -34,7 +34,7 @@ function QuestionClassifierNodeComponent({ data, selected }: NodeProps) {
         type="target"
         position={Position.Top}
         id="target"
-        className="!w-2 !h-2 !bg-teal-500 !border-teal-500"
+        className="!w-1.5 !h-1.5 !bg-teal-500 !border-teal-500"
       />
       {classes.length > 0
         ? classes.map((c, i) => (
@@ -43,7 +43,7 @@ function QuestionClassifierNodeComponent({ data, selected }: NodeProps) {
               type="source"
               position={Position.Bottom}
               id={`class-${c.id ?? i}`}
-              className="!w-2 !h-2 !bg-teal-500 !border-teal-500"
+              className="!w-1.5 !h-1.5 !bg-teal-500 !border-teal-500"
               style={{ left: `${((i + 1) / (classes.length + 1)) * 100}%` }}
             />
           ))
@@ -52,7 +52,7 @@ function QuestionClassifierNodeComponent({ data, selected }: NodeProps) {
               type="source"
               position={Position.Bottom}
               id="source-default"
-              className="!w-2 !h-2 !bg-teal-500 !border-teal-500"
+              className="!w-1.5 !h-1.5 !bg-teal-500 !border-teal-500"
             />
           )}
     </BaseWorkflowNode>

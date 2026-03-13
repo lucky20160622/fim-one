@@ -18,7 +18,7 @@ function EndNodeComponent({ data, selected }: NodeProps) {
   return (
     <BaseWorkflowNode
       nodeType="end"
-      icon={<Square className="h-3.5 w-3.5 text-red-500" />}
+      icon={<Square className="h-3 w-3 text-red-500" />}
       title={t("nodeType_end")}
       selected={selected}
       runStatus={nodeData.runStatus}
@@ -30,7 +30,7 @@ function EndNodeComponent({ data, selected }: NodeProps) {
         type="target"
         position={Position.Top}
         id="target"
-        className="!w-2 !h-2 !bg-red-500 !border-red-500"
+        className="!w-1.5 !h-1.5 !bg-red-500 !border-red-500"
       />
     </BaseWorkflowNode>
   )

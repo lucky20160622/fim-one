@@ -222,8 +222,8 @@ export function WorkflowEditor({
 
       const bounds = wrapper.getBoundingClientRect()
       const position = {
-        x: event.clientX - bounds.left - 120,
-        y: event.clientY - bounds.top - 30,
+        x: event.clientX - bounds.left - 100,
+        y: event.clientY - bounds.top - 20,
       }
 
       const newNode: Node = {
@@ -284,6 +284,7 @@ export function WorkflowEditor({
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
           fitView
+          fitViewOptions={{ maxZoom: 1, padding: 0.4 }}
           colorMode={rfColorMode}
           proOptions={{ hideAttribution: true }}
           minZoom={0.2}

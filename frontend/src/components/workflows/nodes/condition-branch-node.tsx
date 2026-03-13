@@ -16,7 +16,7 @@ function ConditionBranchNodeComponent({ data, selected }: NodeProps) {
   return (
     <BaseWorkflowNode
       nodeType="conditionBranch"
-      icon={<GitBranch className="h-3.5 w-3.5 text-orange-500" />}
+      icon={<GitBranch className="h-3 w-3 text-orange-500" />}
       title={t("nodeType_conditionBranch")}
       selected={selected}
       runStatus={nodeData.runStatus}
@@ -34,7 +34,7 @@ function ConditionBranchNodeComponent({ data, selected }: NodeProps) {
         type="target"
         position={Position.Top}
         id="target"
-        className="!w-2 !h-2 !bg-orange-500 !border-orange-500"
+        className="!w-1.5 !h-1.5 !bg-orange-500 !border-orange-500"
       />
       {/* One source handle per condition */}
       {conditions.length > 0
@@ -44,7 +44,7 @@ function ConditionBranchNodeComponent({ data, selected }: NodeProps) {
               type="source"
               position={Position.Bottom}
               id={`condition-${c.id ?? i}`}
-              className="!w-2 !h-2 !bg-orange-500 !border-orange-500"
+              className="!w-1.5 !h-1.5 !bg-orange-500 !border-orange-500"
               style={{ left: `${((i + 1) / (conditions.length + 1)) * 100}%` }}
             />
           ))
@@ -53,7 +53,7 @@ function ConditionBranchNodeComponent({ data, selected }: NodeProps) {
               type="source"
               position={Position.Bottom}
               id="source-default"
-              className="!w-2 !h-2 !bg-orange-500 !border-orange-500"
+              className="!w-1.5 !h-1.5 !bg-orange-500 !border-orange-500"
             />
           )}
     </BaseWorkflowNode>
