@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Changed
 
+- **Workflow run-mode visual feedback overhaul** — Ring-based node status styling replacing border-based approach, animated status dots with ping effect for running nodes, `useMemo`-derived `displayNodes`/`displayEdges` for clean state separation, and edge animation between completed-to-running nodes.
 - **Workflow test suite expanded to 105 tests** — Added template validation tests, import/export round-trip, variable store advanced methods, deadlock detection, multi-condition branching, question classifier, and comprehensive blueprint validation. Total: 68 → 97 → 105.
 - **Workflow test suite expanded to 68 tests** — Added 24 new tests covering eval namespace flattening (17 tests for dotted key resolution, short alias generation, ConditionBranch/VariableAssign with flat names) and blueprint validation warnings (7 tests for disconnected nodes, unreachable ends, empty conditions/prompts/code). Total workflow test count: 34 → 68.
 - **Workflow Editor Overhaul (Dify-style)** — Complete visual redesign of the workflow editor inspired by Dify:
@@ -23,6 +24,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Added
 
+- **Workflow ENV Variables Dialog** — Per-workflow encrypted environment variable management UI. Key-value editor with masked display, duplicate key detection, and inline validation. Connected to `GET/PUT /api/workflows/{id}/env` endpoints. Accessible via toolbar dropdown.
+- **Workflow Auto-Save** — 5-second debounced auto-save timer with immediate Cmd+S override. Save status indicator shows "Saving...", "Unsaved changes", or "Saved Xs ago" with 30s auto-refresh.
+- **Workflow List Search & Filter** — Client-side search by name/description, status filter buttons (All/Draft/Active), sort dropdown (Recently updated/created/Name A-Z), and empty state for no results.
+- **Workflow Color-Coded MiniMap** — MiniMap node colors now match each node type's category color (green=Start, red=End, blue=LLM, orange=Condition, etc.).
 - **Agent Skill System** — On-demand skill loading for agent instructions: `Skill` model (name, description, content, script) with full CRUD, publish review, and visibility lifecycle; `read_skill(name)` builtin tool for progressive disclosure (~80% token reduction); skill stubs injected into system prompt (~15 tokens/skill); `compact_instructions` per-agent field for custom ContextGuard compaction strategy.
 - **Skills UI** — Skill list page, full-page editor (content/script/settings tabs), SkillCard component, sidebar navigation, agent editor skill selector with compact instructions textarea.
 - **Workflow Publish Flow** — Publish/unpublish/resubmit endpoints for workflows, matching the existing Agent publish pattern. New `review_workflows` flag on Organization model (with Alembic migration) to enable org-level workflow review gating. Publish actions wired into workflow-card and toolbar UI.
