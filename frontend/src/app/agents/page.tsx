@@ -193,6 +193,7 @@ export default function AgentsPage() {
               <AgentCard
                 key={agent.id}
                 agent={agent}
+                currentUserId={user.id}
                 onDelete={handleDelete}
                 onPublish={handlePublish}
                 onUnpublish={handleUnpublish}

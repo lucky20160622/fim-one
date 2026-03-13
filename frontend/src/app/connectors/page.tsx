@@ -186,6 +186,7 @@ function ConnectorsPageInner() {
                 <ConnectorCard
                   key={connector.id}
                   connector={connector}
+                  currentUserId={user.id}
                   onDelete={handleDelete}
                 />
               ))}
@@ -195,7 +196,7 @@ function ConnectorsPageInner() {
 
         {/* MCP Servers tab */}
         <TabsContent value="mcp" className="flex-1 overflow-y-auto px-6 py-4 mt-0">
-          <MCPServersSection onReady={(actions) => { mcpActionsRef.current = actions }} />
+          <MCPServersSection onReady={(actions) => { mcpActionsRef.current = actions }} currentUserId={user.id} />
         </TabsContent>
       </Tabs>
 

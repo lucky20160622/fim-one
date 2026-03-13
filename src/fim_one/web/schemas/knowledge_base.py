@@ -24,6 +24,7 @@ class KBUpdate(BaseModel):
 
 class KBResponse(BaseModel):
     id: str
+    user_id: str
     name: str
     description: str | None
     chunk_strategy: str

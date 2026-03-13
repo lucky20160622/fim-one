@@ -913,6 +913,7 @@ async def _resolve_tools(
 
         if _user_servers:
             tools._pending_mcp_servers = list(_user_servers)  # type: ignore[attr-defined]
+            tools._mcp_user_id = user_id  # type: ignore[attr-defined]
     except Exception:
         logger.warning("Failed to load MCP server configs", exc_info=True)
 
@@ -926,9 +927,12 @@ async def _connect_pending_mcp_servers(tools: ToolRegistry) -> Any:
     scope created by stdio_client is entered and exited in the same coroutine.
     Returns the MCPClient (caller must call disconnect_all() in finally).
     """
+    import json as _json_mod
     pending = getattr(tools, "_pending_mcp_servers", None)
     if not pending:
         return None
+
+    _mcp_user_id = getattr(tools, "_mcp_user_id", None)
 
     from fim_one.core.mcp import MCPClient as _MCPClient
 
@@ -936,6 +940,47 @@ async def _connect_pending_mcp_servers(tools: ToolRegistry) -> Any:
     _loaded = 0
     for _srv in pending:
         try:
+            # Resolve per-user credentials vs server-level env/headers
+            _effective_env = _srv.env
+            _effective_headers = _srv.headers
+
+            if _mcp_user_id:
+                try:
+                    from fim_one.db import create_session as _cs_cred
+                    from fim_one.web.models.mcp_server_credential import MCPServerCredential as _MCPCred
+                    from sqlalchemy import select as _sa_select
+
+                    async with _cs_cred() as _cred_db:
+                        _cred_res = await _cred_db.execute(
+                            _sa_select(_MCPCred).where(
+                                _MCPCred.server_id == _srv.id,
+                                _MCPCred.user_id == _mcp_user_id,
+                            )
+                        )
+                        _cred = _cred_res.scalar_one_or_none()
+
+                    if _cred and _cred.env_blob:
+                        _effective_env = _json_mod.loads(_cred.env_blob)
+                        _effective_headers = (
+                            _json_mod.loads(_cred.headers_blob)
+                            if _cred.headers_blob
+                            else _srv.headers
+                        )
+                    elif not getattr(_srv, "allow_fallback", True):
+                        # allow_fallback=False and user has no credential — skip
+                        logger.info(
+                            "Skipping MCP server %r: allow_fallback=False and user has no credentials",
+                            _srv.name,
+                        )
+                        continue
+                    # else: use server-level env (current behavior)
+                except Exception:
+                    logger.warning(
+                        "Failed to resolve MCP credentials for server %r, using server-level env",
+                        _srv.name,
+                        exc_info=True,
+                    )
+
             if _srv.transport == "stdio" and _srv.command:
                 if not is_stdio_allowed():
                     logger.warning(
@@ -947,20 +992,20 @@ async def _connect_pending_mcp_servers(tools: ToolRegistry) -> Any:
                     name=_srv.name,
                     command=_srv.command,
                     args=_srv.args or [],
-                    env=_srv.env,
+                    env=_effective_env,
                     working_dir=_srv.working_dir,
                 )
             elif _srv.transport == "sse" and _srv.url:
                 _mcp_tools = await _mcp_client.connect_sse(
                     name=_srv.name,
                     url=_srv.url,
-                    headers=_srv.headers,
+                    headers=_effective_headers,
                 )
             elif _srv.transport == "streamable_http" and _srv.url:
                 _mcp_tools = await _mcp_client.connect_streamable_http(
                     name=_srv.name,
                     url=_srv.url,
-                    headers=_srv.headers,
+                    headers=_effective_headers,
                 )
             else:
                 continue

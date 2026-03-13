@@ -2,10 +2,13 @@
 
 import { useState } from "react"
 import { useTranslations } from "next-intl"
-import { MoreHorizontal, Pencil, Trash2, Terminal, Globe, FlaskConical, Loader2, CheckCircle2, XCircle } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Terminal, Globe, FlaskConical, Loader2, CheckCircle2, XCircle, Key, AlertTriangle } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,17 +26,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { mcpServerApi } from "@/lib/api"
 import type { MCPServerResponse } from "@/types/mcp-server"
 
 interface MCPServerCardProps {
   server: MCPServerResponse
+  currentUserId?: string
   onEdit: () => void
   onDelete: () => void
   onToggleActive: (isActive: boolean) => void
   onTest: () => Promise<{ ok: boolean; tool_count?: number; error?: string }>
+  onCredentialsSaved?: (serverId: string) => void
 }
 
-export function MCPServerCard({ server, onEdit, onDelete, onToggleActive, onTest }: MCPServerCardProps) {
+export function MCPServerCard({ server, currentUserId, onEdit, onDelete, onToggleActive, onTest, onCredentialsSaved }: MCPServerCardProps) {
   const t = useTranslations("tools")
   const tc = useTranslations("common")
   const endpoint = server.transport === "stdio" ? server.command : server.url
@@ -41,6 +55,14 @@ export function MCPServerCard({ server, onEdit, onDelete, onToggleActive, onTest
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; tool_count?: number; error?: string } | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [myKeysOpen, setMyKeysOpen] = useState(false)
+  const [myKeysEnv, setMyKeysEnv] = useState<Record<string, string>>({})
+  const [myKeysSaving, setMyKeysSaving] = useState(false)
+  const [myKeysLoading, setMyKeysLoading] = useState(false)
+
+  const isOwner = !currentUserId || server.user_id === currentUserId
+  const isOrgResource = server.visibility === "org" || server.visibility === "global"
+  const needsKeyConfig = !server.allow_fallback && !server.my_has_credentials
 
   const handleTest = async () => {
     setTesting(true)
@@ -50,6 +72,79 @@ export function MCPServerCard({ server, onEdit, onDelete, onToggleActive, onTest
       setTestResult(result)
     } finally {
       setTesting(false)
+    }
+  }
+
+  const handleOpenMyKeys = async () => {
+    setMyKeysEnv({})
+    setMyKeysLoading(true)
+    setMyKeysOpen(true)
+    try {
+      const status = await mcpServerApi.getMyCredentials(server.id)
+      if (status.has_credentials && status.env_keys.length > 0) {
+        // Pre-fill with empty values for existing keys (masked)
+        const prefilled: Record<string, string> = {}
+        for (const k of status.env_keys) {
+          prefilled[k] = ""
+        }
+        setMyKeysEnv(prefilled)
+      } else if (server.env) {
+        // Pre-populate with server env keys as empty template
+        const template: Record<string, string> = {}
+        for (const k of Object.keys(server.env)) {
+          template[k] = ""
+        }
+        setMyKeysEnv(template)
+      }
+    } catch {
+      // ignore, just open with empty
+    } finally {
+      setMyKeysLoading(false)
+    }
+  }
+
+  const handleAddEnvRow = () => {
+    setMyKeysEnv((prev) => ({ ...prev, "": "" }))
+  }
+
+  const handleEnvKeyChange = (oldKey: string, newKey: string) => {
+    setMyKeysEnv((prev) => {
+      const entries = Object.entries(prev)
+      const idx = entries.findIndex(([k]) => k === oldKey)
+      if (idx === -1) return prev
+      entries[idx] = [newKey, entries[idx][1]]
+      return Object.fromEntries(entries)
+    })
+  }
+
+  const handleEnvValueChange = (key: string, value: string) => {
+    setMyKeysEnv((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleRemoveEnvRow = (key: string) => {
+    setMyKeysEnv((prev) => {
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
+
+  const handleSaveMyKeys = async () => {
+    // Filter out empty keys
+    const env: Record<string, string> = {}
+    for (const [k, v] of Object.entries(myKeysEnv)) {
+      if (k.trim()) env[k.trim()] = v
+    }
+    setMyKeysSaving(true)
+    try {
+      await mcpServerApi.upsertMyCredentials(server.id, { env })
+      toast.success(t("myCredentialsSaved"))
+      setMyKeysOpen(false)
+      onCredentialsSaved?.(server.id)
+    } catch {
+      toast.error(t("failedToSaveMcpServer"))
+    } finally {
+      setMyKeysSaving(false)
     }
   }
 
@@ -66,58 +161,95 @@ export function MCPServerCard({ server, onEdit, onDelete, onToggleActive, onTest
         >
           {server.transport === "streamable_http" ? "HTTP" : server.transport.toUpperCase()}
         </Badge>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={server.is_active}
-              onClick={() => onToggleActive(!server.is_active)}
-              className={`relative shrink-0 inline-flex h-4 w-7 items-center rounded-full transition-colors focus-visible:outline-none ${
-                server.is_active ? "bg-green-500" : "bg-muted-foreground/30"
-              }`}
-            >
-              <span
-                className={`inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
-                  server.is_active ? "translate-x-[14px]" : "translate-x-0.5"
+        {isOwner && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={server.is_active}
+                onClick={() => onToggleActive(!server.is_active)}
+                className={`relative shrink-0 inline-flex h-4 w-7 items-center rounded-full transition-colors focus-visible:outline-none ${
+                  server.is_active ? "bg-green-500" : "bg-muted-foreground/30"
                 }`}
-              />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={5}>
-            {server.is_active ? tc("disable") : tc("enable")}
-          </TooltipContent>
-        </Tooltip>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onEdit}>
-              <Pencil className="h-4 w-4" />
-              {tc("edit")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleTest} disabled={testing}>
-              {testing
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <FlaskConical className="h-4 w-4" />
-              }
-              {t("testConnection")}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
-              <Trash2 className="h-4 w-4" />
-              {tc("delete")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              >
+                <span
+                  className={`inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
+                    server.is_active ? "translate-x-[14px]" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={5}>
+              {server.is_active ? tc("disable") : tc("enable")}
+            </TooltipContent>
+          </Tooltip>
+        )}
+        {/* Dropdown: owner sees full menu; non-owner of org resource sees only "Configure My Keys" */}
+        {isOwner ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onEdit}>
+                <Pencil className="h-4 w-4" />
+                {tc("edit")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleTest} disabled={testing}>
+                {testing
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <FlaskConical className="h-4 w-4" />
+                }
+                {t("testConnection")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="h-4 w-4" />
+                {tc("delete")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : isOrgResource ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleOpenMyKeys}>
+                <Key className="h-4 w-4" />
+                {t("configureMyKeys")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
+
+      {/* Key required warning badge */}
+      {needsKeyConfig && (
+        <div className="flex items-center gap-1 mb-2">
+          <Badge
+            variant="outline"
+            className="text-[10px] px-1.5 py-0 h-5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 cursor-pointer"
+            onClick={handleOpenMyKeys}
+          >
+            <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+            {t("keyRequiredWarning")}
+          </Badge>
+        </div>
+      )}
 
       {/* Endpoint */}
       {endpoint && (
@@ -180,6 +312,83 @@ export function MCPServerCard({ server, onEdit, onDelete, onToggleActive, onTest
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Configure My Keys dialog — sibling, never nested */}
+      <Dialog open={myKeysOpen} onOpenChange={setMyKeysOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              {t("myKeysDialogTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("myKeysDialogDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">{t("myKeysEnvVars")}</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleAddEnvRow}
+              >
+                + Add
+              </Button>
+            </div>
+            {myKeysLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {Object.entries(myKeysEnv).map(([key, value], idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      className="h-8 text-xs font-mono flex-1"
+                      placeholder="KEY_NAME"
+                      value={key}
+                      onChange={(e) => handleEnvKeyChange(key, e.target.value)}
+                    />
+                    <Input
+                      className="h-8 text-xs font-mono flex-1"
+                      placeholder="value"
+                      type="password"
+                      value={value}
+                      onChange={(e) => handleEnvValueChange(key, e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleRemoveEnvRow(key)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+                {Object.keys(myKeysEnv).length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    No environment variables. Click &quot;Add&quot; to add one.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setMyKeysOpen(false)}>
+              {tc("cancel")}
+            </Button>
+            <Button onClick={handleSaveMyKeys} disabled={myKeysSaving}>
+              {myKeysSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {t("myKeysSave")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

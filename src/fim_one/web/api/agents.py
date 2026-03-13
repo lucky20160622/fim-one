@@ -26,6 +26,7 @@ router = APIRouter(prefix="/api/agents", tags=["agents"])
 def _agent_to_response(agent: Agent) -> AgentResponse:
     return AgentResponse(
         id=agent.id,
+        user_id=agent.user_id or "",
         name=agent.name,
         icon=agent.icon,
         description=agent.description,

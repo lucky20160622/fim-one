@@ -1,5 +1,6 @@
 export interface MCPServerResponse {
   id: string
+  user_id: string
   name: string
   description: string | null
   transport: "stdio" | "sse" | "streamable_http"
@@ -15,8 +16,17 @@ export interface MCPServerResponse {
   reviewed_by: string | null
   reviewed_at: string | null
   review_note: string | null
+  allow_fallback: boolean
+  my_has_credentials: boolean
+  visibility?: string
+  org_id?: string | null
   created_at: string
   updated_at: string | null
+}
+
+export interface MCPMyCredentialStatus {
+  has_credentials: boolean
+  env_keys: string[]
 }
 
 export interface MCPServerCreate {

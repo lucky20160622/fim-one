@@ -1,5 +1,6 @@
 export interface KBResponse {
   id: string
+  user_id: string
   name: string
   description: string | null
   chunk_strategy: string
@@ -13,6 +14,8 @@ export interface KBResponse {
   reviewed_by: string | null
   reviewed_at: string | null
   review_note: string | null
+  visibility?: string
+  org_id?: string | null
   created_at: string
   updated_at: string | null
 }

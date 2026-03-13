@@ -46,7 +46,7 @@ import type {
   MyCredentialStatus,
 } from "@/types/connector"
 import type { AdminUser, AdminConversation, AdminMessage, StorageStats, InviteCode, AdminMCPServer, IntegrationHealth, AdminModelsResponse, AdminModelCreate, AdminModelUpdate, AdminUserFile, AdminGlobalAgentInfo, AdminAllMcpServer, AdminOrganization, OrgMember as AdminOrgMember, ReviewLogItem } from "@/types/admin"
-import type { MCPServerResponse, MCPServerCreate, MCPServerUpdate } from "@/types/mcp-server"
+import type { MCPServerResponse, MCPServerCreate, MCPServerUpdate, MCPMyCredentialStatus } from "@/types/mcp-server"
 import type { ModelConfigResponse, ModelConfigCreate, ModelConfigUpdate } from "@/types/model_config"
 import type {
   EvalDatasetResponse,
@@ -1301,6 +1301,17 @@ export const mcpServerApi = {
   resubmit: (id: string) =>
     apiFetch<ApiResponse<MCPServerResponse>>(`/api/mcp-servers/${id}/resubmit`, {
       method: "POST",
+    }).then((r) => r.data),
+
+  getMyCredentials: (id: string) =>
+    apiFetch<ApiResponse<MCPMyCredentialStatus>>(`/api/mcp-servers/${id}/my-credentials`).then(
+      (r) => r.data,
+    ),
+
+  upsertMyCredentials: (id: string, body: { env?: Record<string, string>; headers?: Record<string, string> }) =>
+    apiFetch<ApiResponse<{ saved: boolean }>>(`/api/mcp-servers/${id}/my-credentials`, {
+      method: "PUT",
+      body: JSON.stringify(body),
     }).then((r) => r.data),
 }
 

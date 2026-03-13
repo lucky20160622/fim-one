@@ -19,6 +19,8 @@ from fim_one.web.models.mcp_server import MCPServer
 from fim_one.web.models.user import User
 from fim_one.web.schemas.common import ApiResponse, PaginatedResponse, PublishRequest
 from fim_one.web.schemas.mcp_server import (
+    MCPMyCredentialStatus,
+    MCPMyCredentialUpsert,
     MCPServerCreate,
     MCPServerResponse,
     MCPServerUpdate,
@@ -40,12 +42,13 @@ def _mask_dict(d: dict | None) -> dict | None:
     return {k: "***" for k in d}
 
 
-def _to_response(srv: MCPServer, *, is_owner: bool = True) -> MCPServerResponse:
+def _to_response(srv: MCPServer, *, is_owner: bool = True, my_has_credentials: bool = False) -> MCPServerResponse:
     # Mask sensitive fields for non-owners
     env = srv.env if is_owner else _mask_dict(srv.env)
     headers = srv.headers if is_owner else _mask_dict(srv.headers)
     return MCPServerResponse(
         id=srv.id,
+        user_id=srv.user_id or "",
         name=srv.name,
         description=srv.description,
         transport=srv.transport,
@@ -58,6 +61,7 @@ def _to_response(srv: MCPServer, *, is_owner: bool = True) -> MCPServerResponse:
         is_active=srv.is_active,
         tool_count=srv.tool_count,
         allow_fallback=getattr(srv, "allow_fallback", True),
+        my_has_credentials=my_has_credentials,
         visibility=getattr(srv, "visibility", "personal"),
         org_id=getattr(srv, "org_id", None),
         publish_status=getattr(srv, "publish_status", None),
@@ -154,6 +158,7 @@ async def list_mcp_servers(
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> PaginatedResponse:
+    from fim_one.web.models.mcp_server_credential import MCPServerCredential
     from fim_one.web.visibility import build_visibility_filter
     user_org_ids = await get_user_org_ids(current_user.id, db)
     base = select(MCPServer).where(
@@ -172,13 +177,43 @@ async def list_mcp_servers(
     )
     servers = result.scalars().all()
 
+    # Bulk-fetch credential existence for current user
+    server_ids = [s.id for s in servers]
+    cred_set: set[str] = set()
+    if server_ids:
+        cred_result = await db.execute(
+            select(MCPServerCredential.server_id).where(
+                MCPServerCredential.server_id.in_(server_ids),
+                MCPServerCredential.user_id == current_user.id,
+            )
+        )
+        cred_set = {row[0] for row in cred_result.all()}
+
     return PaginatedResponse(
-        items=[_to_response(s).model_dump() for s in servers],
+        items=[_to_response(s, my_has_credentials=s.id in cred_set).model_dump() for s in servers],
         total=total,
         page=page,
         size=size,
         pages=math.ceil(total / size) if total else 0,
     )
+
+
+async def _get_accessible_server(
+    server_id: str, user_id: str, db: AsyncSession,
+) -> MCPServer:
+    """Fetch an MCP server the user owns OR an accessible org/global server."""
+    from fim_one.web.visibility import build_visibility_filter
+    user_org_ids = await get_user_org_ids(user_id, db)
+    result = await db.execute(
+        select(MCPServer).where(
+            MCPServer.id == server_id,
+            build_visibility_filter(MCPServer, user_id, user_org_ids),
+        )
+    )
+    server = result.scalar_one_or_none()
+    if server is None:
+        raise AppError("mcp_server_not_found", status_code=404)
+    return server
 
 
 @router.get("/{server_id}", response_model=ApiResponse)
@@ -187,8 +222,16 @@ async def get_mcp_server(
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
-    server = await _get_owned_server(server_id, current_user.id, db)
-    return ApiResponse(data=_to_response(server).model_dump())
+    from fim_one.web.models.mcp_server_credential import MCPServerCredential
+    server = await _get_accessible_server(server_id, current_user.id, db)
+    cred_result = await db.execute(
+        select(MCPServerCredential).where(
+            MCPServerCredential.server_id == server_id,
+            MCPServerCredential.user_id == current_user.id,
+        )
+    )
+    my_has_credentials = cred_result.scalar_one_or_none() is not None
+    return ApiResponse(data=_to_response(server, my_has_credentials=my_has_credentials).model_dump())
 
 
 @router.put("/{server_id}", response_model=ApiResponse)
@@ -474,3 +517,86 @@ async def delete_mcp_server(
     await db.delete(server)
     await db.commit()
     return ApiResponse(data={"deleted": server_id})
+
+
+# ---------------------------------------------------------------------------
+# Per-user credential endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{server_id}/my-credentials", response_model=ApiResponse)
+async def get_my_mcp_credentials(
+    server_id: str,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Return current user's personal credentials status for this MCP server."""
+    import json
+    from fim_one.web.models.mcp_server_credential import MCPServerCredential
+
+    await _get_accessible_server(server_id, current_user.id, db)
+    result = await db.execute(
+        select(MCPServerCredential).where(
+            MCPServerCredential.server_id == server_id,
+            MCPServerCredential.user_id == current_user.id,
+        )
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        return ApiResponse(
+            data=MCPMyCredentialStatus(has_credentials=False, env_keys=[]).model_dump()
+        )
+    env_keys: list[str] = []
+    if row.env_blob:
+        try:
+            env_keys = list(json.loads(row.env_blob).keys())
+        except Exception:
+            pass
+    return ApiResponse(
+        data=MCPMyCredentialStatus(has_credentials=True, env_keys=env_keys).model_dump()
+    )
+
+
+@router.put("/{server_id}/my-credentials", response_model=ApiResponse)
+async def upsert_my_mcp_credentials(
+    server_id: str,
+    body: MCPMyCredentialUpsert,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Create or replace the current user's personal env credentials for this MCP server."""
+    import json
+    from fim_one.web.models.mcp_server_credential import MCPServerCredential
+
+    await _get_accessible_server(server_id, current_user.id, db)
+
+    env_data: dict = body.env or {}
+    headers_data: dict = body.headers or {}
+
+    if not env_data and not headers_data:
+        raise AppError("no_credentials_provided", status_code=400)
+
+    env_blob = json.dumps(env_data) if env_data else None
+    headers_blob = json.dumps(headers_data) if headers_data else None
+
+    existing = await db.execute(
+        select(MCPServerCredential).where(
+            MCPServerCredential.server_id == server_id,
+            MCPServerCredential.user_id == current_user.id,
+        )
+    )
+    row = existing.scalar_one_or_none()
+    if row:
+        row.env_blob = env_blob
+        row.headers_blob = headers_blob
+    else:
+        row = MCPServerCredential(
+            server_id=server_id,
+            user_id=current_user.id,
+            env_blob=env_blob,
+            headers_blob=headers_blob,
+        )
+        db.add(row)
+
+    await db.commit()
+    return ApiResponse(data={"saved": True})

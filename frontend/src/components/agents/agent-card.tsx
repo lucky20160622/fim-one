@@ -23,6 +23,7 @@ import type { AgentResponse } from "@/types/agent"
 
 interface AgentCardProps {
   agent: AgentResponse
+  currentUserId?: string
   onDelete: (id: string) => void
   onPublish: (id: string) => void
   onUnpublish: (id: string) => void
@@ -31,6 +32,7 @@ interface AgentCardProps {
 
 export function AgentCard({
   agent,
+  currentUserId,
   onDelete,
   onPublish,
   onUnpublish,
@@ -41,6 +43,7 @@ export function AgentCard({
   const tc = useTranslations("common")
   const isPublished = agent.status === "published"
   const isDiscoverable = agent.discoverable === true
+  const isOwner = !currentUserId || agent.user_id === currentUserId
 
   return (
     <div className="group flex flex-col rounded-lg border border-border bg-card p-4 transition-colors hover:border-ring/40 hover:bg-accent/10">
@@ -54,31 +57,32 @@ export function AgentCard({
           )}
           {agent.name}
         </h3>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href={`/agents/${agent.id}`}>
-                <Pencil className="h-4 w-4" />
-                {tc("edit")}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => isPublished ? onUnpublish(agent.id) : onPublish(agent.id)}>
-              {isPublished ? <GlobeLock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
-              {isPublished ? tc("unpublish") : tc("publish")}
-            </DropdownMenuItem>
-            {agent.publish_status === "rejected" && onResubmit && (
-              <DropdownMenuItem onClick={() => onResubmit(agent.id)}>
-                <RotateCw className="h-4 w-4" />
-                {to("resubmit")}
+        {isOwner && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/agents/${agent.id}`}>
+                  <Pencil className="h-4 w-4" />
+                  {tc("edit")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => isPublished ? onUnpublish(agent.id) : onPublish(agent.id)}>
+                {isPublished ? <GlobeLock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
+                {isPublished ? tc("unpublish") : tc("publish")}
+              </DropdownMenuItem>
+              {agent.publish_status === "rejected" && onResubmit && (
+                <DropdownMenuItem onClick={() => onResubmit(agent.id)}>
+                  <RotateCw className="h-4 w-4" />
+                  {to("resubmit")}
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
@@ -87,7 +91,8 @@ export function AgentCard({
               {tc("delete")}
             </DropdownMenuItem>
           </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Status badges */}
