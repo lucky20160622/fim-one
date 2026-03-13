@@ -956,14 +956,14 @@ export const workflowApi = {
     ).then((r) => r.data),
 
   export: (id: string) =>
-    apiFetch<ApiResponse<Record<string, unknown>>>(`/api/workflows/${id}/export`).then(
-      (r) => r.data,
+    apiFetch<{ format: string; exported_at: string; workflow: Record<string, unknown> }>(
+      `/api/workflows/${id}/export`,
     ),
 
-  import: (data: Record<string, unknown>) =>
+  import: (fileData: Record<string, unknown>) =>
     apiFetch<ApiResponse<WorkflowResponse>>("/api/workflows/import", {
       method: "POST",
-      body: JSON.stringify({ data }),
+      body: JSON.stringify(fileData),
     }).then((r) => r.data),
 
   publish: (id: string, body: { scope: "org" | "global"; org_id?: string }) =>

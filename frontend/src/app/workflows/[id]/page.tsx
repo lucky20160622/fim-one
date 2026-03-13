@@ -384,11 +384,13 @@ export default function WorkflowEditorPage() {
       try {
         const text = await file.text()
         const data = JSON.parse(text)
-        if (data.blueprint) {
-          blueprintRef.current = data.blueprint
+        // Support both envelope format { workflow: { blueprint } } and legacy { blueprint }
+        const blueprint = data.workflow?.blueprint ?? data.blueprint
+        if (blueprint) {
+          blueprintRef.current = blueprint
           // Force re-render by updating workflow state
           setWorkflow((prev) =>
-            prev ? { ...prev, blueprint: data.blueprint } : prev,
+            prev ? { ...prev, blueprint } : prev,
           )
           setIsDirty(true)
           toast.success(t("workflowImported"))

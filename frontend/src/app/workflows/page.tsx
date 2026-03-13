@@ -151,6 +151,36 @@ export default function WorkflowsPage() {
     }
   }
 
+  const handleExport = async (id: string) => {
+    try {
+      const data = await workflowApi.export(id)
+      const wf = workflows.find((w) => w.id === id)
+      const slug = (wf?.name || "workflow")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${slug}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      toast.error(t("workflowExportFailed"))
+    }
+  }
+
+  const handleDuplicate = async (id: string) => {
+    try {
+      const duplicated = await workflowApi.duplicate(id)
+      setWorkflows((prev) => [duplicated, ...prev])
+      toast.success(t("workflowDuplicated"))
+    } catch {
+      toast.error(t("workflowDuplicateFailed"))
+    }
+  }
+
   const handleImport = () => {
     fileInputRef.current?.click()
   }
@@ -160,8 +190,13 @@ export default function WorkflowsPage() {
     if (!file) return
     try {
       const text = await file.text()
-      const data = JSON.parse(text)
-      const workflow = await workflowApi.import(data)
+      const parsed = JSON.parse(text)
+      // Support both envelope format { format, workflow } and legacy bare { name, blueprint }
+      const fileData =
+        parsed.format === "fim_workflow_v1" || parsed.workflow || parsed.data
+          ? parsed
+          : { data: parsed }
+      const workflow = await workflowApi.import(fileData)
       setWorkflows((prev) => [workflow, ...prev])
       toast.success(t("workflowImported"))
     } catch {
@@ -243,6 +278,8 @@ export default function WorkflowsPage() {
                 workflow={workflow}
                 currentUserId={user.id}
                 onDelete={handleDelete}
+                onExport={handleExport}
+                onDuplicate={handleDuplicate}
                 onPublish={handlePublish}
                 onUnpublish={handleUnpublish}
                 onResubmit={handleResubmit}

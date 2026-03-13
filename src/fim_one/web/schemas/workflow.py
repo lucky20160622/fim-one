@@ -105,7 +105,7 @@ class WorkflowRunResponse(BaseModel):
 
 
 class WorkflowExportData(BaseModel):
-    """Portable workflow representation for export."""
+    """Portable workflow representation for export (inner payload)."""
 
     name: str
     icon: str | None = None
@@ -113,13 +113,34 @@ class WorkflowExportData(BaseModel):
     blueprint: dict
     input_schema: dict | None = None
     output_schema: dict | None = None
-    version: str = "1.0"
+
+
+class WorkflowExportFile(BaseModel):
+    """Top-level envelope for exported workflow files."""
+
+    format: str = "fim_workflow_v1"
+    exported_at: str
+    workflow: WorkflowExportData
 
 
 class WorkflowImportRequest(BaseModel):
-    """Request body for importing a workflow."""
+    """Request body for importing a workflow (legacy wrapper)."""
 
     data: WorkflowExportData
+
+
+class WorkflowImportFileRequest(BaseModel):
+    """Request body matching the exported file envelope.
+
+    Accepts ``{ "format": "fim_workflow_v1", "exported_at": ..., "workflow": {...} }``
+    as well as the legacy ``{ "data": {...} }`` shape.
+    """
+
+    format: str | None = None
+    exported_at: str | None = None
+    workflow: WorkflowExportData | None = None
+    # Legacy fallback
+    data: WorkflowExportData | None = None
 
 
 # ---------------------------------------------------------------------------

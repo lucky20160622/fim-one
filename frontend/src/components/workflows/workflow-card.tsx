@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { useTranslations } from "next-intl"
 import {
+  Copy,
+  Download,
   GitBranch,
   Globe,
   GlobeLock,
@@ -34,6 +36,8 @@ interface WorkflowCardProps {
   workflow: WorkflowResponse
   currentUserId?: string
   onDelete: (id: string) => void
+  onExport: (id: string) => void
+  onDuplicate: (id: string) => void
   onPublish: (id: string) => void
   onUnpublish: (id: string) => void
   onResubmit?: (id: string) => void
@@ -43,6 +47,8 @@ export function WorkflowCard({
   workflow,
   currentUserId,
   onDelete,
+  onExport,
+  onDuplicate,
   onPublish,
   onUnpublish,
   onResubmit,
@@ -90,6 +96,14 @@ export function WorkflowCard({
                   <Play className="h-4 w-4" />
                   {t("editorRun")}
                 </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport(workflow.id)}>
+                <Download className="h-4 w-4" />
+                {tc("export")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDuplicate(workflow.id)}>
+                <Copy className="h-4 w-4" />
+                {t("editorDuplicate")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => isPublished ? onUnpublish(workflow.id) : onPublish(workflow.id)}>
                 {isPublished ? <GlobeLock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
