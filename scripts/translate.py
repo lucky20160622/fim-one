@@ -31,7 +31,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import litellm
 
@@ -551,6 +551,55 @@ def translate_json_file(src_path: Path, locale: str, config: dict[str, str], for
 
 
 # ---------------------------------------------------------------------------
+# MDX structural validation — catches LLM hallucinations before they ship
+# ---------------------------------------------------------------------------
+
+def _validate_mdx_section(en: str, translated: str) -> list[str]:
+    """Validate a translated MDX section against its EN source.
+
+    Catches three classes of LLM translation errors:
+    1. Broken code fences (extra/missing ```) — causes { in code to leak as JSX
+    2. Hallucinated headings (extra ## sections not in EN)
+    3. Bare { outside code blocks (MDX parses these as JSX expressions)
+
+    Returns a list of issue descriptions; empty list = OK.
+    """
+    issues: list[str] = []
+
+    # 1. Code fence balance: EN and translation must have the same count
+    en_fences = sum(1 for line in en.splitlines() if line.startswith("```"))
+    tr_fences = sum(1 for line in translated.splitlines() if line.startswith("```"))
+    if en_fences != tr_fences:
+        issues.append(f"fence count: EN={en_fences} vs translated={tr_fences}")
+
+    # 2. Heading count: translation must not add extra headings
+    en_headings = len(_re.findall(r"^#{1,6}\s", en, _re.MULTILINE))
+    tr_headings = len(_re.findall(r"^#{1,6}\s", translated, _re.MULTILINE))
+    if tr_headings > en_headings:
+        issues.append(f"extra headings: EN={en_headings} vs translated={tr_headings}")
+
+    # 3. Bare { outside code blocks must not exceed EN count
+    def _count_bare_braces(text: str) -> int:
+        in_code = False
+        count = 0
+        for line in text.splitlines():
+            if line.startswith("```"):
+                in_code = not in_code
+            elif not in_code and "{" in line:
+                stripped = line.lstrip()
+                if not stripped.startswith(("import ", "export ", "<")):
+                    count += 1
+        return count
+
+    en_braces = _count_bare_braces(en)
+    tr_braces = _count_bare_braces(translated)
+    if tr_braces > en_braces:
+        issues.append(f"extra bare braces: EN={en_braces} vs translated={tr_braces}")
+
+    return issues
+
+
+# ---------------------------------------------------------------------------
 # Section-based translation (shared by MDX + README)
 # Sections within a file are translated concurrently.
 # ---------------------------------------------------------------------------
@@ -564,6 +613,7 @@ def _translate_sections(
     cache_key: str,
     inner_workers: int = 5,
     force: bool = False,
+    validate_fn: Callable[[str, str], list[str]] | None = None,
 ) -> str:
     sections = _split_sections(content)
     hashes = [_hash(s) for s in sections]
@@ -587,20 +637,34 @@ def _translate_sections(
     if to_translate:
         tprint(f"  [{locale}] {src_path.name}: {len(to_translate)}/{total} sections to translate, {hits} cached")
 
+        max_attempts = 3 if validate_fn else 1
+
         def _translate_one(idx: int, section: str) -> tuple[int, str | None]:
-            try:
-                translated = llm_chat(config, system_prompt, section)
-                # Preserve trailing whitespace from original section.
-                # LLMs often strip trailing newlines, which causes sections
-                # to be glued together (e.g. "...value).## Next Heading").
-                orig_stripped = section.rstrip()
-                trailing = section[len(orig_stripped):]
-                if trailing and not translated.endswith(trailing):
-                    translated = translated.rstrip() + trailing
-                return idx, translated
-            except Exception as exc:
-                tprint(f"  [{locale}] {src_path.name}: WARNING section {idx} failed — {exc}")
-                return idx, None  # None = failure, do NOT cache
+            for attempt in range(max_attempts):
+                try:
+                    translated = llm_chat(config, system_prompt, section)
+                    # Preserve trailing whitespace from original section.
+                    # LLMs often strip trailing newlines, which causes sections
+                    # to be glued together (e.g. "...value).## Next Heading").
+                    orig_stripped = section.rstrip()
+                    trailing = section[len(orig_stripped):]
+                    if trailing and not translated.endswith(trailing):
+                        translated = translated.rstrip() + trailing
+                    # Validate structural integrity if validator provided
+                    if validate_fn:
+                        issues = validate_fn(section, translated)
+                        if issues:
+                            detail = "; ".join(issues)
+                            if attempt < max_attempts - 1:
+                                tprint(f"  [{locale}] {src_path.name}: section {idx} validation failed (attempt {attempt + 1}/{max_attempts}): {detail} — retrying")
+                                continue
+                            tprint(f"  [{locale}] {src_path.name}: WARNING section {idx} failed validation after {max_attempts} attempts: {detail} — using EN fallback")
+                            return idx, None
+                    return idx, translated
+                except Exception as exc:
+                    tprint(f"  [{locale}] {src_path.name}: WARNING section {idx} failed — {exc}")
+                    return idx, None  # None = failure, do NOT cache
+            return idx, None  # unreachable, but satisfies type checker
 
         results: dict[int, str] = dict(cached)
         with ThreadPoolExecutor(max_workers=min(inner_workers, len(to_translate))) as ex:
@@ -666,7 +730,11 @@ def translate_mdx_file(src_path: Path, locale: str, config: dict[str, str], forc
         return None
 
     system = _MDX_SYSTEM_PROMPT.format(locale=locale)
-    translated_content = _translate_sections(src_path, content, locale, config, system, cache_key=f"docs/{rel}", force=force)
+    translated_content = _translate_sections(
+        src_path, content, locale, config, system,
+        cache_key=f"docs/{rel}", force=force,
+        validate_fn=_validate_mdx_section,
+    )
 
     target_path.parent.mkdir(parents=True, exist_ok=True)
     target_path.write_text(translated_content, encoding="utf-8")
