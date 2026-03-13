@@ -41,5 +41,9 @@
   "getStarted": "Erste Schritte",
   "skip": "Jetzt überspringen",
   "back": "Zurück",
-  "settingUp": "Ihr Profil wird eingerichtet..."
+  "settingUp": "Ihr Profil wird eingerichtet...",
+  "completionTitle": "Du bist startklar!",
+  "completionSubtitle": "Willkommen an Bord, {name}. Lass uns beginnen!",
+  "goToDashboard": "Zum Dashboard",
+  "redirectingIn": "Umleitung in {seconds}s..."
 }

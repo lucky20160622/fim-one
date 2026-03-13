@@ -41,5 +41,9 @@
   "getStarted": "开始使用",
   "skip": "暂时跳过",
   "back": "返回",
-  "settingUp": "正在设置您的个人资料..."
+  "settingUp": "正在设置您的个人资料...",
+  "completionTitle": "一切就绪！",
+  "completionSubtitle": "欢迎加入，{name}。让我们开始吧！",
+  "goToDashboard": "前往仪表板",
+  "redirectingIn": "将在 {seconds}s 后重定向..."
 }

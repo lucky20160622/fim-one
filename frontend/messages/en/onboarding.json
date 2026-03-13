@@ -42,6 +42,11 @@
   "styleChallenge": "Challenge my ideas",
   "styleChallengeDesc": "Question assumptions, play devil's advocate",
 
+  "completionTitle": "You're all set!",
+  "completionSubtitle": "Welcome aboard, {name}. Let's get started!",
+  "goToDashboard": "Go to Dashboard",
+  "redirectingIn": "Redirecting in {seconds}s...",
+
   "continue": "Continue",
   "getStarted": "Get Started",
   "skip": "Skip for now",

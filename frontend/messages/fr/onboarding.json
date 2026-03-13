@@ -41,5 +41,9 @@
   "getStarted": "Commencer",
   "skip": "Ignorer pour l'instant",
   "back": "Retour",
-  "settingUp": "Configuration de votre profil..."
+  "settingUp": "Configuration de votre profil...",
+  "completionTitle": "Tout est prêt !",
+  "completionSubtitle": "Bienvenue à bord, {name}. Commençons !",
+  "goToDashboard": "Aller au tableau de bord",
+  "redirectingIn": "Redirection dans {seconds}s..."
 }

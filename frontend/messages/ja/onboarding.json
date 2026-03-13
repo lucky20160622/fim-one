@@ -41,5 +41,9 @@
   "getStarted": "始める",
   "skip": "スキップ",
   "back": "戻る",
-  "settingUp": "プロフィールを設定中..."
+  "settingUp": "プロフィールを設定中...",
+  "completionTitle": "すべての準備が完了しました！",
+  "completionSubtitle": "{name}さん、ようこそ。さあ始めましょう！",
+  "goToDashboard": "ダッシュボードに移動",
+  "redirectingIn": "{seconds}秒後にリダイレクトします..."
 }

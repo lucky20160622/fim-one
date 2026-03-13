@@ -41,5 +41,9 @@
   "getStarted": "시작하기",
   "skip": "지금은 건너뛰기",
   "back": "뒤로",
-  "settingUp": "프로필을 설정 중입니다..."
+  "settingUp": "프로필을 설정 중입니다...",
+  "completionTitle": "모두 준비되었습니다!",
+  "completionSubtitle": "{name}님, 환영합니다. 시작해 봅시다!",
+  "goToDashboard": "대시보드로 이동",
+  "redirectingIn": "{seconds}초 후 리디렉션됩니다..."
 }
