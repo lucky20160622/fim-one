@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Changed
 
+- **Workflow test suite expanded to 118 tests** — Added 7 tests for ConditionBranch LLM mode (exact match, case-insensitive, fuzzy, no-match fallback, DEFAULT response, no-candidates, variable interpolation). Total: 111 → 118.
 - **Workflow run-mode visual feedback overhaul** — Ring-based node status styling replacing border-based approach, animated status dots with ping effect for running nodes, `useMemo`-derived `displayNodes`/`displayEdges` for clean state separation, and edge animation between completed-to-running nodes.
 - **Workflow test suite expanded to 105 tests** — Added template validation tests, import/export round-trip, variable store advanced methods, deadlock detection, multi-condition branching, question classifier, and comprehensive blueprint validation. Total: 68 → 97 → 105.
 - **Workflow test suite expanded to 68 tests** — Added 24 new tests covering eval namespace flattening (17 tests for dotted key resolution, short alias generation, ConditionBranch/VariableAssign with flat names) and blueprint validation warnings (7 tests for disconnected nodes, unreachable ends, empty conditions/prompts/code). Total workflow test count: 34 → 68.
@@ -24,6 +25,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Added
 
+- **Workflow Node Notes** — Per-node annotation feature. Click "Note" in any node's config panel to add a freeform note displayed as italic text below the node on the canvas. Auto-expanding textarea with `data.note` storage.
+- **Workflow Snap-to-Grid** — 16px snap grid matching the dot background pattern for precise node alignment.
+- **Workflow Connection Validation** — Prevents self-connections and duplicate edges in addition to existing Start/End restrictions.
+- **Workflow Zoom-Aware Drop** — Node palette drag-and-drop uses `screenToFlowPosition()` for correct placement at any zoom level.
+- **Workflow SSE Multi-Line Data** — SSE parser now handles multi-line `data:` fields and ignores keepalive comment lines.
 - **Workflow Keyboard Shortcuts** — Copy (Cmd+C), paste (Cmd+V), duplicate (Cmd+D), select all (Cmd+A), Escape to deselect. Copy/paste generates new IDs and offsets positions; Start/End nodes are excluded from copy to maintain singleton constraint.
 - **Workflow Inline Description Editing** — Click the description line in the toolbar to open a popover textarea for editing workflow descriptions without navigating away.
 - **Workflow ConditionBranch LLM Mode** — Proper LLM-based condition evaluation replacing the naive "match first" stub. Builds a classification prompt from condition labels, calls the fast LLM, and uses case-insensitive + fuzzy matching.
