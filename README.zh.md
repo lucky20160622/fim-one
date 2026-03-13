@@ -11,9 +11,9 @@
 [![Discord](https://img.shields.io/discord/1480638265206771742?logo=discord&label=discord)](https://discord.gg/z64czxdC7z)
 [![Product Hunt](https://img.shields.io/badge/Product%20Hunt-FIM%20One-DA552F?logo=producthunt&logoColor=white)](https://www.producthunt.com/products/fim-one)
 
-🌐 **English** | [🇨🇳 中文](README.zh.md)
+[🌐 English](README.md) | [🇨🇳 中文](README.zh.md) | [🇯🇵 日本語](README.ja.md) | [🇰🇷 한국어](README.ko.md) | [🇩🇪 Deutsch](README.de.md) | [🇫🇷 Français](README.fr.md)
 
-**AI 驱动的连接器中心 — 作为 Copilot 嵌入到一个系统中，或作为中心连接所有系统。**
+**AI 驱动的连接器中心 — 作为副驾驶嵌入单个系统，或作为中心连接所有系统。**
 
 🌐 [网站](https://one.fim.ai/) · 📖 [文档](https://docs.fim.ai) · 📋 [更新日志](https://docs.fim.ai/changelog) · 🐛 [报告问题](https://github.com/fim-ai/fim-one/issues) · 💬 [Discord](https://discord.gg/z64czxdC7z) · 🐦 [Twitter](https://x.com/FIM_One) · 🏆 [Product Hunt](https://www.producthunt.com/products/fim-one)
 
@@ -23,7 +23,9 @@
 > **☁️ 跳过设置 — 在云端尝试 FIM One。**
 > 托管版本已在 **[cloud.fim.ai](https://cloud.fim.ai/)** 上线：无需 Docker、无需 API 密钥、无需配置。登录后即可在几秒内开始连接您的系统。_早期访问，欢迎反馈。_
 
----## 目录
+---
+
+## 目录
 
 - [概述](#overview)
 - [用例](#use-cases)
