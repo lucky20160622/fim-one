@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Added
 
+- **Admin: Review Log audit tab** — Admin audit page now has a segmented "System Log / Review Log" toggle. The Review Log panel queries the new `GET /api/admin/review-log` endpoint (filters: org, resource type, action; limit/offset pagination) and displays a table with time, org name, resource type, resource name, action badge (color-coded: green=approved, red=rejected, amber=submitted/resubmitted, muted=unpublished), and operator. Full i18n (EN + ZH).
 - **Platform Organization**: Built-in org `platform` (ID: `00000000-0000-0000-0000-000000000001`) — all new users automatically join. This organization replaces the "global" visibility concept and provides a central hub for sharing resources across all users.
 - **Resource Subscriptions**: Users can now subscribe/unsubscribe to shared resources (agents, connectors, knowledge bases, MCP servers) from org Markets. New `resource_subscriptions` database table tracks subscription relationships.
 - **Market API**: New endpoints for browsing and managing subscriptions:
