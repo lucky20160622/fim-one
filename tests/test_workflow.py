@@ -2691,3 +2691,180 @@ class TestTemplates:
         types = {n.type for n in bp.nodes}
         assert NodeType.HTTP_REQUEST in types
         assert NodeType.TEMPLATE_TRANSFORM in types
+
+
+# =========================================================================
+# Timeout and error strategy — additional coverage
+# =========================================================================
+
+
+class TestTimeoutAndErrorStrategy:
+    """Additional tests for per-node timeout_ms and error_strategy behaviour.
+
+    These complement TestEngineTimeout, TestEngineErrorStrategies, and
+    TestFailBranchStrategy with edge-case and combination scenarios.
+    """
+
+    # -- Timeout edge cases ------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_no_timeout_when_fast_enough(self):
+        """A node that finishes well within its timeout_ms should succeed."""
+        raw = {
+            "nodes": [
+                _start_node(),
+                {
+                    "id": "code_fast",
+                    "type": "codeExecution",
+                    "data": {
+                        "type": "CODE_EXECUTION",
+                        "code": "result = 'quick'",
+                        "timeout_ms": 5000,
+                    },
+                },
+                _end_node(),
+            ],
+            "edges": [_edge("start_1", "code_fast"), _edge("code_fast", "end_1")],
+        }
+        parsed = parse_blueprint(raw)
+        engine = WorkflowEngine(run_id="r", user_id="u", workflow_id="w")
+
+        events: list[tuple[str, dict]] = []
+        async for event_name, event_data in engine.execute_streaming(parsed):
+            events.append((event_name, event_data))
+
+        completed = [
+            e for e in events
+            if e[0] == "node_completed" and e[1].get("node_id") == "code_fast"
+        ]
+        assert len(completed) == 1, "Fast node should complete successfully"
+
+        run_completed = [e for e in events if e[0] == "run_completed"]
+        assert len(run_completed) == 1
+        assert run_completed[0][1]["status"] == "completed"
+
+    @pytest.mark.asyncio
+    async def test_timeout_with_continue_strategy(self):
+        """A timed-out node with CONTINUE strategy should not stop the workflow."""
+        raw = {
+            "nodes": [
+                _start_node(),
+                {
+                    "id": "slow_code",
+                    "type": "codeExecution",
+                    "data": {
+                        "type": "CODE_EXECUTION",
+                        "code": "import time; time.sleep(60); result = 'done'",
+                        "timeout_ms": 200,
+                        "error_strategy": "continue",
+                    },
+                },
+                _end_node(),
+            ],
+            "edges": [
+                _edge("start_1", "slow_code"),
+                _edge("slow_code", "end_1"),
+            ],
+        }
+        parsed = parse_blueprint(raw)
+        engine = WorkflowEngine(run_id="r", user_id="u", workflow_id="w")
+
+        events: list[tuple[str, dict]] = []
+        async for event_name, event_data in engine.execute_streaming(parsed):
+            events.append((event_name, event_data))
+
+        # slow_code should fail with timeout
+        failed = [
+            e for e in events
+            if e[0] == "node_failed" and e[1].get("node_id") == "slow_code"
+        ]
+        assert len(failed) == 1
+        assert "timed out" in (failed[0][1].get("error", "")).lower()
+
+        # End node should still run thanks to continue strategy
+        end_started = any(
+            e[0] == "node_started" and e[1].get("node_id") == "end_1"
+            for e in events
+        )
+        assert end_started, "End node should still run with CONTINUE strategy after timeout"
+
+        # The engine emits run_failed (because a node did fail) but the key
+        # point is that downstream nodes were NOT skipped — they still ran.
+        run_final = [e for e in events if e[0] in ("run_completed", "run_failed")]
+        assert len(run_final) == 1
+
+    # -- Parser edge cases -------------------------------------------------
+
+    def test_parser_default_values(self):
+        """Nodes without explicit error_strategy / timeout_ms get defaults."""
+        raw = {
+            "nodes": [
+                _start_node(),
+                _llm_node("llm_plain"),
+                _end_node(),
+            ],
+            "edges": [_edge("start_1", "llm_plain"), _edge("llm_plain", "end_1")],
+        }
+        bp = parse_blueprint(raw)
+        llm = next(n for n in bp.nodes if n.id == "llm_plain")
+        assert llm.error_strategy == ErrorStrategy.STOP_WORKFLOW
+        assert llm.timeout_ms == 30000  # default 30 s
+
+    def test_parser_invalid_strategy_falls_back_to_stop(self):
+        """An unrecognised error_strategy string falls back to STOP_WORKFLOW."""
+        raw = {
+            "nodes": [
+                _start_node(),
+                {
+                    "id": "llm_bad",
+                    "type": "llm",
+                    "data": {
+                        "type": "LLM",
+                        "error_strategy": "invalid_value",
+                    },
+                },
+                _end_node(),
+            ],
+            "edges": [_edge("start_1", "llm_bad"), _edge("llm_bad", "end_1")],
+        }
+        bp = parse_blueprint(raw)
+        llm = next(n for n in bp.nodes if n.id == "llm_bad")
+        assert llm.error_strategy == ErrorStrategy.STOP_WORKFLOW
+
+    def test_parser_non_numeric_timeout_uses_default(self):
+        """A non-numeric timeout_ms value should fall back to the default."""
+        raw = {
+            "nodes": [
+                _start_node(),
+                {
+                    "id": "llm_t",
+                    "type": "llm",
+                    "data": {"type": "LLM", "timeout_ms": "not_a_number"},
+                },
+                _end_node(),
+            ],
+            "edges": [_edge("start_1", "llm_t"), _edge("llm_t", "end_1")],
+        }
+        bp = parse_blueprint(raw)
+        llm = next(n for n in bp.nodes if n.id == "llm_t")
+        # Parser falls back to default 30000 when conversion fails
+        assert llm.timeout_ms == 30000
+
+    def test_parser_negative_timeout_uses_default(self):
+        """A negative timeout_ms value should fall back to the default."""
+        raw = {
+            "nodes": [
+                _start_node(),
+                {
+                    "id": "llm_neg",
+                    "type": "llm",
+                    "data": {"type": "LLM", "timeout_ms": -100},
+                },
+                _end_node(),
+            ],
+            "edges": [_edge("start_1", "llm_neg"), _edge("llm_neg", "end_1")],
+        }
+        bp = parse_blueprint(raw)
+        llm = next(n for n in bp.nodes if n.id == "llm_neg")
+        # Parser rejects negative values, falls back to default 30000
+        assert llm.timeout_ms == 30000
