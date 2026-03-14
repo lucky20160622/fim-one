@@ -4,7 +4,7 @@ import { useEffect, Suspense } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTranslations } from "next-intl"
-import { LayoutDashboard, Activity, Plug, Settings, Shield, Users, MessageSquare, HardDrive, Cpu, Lock, Key, BookOpen, FileText, BarChart3, Wrench, Building2 } from "lucide-react"
+import { LayoutDashboard, Activity, Plug, Settings, Shield, Users, MessageSquare, HardDrive, Cpu, Lock, Key, BookOpen, FileText, BarChart3, Wrench, Building2, GitBranch } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { AdminOverview } from "@/components/admin/admin-overview"
@@ -22,9 +22,10 @@ import { AdminResources } from "@/components/admin/admin-resources"
 import { AdminContent } from "@/components/admin/admin-content"
 import { AdminAnalytics } from "@/components/admin/admin-analytics"
 import { AdminTools } from "@/components/admin/admin-tools"
+import { AdminWorkflows } from "@/components/admin/admin-workflows"
 import { AdminOrganizations } from "@/components/admin/admin-organizations"
 
-const TAB_KEYS = ["overview", "health", "users", "organizations", "conversations", "connectors", "models", "tools", "audit", "storage", "security", "apikeys", "resources", "content", "analytics", "settings"] as const
+const TAB_KEYS = ["overview", "health", "users", "organizations", "conversations", "connectors", "models", "tools", "workflows", "audit", "storage", "security", "apikeys", "resources", "content", "analytics", "settings"] as const
 
 const TAB_ICONS = {
   overview: LayoutDashboard,
@@ -35,6 +36,7 @@ const TAB_ICONS = {
   connectors: Plug,
   models: Cpu,
   tools: Wrench,
+  workflows: GitBranch,
   audit: Shield,
   storage: HardDrive,
   security: Lock,
@@ -114,6 +116,7 @@ function AdminPanelContent() {
           {activeTab === "storage" && <AdminStorage />}
           {activeTab === "models" && <AdminModels />}
           {activeTab === "tools" && <AdminTools />}
+          {activeTab === "workflows" && <AdminWorkflows />}
           {activeTab === "audit" && <AdminAudit />}
           {activeTab === "security" && <AdminSecurity />}
           {activeTab === "apikeys" && <AdminApiKeys />}

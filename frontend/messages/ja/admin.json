@@ -16,7 +16,8 @@
     "resources": "リソース",
     "content": "コンテンツ",
     "analytics": "分析",
-    "settings": "設定"
+    "settings": "設定",
+    "workflows": "ワークフロー"
   },
   "overview": {
     "title": "概要",
@@ -359,7 +360,9 @@
       "export__full_backup": "完全バックアップをエクスポート",
       "announcement__create": "お知らせを作成",
       "announcement__update": "お知らせを更新",
-      "announcement__delete": "お知らせを削除"
+      "announcement__delete": "お知らせを削除",
+      "workflow__admin_delete": "ワークフローを削除（管理者）",
+      "workflow__admin_toggle": "ワークフロー有効状態を切り替え（管理者）"
     },
     "detailDialogTitle": "監査詳細",
     "filterDateFrom": "開始日",
@@ -668,5 +671,30 @@
     "colLevel": "レベル",
     "colActive": "アクティブ",
     "colSchedule": "スケジュール"
+  },
+  "workflows": {
+    "title": "ワークフロー",
+    "subtitle": "システム全体のすべてのワークフローを管理します。",
+    "searchPlaceholder": "ワークフローを検索...",
+    "noWorkflows": "ワークフローが見つかりません。",
+    "owner": "所有者",
+    "nodeCount": "ノード",
+    "totalRuns": "実行",
+    "successRate": "成功",
+    "lastRun": "最後の実行",
+    "noRuns": "実行なし",
+    "toggleConfirm": "ワークフローの有効状態を切り替えますか？",
+    "toggleConfirmDesc": "ワークフロー「{name}」の有効状態が変更されます。",
+    "deleteConfirm": "このワークフローを削除しますか？",
+    "deleteConfirmDesc": "{owner}が所有するワークフロー「{name}」を削除します。関連するすべての実行も削除されます。この操作は取り消せません。",
+    "workflowEnabled": "ワークフローが有効になりました",
+    "workflowDisabled": "ワークフローが無効になりました",
+    "workflowDeleted": "ワークフローが削除されました",
+    "totalWorkflows": "合計{count, plural, one {# ワークフロー} other {# ワークフロー}}",
+    "previous": "前へ",
+    "pageOf": "ページ {page} / {pages}",
+    "statusAll": "すべてのステータス",
+    "statusDraft": "ドラフト",
+    "statusActive": "アクティブ"
   }
 }

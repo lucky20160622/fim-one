@@ -103,5 +103,7 @@
   "draft": "초안",
   "subscribed": "구독함",
   "unsubscribed": "구독 취소함",
-  "you": "당신"
+  "you": "당신",
+  "view": "보기",
+  "createdAt": "생성됨"
 }

@@ -16,7 +16,8 @@
     "resources": "Ressources",
     "content": "Contenu",
     "analytics": "Analytique",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "workflows": "Flux de travail"
   },
   "overview": {
     "title": "Aperçu",
@@ -359,7 +360,9 @@
       "export__full_backup": "Exporter la sauvegarde complète",
       "announcement__create": "Créer une annonce",
       "announcement__update": "Mettre à jour l'annonce",
-      "announcement__delete": "Supprimer l'annonce"
+      "announcement__delete": "Supprimer l'annonce",
+      "workflow__admin_delete": "Supprimer le flux de travail (Admin)",
+      "workflow__admin_toggle": "Activer/Désactiver le flux de travail (Admin)"
     },
     "detailDialogTitle": "Détail de l'audit",
     "filterDateFrom": "De",
@@ -668,5 +671,30 @@
     "colLevel": "Niveau",
     "colActive": "Actif",
     "colSchedule": "Calendrier"
+  },
+  "workflows": {
+    "title": "Flux de travail",
+    "subtitle": "Gérez tous les flux de travail du système.",
+    "searchPlaceholder": "Rechercher des flux de travail...",
+    "noWorkflows": "Aucun flux de travail trouvé.",
+    "owner": "Propriétaire",
+    "nodeCount": "Nœuds",
+    "totalRuns": "Exécutions",
+    "successRate": "Succès",
+    "lastRun": "Dernière exécution",
+    "noRuns": "Aucune exécution",
+    "toggleConfirm": "Basculer l'état actif du flux de travail ?",
+    "toggleConfirmDesc": "Cela modifiera l'état actif du flux de travail « {name} ».",
+    "deleteConfirm": "Supprimer ce flux de travail ?",
+    "deleteConfirmDesc": "Supprimer le flux de travail « {name} » appartenant à {owner}. Toutes les exécutions associées seront également supprimées. Cette action ne peut pas être annulée.",
+    "workflowEnabled": "Flux de travail activé",
+    "workflowDisabled": "Flux de travail désactivé",
+    "workflowDeleted": "Flux de travail supprimé",
+    "totalWorkflows": "{count, plural, one {# flux de travail} other {# flux de travail}} au total",
+    "previous": "Précédent",
+    "pageOf": "Page {page} sur {pages}",
+    "statusAll": "Tous les statuts",
+    "statusDraft": "Brouillon",
+    "statusActive": "Actif"
   }
 }

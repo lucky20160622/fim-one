@@ -16,7 +16,8 @@
     "resources": "资源",
     "content": "内容",
     "analytics": "分析",
-    "settings": "设置"
+    "settings": "设置",
+    "workflows": "工作流"
   },
   "overview": {
     "title": "概览",
@@ -359,7 +360,9 @@
       "export__full_backup": "导出完整备份",
       "announcement__create": "创建公告",
       "announcement__update": "更新公告",
-      "announcement__delete": "删除公告"
+      "announcement__delete": "删除公告",
+      "workflow__admin_delete": "删除工作流（管理员）",
+      "workflow__admin_toggle": "切换工作流活跃状态（管理员）"
     },
     "detailDialogTitle": "审计详情",
     "filterDateFrom": "从",
@@ -668,5 +671,30 @@
     "colLevel": "级别",
     "colActive": "活跃",
     "colSchedule": "计划"
+  },
+  "workflows": {
+    "title": "工作流",
+    "subtitle": "管理系统中的所有工作流。",
+    "searchPlaceholder": "搜索工作流...",
+    "noWorkflows": "未找到工作流。",
+    "owner": "所有者",
+    "nodeCount": "节点",
+    "totalRuns": "运行次数",
+    "successRate": "成功率",
+    "lastRun": "最后运行",
+    "noRuns": "无运行记录",
+    "toggleConfirm": "切换工作流活跃状态？",
+    "toggleConfirmDesc": "这将改变工作流 \"{name}\" 的活跃状态。",
+    "deleteConfirm": "删除此工作流？",
+    "deleteConfirmDesc": "删除由 {owner} 拥有的工作流 \"{name}\"。所有关联的运行记录也将被删除。此操作无法撤销。",
+    "workflowEnabled": "工作流已启用",
+    "workflowDisabled": "工作流已禁用",
+    "workflowDeleted": "工作流已删除",
+    "totalWorkflows": "{count, plural, one {# 个工作流} other {# 个工作流}}总计",
+    "previous": "上一页",
+    "pageOf": "第 {page} 页，共 {pages} 页",
+    "statusAll": "所有状态",
+    "statusDraft": "草稿",
+    "statusActive": "活跃"
   }
 }

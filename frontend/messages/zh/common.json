@@ -103,5 +103,7 @@
   "draft": "草稿",
   "subscribed": "已订阅",
   "unsubscribed": "未订阅",
-  "you": "您"
+  "you": "您",
+  "view": "查看",
+  "createdAt": "创建于"
 }

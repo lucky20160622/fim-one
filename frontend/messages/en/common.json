@@ -103,5 +103,7 @@
   "draft": "Draft",
   "subscribed": "Subscribed",
   "unsubscribed": "Unsubscribed",
+  "view": "View",
+  "createdAt": "Created",
   "you": "You"
 }

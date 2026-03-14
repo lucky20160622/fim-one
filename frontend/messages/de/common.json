@@ -103,5 +103,7 @@
   "draft": "Entwurf",
   "subscribed": "Abonniert",
   "unsubscribed": "Abmeldung aufgehoben",
-  "you": "Sie"
+  "you": "Sie",
+  "view": "Ansicht",
+  "createdAt": "Erstellt"
 }

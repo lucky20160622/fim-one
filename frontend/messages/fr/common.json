@@ -103,5 +103,7 @@
   "draft": "Brouillon",
   "subscribed": "Abonné",
   "unsubscribed": "Désabonné",
-  "you": "Vous"
+  "you": "Vous",
+  "view": "Affichage",
+  "createdAt": "Créé"
 }

@@ -1,0 +1,221 @@
+"""Admin endpoints for workflow management across all users."""
+
+from __future__ import annotations
+
+import logging
+import math
+from typing import Any
+
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
+from sqlalchemy import case, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from fim_one.db import get_session
+from fim_one.web.auth import get_current_admin
+from fim_one.web.exceptions import AppError
+from fim_one.web.models import User, Workflow, WorkflowRun
+from fim_one.web.schemas.common import PaginatedResponse
+
+from fim_one.web.api.admin_utils import write_audit
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+# ---------------------------------------------------------------------------
+# Schemas
+# ---------------------------------------------------------------------------
+
+
+class AdminWorkflowInfo(BaseModel):
+    id: str
+    name: str
+    icon: str | None = None
+    description: str | None = None
+    status: str = "draft"
+    is_active: bool = True
+    node_count: int = 0
+    total_runs: int = 0
+    success_rate: float | None = None
+    last_run_at: str | None = None
+    user_id: str
+    username: str | None = None
+    email: str | None = None
+    created_at: str
+    updated_at: str
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _count_nodes(blueprint: Any) -> int:
+    """Count nodes in a workflow blueprint JSON."""
+    if not blueprint or not isinstance(blueprint, dict):
+        return 0
+    nodes = blueprint.get("nodes")
+    if isinstance(nodes, list):
+        return len(nodes)
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get("/workflows", response_model=PaginatedResponse)
+async def list_all_workflows(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    search: str | None = Query(None),
+    status: str | None = Query(None),
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> PaginatedResponse:
+    """List all workflows across all users. Requires admin privileges."""
+
+    # --- Run stats subquery ---
+    run_stats = (
+        select(
+            WorkflowRun.workflow_id,
+            func.count(WorkflowRun.id).label("total_runs"),
+            func.sum(
+                case((WorkflowRun.status == "completed", 1), else_=0)
+            ).label("success_count"),
+            func.max(WorkflowRun.created_at).label("last_run_at"),
+        )
+        .group_by(WorkflowRun.workflow_id)
+        .subquery()
+    )
+
+    # --- Main query ---
+    stmt = (
+        select(Workflow, User, run_stats)
+        .join(User, Workflow.user_id == User.id)
+        .outerjoin(run_stats, Workflow.id == run_stats.c.workflow_id)
+    )
+    count_base = select(Workflow)
+
+    if search:
+        pattern = f"%{search}%"
+        filter_clause = Workflow.name.ilike(pattern)
+        stmt = stmt.where(filter_clause)
+        count_base = count_base.where(filter_clause)
+
+    if status:
+        status_clause = Workflow.status == status
+        stmt = stmt.where(status_clause)
+        count_base = count_base.where(status_clause)
+
+    count_stmt = select(func.count()).select_from(count_base.subquery())
+    total = (await db.execute(count_stmt)).scalar_one()
+
+    rows = (
+        await db.execute(
+            stmt.order_by(Workflow.created_at.desc())
+            .offset((page - 1) * size)
+            .limit(size)
+        )
+    ).all()
+
+    items = []
+    for row in rows:
+        workflow = row[0]
+        user = row[1]
+        total_runs = row[2] or 0
+        success_count = row[3] or 0
+        last_run_at = row[4]
+
+        success_rate = None
+        if total_runs > 0:
+            success_rate = round((success_count / total_runs) * 100, 1)
+
+        items.append(
+            AdminWorkflowInfo(
+                id=workflow.id,
+                name=workflow.name,
+                icon=workflow.icon,
+                description=workflow.description,
+                status=workflow.status,
+                is_active=workflow.is_active,
+                node_count=_count_nodes(workflow.blueprint),
+                total_runs=total_runs,
+                success_rate=success_rate,
+                last_run_at=last_run_at.isoformat() if last_run_at else None,
+                user_id=user.id,
+                username=user.username,
+                email=user.email,
+                created_at=workflow.created_at.isoformat() if workflow.created_at else "",
+                updated_at=workflow.updated_at.isoformat() if workflow.updated_at else "",
+            ).model_dump()
+        )
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=math.ceil(total / size) if total > 0 else 1,
+    )
+
+
+@router.post("/workflows/{workflow_id}/toggle")
+async def toggle_workflow_active(
+    workflow_id: str,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> dict:
+    """Toggle workflow is_active state."""
+    result = await db.execute(
+        select(Workflow).where(Workflow.id == workflow_id)
+    )
+    workflow = result.scalar_one_or_none()
+    if workflow is None:
+        raise AppError("workflow_not_found", status_code=404)
+
+    workflow.is_active = not workflow.is_active
+    await db.commit()
+
+    await write_audit(
+        db,
+        current_user,
+        "workflow.admin_toggle",
+        target_type="workflow",
+        target_id=workflow_id,
+        target_label=workflow.name,
+        detail=f"is_active={workflow.is_active}",
+    )
+
+    return {"ok": True, "is_active": workflow.is_active}
+
+
+@router.delete("/workflows/{workflow_id}", status_code=204)
+async def admin_delete_workflow(
+    workflow_id: str,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+):
+    """Delete any workflow by ID. Requires admin privileges."""
+    result = await db.execute(
+        select(Workflow).where(Workflow.id == workflow_id)
+    )
+    workflow = result.scalar_one_or_none()
+    if workflow is None:
+        raise AppError("workflow_not_found", status_code=404)
+
+    workflow_name = workflow.name
+    await db.delete(workflow)
+    await db.commit()
+
+    await write_audit(
+        db,
+        current_user,
+        "workflow.admin_delete",
+        target_type="workflow",
+        target_id=workflow_id,
+        target_label=workflow_name,
+    )

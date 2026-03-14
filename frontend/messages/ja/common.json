@@ -103,5 +103,7 @@
   "draft": "下書き",
   "subscribed": "購読中",
   "unsubscribed": "購読解除",
-  "you": "あなた"
+  "you": "あなた",
+  "view": "表示",
+  "createdAt": "作成日時"
 }
