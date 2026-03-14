@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fim_one.web.models.organization import Organization
+from fim_one.web.platform import is_market_org
 
 _REVIEW_COLUMN_MAP = {
     "agent": "review_agents",
@@ -59,7 +60,20 @@ async def apply_publish_status(
 
     If publisher_id matches the org owner_id (org creator), the review is
     bypassed and publish_status is set to None immediately.
+
+    For the Market org, review is always required unless the publisher is
+    the Market org owner (system admin).
     """
+    # Market org: always require review, only the org owner (system admin) bypasses
+    if is_market_org(org_id):
+        if publisher_id is not None:
+            org = await db.get(Organization, org_id)
+            if org and org.owner_id == publisher_id:
+                resource.publish_status = None
+                return
+        resource.publish_status = "pending_review"
+        return
+
     # Org creator bypass: fetch org to compare owner_id
     if publisher_id is not None:
         result = await db.execute(
