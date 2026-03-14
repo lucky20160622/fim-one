@@ -44,6 +44,20 @@ TOOL_SELECTION_THRESHOLD = 12
 # Maximum number of tools the selection phase may pick.
 _TOOL_SELECTION_MAX = 6
 
+# Every N tool-call iterations, inject a lightweight self-reflection prompt
+# to prevent goal drift in long reasoning chains.
+_SELF_REFLECTION_INTERVAL = 6
+
+_SELF_REFLECTION_PROMPT = (
+    "[Self-check] You have completed {iteration} tool-call iterations. "
+    "Pause and reflect:\n"
+    "- Original goal: {goal}\n"
+    "- Are you still on track toward this goal?\n"
+    "- Have you been repeating similar actions or going in circles?\n"
+    "- What is the most direct next step to finish?\n"
+    "If you have enough information, produce your final answer now."
+)
+
 _TOOL_SELECTION_PROMPT = """\
 You are a tool selection assistant.  Given a user query and a catalog of \
 available tools, select the tools most likely to be needed.
@@ -502,6 +516,7 @@ class ReActAgent:
 
         steps: list[StepResult] = []
         response_format = self._json_response_format()
+        tool_call_count = 0  # Track actual tool-call iterations for self-reflection
 
         for iteration in range(1, self._max_iterations + 1):
             logger.debug("ReAct iteration %d", iteration)
@@ -614,6 +629,7 @@ class ReActAgent:
 
             step = await self._execute_tool_call(action)
             steps.append(step)
+            tool_call_count += 1
 
             # Feed the tool result/error back into the conversation so the LLM
             # can observe and adapt on the next iteration (Observe step of ReAct).
@@ -623,6 +639,23 @@ class ReActAgent:
                 else f"Observation: {step.observation or '(no output)'}"
             )
             messages.append(ChatMessage(role="user", content=obs_content))
+
+            # --- Mid-loop self-reflection ---
+            # Every N tool calls, inject a lightweight goal-check prompt to
+            # prevent drift in long reasoning chains.
+            if (
+                tool_call_count % _SELF_REFLECTION_INTERVAL == 0
+                and iteration < self._max_iterations
+            ):
+                reflection = _SELF_REFLECTION_PROMPT.format(
+                    iteration=tool_call_count,
+                    goal=query if isinstance(query, str) else "(see original query)",
+                )
+                messages.append(ChatMessage(role="user", content=reflection))
+                logger.info(
+                    "Injected self-reflection at tool-call #%d (iteration %d)",
+                    tool_call_count, iteration,
+                )
 
             if on_iteration is not None:
                 on_iteration(iteration, action, step.observation, step.error, step)
@@ -689,6 +722,7 @@ class ReActAgent:
         messages.append(ChatMessage(role="user", content=user_content, pinned=True))
 
         steps: list[StepResult] = []
+        tool_call_count = 0  # Track actual tool-call iterations for self-reflection
 
         # Build OpenAI-format tool definitions using the effective (possibly
         # filtered) tool set for context efficiency.
@@ -738,12 +772,28 @@ class ReActAgent:
                     reasoning=assistant_msg.reasoning_content or "",
                 )
                 messages.extend(tool_results)
+                tool_call_count += 1
 
                 # Now safe to drain — tool_use/tool_result pairing is intact.
                 injected_msgs = (await interrupt_queue.drain()) if interrupt_queue is not None else []
                 self._emit_and_append_injections(
                     injected_msgs, messages, iteration, on_iteration,
                 )
+
+                # --- Mid-loop self-reflection ---
+                if (
+                    tool_call_count % _SELF_REFLECTION_INTERVAL == 0
+                    and iteration < self._max_iterations
+                ):
+                    reflection = _SELF_REFLECTION_PROMPT.format(
+                        iteration=tool_call_count,
+                        goal=query if isinstance(query, str) else "(see original query)",
+                    )
+                    messages.append(ChatMessage(role="user", content=reflection))
+                    logger.info(
+                        "Injected self-reflection at tool-call #%d (iteration %d)",
+                        tool_call_count, iteration,
+                    )
                 continue
 
             # -- Final answer path (no tool calls) --
