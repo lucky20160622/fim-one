@@ -192,13 +192,13 @@ export function TestNodeDialog({
                   <div key={row.id} className="flex items-center gap-1.5">
                     <Input
                       className="flex-1 h-7 text-xs"
-                      placeholder="key"
+                      placeholder={t("testNodeKeyPlaceholder")}
                       value={row.key}
                       onChange={(e) => updateVariable(row.id, "key", e.target.value)}
                     />
                     <Input
                       className="flex-1 h-7 text-xs"
-                      placeholder="value"
+                      placeholder={t("testNodeValuePlaceholder")}
                       value={row.value}
                       onChange={(e) => updateVariable(row.id, "value", e.target.value)}
                     />
@@ -240,13 +240,13 @@ export function TestNodeDialog({
                     <div key={row.id} className="flex items-center gap-1.5">
                       <Input
                         className="flex-1 h-7 text-xs"
-                        placeholder="KEY"
+                        placeholder={t("testNodeEnvKeyPlaceholder")}
                         value={row.key}
                         onChange={(e) => updateEnvVar(row.id, "key", e.target.value)}
                       />
                       <Input
                         className="flex-1 h-7 text-xs"
-                        placeholder="value"
+                        placeholder={t("testNodeEnvValuePlaceholder")}
                         value={row.value}
                         onChange={(e) => updateEnvVar(row.id, "value", e.target.value)}
                       />

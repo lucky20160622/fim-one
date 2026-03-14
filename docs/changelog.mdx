@@ -11,6 +11,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Added
 
+- **Workflow test-node endpoint** — `POST /api/workflows/{id}/test-node` for isolated single-node execution with mock VariableStore, 30s timeout, START/END rejection. Frontend `TestNodeDialog` sheet with key-value variable input, env vars section, JSON result viewer. Integrated into node config panel (Test button) and editor context menu. 23 tests.
+- **Workflow version diff dialog** — Side-by-side comparison of two blueprint versions showing added/removed/modified nodes and edges. Color-coded indicators (emerald=added, destructive=removed, amber=modified). Integrated into version history sheet with "Compare" button per version.
+- **35 end-to-end lifecycle tests** — Comprehensive workflow lifecycle testing covering create, edit, validate, run, version, restore, delete flows.
 - **Workflow run stats on list and cards** — Backend batch-fetches run counts and success rates via GROUP BY subquery; frontend displays stats on workflow cards with color-coded success rate indicators.
 - **Workflow scheduler daemon** — Background async service polling every 60 seconds for due cron-based workflows. Croniter timezone support, semaphore-based concurrency control, `last_scheduled_at` tracking, and webhook delivery for scheduled run results. 14 scheduler daemon tests.
 - **Workflow import conflict resolver** — Detects unresolved agent/connector/KB/MCP references during workflow import. Batch DB queries with visibility filtering; frontend displays toast warnings for missing external dependencies. 17 import conflict resolver tests.
@@ -51,6 +54,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **Node comments/annotations** — Collapsible Notes textarea in the config panel with a canvas indicator icon.
 
 ### Changed
+
+- **NodeTest schema rename** — Renamed `TestNodeRequest`/`TestNodeResponse` to `NodeTestRequest`/`NodeTestResponse` to avoid pytest collection warnings.
 
 - **Run panel Results/Logs tabs** — Run panel now uses a tabbed layout (Results + Logs) for better organization of execution output and event streams.
 - **Replaced elkjs with lightweight BFS auto-layout** — Custom BFS algorithm replaces elkjs (430 kB); `/workflows/[id]` bundle reduced from 473 kB to 43 kB.
