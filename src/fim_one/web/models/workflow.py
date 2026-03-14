@@ -89,6 +89,24 @@ class Workflow(UUIDPKMixin, TimestampMixin, Base):
     )
 
 
+class WorkflowTemplate(UUIDPKMixin, TimestampMixin, Base):
+    """A reusable workflow template — admin-managed blueprints users can clone."""
+
+    __tablename__ = "workflow_templates"
+
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    icon: Mapped[str] = mapped_column(String(100), nullable=False, default="🔄")
+    category: Mapped[str] = mapped_column(String(100), nullable=False)
+    blueprint: Any = Column(JSON, nullable=False)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False, server_default=sa.text("TRUE")
+    )
+    sort_order: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default="0"
+    )
+
+
 class WorkflowRun(UUIDPKMixin, TimestampMixin, Base):
     """A single execution run of a workflow blueprint."""
 

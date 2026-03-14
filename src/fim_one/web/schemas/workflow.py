@@ -298,14 +298,14 @@ class WorkflowEnvVarsUpdate(BaseModel):
 
 
 class WorkflowFromTemplateRequest(BaseModel):
-    """Request body for creating a workflow from a built-in template."""
+    """Request body for creating a workflow from a template (built-in or DB-stored)."""
 
     template_id: str = Field(min_length=1)
     name: str | None = None
 
 
 class WorkflowTemplateResponse(BaseModel):
-    """A built-in workflow template descriptor."""
+    """A workflow template descriptor (built-in or DB-stored)."""
 
     id: str
     name: str
@@ -313,6 +313,31 @@ class WorkflowTemplateResponse(BaseModel):
     icon: str
     category: str
     blueprint: dict
+    created_at: str | None = None
+
+
+class WorkflowTemplateCreate(BaseModel):
+    """Request body for creating a DB-stored workflow template (admin only)."""
+
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1)
+    icon: str = "🔄"
+    category: str = Field(min_length=1, max_length=100)
+    blueprint: dict
+    is_active: bool = True
+    sort_order: int = 0
+
+
+class WorkflowTemplateUpdate(BaseModel):
+    """Request body for updating a DB-stored workflow template (admin only)."""
+
+    name: str | None = None
+    description: str | None = None
+    icon: str | None = None
+    category: str | None = None
+    blueprint: dict | None = None
+    is_active: bool | None = None
+    sort_order: int | None = None
 
 
 # ---------------------------------------------------------------------------
