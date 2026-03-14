@@ -21,10 +21,12 @@ class GroundedRetrieveTool(BaseTool):
         self,
         kb_ids: list[str] | None = None,
         user_id: str | None = None,
+        kb_owner_map: dict[str, str] | None = None,
         confidence_threshold: float | None = None,
     ) -> None:
         self._bound_kb_ids = kb_ids or []
         self._user_id = user_id
+        self._kb_owner_map = kb_owner_map or {}
         self._confidence_threshold = confidence_threshold
         self._source_offset: int = 0
         self._offset_lock: asyncio.Lock = asyncio.Lock()
@@ -112,7 +114,9 @@ class GroundedRetrieveTool(BaseTool):
                 config=config,
                 usage_tracker=self._usage_tracker,
             )
-            result = await pipeline.ground(query, kb_ids, user_id)
+            result = await pipeline.ground(
+                query, kb_ids, user_id, kb_owner_map=self._kb_owner_map,
+            )
 
             # Hard gate: if confidence below threshold, refuse to answer
             # with this evidence.  Do NOT advance the offset.
@@ -153,8 +157,6 @@ class GroundedRetrieveTool(BaseTool):
                     stmt = select(KBModel.id, KBModel.name).where(
                         KBModel.id.in_(kb_ids)
                     )
-                    if user_id:
-                        stmt = stmt.where(KBModel.user_id == user_id)
                     rows = await db.execute(stmt)
                     kb_names = {row.id: row.name for row in rows}
                 finally:

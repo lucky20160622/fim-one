@@ -467,13 +467,11 @@ async def _resolve_agent_config(
         return None
 
     async with create_session() as session:
-        from fim_one.web.visibility import build_visibility_filter
-        from fim_one.web.auth import get_user_org_ids
-
         stmt = sa_select(Agent).where(Agent.id == resolved_id)
         if user_id:
-            _user_org_ids = await get_user_org_ids(user_id, session)
-            stmt = stmt.where(build_visibility_filter(Agent, user_id, _user_org_ids))
+            from fim_one.web.visibility import resolve_visibility as _agent_vis
+            _vis_filter, _, _ = await _agent_vis(Agent, user_id, "agent", session)
+            stmt = stmt.where(_vis_filter)
         result = await session.execute(stmt)
         agent = result.scalar_one_or_none()
         if agent is None:
@@ -588,12 +586,31 @@ async def _resolve_tools(
     if kb_ids:
         retrieval_mode = _get_retrieval_mode(agent_cfg)
         tools = tools.exclude_by_name("kb_retrieve", "grounded_retrieve")
-        _kb_owner_id = (agent_cfg.get("owner_user_id") or user_id) if agent_cfg else user_id
+
+        # Resolve per-KB owner for vector store path lookup.
+        # Each KB's data lives under user_{owner}/kb_{id}/, so we need
+        # the actual KB owner, not the agent owner or current user.
+        kb_owner_map: dict[str, str] = {}
+        try:
+            from fim_one.db import create_session as _kb_cs
+            from fim_one.web.models.knowledge_base import KnowledgeBase as _KBModel
+            async with _kb_cs() as _kb_db:
+                _kb_result = await _kb_db.execute(
+                    sa_select(_KBModel.id, _KBModel.user_id).where(
+                        _KBModel.id.in_(kb_ids)
+                    )
+                )
+                for row in _kb_result.all():
+                    kb_owner_map[row[0]] = row[1]
+        except Exception:
+            logger.warning("Failed to resolve KB owners", exc_info=True)
 
         if retrieval_mode == "simple":
             from fim_one.core.tool.builtin.kb_retrieve import KBRetrieveTool
 
-            tools.register(KBRetrieveTool(user_id=_kb_owner_id, kb_ids=kb_ids))
+            tools.register(KBRetrieveTool(
+                user_id=user_id, kb_ids=kb_ids, kb_owner_map=kb_owner_map,
+            ))
         else:
             from fim_one.core.tool.builtin.grounded_retrieve import GroundedRetrieveTool
 
@@ -601,7 +618,8 @@ async def _resolve_tools(
             confidence_threshold = grounding_config.get("confidence_threshold")
             tools.register(GroundedRetrieveTool(
                 kb_ids=kb_ids,
-                user_id=_kb_owner_id,
+                user_id=user_id,
+                kb_owner_map=kb_owner_map,
                 confidence_threshold=confidence_threshold,
             ))
     elif user_id:

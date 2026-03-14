@@ -123,9 +123,21 @@ class GroundingPipeline:
     # ------------------------------------------------------------------
 
     async def ground(
-        self, query: str, kb_ids: list[str], user_id: str
+        self,
+        query: str,
+        kb_ids: list[str],
+        user_id: str,
+        kb_owner_map: dict[str, str] | None = None,
     ) -> GroundedResult:
         """Run the grounding pipeline.
+
+        Args:
+            query: The search query.
+            kb_ids: Knowledge base IDs to search.
+            user_id: Current user ID (fallback for vector store path).
+            kb_owner_map: Mapping of kb_id -> owner user_id for cross-user
+                retrieval. When a KB is owned by a different user, the vector
+                store path uses the owner's ID instead of the current user's.
 
         Stages:
           1. Multi-KB retrieval
@@ -134,7 +146,9 @@ class GroundingPipeline:
           4. Confidence scoring
         """
         # Stage 1 — multi-KB retrieval
-        evidence = await self._multi_kb_retrieve(query, kb_ids, user_id)
+        evidence = await self._multi_kb_retrieve(
+            query, kb_ids, user_id, kb_owner_map=kb_owner_map,
+        )
 
         # Stage 2 — citation extraction (batched)
         await self._extract_citations(query, evidence)
@@ -161,14 +175,22 @@ class GroundingPipeline:
     # ------------------------------------------------------------------
 
     async def _multi_kb_retrieve(
-        self, query: str, kb_ids: list[str], user_id: str
+        self,
+        query: str,
+        kb_ids: list[str],
+        user_id: str,
+        kb_owner_map: dict[str, str] | None = None,
     ) -> list[EvidenceUnit]:
         top_k = self._config["top_k"]
         min_score = self._config["min_score"]
+        _owner_map = kb_owner_map or {}
 
         tasks = [
             self._kb_manager.retrieve(
-                query, kb_id=kid, user_id=user_id, top_k=top_k
+                query,
+                kb_id=kid,
+                user_id=_owner_map.get(kid, user_id),
+                top_k=top_k,
             )
             for kid in kb_ids
         ]

@@ -16,10 +16,14 @@ class KBRetrieveTool(BaseTool):
     """
 
     def __init__(
-        self, user_id: str | None = None, kb_ids: list[str] | None = None
+        self,
+        user_id: str | None = None,
+        kb_ids: list[str] | None = None,
+        kb_owner_map: dict[str, str] | None = None,
     ) -> None:
         self._user_id = user_id
         self._bound_kb_ids = kb_ids or []
+        self._kb_owner_map = kb_owner_map or {}
 
     @property
     def name(self) -> str:
@@ -92,8 +96,11 @@ class KBRetrieveTool(BaseTool):
             # Search all bound KBs and merge results
             all_docs: list[Any] = []
             for kb_id in kb_ids:
+                # Use the KB's actual owner for vector store path,
+                # falling back to current user for self-owned KBs.
+                _kb_user = self._kb_owner_map.get(kb_id, user_id)
                 documents = await manager.retrieve(
-                    query, kb_id=kb_id, user_id=user_id, top_k=top_k
+                    query, kb_id=kb_id, user_id=_kb_user, top_k=top_k
                 )
                 all_docs.extend(documents)
 
