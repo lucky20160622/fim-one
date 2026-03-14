@@ -11,6 +11,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Added
 
+- **Workflow templates system** — `WorkflowTemplate` ORM model with admin CRUD and public listing/clone endpoints. 5 seed templates auto-inserted on first startup for quick workflow bootstrapping.
+- **Workflow inline validation badges** — Real-time `ValidationBadge` on canvas nodes displaying per-node errors and warnings with descriptive tooltips, providing immediate visual feedback during blueprint editing.
+- **Workflow execution trace viewer** — Timeline-based trace viewer Sheet for inspecting completed runs. Engine `trace_level` parameter controls detail granularity; variable snapshots captured at each node for step-through debugging.
+- **Workflow per-user rate limiting and global timeout** — `WorkflowRateLimiter` with sliding-window enforcement (10 runs/min, 3 concurrent per user). Default 10-minute (600s) global run timeout applied to all workflow executions.
+- **Admin batch workflow management** — Three batch admin endpoints for workflows: batch delete, batch toggle (active/inactive), and batch publish, all with audit logging.
+- **Workflow palette enhancements** — Recently-used nodes section via `useRecentNodes` hook, search-by-description support, and empty "no results" state in the node palette.
 - **Workflow run replay overlay** — "View on Canvas" button in run history overlays past execution results on the workflow canvas, showing per-node status and output from a completed run without re-executing.
 - **Full SubWorkflow executor** — Upgraded SubWorkflow node from stub to full DB-backed nested execution. Loads target workflow from database, executes with mapped input variables, enforces configurable depth limit to prevent infinite recursion, and returns nested run outputs to the parent workflow.
 - **Admin workflows management tab** — New "Workflows" tab in the admin panel for managing all workflows across users. Features: list all workflows with owner/status/stats, toggle active/inactive, delete workflows with confirmation dialog.
