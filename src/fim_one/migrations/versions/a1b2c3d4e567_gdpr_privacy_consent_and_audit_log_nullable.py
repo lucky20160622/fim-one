@@ -1,7 +1,7 @@
 """GDPR: add privacy_accepted_at to users, make audit_logs.admin_id nullable
 
 Revision ID: a1b2c3d4e567
-Revises: z4a6b8c0d123
+Revises: p6q7r8s9t012
 Create Date: 2026-03-14
 """
 
@@ -15,7 +15,7 @@ from alembic import op
 from fim_one.migrations.helpers import table_has_column
 
 revision: str = "a1b2c3d4e567"
-down_revision: Union[str, None] = "z4a6b8c0d123"
+down_revision: Union[str, None] = "p6q7r8s9t012"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
