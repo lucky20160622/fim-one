@@ -1971,12 +1971,13 @@ export interface MarketSubscription {
 
 // --- Market API ---
 export const marketApi = {
-  browse: (params?: { resource_type?: string; page?: number; size?: number }) => {
+  browse: async (params?: { resource_type?: string; page?: number; size?: number }) => {
     const sp = new URLSearchParams()
     if (params?.resource_type) sp.set('resource_type', params.resource_type)
     if (params?.page) sp.set('page', String(params.page))
     if (params?.size) sp.set('size', String(params.size))
-    return apiFetch<PaginatedResponse<MarketItem>>(`/api/market?${sp}`)
+    const res = await apiFetch<ApiResponse<PaginatedResponse<MarketItem>>>(`/api/market?${sp}`)
+    return res.data
   },
 
   subscribe: (body: { resource_type: string; resource_id: string; org_id?: string }) =>
