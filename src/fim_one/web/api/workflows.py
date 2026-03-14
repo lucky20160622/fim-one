@@ -527,6 +527,16 @@ async def trigger_workflow(
             detail="Workflow already has a running execution. Please wait for it to complete.",
         )
 
+    # Per-user rate limit (workflow owner)
+    run_id = str(uuid.uuid4())
+    allowed, rate_error = await _rate_limiter.acquire(wf.user_id, run_id)
+    if not allowed:
+        raise AppError(
+            "workflow_rate_limited",
+            status_code=429,
+            detail=rate_error,
+        )
+
     from fim_one.core.workflow.engine import WorkflowEngine
     from fim_one.core.workflow.parser import BlueprintValidationError, parse_blueprint
 
@@ -544,9 +554,6 @@ async def trigger_workflow(
             env_vars = decrypt_credential(wf.env_vars_blob)
         except Exception:
             logger.warning("Failed to decrypt workflow env vars for %s", wf.id)
-
-    # Create run record
-    run_id = str(uuid.uuid4())
     run = WorkflowRun(
         id=run_id,
         workflow_id=wf.id,
@@ -611,6 +618,9 @@ async def trigger_workflow(
         logger.exception("Trigger execution failed for run %s", run_id)
 
     elapsed_ms = int((time.time() - start_time) * 1000)
+
+    # Release rate limiter slot
+    await _rate_limiter.record_run_end(wf.user_id, run_id)
 
     # Persist run results
     try:
@@ -1299,8 +1309,11 @@ async def run_workflow(
 
     # --- Normal execution mode (SSE streaming) ---
 
-    # Check rate limit before proceeding
-    allowed, rate_error = await _rate_limiter.check_rate_limit(current_user.id)
+    # Create run record
+    run_id = str(uuid.uuid4())
+
+    # Atomically check rate limit and record the run start
+    allowed, rate_error = await _rate_limiter.acquire(current_user.id, run_id)
     if not allowed:
         raise AppError(
             "workflow_rate_limited",
@@ -1308,8 +1321,6 @@ async def run_workflow(
             detail=rate_error,
         )
 
-    # Create run record
-    run_id = str(uuid.uuid4())
     run = WorkflowRun(
         id=run_id,
         workflow_id=wf.id,
@@ -1333,9 +1344,6 @@ async def run_workflow(
 
     cancel_event = asyncio.Event()
     _running_tasks[run_id] = cancel_event
-
-    # Record run start for rate limiting
-    await _rate_limiter.record_run_start(current_user.id, run_id)
 
     # Determine timeout: workflow-level override or engine default (600s = 10 min)
     run_timeout_ms = (wf.max_run_duration_seconds or 600) * 1000
@@ -1515,6 +1523,15 @@ async def batch_run_workflow(
 
     if not wf.blueprint or not wf.blueprint.get("nodes"):
         raise AppError("blueprint_empty", status_code=400)
+
+    # Pre-check rate limit for the total batch size before starting
+    allowed, rate_error = await _rate_limiter.check_rate_limit(current_user.id)
+    if not allowed:
+        raise AppError(
+            "workflow_rate_limited",
+            status_code=429,
+            detail=rate_error,
+        )
 
     from fim_one.core.workflow.engine import WorkflowEngine
     from fim_one.core.workflow.parser import BlueprintValidationError, parse_blueprint
