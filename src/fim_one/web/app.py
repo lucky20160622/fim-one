@@ -68,6 +68,7 @@ from .api.market import router as market_router
 from .api.skills import router as skills_router
 from .api.workflows import router as workflows_router
 from .api.workflow_templates import router as workflow_templates_router, admin_router as admin_workflow_templates_router
+from .api.metrics import router as metrics_router
 
 logger = logging.getLogger(__name__)
 
@@ -304,6 +305,7 @@ def create_app() -> FastAPI:
     app.include_router(workflows_router)
     app.include_router(workflow_templates_router)
     app.include_router(admin_workflow_templates_router)
+    app.include_router(metrics_router)
 
     # NOTE: /uploads is intentionally NOT mounted as a public StaticFiles route.
     # File downloads are served through the authenticated API endpoint at
