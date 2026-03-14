@@ -320,6 +320,26 @@ class ConditionBranchExecutor:
                     value = cond.get("value", "")
                     expr = cond.get("expression", "")
 
+                    # M8: If mode is "expression" but this condition has no
+                    # expression and no variable (i.e. it was configured with
+                    # an llm_prompt instead), fall through to LLM evaluation
+                    # for this condition rather than silently skipping it.
+                    if not expr and not variable and cond.get("llm_prompt"):
+                        logger.warning(
+                            "ConditionBranch node %s condition '%s' has no "
+                            "expression but has llm_prompt; falling through "
+                            "to LLM evaluation for this condition.",
+                            node.id, cond_id,
+                        )
+                        # Delegate just this condition to LLM evaluation
+                        llm_handle = await self._evaluate_llm(
+                            node, [cond], store, default_handle,
+                        )
+                        if llm_handle is not None:
+                            active_handle = llm_handle
+                            break
+                        continue
+
                     if not expr and variable:
                         # Auto-build expression from structured fields
                         if operator in ("is_empty",):
@@ -1116,9 +1136,28 @@ class TemplateTransformExecutor:
                 )
 
             snapshot = await store.snapshot_safe()
+
+            # M7: Convert dotted keys to nested dicts so Jinja2
+            # ``{{ llm_1.output }}`` works (attribute access).  Keep
+            # original dotted keys in the namespace for backward compat
+            # via ``{{ data['llm_1.output'] }}``.
+            template_ns: dict[str, Any] = {}
+            for key, val in snapshot.items():
+                # Keep the dotted key accessible via __getitem__
+                template_ns[key] = val
+                # Build nested dict: "llm_1.output" -> {"llm_1": {"output": ...}}
+                parts = key.split(".")
+                if len(parts) >= 2:
+                    d = template_ns
+                    for part in parts[:-1]:
+                        if part not in d or not isinstance(d[part], dict):
+                            d[part] = {}
+                        d = d[part]
+                    d[parts[-1]] = val
+
             env = SandboxedEnvironment()
             template = env.from_string(template_str)
-            output = template.render(**snapshot)
+            output = template.render(**template_ns)
 
             await store.set(f"{node.id}.output", output)
 
@@ -1389,18 +1428,17 @@ class IteratorExecutor:
 
 
 class LoopExecutor:
-    """Evaluate a while-condition loop with a safety iteration limit.
+    """Evaluate a while-condition once and signal the engine to loop.
 
-    The executor simulates the loop internally: on each iteration it stores
-    the current loop index in the variable store, interpolates variable
-    references in the condition, and evaluates the expression using
-    ``simpleeval``.  The loop continues while the condition is truthy and
-    the iteration count is below ``max_iterations``.
+    Each call evaluates the loop condition against the current store
+    snapshot.  The result's ``output`` contains ``_loop_continue: True``
+    when the condition is truthy (and the iteration limit is not reached),
+    telling the engine to re-execute the downstream body nodes and then
+    call this executor again.  When the condition is falsy (or max
+    iterations exhausted), ``_loop_continue: False`` is returned.
 
-    The actual "loop back" mechanism (re-executing downstream nodes per
-    iteration) is an engine-level feature for a future PR.  This executor
-    validates the condition and produces iteration metadata so the engine
-    can orchestrate re-execution later.
+    The engine orchestrates the actual iteration cycle — this executor
+    only handles condition evaluation and bookkeeping.
     """
 
     @staticmethod
@@ -1434,51 +1472,69 @@ class LoopExecutor:
                     duration_ms=_ms_since(t0),
                 )
 
-            # Simulate the loop internally
-            count = 0
-            while count < max_iterations:
-                # Store the current loop index for variable interpolation
-                await store.set(f"{node.id}.{loop_variable}", count)
+            # Read current iteration count from the store (0 on first call)
+            current_iter = await store.get(f"{node.id}.iterations", 0)
+            if not isinstance(current_iter, int):
+                current_iter = int(current_iter)
 
-                # Interpolate variable references in the condition
-                interpolated = await store.interpolate(condition)
+            # Store the current loop index
+            await store.set(f"{node.id}.{loop_variable}", current_iter)
 
-                # Build eval namespace from the store snapshot
-                snapshot = await store.snapshot_safe()
-                eval_names = _flatten_eval_names(snapshot)
-                # Ensure the loop variable is directly accessible by short name
-                eval_names[loop_variable] = count
+            # Check max_iterations safety limit
+            if current_iter >= max_iterations:
+                output = {
+                    "iterations": current_iter,
+                    "max_iterations": max_iterations,
+                    "loop_variable": loop_variable,
+                    "completed": False,
+                    "_loop_continue": False,
+                }
+                await store.set(f"{node.id}.output", output)
+                await store.set(f"{node.id}.iterations", current_iter)
+                return NodeResult(
+                    node_id=node.id,
+                    status=NodeStatus.COMPLETED,
+                    output=output,
+                    duration_ms=_ms_since(t0),
+                )
 
-                try:
-                    result = simple_eval(interpolated, names=eval_names)
-                except Exception as exc:
-                    logger.warning(
-                        "Loop condition '%s' (interpolated: '%s') eval failed: %s",
-                        condition, interpolated, exc,
-                    )
-                    return NodeResult(
-                        node_id=node.id,
-                        status=NodeStatus.FAILED,
-                        error=f"Loop condition evaluation failed: {exc}",
-                        duration_ms=_ms_since(t0),
-                    )
+            # Interpolate variable references in the condition
+            interpolated = await store.interpolate(condition)
 
-                if not result:
-                    break
-                count += 1
+            # Build eval namespace from the store snapshot
+            snapshot = await store.snapshot_safe()
+            eval_names = _flatten_eval_names(snapshot)
+            # Ensure the loop variable is directly accessible by short name
+            eval_names[loop_variable] = current_iter
 
-            completed = count < max_iterations
+            try:
+                cond_result = simple_eval(interpolated, names=eval_names)
+            except Exception as exc:
+                logger.warning(
+                    "Loop condition '%s' (interpolated: '%s') eval failed: %s",
+                    condition, interpolated, exc,
+                )
+                return NodeResult(
+                    node_id=node.id,
+                    status=NodeStatus.FAILED,
+                    error=f"Loop condition evaluation failed: {exc}",
+                    duration_ms=_ms_since(t0),
+                )
 
-            # Store final metadata
+            should_continue = bool(cond_result)
+
+            if should_continue:
+                # Increment iteration counter for the next call
+                await store.set(f"{node.id}.iterations", current_iter + 1)
+
             output = {
-                "iterations": count,
+                "iterations": current_iter + (1 if should_continue else 0),
                 "max_iterations": max_iterations,
                 "loop_variable": loop_variable,
-                "completed": completed,
+                "completed": not should_continue,
+                "_loop_continue": should_continue,
             }
             await store.set(f"{node.id}.output", output)
-            await store.set(f"{node.id}.iterations", count)
-            await store.set(f"{node.id}.{loop_variable}", count)
 
             return NodeResult(
                 node_id=node.id,
@@ -3189,8 +3245,13 @@ class SubWorkflowExecutor:
 
             sub_run_id = f"{context.run_id}:sub:{node.id}"
 
+            # M5: Propagate the parent cancel_event to the sub-engine so
+            # cancelling the parent workflow also cancels sub-workflows.
+            parent_cancel = getattr(context, "cancel_event", None)
+
             sub_engine = WorkflowEngine(
                 max_concurrency=3,
+                cancel_event=parent_cancel,
                 env_vars=context.env_vars,
                 run_id=sub_run_id,
                 user_id=context.user_id,
@@ -3205,6 +3266,7 @@ class SubWorkflowExecutor:
                 env_vars=context.env_vars,
                 db_session_factory=context.db_session_factory,
                 depth=context.depth + 1,
+                cancel_event=parent_cancel,
             )
 
             # --- Execute via streaming and collect final result ---

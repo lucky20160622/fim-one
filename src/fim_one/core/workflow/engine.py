@@ -227,6 +227,24 @@ class WorkflowEngine:
                 node_status[nid] = NodeStatus.FAILED
                 downstream = _collect_downstream(nid)
                 fail_branch_skipped.update(downstream)
+
+                # M3: Cancel any already-running tasks that are in the
+                # downstream skip set so they don't continue executing.
+                tasks_to_cancel: list[asyncio.Task] = []
+                for task, task_nid in list(running_tasks.items()):
+                    if task_nid in downstream:
+                        tasks_to_cancel.append(task)
+                        node_status[task_nid] = NodeStatus.SKIPPED
+                        completed.add(task_nid)
+                        del running_tasks[task]
+
+                for task in tasks_to_cancel:
+                    task.cancel()
+                if tasks_to_cancel:
+                    await asyncio.gather(
+                        *tasks_to_cancel, return_exceptions=True
+                    )
+
                 await event_queue.put((
                     "node_failed",
                     {
@@ -261,8 +279,23 @@ class WorkflowEngine:
             executor: Any,
             ctx: ExecutionContext,
         ) -> NodeResult:
-            """Run an executor once, enforcing the per-node timeout."""
-            timeout_sec = node.timeout_ms / 1000
+            """Run an executor once, enforcing the per-node timeout.
+
+            For HumanIntervention nodes the effective timeout is derived
+            from ``timeout_hours`` in the node data (converted to
+            seconds) rather than the generic ``timeout_ms``.
+            """
+            # C3: HumanIntervention nodes poll for approval over hours,
+            # so use their own timeout_hours instead of the generic
+            # per-node timeout_ms (which defaults to 30s).
+            if node.type == NodeType.HUMAN_INTERVENTION:
+                timeout_hours = float(
+                    node.data.get("timeout_hours", 24)
+                )
+                timeout_sec = timeout_hours * 3600
+            else:
+                timeout_sec = node.timeout_ms / 1000
+
             try:
                 return await asyncio.wait_for(
                     executor.execute(node, store, ctx),
@@ -272,137 +305,312 @@ class WorkflowEngine:
                 return NodeResult(
                     node_id=node.id,
                     status=NodeStatus.FAILED,
-                    error=f"Node execution timed out after {node.timeout_ms}ms",
+                    error=f"Node execution timed out after {timeout_sec:.0f}s",
                 )
 
         async def _run_node(nid: str) -> None:
             """Execute a single node with retry, semaphore, and per-node timeout."""
-            async with semaphore:
-                node = node_index[nid]
-                executor = get_executor(node.type)
+            # C3: HumanIntervention nodes poll for hours — don't hold the
+            # concurrency semaphore during the long wait.  Acquire it
+            # briefly for setup, then release before executing.
+            is_human_intervention = (
+                node_index[nid].type == NodeType.HUMAN_INTERVENTION
+            )
+            if is_human_intervention:
+                await semaphore.acquire()
+                semaphore.release()
+            else:
+                await semaphore.acquire()
+            try:
+                await _run_node_inner(nid)
+            finally:
+                if not is_human_intervention:
+                    semaphore.release()
+
+        async def _run_node_inner(nid: str) -> None:
+            """Inner node execution logic (retry, timeout, event emission)."""
+            node = node_index[nid]
+            executor = get_executor(node.type)
+            ctx = context or ExecutionContext(
+                run_id=self._run_id,
+                user_id=self._user_id,
+                workflow_id=self._workflow_id,
+                env_vars=self._env_vars,
+                cancel_event=self._cancel_event,
+            )
+
+            # Retry config from node data (default: no retry)
+            retry_count = max(int(node.data.get("retry_count", 0)), 0)
+            retry_delay_ms = max(int(node.data.get("retry_delay_ms", 1000)), 0)
+
+            # Capture inputs from predecessor nodes for debugging
+            pred_ids = predecessors.get(nid, set())
+            input_preview = await _capture_input_preview(store, pred_ids)
+
+            await event_queue.put((
+                "node_started",
+                {
+                    "node_id": nid,
+                    "node_type": node.type.value,
+                    "input_preview": input_preview,
+                },
+            ))
+
+            try:
+                result = await _execute_once(node, executor, ctx)
+
+                # Retry loop: attempt up to retry_count additional times
+                attempt = 0
+                while (
+                    result.status == NodeStatus.FAILED
+                    and attempt < retry_count
+                ):
+                    attempt += 1
+                    # Exponential backoff: delay * 2^(attempt-1)
+                    delay_sec = (retry_delay_ms / 1000) * (2 ** (attempt - 1))
+                    # Cap at 60 seconds
+                    delay_sec = min(delay_sec, 60.0)
+
+                    await event_queue.put((
+                        "node_retrying",
+                        {
+                            "node_id": nid,
+                            "node_type": node.type.value,
+                            "attempt": attempt,
+                            "max_retries": retry_count,
+                            "delay_ms": int(delay_sec * 1000),
+                            "previous_error": result.error,
+                        },
+                    ))
+
+                    # Check for cancellation before waiting
+                    if self._cancel_event and self._cancel_event.is_set():
+                        break
+
+                    await asyncio.sleep(delay_sec)
+
+                    if self._cancel_event and self._cancel_event.is_set():
+                        break
+
+                    result = await _execute_once(node, executor, ctx)
+
+                # Attach the input snapshot to the result for persistence
+                result.input_preview = input_preview
+                node_results[nid] = result
+
+                # Build debug trace data if in debug mode
+                if self._trace_level == "debug":
+                    trace: dict[str, Any] = {}
+                    try:
+                        trace["variable_snapshot"] = store.to_dict()
+                    except Exception:
+                        trace["variable_snapshot"] = None
+                    if hasattr(result, "_trace_details"):
+                        trace.update(result._trace_details)  # type: ignore[attr-defined]
+                    result._trace = trace  # type: ignore[attr-defined]
+
+                if result.status == NodeStatus.COMPLETED:
+                    node_status[nid] = NodeStatus.COMPLETED
+
+                    # Handle conditional branching
+                    if result.active_handles is not None:
+                        # Deactivate edges that don't match the active handles
+                        for edge in outgoing_edges.get(nid, []):
+                            if edge.source_handle not in result.active_handles:
+                                active_edges.discard(edge.id)
+
+                    await event_queue.put((
+                        "node_completed",
+                        {
+                            "node_id": nid,
+                            "node_type": node.type.value,
+                            "status": "completed",
+                            "input_preview": input_preview,
+                            "output_preview": _preview(result.output),
+                            "duration_ms": result.duration_ms,
+                            "retries_used": attempt if retry_count > 0 else 0,
+                        },
+                    ))
+                else:
+                    await _handle_node_failure(nid, result)
+
+            except asyncio.CancelledError:
+                node_status[nid] = NodeStatus.FAILED
+                await event_queue.put((
+                    "node_failed",
+                    {
+                        "node_id": nid,
+                        "error": "Cancelled",
+                        "input_preview": input_preview,
+                    },
+                ))
+                raise
+            except Exception as exc:
+                node_status[nid] = NodeStatus.FAILED
+                result = NodeResult(
+                    node_id=nid,
+                    status=NodeStatus.FAILED,
+                    error=str(exc),
+                    input_preview=input_preview,
+                )
+                node_results[nid] = result
+                await _handle_node_failure(nid, result)
+
+        def _get_body_nodes(parent_nid: str) -> list[str]:
+            """Collect the immediate body nodes downstream from a Loop/Iterator.
+
+            Returns node IDs reachable via outgoing edges from *parent_nid*
+            that are not yet in the ``completed`` set (excluding nodes that
+            converge back outside the body).  Uses a BFS limited to
+            nodes that have *all* their incoming edges rooted in the
+            parent subgraph.
+            """
+            body: list[str] = []
+            queue_bfs: list[str] = []
+            for edge in outgoing_edges.get(parent_nid, []):
+                if edge.target not in body:
+                    queue_bfs.append(edge.target)
+                    body.append(edge.target)
+            while queue_bfs:
+                cur = queue_bfs.pop(0)
+                for edge in outgoing_edges.get(cur, []):
+                    if edge.target not in body and edge.target != parent_nid:
+                        body.append(edge.target)
+                        queue_bfs.append(edge.target)
+            return body
+
+        async def _handle_iterator_node(nid: str) -> None:
+            """C2: Run downstream body nodes once per item in the iterator list."""
+            result = node_results.get(nid)
+            if not result or result.status != NodeStatus.COMPLETED:
+                return
+            output = result.output
+            if not isinstance(output, list):
+                return
+
+            items: list[Any] = output
+            if not items:
+                return
+
+            body_nids = _get_body_nodes(nid)
+            if not body_nids:
+                return
+
+            # Read variable names from the store (set by IteratorExecutor)
+            iter_var = await store.get(f"{nid}.iterator_variable", "current_item")
+            idx_var = await store.get(f"{nid}.index_variable", "current_index")
+
+            all_results: list[Any] = []
+
+            for idx, item in enumerate(items):
+                # Set per-iteration context
+                await store.set(f"{nid}.current_item", item)
+                await store.set(f"{nid}.current_index", idx)
+                await store.set(f"{nid}.{iter_var}", item)
+                await store.set(f"{nid}.{idx_var}", idx)
+
+                await event_queue.put((
+                    "iterator_iteration",
+                    {
+                        "node_id": nid,
+                        "index": idx,
+                        "total": len(items),
+                    },
+                ))
+
+                # Re-execute body nodes sequentially (in topo order)
+                body_ordered = [n for n in topo_order if n in body_nids]
+                for body_nid in body_ordered:
+                    node_status[body_nid] = NodeStatus.PENDING
+
+                for body_nid in body_ordered:
+                    node_status[body_nid] = NodeStatus.RUNNING
+                    await _run_node_inner(body_nid)
+                    completed.add(body_nid)
+
+                # Collect iteration output (from the last body node)
+                if body_ordered:
+                    last_body = body_ordered[-1]
+                    iter_output = await store.get(f"{last_body}.output")
+                    all_results.append(iter_output)
+
+            # Store collected results
+            await store.set(f"{nid}.results", all_results)
+
+            # Remove body nodes from pending (they were re-executed inline)
+            for body_nid in body_nids:
+                pending.discard(body_nid)
+                completed.add(body_nid)
+
+        async def _handle_loop_node(nid: str) -> None:
+            """C1: Re-execute downstream body nodes while condition is truthy."""
+            result = node_results.get(nid)
+            if not result or result.status != NodeStatus.COMPLETED:
+                return
+            output = result.output
+            if not isinstance(output, dict):
+                return
+            if not output.get("_loop_continue"):
+                return  # Loop is done
+
+            body_nids = _get_body_nodes(nid)
+            if not body_nids:
+                return
+
+            node_def = node_index[nid]
+            max_iterations: int = node_def.data.get("max_iterations", 50)
+
+            while True:
+                # Execute body nodes in topo order
+                body_ordered = [n for n in topo_order if n in body_nids]
+                for body_nid in body_ordered:
+                    node_status[body_nid] = NodeStatus.PENDING
+
+                await event_queue.put((
+                    "loop_iteration",
+                    {
+                        "node_id": nid,
+                        "iteration": await store.get(f"{nid}.iterations", 0),
+                    },
+                ))
+
+                for body_nid in body_ordered:
+                    node_status[body_nid] = NodeStatus.RUNNING
+                    await _run_node_inner(body_nid)
+                    completed.add(body_nid)
+
+                # Re-evaluate the loop condition by calling the executor again
+                executor = get_executor(node_def.type)
                 ctx = context or ExecutionContext(
                     run_id=self._run_id,
                     user_id=self._user_id,
                     workflow_id=self._workflow_id,
                     env_vars=self._env_vars,
+                    cancel_event=self._cancel_event,
                 )
+                loop_result = await executor.execute(node_def, store, ctx)
+                node_results[nid] = loop_result
 
-                # Retry config from node data (default: no retry)
-                retry_count = max(int(node.data.get("retry_count", 0)), 0)
-                retry_delay_ms = max(int(node.data.get("retry_delay_ms", 1000)), 0)
+                if loop_result.status != NodeStatus.COMPLETED:
+                    break
 
-                # Capture inputs from predecessor nodes for debugging
-                pred_ids = predecessors.get(nid, set())
-                input_preview = await _capture_input_preview(store, pred_ids)
+                loop_output = loop_result.output
+                if not isinstance(loop_output, dict) or not loop_output.get("_loop_continue"):
+                    break  # Condition became false or max_iterations reached
 
-                await event_queue.put((
-                    "node_started",
-                    {
-                        "node_id": nid,
-                        "node_type": node.type.value,
-                        "input_preview": input_preview,
-                    },
-                ))
+                # Safety: double-check max_iterations
+                current_iter = await store.get(f"{nid}.iterations", 0)
+                if isinstance(current_iter, int) and current_iter >= max_iterations:
+                    break
 
-                try:
-                    result = await _execute_once(node, executor, ctx)
+                # Check cancellation
+                if self._cancel_event and self._cancel_event.is_set():
+                    break
 
-                    # Retry loop: attempt up to retry_count additional times
-                    attempt = 0
-                    while (
-                        result.status == NodeStatus.FAILED
-                        and attempt < retry_count
-                    ):
-                        attempt += 1
-                        # Exponential backoff: delay * 2^(attempt-1)
-                        delay_sec = (retry_delay_ms / 1000) * (2 ** (attempt - 1))
-                        # Cap at 60 seconds
-                        delay_sec = min(delay_sec, 60.0)
-
-                        await event_queue.put((
-                            "node_retrying",
-                            {
-                                "node_id": nid,
-                                "node_type": node.type.value,
-                                "attempt": attempt,
-                                "max_retries": retry_count,
-                                "delay_ms": int(delay_sec * 1000),
-                                "previous_error": result.error,
-                            },
-                        ))
-
-                        # Check for cancellation before waiting
-                        if self._cancel_event and self._cancel_event.is_set():
-                            break
-
-                        await asyncio.sleep(delay_sec)
-
-                        if self._cancel_event and self._cancel_event.is_set():
-                            break
-
-                        result = await _execute_once(node, executor, ctx)
-
-                    # Attach the input snapshot to the result for persistence
-                    result.input_preview = input_preview
-                    node_results[nid] = result
-
-                    # Build debug trace data if in debug mode
-                    if self._trace_level == "debug":
-                        trace: dict[str, Any] = {}
-                        try:
-                            trace["variable_snapshot"] = store.to_dict()
-                        except Exception:
-                            trace["variable_snapshot"] = None
-                        if hasattr(result, "_trace_details"):
-                            trace.update(result._trace_details)  # type: ignore[attr-defined]
-                        result._trace = trace  # type: ignore[attr-defined]
-
-                    if result.status == NodeStatus.COMPLETED:
-                        node_status[nid] = NodeStatus.COMPLETED
-
-                        # Handle conditional branching
-                        if result.active_handles is not None:
-                            # Deactivate edges that don't match the active handles
-                            for edge in outgoing_edges.get(nid, []):
-                                if edge.source_handle not in result.active_handles:
-                                    active_edges.discard(edge.id)
-
-                        await event_queue.put((
-                            "node_completed",
-                            {
-                                "node_id": nid,
-                                "node_type": node.type.value,
-                                "status": "completed",
-                                "input_preview": input_preview,
-                                "output_preview": _preview(result.output),
-                                "duration_ms": result.duration_ms,
-                                "retries_used": attempt if retry_count > 0 else 0,
-                            },
-                        ))
-                    else:
-                        await _handle_node_failure(nid, result)
-
-                except asyncio.CancelledError:
-                    node_status[nid] = NodeStatus.FAILED
-                    await event_queue.put((
-                        "node_failed",
-                        {
-                            "node_id": nid,
-                            "error": "Cancelled",
-                            "input_preview": input_preview,
-                        },
-                    ))
-                    raise
-                except Exception as exc:
-                    node_status[nid] = NodeStatus.FAILED
-                    result = NodeResult(
-                        node_id=nid,
-                        status=NodeStatus.FAILED,
-                        error=str(exc),
-                        input_preview=input_preview,
-                    )
-                    node_results[nid] = result
-                    await _handle_node_failure(nid, result)
+            # Remove body nodes from pending
+            for body_nid in body_nids:
+                pending.discard(body_nid)
+                completed.add(body_nid)
 
         async def _orchestrator() -> None:
             """Main orchestration loop — runs until all nodes are done."""
@@ -460,6 +668,23 @@ class WorkflowEngine:
                             )
                         running_tasks.clear()
                         break
+
+                    # M4: Check STOP_WORKFLOW BEFORE launching new nodes to
+                    # prevent a race where new tasks start in the same
+                    # iteration before the failure is detected.
+                    if _has_stop_workflow_failure() and pending:
+                        for remaining_nid in sorted(pending):
+                            node_status[remaining_nid] = NodeStatus.SKIPPED
+                            completed.add(remaining_nid)
+                            await event_queue.put((
+                                "node_skipped",
+                                {
+                                    "node_id": remaining_nid,
+                                    "reason": "Stopped by upstream node failure (stop_workflow)",
+                                },
+                            ))
+                        pending.clear()
+                        continue
 
                     # Find ready nodes
                     ready: list[str] = []
@@ -552,6 +777,36 @@ class WorkflowEngine:
                                 "Unexpected error in node %s", nid, exc_info=exc
                             )
                             node_status[nid] = NodeStatus.FAILED
+                            continue
+
+                        # C1/C2: Handle Loop and Iterator nodes that need
+                        # engine-level iteration of their body subgraph.
+                        finished_node = node_index[nid]
+                        if (
+                            finished_node.type == NodeType.ITERATOR
+                            and node_status.get(nid) == NodeStatus.COMPLETED
+                        ):
+                            try:
+                                await _handle_iterator_node(nid)
+                            except Exception as iter_exc:
+                                logger.exception(
+                                    "Iterator body execution failed for %s",
+                                    nid,
+                                )
+                                node_status[nid] = NodeStatus.FAILED
+
+                        elif (
+                            finished_node.type == NodeType.LOOP
+                            and node_status.get(nid) == NodeStatus.COMPLETED
+                        ):
+                            try:
+                                await _handle_loop_node(nid)
+                            except Exception as loop_exc:
+                                logger.exception(
+                                    "Loop body execution failed for %s",
+                                    nid,
+                                )
+                                node_status[nid] = NodeStatus.FAILED
 
                     # After processing completed tasks, check if a
                     # STOP_WORKFLOW failure has occurred.  If so, skip all
