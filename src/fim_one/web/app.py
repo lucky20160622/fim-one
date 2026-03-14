@@ -86,6 +86,7 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
 
     from fim_one.db import init_db, shutdown_db
     from fim_one.core.workflow.scheduler import WorkflowScheduler
+    from fim_one.core.workflow.run_cleanup import WorkflowRunCleaner
 
     await init_db()
 
@@ -94,9 +95,23 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
     scheduler_task = asyncio.create_task(scheduler.run())
     logger.info("Workflow scheduler background task created")
 
+    # Start periodic workflow run cleanup
+    cleaner = WorkflowRunCleaner(
+        max_age_days=int(os.getenv("WORKFLOW_RUN_MAX_AGE_DAYS", "30")),
+        max_runs_per_workflow=int(os.getenv("WORKFLOW_RUN_MAX_PER_WORKFLOW", "100")),
+        cleanup_interval_hours=int(os.getenv("WORKFLOW_RUN_CLEANUP_INTERVAL_HOURS", "24")),
+    )
+    cleanup_task = asyncio.create_task(cleaner.run_loop())
+
     yield
 
-    # Graceful shutdown: stop the scheduler, then dispose the DB
+    # Graceful shutdown: stop cleanup, scheduler, then dispose the DB
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
+
     await scheduler.stop()
     try:
         await asyncio.wait_for(scheduler_task, timeout=35.0)

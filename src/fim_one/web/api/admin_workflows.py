@@ -7,7 +7,7 @@ import math
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,7 @@ from fim_one.db import get_session
 from fim_one.web.auth import get_current_admin
 from fim_one.web.exceptions import AppError
 from fim_one.web.models import User, Workflow, WorkflowRun
-from fim_one.web.schemas.common import PaginatedResponse
+from fim_one.web.schemas.common import ApiResponse, PaginatedResponse
 from fim_one.web.schemas.workflow import (
     BatchOperationResponse,
     BatchWorkflowDeleteRequest,
@@ -333,4 +333,65 @@ async def batch_publish_workflows(
     return BatchOperationResponse(
         count=count,
         message=f"Updated {count} workflow(s) to status={body.status}",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Workflow run cleanup
+# ---------------------------------------------------------------------------
+
+
+class CleanupRunsRequest(BaseModel):
+    """Optional overrides for the cleanup operation."""
+
+    max_age_days: int | None = Field(
+        default=None,
+        ge=1,
+        description="Delete runs older than this many days (default: 30)",
+    )
+    max_runs_per_workflow: int | None = Field(
+        default=None,
+        ge=1,
+        description="Keep at most N runs per workflow (default: 100)",
+    )
+
+
+class CleanupRunsResponse(BaseModel):
+    """Result of a manual cleanup operation."""
+
+    deleted_count: int
+
+
+@router.post("/workflows/cleanup-runs", response_model=ApiResponse)
+async def cleanup_runs(
+    body: CleanupRunsRequest | None = None,
+    current_user: User = Depends(get_current_admin),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Manually trigger workflow run cleanup.
+
+    Deletes old runs based on age and per-workflow max run limits.
+    Runs with status ``pending`` or ``running`` are never deleted.
+    """
+    if body is None:
+        body = CleanupRunsRequest()
+
+    from fim_one.core.workflow.run_cleanup import WorkflowRunCleaner
+
+    cleaner = WorkflowRunCleaner()
+    deleted = await cleaner.cleanup(
+        db,
+        max_age_days=body.max_age_days,
+        max_runs_per_workflow=body.max_runs_per_workflow,
+    )
+
+    await write_audit(
+        db,
+        current_user,
+        "workflow.cleanup_runs",
+        detail=f"Deleted {deleted} workflow runs",
+    )
+
+    return ApiResponse(
+        data=CleanupRunsResponse(deleted_count=deleted).model_dump()
     )

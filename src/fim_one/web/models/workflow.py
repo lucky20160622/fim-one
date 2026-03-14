@@ -51,6 +51,12 @@ class Workflow(UUIDPKMixin, TimestampMixin, Base):
     )
     review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Per-workflow run retention (NULL = use global default)
+    run_retention_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Human-readable summary of last blueprint change (auto-generated)
+    change_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Maximum run duration in seconds (NULL = use engine default of 600s)
     max_run_duration_seconds: Mapped[int | None] = mapped_column(
         Integer, nullable=True
