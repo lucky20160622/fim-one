@@ -50,5 +50,8 @@
   "gsChat": "会話を開始",
   "gsStart": "開始 →",
   "workflows": "ワークフロー",
-  "skills": "スキル"
+  "skills": "スキル",
+  "sectionBuild": "ビルド",
+  "sectionResources": "リソース",
+  "sectionOperate": "運用"
 }

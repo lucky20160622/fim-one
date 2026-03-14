@@ -50,5 +50,8 @@
   "gsChat": "Démarrer une conversation",
   "gsStart": "Commencer →",
   "workflows": "Flux de travail",
-  "skills": "Compétences"
+  "skills": "Compétences",
+  "sectionBuild": "Construire",
+  "sectionResources": "Ressources",
+  "sectionOperate": "Exploiter"
 }

@@ -50,5 +50,8 @@
   "gsChat": "Unterhaltung starten",
   "gsStart": "Start →",
   "workflows": "Workflows",
-  "skills": "Fähigkeiten"
+  "skills": "Fähigkeiten",
+  "sectionBuild": "Erstellen",
+  "sectionResources": "Ressourcen",
+  "sectionOperate": "Betreiben"
 }

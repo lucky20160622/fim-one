@@ -50,5 +50,8 @@
   "gsChat": "开始对话",
   "gsStart": "开始 →",
   "workflows": "工作流",
-  "skills": "技能"
+  "skills": "技能",
+  "sectionBuild": "构建",
+  "sectionResources": "资源",
+  "sectionOperate": "运维"
 }
