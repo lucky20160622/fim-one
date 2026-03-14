@@ -18,6 +18,7 @@ import {
   GitCompareArrows,
   Trash2,
   Download,
+  Eye,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -66,6 +67,8 @@ interface RunHistorySheetProps {
   onOpenChange: (open: boolean) => void
   /** Map of nodeId -> node type for display labels in detail view */
   nodeTypeMap: Record<string, WorkflowNodeType>
+  /** Callback to overlay a past run's node results on the canvas */
+  onViewRunOnCanvas?: (nodeResults: Record<string, NodeRunResult>) => void
 }
 
 const runStatusIcons: Record<WorkflowRunResponse["status"], React.ReactNode> = {
@@ -169,6 +172,7 @@ export function RunHistorySheet({
   open,
   onOpenChange,
   nodeTypeMap,
+  onViewRunOnCanvas,
 }: RunHistorySheetProps) {
   const t = useTranslations("workflows")
   const tc = useTranslations("common")
@@ -367,6 +371,20 @@ export function RunHistorySheet({
                     ` -- ${fmtDuration(selectedRun.duration_ms / 1000)}`}
                 </SheetDescription>
               </div>
+              {onViewRunOnCanvas && selectedRun.node_results && Object.keys(selectedRun.node_results).length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs shrink-0"
+                  onClick={() => {
+                    onViewRunOnCanvas(selectedRun.node_results!)
+                    onOpenChange(false)
+                  }}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  {t("viewRunOnCanvas")}
+                </Button>
+              )}
             </div>
           ) : (
             <>

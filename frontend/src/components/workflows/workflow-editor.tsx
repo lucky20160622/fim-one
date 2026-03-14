@@ -23,7 +23,8 @@ import type {
 import "@xyflow/react/dist/style.css"
 import { toast } from "sonner"
 import { useTranslations } from "next-intl"
-import { Beaker, Copy, Trash2, Settings, Clipboard, MousePointerSquareDashed, Maximize2, LayoutGrid } from "lucide-react"
+import { Beaker, Copy, Trash2, Settings, Clipboard, MousePointerSquareDashed, Maximize2, LayoutGrid, X } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 import { useWorkflowHistory } from "@/hooks/use-workflow-history"
 import { getAutoLayoutedNodes } from "./auto-layout"
@@ -188,6 +189,8 @@ export interface WorkflowEditorHandle {
   redo: () => void
   canUndo: boolean
   canRedo: boolean
+  applyRunOverlay: (nodeResults: Record<string, NodeRunResult>) => void
+  clearRunOverlay: () => void
 }
 
 export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorProps>(function WorkflowEditor({
@@ -246,6 +249,9 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchIndex, setSearchIndex] = useState(0)
+
+  // --- Run overlay state (for viewing past runs on canvas) ---
+  const [hasRunOverlay, setHasRunOverlay] = useState(false)
 
   // --- Undo/Redo history ---
   const initialNodesRef = useRef(
@@ -524,6 +530,44 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
     setSearchQuery("")
     setSearchIndex(0)
   }, [])
+
+  // --- Run overlay handlers (view past run results on canvas) ---
+  const handleViewRunOnCanvas = useCallback((overlayResults: Record<string, NodeRunResult>) => {
+    setNodes(prevNodes => prevNodes.map(node => {
+      const result = overlayResults[node.id]
+      if (!result) return node
+
+      const truncate = (v: unknown): string | null => {
+        if (v == null) return null
+        const s = typeof v === "string" ? v : JSON.stringify(v)
+        return s.length > 120 ? s.slice(0, 120) + "..." : s
+      }
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          runStatus: result.status,
+          _runOverlay: {
+            durationMs: result.duration_ms ?? null,
+            inputPreview: truncate(result.input_preview),
+            outputPreview: truncate(result.output),
+            runError: result.error ?? null,
+          },
+        },
+      }
+    }))
+    setHasRunOverlay(true)
+  }, [setNodes])
+
+  const clearRunOverlay = useCallback(() => {
+    setNodes(prevNodes => prevNodes.map(node => {
+      if (!node.data.runStatus && !node.data._runOverlay) return node
+      const { runStatus: _rs, _runOverlay: _ro, ...restData } = node.data as Record<string, unknown>
+      return { ...node, data: restData }
+    }))
+    setHasRunOverlay(false)
+  }, [setNodes])
 
   const handleSearchQueryChange = useCallback((query: string) => {
     setSearchQuery(query)
@@ -940,7 +984,9 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
     redo: handleRedo,
     canUndo,
     canRedo,
-  }), [handleAutoLayout, handleUndo, handleRedo, canUndo, canRedo])
+    applyRunOverlay: handleViewRunOnCanvas,
+    clearRunOverlay,
+  }), [handleAutoLayout, handleUndo, handleRedo, canUndo, canRedo, handleViewRunOnCanvas, clearRunOverlay])
 
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden relative">
@@ -998,6 +1044,21 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
           onPrev={handleSearchPrev}
           onClose={handleSearchClose}
         />
+
+        {/* Run overlay banner */}
+        {hasRunOverlay && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-card/95 backdrop-blur shadow-sm">
+            <span className="text-xs text-muted-foreground">{t("runReplayActive")}</span>
+            <button
+              type="button"
+              onClick={clearRunOverlay}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t("clearRunOverlay")}
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
 
         {/* Node context menu */}
         {contextMenu?.type === "node" && (() => {
