@@ -186,5 +186,9 @@
   "resourceTypeWorkflow": "工作流",
   "reviewSkillsLabel": "技能审查",
   "filterSkills": "技能",
-  "resourceTypeSkill": "技能"
+  "resourceTypeSkill": "技能",
+  "marketOrgName": "应用市场",
+  "marketOrgDescription": "公共应用市场。发布在此处的资源可供所有用户浏览和订阅。",
+  "cannotDeleteMarketOrg": "应用市场组织无法删除",
+  "cannotLeaveMarketOrg": "无法离开应用市场组织"
 }

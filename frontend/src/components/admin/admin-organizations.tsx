@@ -16,7 +16,7 @@ import {
   ShieldCheck,
   Crown,
   Building2,
-  Globe,
+  Store,
   ClipboardCheck,
   Check,
   X,
@@ -68,7 +68,7 @@ import {
 } from "@/components/ui/select"
 import { adminApi, orgApi, type ReviewItem } from "@/lib/api"
 import { getErrorMessage } from "@/lib/error-utils"
-import { PLATFORM_ORG_ID } from "@/lib/constants"
+import { MARKET_ORG_ID } from "@/lib/constants"
 import { EmojiPickerPopover } from "@/components/ui/emoji-picker-popover"
 import type { AdminOrganization, OrgMember } from "@/types/admin"
 
@@ -723,8 +723,8 @@ export function AdminOrganizations() {
                         {org.icon ?? <Building2 className="h-4 w-4 text-muted-foreground" />}
                       </span>
                       {org.name}
-                      {org.id === PLATFORM_ORG_ID && (
-                        <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      {org.id === MARKET_ORG_ID && (
+                        <Store className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       )}
                     </div>
                   </td>
@@ -790,7 +790,7 @@ export function AdminOrganizations() {
                             {t("reviewManagement")}
                           </DropdownMenuItem>
                         )}
-                        {org.id !== PLATFORM_ORG_ID && (
+                        {org.id !== MARKET_ORG_ID && (
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem

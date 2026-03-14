@@ -1,7 +1,7 @@
 {
-  "title": "마켓",
-  "description": "조직에서 공유하는 리소스를 찾아보고 구독하세요",
-  "empty": "마켓에서 사용 가능한 리소스가 없습니다",
+  "title": "마켓플레이스",
+  "description": "마켓플레이스에서 공유된 리소스를 찾아보고 구독하세요",
+  "empty": "마켓플레이스에서 사용 가능한 리소스가 없습니다",
   "subscribed": "구독됨",
   "subscribe": "구독",
   "unsubscribe": "구독 취소",
@@ -10,6 +10,13 @@
     "agent": "에이전트",
     "connector": "커넥터",
     "knowledge_base": "지식 베이스",
-    "mcp_server": "MCP 서버"
-  }
+    "mcp_server": "MCP 서버",
+    "skill": "스킬",
+    "workflow": "워크플로우"
+  },
+  "publishToMarketplace": "마켓플레이스에 게시",
+  "marketplaceReviewRequired": "마켓플레이스에 게시된 모든 리소스는 표시되기 전에 관리자 검토가 필요합니다.",
+  "publishTarget": "게시 대상",
+  "publishTargetOrg": "조직",
+  "publishTargetMarketplace": "마켓플레이스"
 }

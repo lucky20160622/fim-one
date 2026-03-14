@@ -186,5 +186,9 @@
   "resourceTypeWorkflow": "Workflow",
   "reviewSkillsLabel": "Fähigkeitsbewertung",
   "filterSkills": "Fähigkeiten",
-  "resourceTypeSkill": "Fähigkeit"
+  "resourceTypeSkill": "Fähigkeit",
+  "marketOrgName": "Marketplace",
+  "marketOrgDescription": "Öffentlicher Marketplace. Hier veröffentlichte Ressourcen sind für alle Benutzer zum Durchsuchen und Abonnieren verfügbar.",
+  "cannotDeleteMarketOrg": "Die Marketplace-Organisation kann nicht gelöscht werden",
+  "cannotLeaveMarketOrg": "Die Marketplace-Organisation kann nicht verlassen werden"
 }

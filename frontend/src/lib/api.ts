@@ -1,4 +1,4 @@
-import { getApiBaseUrl, ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from "./constants"
+import { getApiBaseUrl, ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY, MARKET_ORG_ID } from "./constants"
 import type { UserInfo, TokenResponse, LoginRequest, LoginWithCodeRequest, RegisterRequest, ChangePasswordRequest, SetPasswordRequest, SetupRequest } from "@/types/auth"
 import type { WorkflowResponse, WorkflowCreate, WorkflowUpdate, WorkflowRunResponse, WorkflowStats, WorkflowTemplate, NodeStatsResponse, WorkflowValidateResponse, WorkflowVersionResponse, WorkflowAnalyticsResponse, WorkflowScheduleResponse, WorkflowScheduleUpdate, WorkflowBatchRunResponse, WorkflowImportResult, NodeTestRequest, NodeTestResponse } from "@/types/workflow"
 import type {
@@ -1955,7 +1955,7 @@ export interface MarketItem {
   name: string
   description: string | null
   icon: string | null
-  resource_type: string
+  resource_type: "agent" | "connector" | "knowledge_base" | "mcp_server" | "skill" | "workflow"
   org_id: string
   org_name: string | null
   owner_username: string | null
@@ -1971,20 +1971,25 @@ export interface MarketSubscription {
 
 // --- Market API ---
 export const marketApi = {
-  browse: (params?: { org_id?: string; resource_type?: string; page?: number; size?: number }) => {
+  browse: (params?: { resource_type?: string; page?: number; size?: number }) => {
     const sp = new URLSearchParams()
-    if (params?.org_id) sp.set('org_id', params.org_id)
     if (params?.resource_type) sp.set('resource_type', params.resource_type)
     if (params?.page) sp.set('page', String(params.page))
     if (params?.size) sp.set('size', String(params.size))
     return apiFetch<PaginatedResponse<MarketItem>>(`/api/market?${sp}`)
   },
 
-  subscribe: (body: { resource_type: string; resource_id: string; org_id: string }) =>
-    apiFetch<ApiResponse<unknown>>('/api/market/subscribe', { method: 'POST', body: JSON.stringify(body) }),
+  subscribe: (body: { resource_type: string; resource_id: string; org_id?: string }) =>
+    apiFetch<ApiResponse<unknown>>('/api/market/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ ...body, org_id: body.org_id ?? MARKET_ORG_ID }),
+    }),
 
-  unsubscribe: (body: { resource_type: string; resource_id: string; org_id: string }) =>
-    apiFetch<ApiResponse<unknown>>('/api/market/unsubscribe', { method: 'DELETE', body: JSON.stringify(body) }),
+  unsubscribe: (body: { resource_type: string; resource_id: string; org_id?: string }) =>
+    apiFetch<ApiResponse<unknown>>('/api/market/unsubscribe', {
+      method: 'DELETE',
+      body: JSON.stringify({ ...body, org_id: body.org_id ?? MARKET_ORG_ID }),
+    }),
 
   listSubscriptions: (resource_type?: string) => {
     const sp = resource_type ? `?resource_type=${resource_type}` : ''

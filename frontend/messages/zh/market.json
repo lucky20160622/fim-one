@@ -1,6 +1,6 @@
 {
   "title": "市场",
-  "description": "浏览并订阅来自您的组织的共享资源",
+  "description": "浏览并订阅来自市场的共享资源",
   "empty": "市场中没有可用的资源",
   "subscribed": "已订阅",
   "subscribe": "订阅",
@@ -10,6 +10,13 @@
     "agent": "智能体",
     "connector": "连接器",
     "knowledge_base": "知识库",
-    "mcp_server": "MCP 服务器"
-  }
+    "mcp_server": "MCP 服务器",
+    "skill": "技能",
+    "workflow": "工作流"
+  },
+  "publishToMarketplace": "发布到市场",
+  "marketplaceReviewRequired": "所有发布到市场的资源在显示前需要管理员审核。",
+  "publishTarget": "发布目标",
+  "publishTargetOrg": "组织",
+  "publishTargetMarketplace": "市场"
 }

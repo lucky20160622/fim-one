@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { api, type MarketItem } from '@/lib/api'
 import { toast } from 'sonner'
 
-const RESOURCE_TYPES = ['all', 'agent', 'connector', 'knowledge_base', 'mcp_server'] as const
+const RESOURCE_TYPES = ['all', 'agent', 'connector', 'knowledge_base', 'mcp_server', 'skill', 'workflow'] as const
 
 function MarketContent() {
   const t = useTranslations('market')
@@ -113,6 +113,12 @@ function MarketContent() {
                     {t(`types.${item.resource_type}`)}
                   </Badge>
                 </div>
+
+                {(item.owner_username || item.org_name) && (
+                  <p className="text-xs text-muted-foreground">
+                    {item.owner_username}{item.org_name ? ` / ${item.org_name}` : ''}
+                  </p>
+                )}
 
                 <div className="flex items-center justify-between">
                   {item.is_subscribed && (

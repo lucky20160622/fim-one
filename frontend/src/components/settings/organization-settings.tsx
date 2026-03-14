@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useTranslations, useLocale } from "next-intl"
 import {
   Building2,
-  Globe,
+  Store,
   MoreHorizontal,
   Plus,
   Settings,
@@ -70,7 +70,7 @@ import {
 import { useAuth } from "@/contexts/auth-context"
 import { orgApi, type UserOrg, type OrgMember, type ReviewItem } from "@/lib/api"
 import type { ReviewLogItem } from "@/types/admin"
-import { PLATFORM_ORG_ID } from "@/lib/constants"
+import { MARKET_ORG_ID } from "@/lib/constants"
 import { EmojiPickerPopover } from "@/components/ui/emoji-picker-popover"
 
 // ---------------------------------------------------------------------------
@@ -1139,7 +1139,7 @@ function OrgCard({ org, currentUserId, onEdit, onDelete, onLeave, onManageMember
   const t = useTranslations("organizations")
   const tc = useTranslations("common")
 
-  const isPlatform = org.id === PLATFORM_ORG_ID
+  const isPlatform = org.id === MARKET_ORG_ID
   const isOwner = org.role === "owner"
   const isAdminOrOwner = org.role === "owner" || org.role === "admin"
   const canLeave = !isOwner
@@ -1149,16 +1149,16 @@ function OrgCard({ org, currentUserId, onEdit, onDelete, onLeave, onManageMember
     return (
       <div className="rounded-lg border border-primary/20 bg-gradient-to-r from-primary/[0.04] to-transparent p-4 flex items-start gap-3">
         <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-          <Globe className="h-5 w-5 text-primary" />
+          <Store className="h-5 w-5 text-primary" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold truncate">{t("platformOrgName")}</p>
+            <p className="text-sm font-semibold truncate">{t("marketOrgName")}</p>
             <Badge variant="outline" className="border-primary/30 text-primary text-[10px] px-1.5 py-0">
               {t(`role${org.role.charAt(0).toUpperCase()}${org.role.slice(1)}` as "roleOwner" | "roleAdmin" | "roleMember")}
             </Badge>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">{t("platformOrgDescription")}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t("marketOrgDescription")}</p>
         </div>
         {/* Only admin/owner see the menu — limited to member management */}
         {isAdminOrOwner && (

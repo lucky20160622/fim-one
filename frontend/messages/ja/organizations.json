@@ -186,5 +186,9 @@
   "resourceTypeWorkflow": "ワークフロー",
   "reviewSkillsLabel": "スキルレビュー",
   "filterSkills": "スキル",
-  "resourceTypeSkill": "スキル"
+  "resourceTypeSkill": "スキル",
+  "marketOrgName": "マーケットプレイス",
+  "marketOrgDescription": "公開マーケットプレイス。ここに公開されたリソースはすべてのユーザーが閲覧およびサブスクライブできます。",
+  "cannotDeleteMarketOrg": "マーケットプレイス組織は削除できません",
+  "cannotLeaveMarketOrg": "マーケットプレイス組織から退出することはできません"
 }

@@ -186,5 +186,9 @@
   "resourceTypeWorkflow": "워크플로우",
   "reviewSkillsLabel": "스킬 검토",
   "filterSkills": "스킬",
-  "resourceTypeSkill": "스킬"
+  "resourceTypeSkill": "스킬",
+  "marketOrgName": "마켓플레이스",
+  "marketOrgDescription": "공개 마켓플레이스입니다. 여기에 게시된 리소스는 모든 사용자가 검색하고 구독할 수 있습니다.",
+  "cannotDeleteMarketOrg": "마켓플레이스 조직은 삭제할 수 없습니다",
+  "cannotLeaveMarketOrg": "마켓플레이스 조직을 떠날 수 없습니다"
 }

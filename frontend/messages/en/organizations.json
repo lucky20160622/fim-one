@@ -177,6 +177,10 @@
   "resourceTypeSkill": "Skill",
   "platformOrgName": "Platform",
   "platformOrgDescription": "Default platform-wide organization. All users are automatically enrolled.",
+  "marketOrgName": "Marketplace",
+  "marketOrgDescription": "Public marketplace. Resources published here are available for all users to browse and subscribe.",
+  "cannotDeleteMarketOrg": "The Marketplace organization cannot be deleted",
+  "cannotLeaveMarketOrg": "The Marketplace organization cannot be left",
 
   "reviewHistory": "Review History",
   "reviewHistoryTitle": "Review History",

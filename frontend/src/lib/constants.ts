@@ -20,8 +20,12 @@ export function getApiDirectUrl() {
   return "http://localhost:8000"
 }
 
-/** The built-in "Platform" organisation that is available to all users */
-export const PLATFORM_ORG_ID = "00000000-0000-0000-0000-000000000001"
+/** The built-in Marketplace organisation — a shadow org nobody joins;
+ *  resources are browsed and subscribed to. */
+export const MARKET_ORG_ID = "00000000-0000-0000-0000-000000000001"
+
+/** @deprecated Use MARKET_ORG_ID instead */
+export const PLATFORM_ORG_ID = MARKET_ORG_ID
 
 export const ACCESS_TOKEN_KEY = "fim_access_token"
 export const REFRESH_TOKEN_KEY = "fim_refresh_token"

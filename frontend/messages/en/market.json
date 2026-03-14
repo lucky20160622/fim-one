@@ -1,15 +1,22 @@
 {
-  "title": "Market",
-  "description": "Browse and subscribe to shared resources from your organizations",
-  "empty": "No resources available in the market",
+  "title": "Marketplace",
+  "description": "Browse and subscribe to shared resources from the marketplace",
+  "empty": "No resources available in the marketplace",
   "subscribed": "Subscribed",
   "subscribe": "Subscribe",
   "unsubscribe": "Unsubscribe",
+  "publishToMarketplace": "Publish to Marketplace",
+  "marketplaceReviewRequired": "All resources published to the Marketplace require admin review before they become visible.",
+  "publishTarget": "Publish Target",
+  "publishTargetOrg": "Organization",
+  "publishTargetMarketplace": "Marketplace",
   "types": {
     "all": "All",
     "agent": "Agents",
     "connector": "Connectors",
     "knowledge_base": "Knowledge Bases",
-    "mcp_server": "MCP Servers"
+    "mcp_server": "MCP Servers",
+    "skill": "Skills",
+    "workflow": "Workflows"
   }
 }

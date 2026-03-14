@@ -1,7 +1,7 @@
 {
-  "title": "マーケット",
-  "description": "組織から共有されたリソースを参照して購読する",
-  "empty": "マーケットで利用可能なリソースがありません",
+  "title": "マーケットプレイス",
+  "description": "マーケットプレイスから共有リソースを参照して購読する",
+  "empty": "マーケットプレイスで利用可能なリソースがありません",
   "subscribed": "購読済み",
   "subscribe": "購読",
   "unsubscribe": "購読解除",
@@ -10,6 +10,13 @@
     "agent": "エージェント",
     "connector": "コネクタ",
     "knowledge_base": "ナレッジベース",
-    "mcp_server": "MCP サーバー"
-  }
+    "mcp_server": "MCP サーバー",
+    "skill": "スキル",
+    "workflow": "ワークフロー"
+  },
+  "publishToMarketplace": "マーケットプレイスに公開",
+  "marketplaceReviewRequired": "マーケットプレイスに公開されたすべてのリソースは、表示される前に管理者のレビューが必要です。",
+  "publishTarget": "公開先",
+  "publishTargetOrg": "組織",
+  "publishTargetMarketplace": "マーケットプレイス"
 }
