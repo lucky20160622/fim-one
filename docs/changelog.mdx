@@ -11,6 +11,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Added
 
+- **Workflow version change summaries** — `compute_blueprint_diff()` auto-generates human-readable summaries from blueprint diffs when saving new versions, describing added/removed/modified nodes and edges.
+- **Workflow run retention cleanup** — Background cleanup task that purges old workflow runs based on configurable age and count limits. Per-workflow retention overrides. Admin endpoint for manual cleanup trigger. New env vars: `WORKFLOW_RUN_MAX_AGE_DAYS`, `WORKFLOW_RUN_MAX_PER_WORKFLOW`, `WORKFLOW_RUN_CLEANUP_INTERVAL_HOURS`.
+- **Connector circuit breaker** — Three-state circuit breaker (closed/open/half-open) with per-connector failure tracking. Detects 5xx errors and temporarily disables failing connectors. Monitoring endpoints for circuit breaker state inspection.
+- **ConnectorMetaTool (Progressive Disclosure Phase 1-2)** — Single meta-tool replaces per-action tools in the agent prompt. System prompt receives lightweight stubs (~30 tokens/connector vs ~250 tokens/action); agent calls `discover(connector)` to load full action schema on demand and `execute` to run actions. Feature flag `CONNECTOR_TOOL_MODE` for backward compatibility.
+- **Real MCP executor** — Replaced stub MCP node executor with full implementation supporting MCP server discovery and tool calling within workflow execution.
+- **Agent mid-loop self-reflection** — Lightweight goal-check prompt injected every 6 tool-call iterations in the ReAct loop (both JSON and native modes) to prevent goal drift in long reasoning chains. Asks the agent whether it is still on track, repeating actions, or should produce a final answer.
+
+### Changed
+
+- **Real BuiltinTool executor** — Replaced stub BuiltinTool node executor with real implementation using `ToolRegistry` integration for workflow execution.
 - **Semantic schema annotations** — 16 predefined semantic tags (`customer_id`, `email`, `phone`, `amount`, `date`, etc.) for connector schema fields. Each field can carry `semantic_tag`, `description`, and `pii` flags, surfaced in LLM tool descriptions so the agent understands field intent without guessing from column names.
 - **Connector import/export/fork UI** — Frontend card actions for exporting connectors as JSON, importing from file picker, and forking (clone + customize) existing connectors.
 - **Connector import/export and fork endpoints** — Backend API: `GET /api/connectors/{id}/export`, `POST /api/connectors/import`, `POST /api/connectors/{id}/fork` with sanitized credential handling to prevent secret leakage.

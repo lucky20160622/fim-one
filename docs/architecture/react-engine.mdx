@@ -134,6 +134,21 @@ sequenceDiagram
 
 [Context Management](/architecture/context-management) explains how ContextGuard enforces the token budget on every iteration, including the hint system that tells the compaction LLM to preserve recent reasoning chains.
 
+## Mid-loop self-reflection
+
+Long reasoning chains (10+ tool calls) risk **goal drift** — the agent gradually shifts focus from the original objective to a local sub-problem, repeats similar actions, or enters circular retry loops. Mid-loop self-reflection is a lightweight countermeasure.
+
+Every `_SELF_REFLECTION_INTERVAL` tool-call iterations (default: **6**), the agent injects a user message into the conversation asking the LLM to pause and reflect:
+
+- Is it still on track toward the original goal?
+- Has it been repeating similar actions or going in circles?
+- What is the most direct next step to finish?
+- Should it produce a final answer now?
+
+The counter tracks **actual tool calls only** — JSON parse retries, thinking events, and interrupt injections do not count. In native mode, the reflection message is appended strictly after all `tool_result` messages to preserve the tool_use/tool_result pairing constraint.
+
+This costs ~100 tokens per injection (no extra LLM call) and has no effect on short runs (< 6 tool calls). It complements ContextGuard (which manages token budgets) and per-step verification (which validates individual results) by addressing a different failure mode: the agent losing sight of its goal over many iterations.
+
 ## Answer synthesis (stream_answer)
 
 The separation between the tool loop and answer synthesis is a core architectural decision. Tool iterations produce raw data — JSON actions, tool observations, error messages. The user needs a coherent, well-formatted answer, not a dump of the agent's internal trace.

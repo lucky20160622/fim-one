@@ -134,6 +134,21 @@ sequenceDiagram
 
 [Context Management](/architecture/context-management) erklärt, wie ContextGuard das Token-Budget bei jeder Iteration durchsetzt, einschließlich des Hinweissystems, das dem Kompaktions-LLM mitteilt, dass es aktuelle Argumentationsketten bewahren soll.
 
+## Mid-Loop-Selbstreflexion
+
+Lange Reasoning-Ketten (10+ Tool-Aufrufe) riskieren **Zieldrift** — der Agent verschiebt allmählich den Fokus vom ursprünglichen Ziel zu einem lokalen Unterproblem, wiederholt ähnliche Aktionen oder gerät in zirkuläre Wiederholungsschleifen. Mid-Loop-Selbstreflexion ist eine leichtgewichtige Gegenmaßnahme.
+
+Alle `_SELF_REFLECTION_INTERVAL` Tool-Call-Iterationen (Standard: **6**) injiziert der Agent eine Benutzernachricht in die Konversation, die das LLM auffordert innezuhalten und zu reflektieren:
+
+- Ist es noch auf dem richtigen Weg zum ursprünglichen Ziel?
+- Hat es ähnliche Aktionen wiederholt oder sich im Kreis bewegt?
+- Was ist der direkteste nächste Schritt zum Abschluss?
+- Sollte es jetzt eine endgültige Antwort produzieren?
+
+Der Zähler verfolgt **nur tatsächliche Tool-Aufrufe** — JSON-Parse-Wiederholungen, Thinking-Events und Interrupt-Injektionen zählen nicht. Im nativen Modus wird die Reflexionsnachricht streng nach allen `tool_result`-Nachrichten angehängt, um die tool_use/tool_result-Paarungsbeschränkung zu bewahren.
+
+Dies kostet ~100 Token pro Injektion (kein zusätzlicher LLM-Aufruf) und hat keine Auswirkung auf kurze Läufe (< 6 Tool-Aufrufe). Es ergänzt ContextGuard (das Token-Budgets verwaltet) und Verifikation pro Schritt (die einzelne Ergebnisse validiert), indem es einen anderen Fehlermodus adressiert: dass der Agent sein Ziel über viele Iterationen aus den Augen verliert.
+
 ## Antwortsynthese (stream_answer)
 
 Die Trennung zwischen der Werkzeugschleife und der Antwortsynthese ist eine grundlegende architektonische Entscheidung. Werkzeugiterationen erzeugen Rohdaten — JSON-Aktionen, Werkzeugbeobachtungen, Fehlermeldungen. Der Benutzer benötigt eine kohärente, gut formatierte Antwort, keine Ausgabe der internen Verfolgung des Agenten.

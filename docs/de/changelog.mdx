@@ -11,61 +11,71 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/). Versionen ents
 
 ### Hinzugefügt
 
-- **Semantische Schema-Annotationen** — 16 vordefinierte semantische Tags (`customer_id`, `email`, `phone`, `amount`, `date`, etc.) für Connector-Schemafelder. Jedes Feld kann `semantic_tag`, `description` und `pii` Flags tragen, die in LLM-Tool-Beschreibungen angezeigt werden, damit der Agent die Feldabsicht versteht, ohne von Spaltennamen zu raten.
-- **Connector Import/Export/Fork UI** — Frontend-Card-Aktionen zum Exportieren von Connectoren als JSON, Importieren aus Dateiauswahl und Forking (Klonen + Anpassen) bestehender Connectoren.
-- **Connector Import/Export und Fork Endpoints** — Backend API: `GET /api/connectors/{id}/export`, `POST /api/connectors/import`, `POST /api/connectors/{id}/fork` mit bereinigter Credential-Behandlung zur Vermeidung von Secret-Lecks.
+- **Zusammenfassungen von Workflow-Versionänderungen** — `compute_blueprint_diff()` generiert automatisch menschenlesbare Zusammenfassungen aus Blueprint-Diffs beim Speichern neuer Versionen und beschreibt hinzugefügte/entfernte/geänderte Knoten und Kanten.
+- **Bereinigung der Workflow-Ausführungsaufbewahrung** — Hintergrund-Bereinigungsaufgabe, die alte Workflow-Ausführungen basierend auf konfigurierbaren Alters- und Anzahlgrenzen löscht. Pro-Workflow-Aufbewahrungsüberschreibungen. Admin-Endpunkt für manuelle Bereinigungsauslösung. Neue Umgebungsvariablen: `WORKFLOW_RUN_MAX_AGE_DAYS`, `WORKFLOW_RUN_MAX_PER_WORKFLOW`, `WORKFLOW_RUN_CLEANUP_INTERVAL_HOURS`.
+- **Connector-Schutzschalter** — Dreistelliger Schutzschalter (closed/open/half-open) mit Pro-Connector-Fehlertracking. Erkennt 5xx-Fehler und deaktiviert fehlgeschlagene Konnektoren vorübergehend. Überwachungsendpunkte zur Überprüfung des Schutzschalter-Status.
+- **ConnectorMetaTool (Progressive Disclosure Phase 1-2)** — Einzelnes Meta-Tool ersetzt Pro-Action-Tools in der Agent-Eingabeaufforderung. Systemeingabeaufforderung erhält leichte Stubs (~30 Token/Connector vs ~250 Token/Action); Agent ruft `discover(connector)` auf, um vollständiges Action-Schema bei Bedarf zu laden, und `execute`, um Aktionen auszuführen. Feature-Flag `CONNECTOR_TOOL_MODE` für Rückwärtskompatibilität.
+- **Echter MCP-Executor** — Ersetzte Stub-MCP-Knoten-Executor durch vollständige Implementierung, die MCP-Server-Erkennung und Tool-Aufrufe innerhalb der Workflow-Ausführung unterstützt.
+- **Agent-Selbstreflexion in der Mitte der Schleife** — Leichte Goal-Check-Eingabeaufforderung, die alle 6 Tool-Call-Iterationen in der ReAct-Schleife (sowohl JSON- als auch native Modi) eingefügt wird, um Goal-Drift in langen Reasoning-Ketten zu verhindern. Fragt den Agent, ob er noch auf Kurs ist, Aktionen wiederholt oder eine endgültige Antwort geben sollte.
+
+### Geändert
+
+- **Echter BuiltinTool-Executor** — Stub-BuiltinTool-Node-Executor durch echte Implementierung mit `ToolRegistry`-Integration für Workflow-Ausführung ersetzt.
+- **Semantische Schema-Annotationen** — 16 vordefinierte semantische Tags (`customer_id`, `email`, `phone`, `amount`, `date`, etc.) für Connector-Schemafelder. Jedes Feld kann `semantic_tag`, `description` und `pii`-Flags tragen, die in LLM-Tool-Beschreibungen angezeigt werden, damit der Agent die Feldabsicht versteht, ohne von Spaltennamen zu raten.
+- **Connector-Import/Export/Fork-UI** — Frontend-Card-Aktionen zum Exportieren von Connectoren als JSON, Importieren aus Dateiauswahl und Forking (Klonen + Anpassen) vorhandener Connectoren.
+- **Connector-Import/Export- und Fork-Endpoints** — Backend-API: `GET /api/connectors/{id}/export`, `POST /api/connectors/import`, `POST /api/connectors/{id}/fork` mit bereinigter Credential-Behandlung zur Verhinderung von Secret-Lecks.
 - **Workflow-Template-System** — `WorkflowTemplate` ORM-Modell mit Admin-CRUD und öffentlichen Listing-/Clone-Endpoints. 5 Seed-Templates werden beim ersten Start automatisch eingefügt für schnelles Workflow-Bootstrapping.
-- **Workflow Inline-Validierungs-Badges** — Echtzeit-`ValidationBadge` auf Canvas-Knoten, die Pro-Knoten-Fehler und Warnungen mit beschreibenden Tooltips anzeigen und sofortiges visuelles Feedback während der Blueprint-Bearbeitung bieten.
-- **Workflow Execution Trace Viewer** — Zeitlinienbasierter Trace Viewer Sheet zur Überprüfung abgeschlossener Läufe. Engine `trace_level` Parameter steuert Detailgenauigkeit; Variable Snapshots werden bei jedem Knoten für Step-through-Debugging erfasst.
-- **Workflow Pro-Benutzer Rate Limiting und globales Timeout** — `WorkflowRateLimiter` mit Sliding-Window-Durchsetzung (10 Läufe/Min, 3 gleichzeitig pro Benutzer). Standard 10-Minuten (600s) globales Run-Timeout für alle Workflow-Ausführungen.
-- **Admin Batch Workflow-Verwaltung** — Drei Batch-Admin-Endpoints für Workflows: Batch-Löschen, Batch-Toggle (aktiv/inaktiv) und Batch-Veröffentlichung, alle mit Audit-Logging.
-- **Workflow Palette Verbesserungen** — Kürzlich verwendete Knoten-Sektion über `useRecentNodes` Hook, Suche nach Beschreibung und leerer "keine Ergebnisse" Status in der Knoten-Palette.
-- **Workflow Run Replay Overlay** — "View on Canvas" Button in Run-History-Overlays zeigt vergangene Ausführungsergebnisse auf dem Workflow-Canvas an, mit Pro-Knoten-Status und Output aus einem abgeschlossenen Lauf ohne Neuausführung.
-- **Vollständiger SubWorkflow Executor** — SubWorkflow-Knoten von Stub zu vollständigem DB-gestütztem verschachteltem Executor aktualisiert. Lädt Ziel-Workflow aus Datenbank, führt mit zugeordneten Eingabevariablen aus, erzwingt konfigurierbare Tiefenlimit zur Vermeidung unendlicher Rekursion und gibt verschachtelte Run-Outputs an den Parent-Workflow zurück.
-- **Admin Workflows Verwaltungs-Tab** — Neuer "Workflows" Tab im Admin-Panel zur Verwaltung aller Workflows über Benutzer hinweg. Features: Alle Workflows mit Besitzer/Status/Stats auflisten, aktiv/inaktiv umschalten, Workflows mit Bestätigungsdialog löschen.
-- **Workflow Favoriten/Pinning** — Workflows mit Stern markieren/an die Spitze der Liste pinnen mit localStorage Persistierung. Favorisierte Workflows erscheinen unabhängig von der Sortierreihenfolge zuerst in der Workflow-Liste.
-- **Workflow Run History Export** — Exportieren Sie Workflow-Run-Verlauf als JSON-Datei-Download. Enthält Run-Metadaten, Pro-Knoten-Ergebnisse, Eingaben/Ausgaben und Timing-Daten.
-- **Workflow Test-Node Endpoint** — `POST /api/workflows/{id}/test-node` für isolierte Single-Node-Ausführung mit Mock VariableStore, 30s Timeout, START/END Ablehnung. Frontend `TestNodeDialog` Sheet mit Key-Value-Variableneingabe, Env-Vars-Sektion, JSON-Ergebnis-Viewer. Integriert in Node-Config-Panel (Test Button) und Editor-Kontextmenü. 23 Tests.
-- **Workflow Version Diff Dialog** — Nebeneinander-Vergleich zweier Blueprint-Versionen mit hinzugefügten/entfernten/geänderten Knoten und Kanten. Farbcodierte Indikatoren (Smaragd=hinzugefügt, Destruktiv=entfernt, Bernstein=geändert). Integriert in Version-History-Sheet mit "Compare" Button pro Version.
-- **35 End-to-End Lifecycle Tests** — Umfassende Workflow-Lifecycle-Tests, die Create, Edit, Validate, Run, Version, Restore, Delete Flows abdecken.
-- **Workflow Run Stats auf Liste und Cards** — Backend Batch-Abruf von Run-Zählungen und Erfolgsraten über GROUP BY Subquery; Frontend zeigt Stats auf Workflow-Cards mit farbcodierten Erfolgsraten-Indikatoren an.
-- **Workflow Scheduler Daemon** — Hintergrund-Async-Service, der alle 60 Sekunden nach fälligen Cron-basierten Workflows abfragt. Croniter Timezone-Unterstützung, Semaphore-basierte Concurrency-Kontrolle, `last_scheduled_at` Tracking und Webhook-Lieferung für geplante Run-Ergebnisse. 14 Scheduler-Daemon-Tests.
-- **Workflow Import Conflict Resolver** — Erkennt ungelöste Agent/Connector/KB/MCP Referenzen während Workflow-Import. Batch DB-Abfragen mit Visibility-Filterung; Frontend zeigt Toast-Warnungen für fehlende externe Abhängigkeiten an. 17 Import-Conflict-Resolver-Tests.
-- **Workflow Delete-Run und Clear-Runs Endpoints** — `DELETE /api/workflows/{id}/runs/{run_id}` für einzelne Run-Löschung; `DELETE /api/workflows/{id}/runs` zum Löschen aller abgeschlossenen Läufe. Frontend-Bestätigungsdialoge für beide Aktionen.
-- **56 Workflow Validierungs-Warnungs-Tests** — Umfassende Abdeckung von Phase 2 Knoten-Validierungs-Warnungen.
-- **137 Workflow Phase 2 Knoten Executor Tests** — Vollständige Test-Abdeckung für alle Phase 2 Knoten-Typ-Executors.
-- **Geplante Trigger** — Cron-Konfiguration pro Workflow mit Timezone-Auswahl, Standard-Eingaben und Next-Run-At-Berechnung. Frontend Dialog mit voreingestellten Cron-Buttons (alle 5 Min / stündlich / täglich / wöchentlich / monatlich).
-- **Public API Trigger Endpoint** — Pro-Workflow API-Schlüssel (`wf_` Präfix) für externe Ausführung ohne Benutzer-Auth, mit Rate Limiting.
-- **API-Schlüssel Verwaltungs-Dialog** — Generieren, Regenerieren und Widerrufen von Workflow-API-Schlüsseln mit Copy-Button, Trigger-URL-Anzeige und cURL/JavaScript Verwendungsbeispielen.
-- **Echtzeit Execution Log Viewer** — Chronologischer SSE-Event-Stream im Run-Panel mit Zeitstempeln, farbcodierten Event-Type-Badges und Filter-Toggles pro Event-Typ.
-- **Batch Run Dialog** — Führen Sie Workflows mit mehreren Input-Sets (JSON-Editor) aus, konfigurierbare Parallelität (1-10), zusammenklappbare Pro-Item-Ergebnisse und JSON-Export.
-- **30 Geplante Trigger Tests** — Cron-Validierung, Schema-Handling und Timezone-Unterstützung.
-- **14 Batch Execution Tests** — Schema-Validierung und gleichzeitige Engine-Ausführung.
-- **Workflow-Level Timeout** — Neuer `workflow_timeout_ms` Parameter in der Engine bricht alle ausstehenden/laufenden Knoten ab, wenn überschritten, mit begrenztem Async-Wait für responsives Timeout-Erkennung.
-- **Re-run mit letzten Eingaben** — "Run Again" Button füllt das Input-Formular mit Werten aus dem vorherigen Lauf vor.
-- **Run History Status Filter** — Dropdown zum Filtern von Workflow-Läufen nach Completed/Failed/Cancelled/Running.
-- **Workflow Version History** — Auto-Versionierung beim Blueprint-Speichern mit List/Get/Restore API Endpoints zum Zurücksetzen auf vorherige Versionen.
-- **Validate Endpoint** — `POST /validate` für strukturelle Blueprint-Validierung ohne Ausführung.
-- **Dry-Run Modus** — `POST /run` mit `dry_run=true` gibt den Ausführungsplan als JSON zurück ohne auszuführen.
-- **13 Condition Branch Routing Tests** — Umfassende Abdeckung für Branching, Merging, Nesting und Classifier Routing.
-- **Pro-Knoten Execution Statistics Panel** — Neues Stats-Panel (`node-stats-panel.tsx`) mit Pro-Knoten Erfolgsraten, durchschnittlichen Dauern und Fehlerzählungen sortiert nach Worst-First. Integriert in die Workflow-Toolbar. Neue `getNodeStats` API-Client-Methode und `NodeStatEntry` Typ für Frontend-Nutzung.
-- **Phase 3 Knoten: SubWorkflow und ENV** — Zwei neue Knoten-Typen mit Backend-Executors, Parser-Validierung und 14 neue Tests (Gesamt: 304 → 306):
-  - **SubWorkflow**: Stub Executor für verschachtelte Workflow-Orchestrierung — wählen Sie einen Ziel-Workflow und ordnen Sie Eingabe-/Ausgabevariablen zu.
+- **Workflow-Inline-Validierungs-Badges** — Echtzeit-`ValidationBadge` auf Canvas-Nodes, die Pro-Node-Fehler und Warnungen mit beschreibenden Tooltips anzeigen und sofortiges visuelles Feedback während der Blueprint-Bearbeitung bieten.
+- **Workflow-Execution-Trace-Viewer** — Timeline-basierter Trace-Viewer Sheet zur Überprüfung abgeschlossener Läufe. Engine-`trace_level`-Parameter steuert Detailgenauigkeit; Variable Snapshots werden bei jedem Node für Step-through-Debugging erfasst.
+- **Workflow-Pro-Benutzer-Rate-Limiting und globales Timeout** — `WorkflowRateLimiter` mit Sliding-Window-Durchsetzung (10 Läufe/Min, 3 gleichzeitig pro Benutzer). Standard-10-Minuten-(600s)-globales Run-Timeout wird auf alle Workflow-Ausführungen angewendet.
+- **Admin-Batch-Workflow-Management** — Drei Batch-Admin-Endpoints für Workflows: Batch-Löschen, Batch-Umschalten (aktiv/inaktiv) und Batch-Veröffentlichung, alle mit Audit-Logging.
+- **Workflow-Palette-Verbesserungen** — Kürzlich verwendete Nodes-Sektion über `useRecentNodes`-Hook, Suche nach Beschreibung und leerer „Keine Ergebnisse"-Status in der Node-Palette.
+- **Workflow-Run-Replay-Overlay** — „View on Canvas"-Button in Run-History-Overlays überlagert vergangene Ausführungsergebnisse auf dem Workflow-Canvas, zeigt Pro-Node-Status und Ausgabe aus einem abgeschlossenen Lauf ohne Neuausführung.
+- **Vollständiger SubWorkflow-Executor** — SubWorkflow-Node von Stub zu vollständiger DB-gestützter verschachtelter Ausführung aktualisiert. Lädt Ziel-Workflow aus Datenbank, führt mit zugeordneten Eingabevariablen aus, erzwingt konfigurierbare Tiefenlimitierung zur Verhinderung unendlicher Rekursion und gibt verschachtelte Run-Ausgaben an den Parent-Workflow zurück.
+- **Admin-Workflows-Management-Tab** — Neuer „Workflows"-Tab im Admin-Panel zur Verwaltung aller Workflows über Benutzer hinweg. Features: Alle Workflows mit Besitzer/Status/Statistiken auflisten, aktiv/inaktiv umschalten, Workflows mit Bestätigungsdialog löschen.
+- **Workflow-Favoriten/Pinning** — Workflows mit Stern/Pin oben in der Liste mit localStorage-Persistierung markieren. Favorisierte Workflows erscheinen unabhängig von der Sortierreihenfolge zuerst in der Workflow-Liste.
+- **Workflow-Run-History-Export** — Workflow-Run-History als JSON-Datei-Download exportieren. Enthält Run-Metadaten, Pro-Node-Ergebnisse, Ein-/Ausgaben und Timing-Daten.
+- **Workflow-Test-Node-Endpoint** — `POST /api/workflows/{id}/test-node` für isolierte Single-Node-Ausführung mit Mock-VariableStore, 30s-Timeout, START/END-Ablehnung. Frontend-`TestNodeDialog`-Sheet mit Schlüssel-Wert-Variableneingabe, Umgebungsvariablen-Sektion, JSON-Ergebnis-Viewer. Integriert in Node-Config-Panel (Test-Button) und Editor-Kontextmenü. 23 Tests.
+- **Workflow-Version-Diff-Dialog** — Nebeneinander-Vergleich zweier Blueprint-Versionen mit hinzugefügten/entfernten/geänderten Nodes und Edges. Farbcodierte Indikatoren (smaragd=hinzugefügt, destruktiv=entfernt, bernstein=geändert). Integriert in Version-History-Sheet mit „Compare"-Button pro Version.
+- **35 End-to-End-Lifecycle-Tests** — Umfassende Workflow-Lifecycle-Tests mit Create-, Edit-, Validate-, Run-, Version-, Restore-, Delete-Flows.
+- **Workflow-Run-Statistiken auf Liste und Cards** — Backend batch-fetcht Run-Counts und Success-Rates über GROUP BY-Subquery; Frontend zeigt Statistiken auf Workflow-Cards mit farbcodierten Success-Rate-Indikatoren.
+- **Workflow-Scheduler-Daemon** — Background-Async-Service, der alle 60 Sekunden nach fälligen cron-basierten Workflows abfragt. Croniter-Timezone-Support, Semaphore-basierte Concurrency-Kontrolle, `last_scheduled_at`-Tracking und Webhook-Delivery für geplante Run-Ergebnisse. 14 Scheduler-Daemon-Tests.
+- **Workflow-Import-Konflikt-Resolver** — Erkennt ungelöste Agent/Connector/KB/MCP-Referenzen während Workflow-Import. Batch-DB-Queries mit Visibility-Filtering; Frontend zeigt Toast-Warnungen für fehlende externe Abhängigkeiten. 17 Import-Konflikt-Resolver-Tests.
+- **Workflow-Delete-Run- und Clear-Runs-Endpoints** — `DELETE /api/workflows/{id}/runs/{run_id}` für einzelne Run-Löschung; `DELETE /api/workflows/{id}/runs` zum Löschen aller abgeschlossenen Runs. Frontend-Bestätigungsdialoge für beide Aktionen.
+- **56 Workflow-Validierungs-Warnungs-Tests** — Umfassende Abdeckung von Phase-2-Node-Validierungs-Warnungen.
+- **137 Workflow-Phase-2-Node-Executor-Tests** — Vollständige Test-Abdeckung für alle Phase-2-Node-Type-Executors.
+- **Geplante Trigger** — Cron-Konfiguration pro Workflow mit Timezone-Auswahl, Standard-Eingaben und Next-Run-At-Berechnung. Frontend-Dialog mit voreingestellten Cron-Buttons (alle 5 Min / stündlich / täglich / wöchentlich / monatlich).
+- **Öffentlicher API-Trigger-Endpoint** — Pro-Workflow-API-Keys (`wf_`-Präfix) für externe Ausführung ohne Benutzer-Auth, mit Rate-Limiting.
+- **API-Key-Management-Dialog** — Generieren, Regenerieren und Widerrufen von Workflow-API-Keys mit Copy-Button, Trigger-URL-Anzeige und cURL/JavaScript-Verwendungsbeispielen.
+- **Echtzeit-Execution-Log-Viewer** — Chronologischer SSE-Event-Stream im Run-Panel mit Zeitstempeln, farbcodierten Event-Type-Badges und Filter-Toggles pro Event-Type.
+- **Batch-Run-Dialog** — Workflows mit mehreren Input-Sets ausführen (JSON-Editor), konfigurierbare Parallelität (1-10), kollabierbare Pro-Item-Ergebnisse und JSON-Export.
+- **30 geplante Trigger-Tests** — Cron-Validierung, Schema-Handling und Timezone-Support.
+- **14 Batch-Execution-Tests** — Schema-Validierung und gleichzeitige Engine-Ausführung.
+- **Workflow-Level-Timeout** — Neuer `workflow_timeout_ms`-Parameter in der Engine bricht alle ausstehenden/laufenden Nodes ab, wenn überschritten, mit begrenztem Async-Wait für responsive Timeout-Erkennung.
+- **Neuausführung mit letzten Eingaben** — „Run Again"-Button füllt das Input-Formular mit Werten aus dem vorherigen Lauf vor.
+- **Run-History-Status-Filter** — Dropdown zum Filtern von Workflow-Runs nach Completed/Failed/Cancelled/Running.
+- **Workflow-Version-History** — Auto-Versionierung bei Blueprint-Speicherung mit List/Get/Restore-API-Endpoints zum Zurücksetzen auf vorherige Versionen.
+- **Validate-Endpoint** — `POST /validate` für strukturelle Blueprint-Validierung ohne Ausführung.
+- **Dry-Run-Modus** — `POST /run` mit `dry_run=true` gibt den Execution-Plan als JSON zurück ohne Ausführung.
+- **13 Condition-Branch-Routing-Tests** — Umfassende Abdeckung für Branching, Merging, Nesting und Classifier-Routing.
+- **Pro-Node-Execution-Statistiken-Panel** — Neues Stats-Panel (`node-stats-panel.tsx`) mit Pro-Node-Success-Rates, durchschnittlichen Dauern und Fehler-Counts sortiert nach Worst-First. Integriert in die Workflow-Toolbar. Neue `getNodeStats`-API-Client-Methode und `NodeStatEntry`-Typ für Frontend-Verbrauch.
+- **Phase-3-Nodes: SubWorkflow und ENV** — Zwei neue Node-Typen mit Backend-Executors, Parser-Validierung und 14 neuen Tests (insgesamt: 304 → 306):
+  - **SubWorkflow**: Stub-Executor für verschachtelte Workflow-Orchestrierung — wählen Sie einen Ziel-Workflow und ordnen Sie Ein-/Ausgabevariablen zu.
   - **ENV**: Liest verschlüsselte Umgebungsvariablen zur Laufzeit mit Schlüsselauswahl und Fallback-Defaults.
-- **SubWorkflow und ENV Frontend Komponenten** — Vollständige Frontend-Integration: `sub-workflow-node.tsx` und `env-node.tsx` mit Config-Formularen, Palette-Einträgen, Minimap-Farben und Knoten-Typ-Record-Einträgen über alle Typ-Maps.
-- **Zwei neue Workflow-Templates (14 Gesamt)** — "Secure API Integration" (ENV → HTTP mit Auth-Headern) und "Sub-Workflow Orchestration" (LLM → SubWorkflow → Zusammenfassung).
-- **Tastaturkürzel Dialog** — Drücken Sie `?` um alle verfügbaren Tastaturkürzel in einem Dialog-Overlay anzuzeigen.
-- **Node Input Preview Capture** — Execution Events enthalten jetzt abgeschnittenes JSON von Vorgänger-Outputs zum Debuggen.
-- **Workflow Analytics Endpoint** — `GET /analytics` gibt Gesamt-Läufe, Status-Verteilung, Erfolgsrate, p50/p95/p99 Dauer-Perzentile, tägliche Trends und am häufigsten fehlgeschlagene Knoten zurück.
-- **Analytics Dashboard Panel** — Stat-Cards, Status-Verteilungs-Balken, reines CSS Tages-Diagramm, Perzentil-Balken und fehlgeschlagene Knoten-Tabelle mit 7d/14d/30d Bereichs-Selector.
-- **Template Gallery Dialog** — Visuelles Grid-Browsing von Workflow-Templates mit Kategorie-Filtern und One-Click-Erstellung.
-- **Beschriftete Kanten** — Condition und Classifier Branch-Namen werden als Pills auf Kanten angezeigt.
-- **Workflow Variables Panel** — Definieren, Bearbeiten und Löschen von Workflow-Level-Variablen mit Typ/Standard/Beschreibung.
-- **Batch Execution Endpoint** — `POST /batch-run` führt einen Workflow mit bis zu 100 Input-Sets gleichzeitig aus, mit konfigurierbarer Parallelität (1–10).
-- **Run Comparison Dialog** — Nebeneinander-Diff zweier Läufe mit Pro-Knoten Status, Dauer und Input-Unterschieden.
-- **Webhook Configuration Dialog** — Setzen, Testen und Löschen einer Webhook-URL mit Inline-Validierung und Konnektivitäts-Test.
-- **Canvas Node Search** — `Cmd+F` zum Suchen von Knoten nach Typ, ID und Inhalt mit hervorgehobenen Treffern und Pfeiltasten-Navigation.
-- **Node Comments/Annotations** — Zusammenklappbares Notes Textarea im Config-Panel mit Canvas-Indikator-Icon.
+- **SubWorkflow- und ENV-Frontend-Komponenten** — Vollständige Frontend-Integration: `sub-workflow-node.tsx` und `env-node.tsx` mit Config-Formularen, Palette-Einträgen, Minimap-Farben und Node-Type-Record-Einträgen über alle Type-Maps.
+- **Zwei neue Workflow-Templates (14 insgesamt)** — „Secure API Integration" (ENV → HTTP mit Auth-Headern) und „Sub-Workflow Orchestration" (LLM → SubWorkflow → Zusammenfassung).
+- **Tastaturkürzel-Dialog** — Drücken Sie `?` um alle verfügbaren Tastaturkürzel in einem Dialog-Overlay anzuzeigen.
+- **Node-Input-Preview-Erfassung** — Execution-Events enthalten jetzt abgeschnittenes JSON von Vorgänger-Ausgaben zum Debuggen.
+- **Workflow-Analytics-Endpoint** — `GET /analytics` gibt Gesamt-Runs, Status-Verteilung, Success-Rate, p50/p95/p99-Dauer-Perzentile, tägliche Trends und am häufigsten fehlgeschlagene Nodes zurück.
+- **Analytics-Dashboard-Panel** — Stat-Cards, Status-Verteilungs-Bar, reines CSS-Tages-Chart, Perzentil-Bars und fehlgeschlagene Nodes-Tabelle mit 7d/14d/30d-Range-Selector.
+- **Template-Gallery-Dialog** — Visuelles Grid-Browsing von Workflow-Templates mit Kategorie-Filtern und One-Click-Erstellung.
+- **Beschriftete Edges** — Condition- und Classifier-Branch-Namen als Pills auf Edges angezeigt.
+- **Workflow-Variablen-Panel** — Definieren, Bearbeiten und Löschen von Workflow-Level-Variablen mit Typ/Standard/Beschreibung.
+- **Batch-Execution-Endpoint** — `POST /batch-run` führt einen Workflow mit bis zu 100 Input-Sets gleichzeitig aus, mit konfigurierbarer Parallelität (1–10).
+- **Run-Vergleichs-Dialog** — Nebeneinander-Diff zweier Runs mit Pro-Node-Status, Dauer und Input-Unterschieden.
+- **Webhook-Konfigurations-Dialog** — Webhook-URL mit Inline-Validierung und Connectivity-Test setzen, testen und löschen.
+- **Canvas-Node-Suche** — `Cmd+F` zum Durchsuchen von Nodes nach Typ, ID und Inhalt mit hervorgehobenen Matches und Pfeiltasten-Navigation.
+- **Node-Kommentare/Annotationen** — Kollabierbare Notes-Textarea im Config-Panel mit Canvas-Indikator-Icon.
 
 ### Geändert
 

@@ -134,6 +134,21 @@ sequenceDiagram
 
 [Context Management](/architecture/context-management) explique comment ContextGuard applique le budget de tokens à chaque itération, y compris le système d'indices qui indique au LLM de compaction de préserver les chaînes de raisonnement récentes.
 
+## Auto-réflexion en cours d'exécution
+
+Les chaînes de raisonnement longues (10+ appels d'outils) risquent une **dérive d'objectif** — l'agent perd progressivement de vue l'objectif initial pour se concentrer sur un sous-problème local, répète des actions similaires, ou entre dans des boucles de retry circulaires. L'auto-réflexion en cours d'exécution est une contre-mesure légère.
+
+Tous les `_SELF_REFLECTION_INTERVAL` appels d'outils (par défaut : **6**), l'agent injecte un message utilisateur dans la conversation demandant au LLM de faire une pause et de réfléchir :
+
+- Est-il toujours sur la bonne voie vers l'objectif initial ?
+- A-t-il répété des actions similaires ou tourné en rond ?
+- Quelle est l'étape suivante la plus directe pour terminer ?
+- Devrait-il produire une réponse finale maintenant ?
+
+Le compteur suit **uniquement les appels d'outils réels** — les retries d'analyse JSON, les événements de réflexion, et les injections d'interruption ne comptent pas. En mode natif, le message de réflexion est ajouté strictement après tous les messages `tool_result` pour préserver la contrainte d'appairage tool_use/tool_result.
+
+Cela coûte environ 100 tokens par injection (pas d'appel LLM supplémentaire) et n'a aucun effet sur les exécutions courtes (< 6 appels d'outils). Il complète ContextGuard (qui gère les budgets de tokens) et la vérification par étape (qui valide les résultats individuels) en traitant un mode de défaillance différent : l'agent perdant de vue son objectif au fil de nombreuses itérations.
+
 ## Synthèse des réponses (stream_answer)
 
 La séparation entre la boucle d'outils et la synthèse des réponses est une décision architecturale fondamentale. Les itérations d'outils produisent des données brutes — actions JSON, observations d'outils, messages d'erreur. L'utilisateur a besoin d'une réponse cohérente et bien formatée, pas un vidage de la trace interne de l'agent.

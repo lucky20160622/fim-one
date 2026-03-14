@@ -221,9 +221,10 @@ Registriert das `email_send` Built-in-Tool automatisch, wenn `SMTP_HOST`, `SMTP_
 
 | Variable | Erforderlich | Standard | Beschreibung |
 |---|---|---|---|
-| `CONNECTOR_RESPONSE_MAX_CHARS` | Nein | `50000` | Maximale Zeichen für Nicht-Array-JSON- / Klartext-Konnektorantworten |
-| `CONNECTOR_RESPONSE_MAX_ITEMS` | Nein | `10` | Maximale Array-Elemente, die beibehalten werden, wenn die Konnektorantwort ein JSON-Array ist |
-| `CREDENTIAL_ENCRYPTION_KEY` | Nein | _(nicht gesetzt)_ | Fernet-Verschlüsselungsschlüssel für Konnektorguthaben-Blobs. Wenn gesetzt, werden Auth-Token in `connector_credentials` im Ruhezustand verschlüsselt. Wenn nicht gesetzt, werden Guthaben als Klartext-JSON gespeichert (abwärtskompatibel). Das Ändern dieses Schlüssels macht alle vorhandenen verschlüsselten Guthaben ungültig. |
+| `CONNECTOR_RESPONSE_MAX_CHARS` | Nein | `50000` | Maximale Zeichen für JSON-Antworten ohne Array / Klartext-Konnektoren-Antworten |
+| `CONNECTOR_RESPONSE_MAX_ITEMS` | Nein | `10` | Maximale Array-Elemente, die beibehalten werden, wenn die Konnektoren-Antwort ein JSON-Array ist |
+| `CREDENTIAL_ENCRYPTION_KEY` | Nein | _(nicht gesetzt)_ | Fernet-Verschlüsselungsschlüssel für Konnektoren-Anmeldedaten-Blobs. Wenn gesetzt, werden Auth-Token in `connector_credentials` im Ruhezustand verschlüsselt. Wenn nicht gesetzt, werden Anmeldedaten als einfaches JSON gespeichert (abwärtskompatibel). Das Ändern dieses Schlüssels macht alle vorhandenen verschlüsselten Anmeldedaten ungültig. |
+| `CONNECTOR_TOOL_MODE` | Nein | `progressive` | Wie Konnektoren-Tools für Agenten verfügbar gemacht werden. `progressive`: einzelnes `ConnectorMetaTool` mit `discover`/`execute`-Unterbefehlen (~30 Token/Konnektor). `classic`: ein Tool pro Aktion (Vermächtnis, ~250 Token/Aktion). |
 
 ---
 
@@ -243,6 +244,18 @@ Registriert das `email_send` Built-in-Tool automatisch, wenn `SMTP_HOST`, `SMTP_
 | `LOG_LEVEL` | Nein | `INFO` | Protokollierungsstufe: `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
 | `REDIS_URL` | Nein | — | Redis-Verbindungs-URL für Worker-übergreifendes Interrupt-Relay. Wird von Docker Compose automatisch konfiguriert. Nur für lokale Multi-Worker-Setups erforderlich (`WORKERS>1`). |
 | `WORKERS` | Nein | `1` | Uvicorn-Worker-Prozesse. `1` ist sicher und benötigt keine externen Dienste. `>1` **erfordert PostgreSQL** (SQLite ist Single-Writer). Authentifizierung, OAuth und Dateivorgänge sind vollständig Multi-Worker-sicher (JWT-basiert). **Einschränkung**: Ohne `REDIS_URL` funktioniert Interrupt/Inject im Datenstrom nur innerhalb desselben Worker-Prozesses. Docker Compose konfiguriert Redis automatisch. |
+
+---
+
+## Workflow-Ausführungs-Aufbewahrung
+
+Hintergrund-Bereinigungsaufgabe, die automatisch alte Workflow-Ausführungen löscht. Pro-Workflow-Überschreibungen (konfiguriert in der Workflow-Einstellungs-UI) haben Vorrang vor diesen globalen Standardwerten.
+
+| Variable | Erforderlich | Standard | Beschreibung |
+|---|---|---|---|
+| `WORKFLOW_RUN_MAX_AGE_DAYS` | Nein | `30` | Löschen Sie Workflow-Ausführungen, die älter als diese Anzahl von Tagen sind |
+| `WORKFLOW_RUN_MAX_PER_WORKFLOW` | Nein | `100` | Behalten Sie höchstens diese Anzahl von Ausführungen pro Workflow (älteste werden zuerst gelöscht) |
+| `WORKFLOW_RUN_CLEANUP_INTERVAL_HOURS` | Nein | `24` | Wie oft die Hintergrund-Bereinigungsaufgabe ausgeführt wird, in Stunden |
 
 ---
 

@@ -226,8 +226,9 @@ LiteLLM 从 `LLM_BASE_URL` 自动检测提供商，并将其映射到正确的 A
 | 变量 | 必需 | 默认值 | 描述 |
 |---|---|---|---|
 | `CONNECTOR_RESPONSE_MAX_CHARS` | 否 | `50000` | 非数组 JSON / 纯文本连接器响应的最大字符数 |
-| `CONNECTOR_RESPONSE_MAX_ITEMS` | 否 | `10` | 当连接器响应为 JSON 数组时要保留的最大数组项数 |
-| `CREDENTIAL_ENCRYPTION_KEY` | 否 | _(未设置)_ | 用于连接器凭证 blob 的 Fernet 加密密钥。设置后，存储在 `connector_credentials` 中的身份验证令牌将被加密存储。如果未设置，凭证将以纯文本 JSON 形式存储（向后兼容）。更改此密钥将使所有现有加密凭证失效。 |
+| `CONNECTOR_RESPONSE_MAX_ITEMS` | 否 | `10` | 当连接器响应为 JSON 数组时保留的最大数组项数 |
+| `CREDENTIAL_ENCRYPTION_KEY` | 否 | _(未设置)_ | 用于连接器凭证 blob 的 Fernet 加密密钥。设置后，存储在 `connector_credentials` 中的身份验证令牌将在静止时加密。如果未设置，凭证将存储为纯文本 JSON（向后兼容）。更改此密钥会使所有现有加密凭证失效。 |
+| `CONNECTOR_TOOL_MODE` | 否 | `progressive` | 连接器工具如何暴露给智能体。`progressive`：单个 `ConnectorMetaTool`，带有 `discover`/`execute` 子命令（~30 tokens/连接器）。`classic`：每个操作一个工具（旧版，~250 tokens/操作）。 |
 
 ---
 
@@ -247,6 +248,18 @@ LiteLLM 从 `LLM_BASE_URL` 自动检测提供商，并将其映射到正确的 A
 | `LOG_LEVEL` | 否 | `INFO` | 日志级别：`DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
 | `REDIS_URL` | 否 | — | 用于跨工作进程中断中继的 Redis 连接 URL。由 Docker Compose 自动配置。仅在本地多工作进程设置（`WORKERS>1`）时需要。 |
 | `WORKERS` | 否 | `1` | Uvicorn 工作进程数。`1` 是安全的，不需要外部服务。`>1` **需要 PostgreSQL**（SQLite 是单写入器）。身份验证、OAuth 和文件操作完全支持多工作进程（基于 JWT）。**限制**：没有 `REDIS_URL` 时，中途中断/注入仅在同一工作进程内有效。Docker Compose 自动配置 Redis。 |
+
+---
+
+## 工作流运行保留
+
+自动清理旧工作流运行的后台任务。每个工作流的覆盖设置（在工作流设置UI中配置）优先于这些全局默认值。
+
+| 变量 | 必需 | 默认值 | 描述 |
+|---|---|---|---|
+| `WORKFLOW_RUN_MAX_AGE_DAYS` | 否 | `30` | 删除早于此天数的工作流运行 |
+| `WORKFLOW_RUN_MAX_PER_WORKFLOW` | 否 | `100` | 每个工作流最多保留此数量的运行（最旧的优先删除） |
+| `WORKFLOW_RUN_CLEANUP_INTERVAL_HOURS` | 否 | `24` | 后台清理任务运行的频率，以小时为单位 |
 
 ---
 

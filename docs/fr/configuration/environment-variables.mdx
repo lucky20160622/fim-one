@@ -219,11 +219,12 @@ Enregistre automatiquement l'outil intégré `email_send` lorsque `SMTP_HOST`, `
 
 ## Connecteurs
 
-| Variable | Requis | Par défaut | Description |
+| Variable | Requis | Défaut | Description |
 |---|---|---|---|
 | `CONNECTOR_RESPONSE_MAX_CHARS` | Non | `50000` | Nombre maximum de caractères pour les réponses de connecteur JSON non-tableau / texte brut |
 | `CONNECTOR_RESPONSE_MAX_ITEMS` | Non | `10` | Nombre maximum d'éléments de tableau à conserver lorsque la réponse du connecteur est un tableau JSON |
-| `CREDENTIAL_ENCRYPTION_KEY` | Non | _(non défini)_ | Clé de chiffrement Fernet pour les blobs d'identifiants de connecteur. Lorsqu'elle est définie, les jetons d'authentification stockés dans `connector_credentials` sont chiffrés au repos. Si elle n'est pas définie, les identifiants sont stockés en tant que JSON en texte brut (rétro-compatible). La modification de cette clé invalide tous les identifiants chiffrés existants. |
+| `CREDENTIAL_ENCRYPTION_KEY` | Non | _(non défini)_ | Clé de chiffrement Fernet pour les blobs d'authentification du connecteur. Lorsqu'elle est définie, les jetons d'authentification stockés dans `connector_credentials` sont chiffrés au repos. Si elle n'est pas définie, les authentifications sont stockées en tant que JSON en texte brut (rétro-compatible). La modification de cette clé invalide toutes les authentifications chiffrées existantes. |
+| `CONNECTOR_TOOL_MODE` | Non | `progressive` | Comment les outils de connecteur sont exposés aux agents. `progressive` : un seul `ConnectorMetaTool` avec des sous-commandes `discover`/`execute` (~30 jetons/connecteur). `classic` : un outil par action (hérité, ~250 jetons/action). |
 
 ---
 
@@ -243,6 +244,18 @@ Enregistre automatiquement l'outil intégré `email_send` lorsque `SMTP_HOST`, `
 | `LOG_LEVEL` | Non | `INFO` | Niveau de journalisation : `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
 | `REDIS_URL` | Non | — | URL de connexion Redis pour le relais d'interruption entre workers. Auto-configuré par Docker Compose. Nécessaire uniquement pour les configurations locales multi-worker (`WORKERS>1`). |
 | `WORKERS` | Non | `1` | Processus workers Uvicorn. `1` est sûr et ne nécessite aucun service externe. `>1` **nécessite PostgreSQL** (SQLite est à writer unique). L'authentification, OAuth et les opérations de fichiers sont entièrement sûrs pour multi-worker (basés sur JWT). **Limitation** : sans `REDIS_URL`, l'interruption/injection en cours de flux fonctionne uniquement dans le même processus worker. Docker Compose configure automatiquement Redis. |
+
+---
+
+## Rétention des exécutions de flux de travail
+
+Tâche de nettoyage en arrière-plan qui supprime automatiquement les anciennes exécutions de flux de travail. Les remplacements par flux de travail (configurés dans l'interface utilisateur des paramètres du flux de travail) ont priorité sur ces valeurs par défaut globales.
+
+| Variable | Requis | Par défaut | Description |
+|---|---|---|---|
+| `WORKFLOW_RUN_MAX_AGE_DAYS` | Non | `30` | Supprimer les exécutions de flux de travail antérieures à ce nombre de jours |
+| `WORKFLOW_RUN_MAX_PER_WORKFLOW` | Non | `100` | Conserver au maximum ce nombre d'exécutions par flux de travail (les plus anciennes supprimées en premier) |
+| `WORKFLOW_RUN_CLEANUP_INTERVAL_HOURS` | Non | `24` | Fréquence d'exécution de la tâche de nettoyage en arrière-plan, en heures |
 
 ---
 
