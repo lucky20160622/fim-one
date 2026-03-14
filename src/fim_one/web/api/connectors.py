@@ -34,6 +34,7 @@ from fim_one.web.schemas.connector import (
     ConnectorExportData,
     ConnectorExportMeta,
     ConnectorForkRequest,
+    ConnectorFromConfigRequest,
     ConnectorImportRequest,
     ConnectorImportResult,
     ConnectorResponse,
@@ -1165,6 +1166,65 @@ async def toggle_connector(
     connector.is_active = not connector.is_active
     await db.commit()
     return ApiResponse(data={"id": connector_id, "is_active": connector.is_active})
+
+
+# ---------------------------------------------------------------------------
+# Config Import (YAML / JSON declarative config)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/from-config", response_model=ApiResponse)
+async def create_connector_from_config(
+    body: ConnectorFromConfigRequest,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Create a connector + actions from a YAML or JSON config file."""
+    from fim_one.core.tool.connector.config_loader import (
+        ConfigValidationError,
+        config_to_connector,
+        parse_connector_config,
+    )
+
+    try:
+        config = parse_connector_config(body.config, format=body.format)
+    except ConfigValidationError as exc:
+        raise AppError(
+            "config_validation_failed",
+            status_code=422,
+            detail="; ".join(exc.errors),
+            detail_args={"errors": exc.errors},
+        ) from exc
+
+    connector, actions = config_to_connector(config, user_id=current_user.id)
+    db.add(connector)
+    for action in actions:
+        db.add(action)
+
+    await db.commit()
+
+    # Reload with actions relationship for response serialization
+    result = await db.execute(
+        select(Connector)
+        .options(selectinload(Connector.actions))
+        .where(Connector.id == connector.id)
+    )
+    connector = result.scalar_one()
+    return ApiResponse(data=_connector_to_response(connector).model_dump())
+
+
+@router.get("/config-template", response_model=ApiResponse)
+async def get_connector_config_template(
+    format: str = Query("yaml", pattern=r"^(yaml|json)$"),
+    current_user: User = Depends(get_current_user),  # noqa: B008
+) -> ApiResponse:
+    """Return a starter connector config template in YAML or JSON format."""
+    from fim_one.core.tool.connector.config_loader import (
+        get_config_template as _get_template,
+    )
+
+    template = _get_template(format=format)
+    return ApiResponse(data={"template": template, "format": format})
 
 
 # ---------------------------------------------------------------------------

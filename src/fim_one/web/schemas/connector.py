@@ -246,3 +246,13 @@ class ConnectorImportResult(BaseModel):
 
     connector: ConnectorResponse
     warnings: list[str] = Field(default_factory=list)
+
+
+# --- Config Import ---
+
+
+class ConnectorFromConfigRequest(BaseModel):
+    """Accept a YAML or JSON connector config as raw text."""
+
+    config: str = Field(min_length=1, max_length=100000)
+    format: str = Field(default="auto", pattern=r"^(auto|yaml|json)$")
