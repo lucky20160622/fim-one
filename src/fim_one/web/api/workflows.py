@@ -3,20 +3,23 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import logging
 import math
 import secrets
+import socket
 import time
 import uuid
 from collections import defaultdict
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import Response, StreamingResponse
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fim_one.db import get_session, create_session
@@ -87,6 +90,75 @@ def _percentile(sorted_values: list[int], pct: int) -> int:
     n = len(sorted_values)
     idx = max(0, min(math.ceil(pct / 100 * n) - 1, n - 1))
     return sorted_values[idx]
+
+
+def _validate_webhook_url(url: str) -> None:
+    """Validate a webhook URL to prevent SSRF attacks.
+
+    Only allows ``http://`` and ``https://`` schemes and rejects URLs
+    that resolve to private/loopback IP ranges or ``localhost``.
+
+    Raises
+    ------
+    AppError
+        If the URL is invalid or points to a private/internal address.
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        raise AppError(
+            "invalid_webhook_url",
+            status_code=400,
+            detail="Invalid webhook URL",
+        )
+
+    # Scheme check
+    if parsed.scheme not in ("http", "https"):
+        raise AppError(
+            "invalid_webhook_url",
+            status_code=400,
+            detail="Webhook URL must use http or https scheme",
+        )
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise AppError(
+            "invalid_webhook_url",
+            status_code=400,
+            detail="Webhook URL must include a hostname",
+        )
+
+    # Reject localhost by name
+    if hostname.lower() in ("localhost", "localhost.localdomain"):
+        raise AppError(
+            "invalid_webhook_url",
+            status_code=400,
+            detail="Webhook URL must not point to localhost",
+        )
+
+    # Resolve hostname to IP and check for private/loopback ranges
+    try:
+        addr_infos = socket.getaddrinfo(hostname, None, proto=socket.IPPROTO_TCP)
+    except socket.gaierror:
+        raise AppError(
+            "invalid_webhook_url",
+            status_code=400,
+            detail="Could not resolve webhook URL hostname",
+        )
+
+    for family, _type, _proto, _canonname, sockaddr in addr_infos:
+        ip_str = sockaddr[0]
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            continue
+
+        if ip.is_loopback or ip.is_private or ip.is_reserved or ip.is_link_local:
+            raise AppError(
+                "invalid_webhook_url",
+                status_code=400,
+                detail="Webhook URL must not point to a private or internal address",
+            )
 
 
 def _sse(event: str, data: Any) -> str:
@@ -471,6 +543,16 @@ async def trigger_workflow(
             detail="Workflow already has a running execution. Please wait for it to complete.",
         )
 
+    # Per-user rate limit (workflow owner)
+    run_id = str(uuid.uuid4())
+    allowed, rate_error = await _rate_limiter.acquire(wf.user_id, run_id)
+    if not allowed:
+        raise AppError(
+            "workflow_rate_limited",
+            status_code=429,
+            detail=rate_error,
+        )
+
     from fim_one.core.workflow.engine import WorkflowEngine
     from fim_one.core.workflow.parser import BlueprintValidationError, parse_blueprint
 
@@ -488,9 +570,6 @@ async def trigger_workflow(
             env_vars = decrypt_credential(wf.env_vars_blob)
         except Exception:
             logger.warning("Failed to decrypt workflow env vars for %s", wf.id)
-
-    # Create run record
-    run_id = str(uuid.uuid4())
     run = WorkflowRun(
         id=run_id,
         workflow_id=wf.id,
@@ -555,6 +634,9 @@ async def trigger_workflow(
         logger.exception("Trigger execution failed for run %s", run_id)
 
     elapsed_ms = int((time.time() - start_time) * 1000)
+
+    # Release rate limiter slot
+    await _rate_limiter.record_run_end(wf.user_id, run_id)
 
     # Persist run results
     try:
@@ -661,19 +743,13 @@ async def approve_approval(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
     """Approve a pending workflow approval."""
+    # Read approval to verify existence and check assignee
     result = await db.execute(
         select(WorkflowApproval).where(WorkflowApproval.id == approval_id)
     )
     approval = result.scalar_one_or_none()
     if approval is None:
         raise AppError("approval_not_found", status_code=404)
-
-    if approval.status != "pending":
-        raise AppError(
-            "approval_already_resolved",
-            status_code=409,
-            detail=f"Approval is already {approval.status}",
-        )
 
     # Check assignee -- only the assigned user (or anyone if unassigned) can approve
     if approval.assignee and approval.assignee != current_user.id:
@@ -683,10 +759,27 @@ async def approve_approval(
             detail="This approval is assigned to another user",
         )
 
-    approval.status = "approved"
-    approval.decision_by = current_user.id
-    approval.decision_note = body.note
-    approval.resolved_at = datetime.now(UTC)
+    # Atomic status transition: WHERE status='pending' prevents race condition
+    now = datetime.now(UTC)
+    update_result = await db.execute(
+        update(WorkflowApproval)
+        .where(
+            WorkflowApproval.id == approval_id,
+            WorkflowApproval.status == "pending",
+        )
+        .values(
+            status="approved",
+            decision_by=current_user.id,
+            decision_note=body.note,
+            resolved_at=now,
+        )
+    )
+    if update_result.rowcount == 0:
+        raise AppError(
+            "approval_already_resolved",
+            status_code=409,
+            detail="Approval has already been resolved",
+        )
     await db.commit()
 
     # Refresh to get updated fields
@@ -702,19 +795,13 @@ async def reject_approval(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
     """Reject a pending workflow approval."""
+    # Read approval to verify existence and check assignee
     result = await db.execute(
         select(WorkflowApproval).where(WorkflowApproval.id == approval_id)
     )
     approval = result.scalar_one_or_none()
     if approval is None:
         raise AppError("approval_not_found", status_code=404)
-
-    if approval.status != "pending":
-        raise AppError(
-            "approval_already_resolved",
-            status_code=409,
-            detail=f"Approval is already {approval.status}",
-        )
 
     if approval.assignee and approval.assignee != current_user.id:
         raise AppError(
@@ -723,10 +810,27 @@ async def reject_approval(
             detail="This approval is assigned to another user",
         )
 
-    approval.status = "rejected"
-    approval.decision_by = current_user.id
-    approval.decision_note = body.note
-    approval.resolved_at = datetime.now(UTC)
+    # Atomic status transition: WHERE status='pending' prevents race condition
+    now = datetime.now(UTC)
+    update_result = await db.execute(
+        update(WorkflowApproval)
+        .where(
+            WorkflowApproval.id == approval_id,
+            WorkflowApproval.status == "pending",
+        )
+        .values(
+            status="rejected",
+            decision_by=current_user.id,
+            decision_note=body.note,
+            resolved_at=now,
+        )
+    )
+    if update_result.rowcount == 0:
+        raise AppError(
+            "approval_already_resolved",
+            status_code=409,
+            detail="Approval has already been resolved",
+        )
     await db.commit()
 
     await db.refresh(approval)
@@ -758,6 +862,10 @@ async def update_workflow(
     wf = await _get_owned_workflow(workflow_id, current_user.id, db)
 
     update_data = body.model_dump(exclude_unset=True)
+
+    # Validate webhook URL against SSRF before applying
+    if "webhook_url" in update_data and update_data["webhook_url"] is not None:
+        _validate_webhook_url(update_data["webhook_url"])
 
     # Capture old blueprint BEFORE applying updates (for diff computation)
     old_blueprint: dict | None = None
@@ -1218,8 +1326,11 @@ async def run_workflow(
 
     # --- Normal execution mode (SSE streaming) ---
 
-    # Check rate limit before proceeding
-    allowed, rate_error = await _rate_limiter.check_rate_limit(current_user.id)
+    # Create run record
+    run_id = str(uuid.uuid4())
+
+    # Atomically check rate limit and record the run start
+    allowed, rate_error = await _rate_limiter.acquire(current_user.id, run_id)
     if not allowed:
         raise AppError(
             "workflow_rate_limited",
@@ -1227,8 +1338,6 @@ async def run_workflow(
             detail=rate_error,
         )
 
-    # Create run record
-    run_id = str(uuid.uuid4())
     run = WorkflowRun(
         id=run_id,
         workflow_id=wf.id,
@@ -1252,9 +1361,6 @@ async def run_workflow(
 
     cancel_event = asyncio.Event()
     _running_tasks[run_id] = cancel_event
-
-    # Record run start for rate limiting
-    await _rate_limiter.record_run_start(current_user.id, run_id)
 
     # Determine timeout: workflow-level override or engine default (600s = 10 min)
     run_timeout_ms = (wf.max_run_duration_seconds or 600) * 1000
@@ -1434,6 +1540,15 @@ async def batch_run_workflow(
 
     if not wf.blueprint or not wf.blueprint.get("nodes"):
         raise AppError("blueprint_empty", status_code=400)
+
+    # Pre-check rate limit for the total batch size before starting
+    allowed, rate_error = await _rate_limiter.check_rate_limit(current_user.id)
+    if not allowed:
+        raise AppError(
+            "workflow_rate_limited",
+            status_code=429,
+            detail=rate_error,
+        )
 
     from fim_one.core.workflow.engine import WorkflowEngine
     from fim_one.core.workflow.parser import BlueprintValidationError, parse_blueprint
@@ -1619,6 +1734,9 @@ async def test_webhook(
     webhook_url = getattr(wf, "webhook_url", None)
     if not webhook_url:
         raise AppError("webhook_url_not_configured", status_code=400)
+
+    # Validate against SSRF before making the request
+    _validate_webhook_url(webhook_url)
 
     test_payload = {
         "event": "test",
