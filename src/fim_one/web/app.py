@@ -75,12 +75,37 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
     """Startup / shutdown lifecycle for the FastAPI application.
 
     On startup the async database engine is initialised and tables are created.
-    On shutdown the engine is disposed so connections are released cleanly.
+    The workflow scheduler is started as a background task so that cron-based
+    workflows are triggered automatically.
+    On shutdown the scheduler is stopped and the engine is disposed so
+    connections are released cleanly.
     """
+    import asyncio
+
     from fim_one.db import init_db, shutdown_db
+    from fim_one.core.workflow.scheduler import WorkflowScheduler
 
     await init_db()
+
+    # Start the workflow scheduler daemon
+    scheduler = WorkflowScheduler()
+    scheduler_task = asyncio.create_task(scheduler.run())
+    logger.info("Workflow scheduler background task created")
+
     yield
+
+    # Graceful shutdown: stop the scheduler, then dispose the DB
+    await scheduler.stop()
+    try:
+        await asyncio.wait_for(scheduler_task, timeout=35.0)
+    except asyncio.TimeoutError:
+        scheduler_task.cancel()
+        try:
+            await scheduler_task
+        except asyncio.CancelledError:
+            pass
+    except asyncio.CancelledError:
+        pass
     await shutdown_db()
 
 

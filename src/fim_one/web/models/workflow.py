@@ -71,6 +71,9 @@ class Workflow(UUIDPKMixin, TimestampMixin, Base):
     schedule_timezone: Mapped[str | None] = mapped_column(
         String(50), nullable=True, default="UTC", server_default="UTC"
     )
+    last_scheduled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     user: Mapped[User | None] = relationship(back_populates="workflows", lazy="raise")
     runs: Mapped[list[WorkflowRun]] = relationship(
