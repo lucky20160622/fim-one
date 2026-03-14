@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import { Plus, GitBranch, Upload, Loader2, Clock, Search, LayoutTemplate } from "lucide-react"
+import { useWorkflowFavorites } from "@/hooks/use-workflow-favorites"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -53,6 +54,7 @@ export default function WorkflowsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "active">("all")
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name_asc" | "name_desc" | "updated">("newest")
+  const { isFavorite, toggleFavorite } = useWorkflowFavorites()
 
   // Auth guard
   useEffect(() => {
@@ -258,8 +260,12 @@ export default function WorkflowsPage() {
           (w.description ?? "").toLowerCase().includes(q),
       )
     }
-    // Sort
+    // Sort — favorites pinned to top, then by selected criteria
     result = [...result].sort((a, b) => {
+      const aFav = isFavorite(a.id) ? 1 : 0
+      const bFav = isFavorite(b.id) ? 1 : 0
+      if (aFav !== bFav) return bFav - aFav
+
       switch (sortBy) {
         case "newest":
           return b.created_at.localeCompare(a.created_at)
@@ -276,7 +282,7 @@ export default function WorkflowsPage() {
       }
     })
     return result
-  }, [workflows, searchQuery, statusFilter, sortBy])
+  }, [workflows, searchQuery, statusFilter, sortBy, isFavorite])
 
   if (authLoading || !user) return null
 
@@ -400,6 +406,8 @@ export default function WorkflowsPage() {
                 key={workflow.id}
                 workflow={workflow}
                 currentUserId={user.id}
+                isFavorite={isFavorite(workflow.id)}
+                onToggleFavorite={() => toggleFavorite(workflow.id)}
                 onDelete={handleDelete}
                 onExport={handleExport}
                 onDuplicate={handleDuplicate}
