@@ -552,6 +552,40 @@ class NodeTestResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Approval
+# ---------------------------------------------------------------------------
+
+
+class WorkflowApprovalResponse(BaseModel):
+    """Response schema for a workflow approval record."""
+
+    id: str
+    workflow_run_id: str
+    node_id: str
+    title: str
+    description: str | None
+    status: str  # pending, approved, rejected, expired
+    assignee: str | None
+    decision_by: str | None
+    decision_note: str | None
+    timeout_hours: float
+    created_at: str
+    resolved_at: str | None
+    updated_at: str | None
+
+
+class ApprovalDecisionRequest(BaseModel):
+    """Request body for approving or rejecting a workflow approval."""
+
+    note: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Admin batch operations
+# ---------------------------------------------------------------------------
+
+
 class BatchWorkflowDeleteRequest(BaseModel):
     """Request body for batch-deleting workflows."""
 

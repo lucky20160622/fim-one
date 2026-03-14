@@ -2551,12 +2551,31 @@ class QuestionUnderstandingExecutor:
 
 
 class HumanInterventionExecutor:
-    """Pause for human review/approval. Currently auto-approves (stub)."""
+    """Pause workflow execution and wait for external human approval.
+
+    Creates a ``WorkflowApproval`` record, then polls the database for a
+    status change.  Supports timeout-based expiration and configurable
+    polling intervals.
+
+    Node data shape::
+
+        {
+            "title": "Review content before publishing",
+            "description": "Please review the generated content",
+            "assignee": "{{manager_id}}",       # optional, supports interpolation
+            "timeout_hours": 24,                 # default 24
+            "poll_interval_seconds": 5,          # default 5
+            "output_variable": "approval_result"
+        }
+    """
+
+    DEFAULT_POLL_INTERVAL: float = 5.0
+    DEFAULT_TIMEOUT_HOURS: float = 24.0
 
     @staticmethod
     def output_schema() -> list[dict[str, str]]:
         return [
-            {"name": "output", "type": "object", "description": "Approval result with status, message, and assignee"},
+            {"name": "output", "type": "object", "description": "Approval result with status, decision_by, and decision_note"},
         ]
 
     async def execute(
@@ -2567,37 +2586,7 @@ class HumanInterventionExecutor:
     ) -> NodeResult:
         t0 = time.time()
         try:
-            prompt_message = await store.interpolate(
-                node.data.get("prompt_message") or "Please review and approve."
-            )
-            assignee = node.data.get("assignee", "")
-            timeout_hours = node.data.get("timeout_hours", 24)
-            output_var = node.data.get("output_variable", "approval_result")
-
-            # In production, this would create a review task and pause execution.
-            # For now, auto-approve immediately.
-            logger.info(
-                "HumanIntervention node %s: prompt=%r, assignee=%r, timeout=%dh",
-                node.id, prompt_message, assignee, timeout_hours,
-            )
-
-            result = {
-                "status": "approved",
-                "message": f"Auto-approved (human review pending implementation). Prompt: {prompt_message}",
-                "assignee": assignee,
-                "timeout_hours": timeout_hours,
-            }
-
-            await store.set(output_var, result)
-            await store.set(f"{node.id}.output", result)
-            await store.set(f"{node.id}.{output_var}", result)
-
-            return NodeResult(
-                node_id=node.id,
-                status=NodeStatus.COMPLETED,
-                output=result,
-                duration_ms=_ms_since(t0),
-            )
+            return await self._execute_inner(node, store, context, t0)
         except Exception as exc:
             logger.exception("HumanIntervention node %s failed", node.id)
             return NodeResult(
@@ -2606,6 +2595,155 @@ class HumanInterventionExecutor:
                 error=f"HumanIntervention error: {exc}",
                 duration_ms=_ms_since(t0),
             )
+
+    async def _execute_inner(
+        self,
+        node: WorkflowNodeDef,
+        store: VariableStore,
+        context: ExecutionContext,
+        t0: float,
+    ) -> NodeResult:
+        # Validate db_session_factory is available
+        db_session_factory = context.db_session_factory
+        if db_session_factory is None:
+            return NodeResult(
+                node_id=node.id,
+                status=NodeStatus.FAILED,
+                error="HumanIntervention requires db_session_factory in ExecutionContext",
+                duration_ms=_ms_since(t0),
+            )
+
+        # Extract node configuration
+        title_template = node.data.get("title", "Approval required")
+        description_template = node.data.get("description", "")
+        assignee_template = node.data.get("assignee", "")
+        timeout_hours = float(
+            node.data.get("timeout_hours", self.DEFAULT_TIMEOUT_HOURS)
+        )
+        poll_interval = float(
+            node.data.get("poll_interval_seconds", self.DEFAULT_POLL_INTERVAL)
+        )
+
+        # Interpolate templates
+        title = await store.interpolate(title_template) if title_template else "Approval required"
+        description = await store.interpolate(description_template) if description_template else None
+        assignee = await store.interpolate(assignee_template) if assignee_template else None
+
+        # Create approval record
+        import uuid as _uuid
+
+        approval_id = str(_uuid.uuid4())
+
+        async with db_session_factory() as db:
+            from fim_one.web.models.workflow import WorkflowApproval
+
+            approval = WorkflowApproval(
+                id=approval_id,
+                workflow_run_id=context.run_id,
+                node_id=node.id,
+                title=title,
+                description=description,
+                assignee=assignee if assignee else None,
+                status="pending",
+                timeout_hours=timeout_hours,
+            )
+            db.add(approval)
+            await db.commit()
+
+        logger.info(
+            "HumanIntervention node %s created approval %s (timeout=%.1fh)",
+            node.id,
+            approval_id,
+            timeout_hours,
+        )
+
+        # Poll for approval status change
+        timeout_seconds = timeout_hours * 3600
+        start_wait = time.time()
+
+        while True:
+            elapsed = time.time() - start_wait
+
+            # Check timeout
+            if elapsed >= timeout_seconds:
+                # Mark as expired in DB
+                async with db_session_factory() as db:
+                    from fim_one.web.models.workflow import WorkflowApproval
+                    from sqlalchemy import select
+
+                    result = await db.execute(
+                        select(WorkflowApproval).where(
+                            WorkflowApproval.id == approval_id
+                        )
+                    )
+                    record = result.scalar_one_or_none()
+                    if record and record.status == "pending":
+                        from datetime import datetime, timezone
+
+                        record.status = "expired"
+                        record.resolved_at = datetime.now(timezone.utc)
+                        await db.commit()
+
+                return NodeResult(
+                    node_id=node.id,
+                    status=NodeStatus.FAILED,
+                    error=f"Approval timed out after {timeout_hours}h",
+                    duration_ms=_ms_since(t0),
+                )
+
+            # Poll DB for status change
+            async with db_session_factory() as db:
+                from fim_one.web.models.workflow import WorkflowApproval
+                from sqlalchemy import select
+
+                result = await db.execute(
+                    select(WorkflowApproval).where(
+                        WorkflowApproval.id == approval_id
+                    )
+                )
+                record = result.scalar_one_or_none()
+
+            if record is None:
+                return NodeResult(
+                    node_id=node.id,
+                    status=NodeStatus.FAILED,
+                    error="Approval record not found (deleted externally?)",
+                    duration_ms=_ms_since(t0),
+                )
+
+            if record.status == "approved":
+                output = {
+                    "status": "approved",
+                    "approval_id": approval_id,
+                    "decision_by": record.decision_by,
+                    "decision_note": record.decision_note,
+                }
+                await store.set(f"{node.id}.output", output)
+                return NodeResult(
+                    node_id=node.id,
+                    status=NodeStatus.COMPLETED,
+                    output=output,
+                    duration_ms=_ms_since(t0),
+                )
+
+            if record.status == "rejected":
+                return NodeResult(
+                    node_id=node.id,
+                    status=NodeStatus.FAILED,
+                    error=f"Approval rejected: {record.decision_note or 'No reason given'}",
+                    duration_ms=_ms_since(t0),
+                )
+
+            if record.status == "expired":
+                return NodeResult(
+                    node_id=node.id,
+                    status=NodeStatus.FAILED,
+                    error=f"Approval expired after {timeout_hours}h",
+                    duration_ms=_ms_since(t0),
+                )
+
+            # Still pending -- wait and poll again
+            await asyncio.sleep(poll_interval)
 
 
 class MCPExecutor:

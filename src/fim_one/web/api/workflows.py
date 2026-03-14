@@ -23,7 +23,7 @@ from fim_one.db import get_session, create_session
 from fim_one.core.workflow.rate_limiter import WorkflowRateLimiter
 from fim_one.web.exceptions import AppError
 from fim_one.web.auth import get_current_user, get_user_org_ids
-from fim_one.web.models import User, Workflow, WorkflowRun, WorkflowVersion
+from fim_one.web.models import User, Workflow, WorkflowApproval, WorkflowRun, WorkflowVersion
 from fim_one.web.schemas.common import ApiResponse, PaginatedResponse, PublishRequest
 from fim_one.web.schemas.workflow import (
     BatchRunResultItem,
@@ -57,6 +57,8 @@ from fim_one.web.schemas.workflow import (
     WorkflowUpdate,
     WorkflowValidateResponse,
     WorkflowVersionResponse,
+    WorkflowApprovalResponse,
+    ApprovalDecisionRequest,
     _compute_next_run,
 )
 from fim_one.web.visibility import build_visibility_filter
@@ -580,6 +582,139 @@ async def trigger_workflow(
         duration_ms=elapsed_ms,
     )
     return ApiResponse(data=trigger_response.model_dump())
+
+
+# ---------------------------------------------------------------------------
+# Approval endpoints (MUST be before /{workflow_id} to avoid route clash)
+# ---------------------------------------------------------------------------
+
+
+def _approval_to_response(approval: WorkflowApproval) -> WorkflowApprovalResponse:
+    return WorkflowApprovalResponse(
+        id=approval.id,
+        workflow_run_id=approval.workflow_run_id,
+        node_id=approval.node_id,
+        title=approval.title,
+        description=approval.description,
+        status=approval.status,
+        assignee=approval.assignee,
+        decision_by=approval.decision_by,
+        decision_note=approval.decision_note,
+        timeout_hours=approval.timeout_hours,
+        created_at=approval.created_at.isoformat() if approval.created_at else "",
+        resolved_at=(
+            approval.resolved_at.isoformat() if approval.resolved_at else None
+        ),
+        updated_at=(
+            approval.updated_at.isoformat() if approval.updated_at else None
+        ),
+    )
+
+
+@router.get("/approvals/pending", response_model=ApiResponse)
+async def list_pending_approvals(
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """List all pending approvals assigned to the current user (or unassigned)."""
+    from sqlalchemy import or_
+
+    result = await db.execute(
+        select(WorkflowApproval)
+        .where(
+            WorkflowApproval.status == "pending",
+            or_(
+                WorkflowApproval.assignee == current_user.id,
+                WorkflowApproval.assignee.is_(None),
+            ),
+        )
+        .order_by(WorkflowApproval.created_at.desc())
+    )
+    approvals = result.scalars().all()
+
+    return ApiResponse(
+        data=[_approval_to_response(a).model_dump() for a in approvals]
+    )
+
+
+@router.post("/approvals/{approval_id}/approve", response_model=ApiResponse)
+async def approve_approval(
+    approval_id: str,
+    body: ApprovalDecisionRequest,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Approve a pending workflow approval."""
+    result = await db.execute(
+        select(WorkflowApproval).where(WorkflowApproval.id == approval_id)
+    )
+    approval = result.scalar_one_or_none()
+    if approval is None:
+        raise AppError("approval_not_found", status_code=404)
+
+    if approval.status != "pending":
+        raise AppError(
+            "approval_already_resolved",
+            status_code=409,
+            detail=f"Approval is already {approval.status}",
+        )
+
+    # Check assignee -- only the assigned user (or anyone if unassigned) can approve
+    if approval.assignee and approval.assignee != current_user.id:
+        raise AppError(
+            "approval_not_assigned",
+            status_code=403,
+            detail="This approval is assigned to another user",
+        )
+
+    approval.status = "approved"
+    approval.decision_by = current_user.id
+    approval.decision_note = body.note
+    approval.resolved_at = datetime.now(UTC)
+    await db.commit()
+
+    # Refresh to get updated fields
+    await db.refresh(approval)
+    return ApiResponse(data=_approval_to_response(approval).model_dump())
+
+
+@router.post("/approvals/{approval_id}/reject", response_model=ApiResponse)
+async def reject_approval(
+    approval_id: str,
+    body: ApprovalDecisionRequest,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Reject a pending workflow approval."""
+    result = await db.execute(
+        select(WorkflowApproval).where(WorkflowApproval.id == approval_id)
+    )
+    approval = result.scalar_one_or_none()
+    if approval is None:
+        raise AppError("approval_not_found", status_code=404)
+
+    if approval.status != "pending":
+        raise AppError(
+            "approval_already_resolved",
+            status_code=409,
+            detail=f"Approval is already {approval.status}",
+        )
+
+    if approval.assignee and approval.assignee != current_user.id:
+        raise AppError(
+            "approval_not_assigned",
+            status_code=403,
+            detail="This approval is assigned to another user",
+        )
+
+    approval.status = "rejected"
+    approval.decision_by = current_user.id
+    approval.decision_note = body.note
+    approval.resolved_at = datetime.now(UTC)
+    await db.commit()
+
+    await db.refresh(approval)
+    return ApiResponse(data=_approval_to_response(approval).model_dump())
 
 
 # ---------------------------------------------------------------------------
@@ -2502,6 +2637,40 @@ async def cancel_workflow_run(
         await db.commit()
 
     return ApiResponse(data={"cancelled": True, "run_id": run_id})
+
+
+@router.get("/{workflow_id}/runs/{run_id}/approvals", response_model=ApiResponse)
+async def list_run_approvals(
+    workflow_id: str,
+    run_id: str,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """List all approvals for a specific workflow run."""
+    # Verify access to the workflow
+    await _get_accessible_workflow(workflow_id, current_user.id, db)
+
+    # Verify run exists
+    run_result = await db.execute(
+        select(WorkflowRun).where(
+            WorkflowRun.id == run_id,
+            WorkflowRun.workflow_id == workflow_id,
+        )
+    )
+    run = run_result.scalar_one_or_none()
+    if run is None:
+        raise AppError("workflow_run_not_found", status_code=404)
+
+    result = await db.execute(
+        select(WorkflowApproval)
+        .where(WorkflowApproval.workflow_run_id == run_id)
+        .order_by(WorkflowApproval.created_at.desc())
+    )
+    approvals = result.scalars().all()
+
+    return ApiResponse(
+        data=[_approval_to_response(a).model_dump() for a in approvals]
+    )
 
 
 @router.delete("/{workflow_id}/runs/{run_id}", response_model=ApiResponse)
