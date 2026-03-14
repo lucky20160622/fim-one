@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useTranslations } from "next-intl"
-import { Bot, Download, MoreHorizontal, Pencil, Trash2, Globe, GlobeLock, MessageSquare, Radar, RotateCw, Users } from "lucide-react"
+import { Bot, Download, MoreHorizontal, PackageMinus, Pencil, Trash2, Globe, GlobeLock, MessageSquare, Radar, RotateCw, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,6 +27,7 @@ interface AgentCardProps {
   onDelete: (id: string) => void
   onPublish: (id: string) => void
   onUnpublish: (id: string) => void
+  onUninstall?: (id: string) => void
   onResubmit?: (id: string) => void
 }
 
@@ -36,6 +37,7 @@ export function AgentCard({
   onDelete,
   onPublish,
   onUnpublish,
+  onUninstall,
   onResubmit,
 }: AgentCardProps) {
   const t = useTranslations("agents")
@@ -61,7 +63,7 @@ export function AgentCard({
           )}
           {agent.name}
         </h3>
-        {isOwner && (
+        {isOwner ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -96,7 +98,25 @@ export function AgentCard({
             </DropdownMenuItem>
           </DropdownMenuContent>
           </DropdownMenu>
-        )}
+        ) : isInstalled && onUninstall ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem variant="destructive" onClick={() => onUninstall(agent.id)}>
+                <PackageMinus className="h-4 w-4" />
+                {tc("uninstall")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
 
       {/* Status badges */}

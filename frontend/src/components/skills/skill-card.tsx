@@ -7,6 +7,7 @@ import {
   Globe,
   GlobeLock,
   MoreHorizontal,
+  PackageMinus,
   Pencil,
   RotateCw,
   Trash2,
@@ -37,6 +38,7 @@ interface SkillCardProps {
   onDelete: (id: string) => void
   onPublish: (id: string) => void
   onUnpublish: (id: string) => void
+  onUninstall?: (id: string) => void
   onResubmit?: (id: string) => void
 }
 
@@ -47,6 +49,7 @@ export function SkillCard({
   onDelete,
   onPublish,
   onUnpublish,
+  onUninstall,
   onResubmit,
 }: SkillCardProps) {
   const t = useTranslations("skills")
@@ -68,7 +71,7 @@ export function SkillCard({
           <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
           {skill.name}
         </h3>
-        {isOwner && (
+        {isOwner ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -101,7 +104,25 @@ export function SkillCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        )}
+        ) : isInstalled && onUninstall ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem variant="destructive" onClick={() => onUninstall(skill.id)}>
+                <PackageMinus className="h-4 w-4" />
+                {tc("uninstall")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
 
       {/* Status badges */}

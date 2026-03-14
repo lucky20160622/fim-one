@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
-import { Plus, Library, Trash2, Loader2, Clock } from "lucide-react"
+import { Plus, Library, Trash2, Loader2, Clock, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -33,19 +33,23 @@ import {
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/contexts/auth-context"
-import { kbApi, orgApi } from "@/lib/api"
+import { kbApi, marketApi, orgApi } from "@/lib/api"
 import type { UserOrg } from "@/lib/api"
 import { KBCard } from "@/components/kb/kb-card"
+import { EmptyState } from "@/components/shared/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { KBFormDialog } from "@/components/kb/kb-form-dialog"
+import { useScopeFilter } from "@/hooks/use-scope-filter"
+import { ScopeFilter } from "@/components/shared/scope-filter"
 import type { KBResponse, KBCreate } from "@/types/kb"
 
-export default function KBPage() {
+function KBPageInner() {
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const t = useTranslations("kb")
   const to = useTranslations("organizations")
   const tc = useTranslations("common")
+  const { scope, setScope, filterByScope } = useScopeFilter()
 
   const [knowledgeBases, setKnowledgeBases] = useState<KBResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -143,6 +147,16 @@ export default function KBPage() {
     }
   }
 
+  const handleUninstall = async (id: string) => {
+    try {
+      await marketApi.unsubscribe({ resource_type: "knowledge_base", resource_id: id })
+      setKnowledgeBases((prev) => prev.filter((kb) => kb.id !== id))
+      toast.success(tc("uninstalled"))
+    } catch {
+      toast.error(tc("error"))
+    }
+  }
+
   const confirmDelete = async () => {
     if (!pendingDeleteId) return
     const id = pendingDeleteId
@@ -190,6 +204,11 @@ export default function KBPage() {
     ? userOrgs.find((o) => o.id === publishOrgId)
     : null
 
+  const filteredKBs = useMemo(
+    () => (user ? filterByScope(knowledgeBases, user.id) : knowledgeBases),
+    [knowledgeBases, scope, user, filterByScope],
+  )
+
   if (authLoading || !user) return null
 
   return (
@@ -213,6 +232,11 @@ export default function KBPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
+        {!isLoading && knowledgeBases.length > 0 && (
+          <div className="mb-4">
+            <ScopeFilter value={scope} onChange={setScope} />
+          </div>
+        )}
         {isLoading ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -220,29 +244,33 @@ export default function KBPage() {
             ))}
           </div>
         ) : knowledgeBases.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-sm text-muted-foreground">
-              {t("emptyState")}
-            </p>
-            <Button
-              onClick={handleCreate}
-              variant="outline"
-              size="sm"
-              className="mt-4 gap-1.5"
-            >
-              <Plus className="h-4 w-4" />
-              {t("createKnowledgeBase")}
-            </Button>
-          </div>
+          <EmptyState
+            icon={<Library />}
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
+            action={
+              <Button onClick={handleCreate} variant="outline" size="sm" className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                {t("createKnowledgeBase")}
+              </Button>
+            }
+          />
+        ) : filteredKBs.length === 0 ? (
+          <EmptyState
+            icon={<Search />}
+            title={tc("noResultsTitle")}
+            description={tc("noResultsDescription")}
+          />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {knowledgeBases.map((kb) => (
+            {filteredKBs.map((kb) => (
               <KBCard
                 key={kb.id}
                 kb={kb}
                 currentUserId={user.id}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onUninstall={handleUninstall}
               />
             ))}
           </div>
@@ -348,5 +376,13 @@ export default function KBPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+export default function KBPage() {
+  return (
+    <Suspense fallback={null}>
+      <KBPageInner />
+    </Suspense>
   )
 }

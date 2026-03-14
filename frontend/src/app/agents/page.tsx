@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, Suspense, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
-import { Plus, Loader2, Bot, Trash2, Clock } from "lucide-react"
+import { Plus, Loader2, Bot, Trash2, Clock, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -23,18 +23,22 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAuth } from "@/contexts/auth-context"
-import { agentApi, orgApi } from "@/lib/api"
+import { agentApi, marketApi, orgApi } from "@/lib/api"
 import type { UserOrg } from "@/lib/api"
 import { AgentCard } from "@/components/agents/agent-card"
+import { EmptyState } from "@/components/shared/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { AgentResponse } from "@/types/agent"
+import { useScopeFilter } from "@/hooks/use-scope-filter"
+import { ScopeFilter } from "@/components/shared/scope-filter"
 
-export default function AgentsPage() {
+function AgentsPageInner() {
   const t = useTranslations("agents")
   const to = useTranslations("organizations")
   const tc = useTranslations("common")
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
+  const { scope, setScope, filterByScope } = useScopeFilter()
 
   const [agents, setAgents] = useState<AgentResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -100,6 +104,16 @@ export default function AgentsPage() {
     }
   }
 
+  const handleUninstall = async (id: string) => {
+    try {
+      await marketApi.unsubscribe({ resource_type: "agent", resource_id: id })
+      setAgents((prev) => prev.filter((a) => a.id !== id))
+      toast.success(tc("uninstalled"))
+    } catch {
+      toast.error(tc("error"))
+    }
+  }
+
   const confirmDelete = async () => {
     if (!pendingDeleteId) return
     const id = pendingDeleteId
@@ -147,6 +161,11 @@ export default function AgentsPage() {
     ? userOrgs.find((o) => o.id === publishOrgId)
     : null
 
+  const filteredAgents = useMemo(
+    () => (user ? filterByScope(agents, user.id) : agents),
+    [agents, scope, user, filterByScope],
+  )
+
   if (authLoading || !user) return null
 
   return (
@@ -172,6 +191,11 @@ export default function AgentsPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
+        {!isLoading && agents.length > 0 && (
+          <div className="mb-4">
+            <ScopeFilter value={scope} onChange={setScope} />
+          </div>
+        )}
         {isLoading ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -179,25 +203,28 @@ export default function AgentsPage() {
             ))}
           </div>
         ) : agents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-sm text-muted-foreground">
-              {t("emptyState")}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4 gap-1.5"
-              asChild
-            >
-              <Link href="/agents/new">
-                <Plus className="h-4 w-4" />
-                {t("createAgent")}
-              </Link>
-            </Button>
-          </div>
+          <EmptyState
+            icon={<Bot />}
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
+            action={
+              <Button variant="outline" size="sm" className="gap-1.5" asChild>
+                <Link href="/agents/new">
+                  <Plus className="h-4 w-4" />
+                  {t("createAgent")}
+                </Link>
+              </Button>
+            }
+          />
+        ) : filteredAgents.length === 0 ? (
+          <EmptyState
+            icon={<Search />}
+            title={tc("noResultsTitle")}
+            description={tc("noResultsDescription")}
+          />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {agents.map((agent) => (
+            {filteredAgents.map((agent) => (
               <AgentCard
                 key={agent.id}
                 agent={agent}
@@ -205,6 +232,7 @@ export default function AgentsPage() {
                 onDelete={handleDelete}
                 onPublish={handlePublish}
                 onUnpublish={handleUnpublish}
+                onUninstall={handleUninstall}
                 onResubmit={handleResubmit}
               />
             ))}
@@ -301,5 +329,13 @@ export default function AgentsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export default function AgentsPage() {
+  return (
+    <Suspense fallback={null}>
+      <AgentsPageInner />
+    </Suspense>
   )
 }

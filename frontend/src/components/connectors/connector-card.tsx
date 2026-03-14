@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { MoreHorizontal, Pencil, Plug, Trash2, Globe, GlobeLock, RotateCw, Database, Download, Copy, Eye, Users } from "lucide-react"
+import { MoreHorizontal, PackageMinus, Pencil, Plug, Trash2, Globe, GlobeLock, RotateCw, Database, Download, Copy, Eye, Users } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -23,6 +23,7 @@ interface ConnectorCardProps {
   onPublish?: (id: string) => void
   onUnpublish?: (id: string) => void
   onResubmit?: (id: string) => void
+  onUninstall?: (id: string) => void
   onExport?: (id: string) => void
   onFork?: (id: string) => void
 }
@@ -41,6 +42,7 @@ export function ConnectorCard({
   onDelete,
   onPublish,
   onUnpublish,
+  onUninstall,
   onResubmit,
   onExport,
   onFork,
@@ -131,6 +133,13 @@ export function ConnectorCard({
                 <DropdownMenuItem variant="destructive" onClick={() => onDelete(connector.id)}>
                   <Trash2 className="h-4 w-4" />
                   {tc("delete")}
+                </DropdownMenuItem>
+              </>
+            ) : isInstalled && onUninstall ? (
+              <>
+                <DropdownMenuItem variant="destructive" onClick={() => onUninstall(connector.id)}>
+                  <PackageMinus className="h-4 w-4" />
+                  {tc("uninstall")}
                 </DropdownMenuItem>
               </>
             ) : (

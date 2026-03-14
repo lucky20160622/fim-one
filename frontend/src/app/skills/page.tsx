@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, Suspense, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
-import { Plus, BookOpen, Loader2, Clock } from "lucide-react"
+import { Plus, BookOpen, Loader2, Clock, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -22,18 +22,23 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAuth } from "@/contexts/auth-context"
-import { skillApi, orgApi } from "@/lib/api"
+import { skillApi, marketApi, orgApi } from "@/lib/api"
 import type { UserOrg } from "@/lib/api"
 import { SkillCard } from "@/components/skills/skill-card"
+import { SkillFormDialog } from "@/components/skills/skill-form-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { SkillResponse } from "@/types/skill"
+import type { SkillResponse, SkillCreate } from "@/types/skill"
+import { useScopeFilter } from "@/hooks/use-scope-filter"
+import { ScopeFilter } from "@/components/shared/scope-filter"
+import { EmptyState } from "@/components/shared/empty-state"
 
-export default function SkillsPage() {
+function SkillsPageInner() {
   const t = useTranslations("skills")
   const to = useTranslations("organizations")
   const tc = useTranslations("common")
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
+  const { scope, setScope, filterByScope } = useScopeFilter()
 
   const [skills, setSkills] = useState<SkillResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -43,6 +48,9 @@ export default function SkillsPage() {
   const [publishOrgId, setPublishOrgId] = useState<string>("")
   const [userOrgs, setUserOrgs] = useState<UserOrg[]>([])
   const [orgsLoading, setOrgsLoading] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingSkill, setEditingSkill] = useState<SkillResponse | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Auth guard
   useEffect(() => {
@@ -89,6 +97,16 @@ export default function SkillsPage() {
     }
   }
 
+  const handleUninstall = async (id: string) => {
+    try {
+      await marketApi.unsubscribe({ resource_type: "skill", resource_id: id })
+      setSkills((prev) => prev.filter((s) => s.id !== id))
+      toast.success(tc("uninstalled"))
+    } catch {
+      toast.error(tc("error"))
+    }
+  }
+
   const confirmDelete = async () => {
     if (!pendingDeleteId) return
     const id = pendingDeleteId
@@ -131,15 +149,36 @@ export default function SkillsPage() {
     }
   }
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
+    setEditingSkill(null)
+    setDialogOpen(true)
+  }
+
+  const handleEdit = (skill: SkillResponse) => {
+    setEditingSkill(skill)
+    setDialogOpen(true)
+  }
+
+  const handleSubmit = async (data: SkillCreate) => {
+    setIsSubmitting(true)
     try {
-      const skill = await skillApi.create({
-        name: t("newSkill"),
-        content: "",
-      })
-      router.push(`/skills/${skill.id}`)
+      if (editingSkill) {
+        const updated = await skillApi.update(editingSkill.id, data)
+        if ((updated as unknown as Record<string, unknown>).publish_status_reverted) {
+          toast.info(t("publishStatusReverted"))
+        }
+        setSkills((prev) => prev.map((s) => (s.id === editingSkill.id ? updated : s)))
+        toast.success(t("skillSaved"))
+      } else {
+        const created = await skillApi.create(data)
+        setSkills((prev) => [created, ...prev])
+        toast.success(t("skillCreated"))
+      }
+      setDialogOpen(false)
     } catch {
-      toast.error(t("skillCreateFailed"))
+      toast.error(editingSkill ? t("skillSaveFailed") : t("skillCreateFailed"))
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -147,6 +186,11 @@ export default function SkillsPage() {
   const selectedOrg = publishOrgId
     ? userOrgs.find((o) => o.id === publishOrgId)
     : null
+
+  const filteredSkills = useMemo(
+    () => (user ? filterByScope(skills, user.id) : skills),
+    [skills, scope, user, filterByScope],
+  )
 
   if (authLoading || !user) return null
 
@@ -173,6 +217,11 @@ export default function SkillsPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
+        {!isLoading && skills.length > 0 && (
+          <div className="mb-4">
+            <ScopeFilter value={scope} onChange={setScope} />
+          </div>
+        )}
         {isLoading ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -180,36 +229,49 @@ export default function SkillsPage() {
             ))}
           </div>
         ) : skills.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-sm text-muted-foreground">
-              {t("emptyState")}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4 gap-1.5"
-              onClick={handleCreate}
-            >
-              <Plus className="h-4 w-4" />
-              {t("createSkill")}
-            </Button>
-          </div>
+          <EmptyState
+            icon={<BookOpen />}
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
+            action={
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={handleCreate}>
+                <Plus className="h-4 w-4" />
+                {t("createSkill")}
+              </Button>
+            }
+          />
+        ) : filteredSkills.length === 0 ? (
+          <EmptyState
+            icon={<Search />}
+            title={tc("noResultsTitle")}
+            description={tc("noResultsDescription")}
+          />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {skills.map((skill) => (
+            {filteredSkills.map((skill) => (
               <SkillCard
                 key={skill.id}
                 skill={skill}
                 currentUserId={user.id}
+                onEdit={handleEdit}
                 onDelete={handleDelete}
                 onPublish={handlePublish}
                 onUnpublish={handleUnpublish}
+                onUninstall={handleUninstall}
                 onResubmit={handleResubmit}
               />
             ))}
           </div>
         )}
       </div>
+
+      <SkillFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        skill={editingSkill}
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+      />
 
       {/* Delete Confirmation */}
       <Dialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open) setPendingDeleteId(null) }}>
@@ -300,5 +362,13 @@ export default function SkillsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export default function SkillsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SkillsPageInner />
+    </Suspense>
   )
 }

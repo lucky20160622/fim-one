@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef, Suspense } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Plus, Plug, Trash2, LayoutGrid, Database, Globe, ChevronDown, Upload } from "lucide-react"
+import { Plus, Plug, Trash2, LayoutGrid, Database, Globe, ChevronDown, Upload, Search } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -32,7 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/contexts/auth-context"
-import { connectorApi, orgApi } from "@/lib/api"
+import { connectorApi, marketApi, orgApi } from "@/lib/api"
 import type { UserOrg } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PublishDialog } from "@/components/shared/publish-dialog"
@@ -40,6 +40,9 @@ import { ConnectorCard } from "@/components/connectors/connector-card"
 import { MCPServersSection, type MCPServersSectionActions } from "@/components/tools/mcp-servers-section"
 import type { ConnectorResponse } from "@/types/connector"
 import { toast } from "sonner"
+import { useScopeFilter } from "@/hooks/use-scope-filter"
+import { ScopeFilter } from "@/components/shared/scope-filter"
+import { EmptyState } from "@/components/shared/empty-state"
 
 function ConnectorsPageInner() {
   const { user, isLoading: authLoading } = useAuth()
@@ -52,6 +55,7 @@ function ConnectorsPageInner() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const activeTab = searchParams.get("tab") === "mcp" ? "mcp" : "connectors"
+  const { scope, setScope, filterByScope } = useScopeFilter()
 
   const [connectors, setConnectors] = useState<ConnectorResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -117,6 +121,16 @@ function ConnectorsPageInner() {
       toast.success(t("connectorResubmitted"))
     } catch {
       toast.error(t("connectorResubmitFailed"))
+    }
+  }
+
+  const handleUninstall = async (id: string) => {
+    try {
+      await marketApi.unsubscribe({ resource_type: "connector", resource_id: id })
+      setConnectors((prev) => prev.filter((c) => c.id !== id))
+      toast.success(tc("uninstalled"))
+    } catch {
+      toast.error(tc("error"))
     }
   }
 
@@ -228,6 +242,11 @@ function ConnectorsPageInner() {
     ? userOrgs.find((o) => o.id === publishOrgId)
     : null
 
+  const filteredConnectors = useMemo(
+    () => (user ? filterByScope(connectors, user.id) : connectors),
+    [connectors, scope, user, filterByScope],
+  )
+
   if (authLoading || !user) return null
 
   return (
@@ -312,6 +331,10 @@ function ConnectorsPageInner() {
           </TabsList>
         </div>
 
+        <div className="px-6 pt-3 shrink-0">
+          <ScopeFilter value={scope} onChange={setScope} />
+        </div>
+
         {/* Connectors tab */}
         <TabsContent value="connectors" className="flex-1 overflow-y-auto p-6 mt-0">
           {isLoading ? (
@@ -321,25 +344,28 @@ function ConnectorsPageInner() {
               ))}
             </div>
           ) : connectors.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <p className="text-sm text-muted-foreground">
-                {t("emptyState")}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4 gap-1.5"
-                asChild
-              >
-                <Link href="/connectors/new">
-                  <Plus className="h-4 w-4" />
-                  {t("createConnector")}
-                </Link>
-              </Button>
-            </div>
+            <EmptyState
+              icon={<Plug />}
+              title={t("emptyTitle")}
+              description={t("emptyDescription")}
+              action={
+                <Button variant="outline" size="sm" className="gap-1.5" asChild>
+                  <Link href="/connectors/new">
+                    <Plus className="h-4 w-4" />
+                    {t("createConnector")}
+                  </Link>
+                </Button>
+              }
+            />
+          ) : filteredConnectors.length === 0 ? (
+            <EmptyState
+              icon={<Search />}
+              title={tc("noResultsTitle")}
+              description={tc("noResultsDescription")}
+            />
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {connectors.map((connector) => (
+              {filteredConnectors.map((connector) => (
                 <ConnectorCard
                   key={connector.id}
                   connector={connector}
@@ -347,6 +373,7 @@ function ConnectorsPageInner() {
                   onDelete={handleDelete}
                   onPublish={handlePublish}
                   onUnpublish={handleUnpublish}
+                  onUninstall={handleUninstall}
                   onResubmit={handleResubmit}
                   onExport={handleExport}
                   onFork={handleFork}
@@ -358,7 +385,7 @@ function ConnectorsPageInner() {
 
         {/* MCP Servers tab */}
         <TabsContent value="mcp" className="flex-1 overflow-y-auto px-6 py-4 mt-0">
-          <MCPServersSection onReady={(actions) => { mcpActionsRef.current = actions }} currentUserId={user.id} />
+          <MCPServersSection onReady={(actions) => { mcpActionsRef.current = actions }} currentUserId={user.id} scope={scope} />
         </TabsContent>
       </Tabs>
 

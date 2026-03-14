@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
@@ -24,20 +24,24 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAuth } from "@/contexts/auth-context"
-import { workflowApi, orgApi } from "@/lib/api"
+import { workflowApi, marketApi, orgApi } from "@/lib/api"
 import type { UserOrg } from "@/lib/api"
+import { EmptyState } from "@/components/shared/empty-state"
 import { WorkflowCard } from "@/components/workflows/workflow-card"
 import { TemplatePicker } from "@/components/workflows/template-picker"
 import { TemplateGalleryDialog } from "@/components/workflows/template-gallery-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useScopeFilter } from "@/hooks/use-scope-filter"
+import { ScopeFilter } from "@/components/shared/scope-filter"
 import type { WorkflowResponse } from "@/types/workflow"
 
-export default function WorkflowsPage() {
+function WorkflowsPageInner() {
   const t = useTranslations("workflows")
   const to = useTranslations("organizations")
   const tc = useTranslations("common")
   const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
+  const { scope, setScope, filterByScope } = useScopeFilter()
 
   const [workflows, setWorkflows] = useState<WorkflowResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -98,6 +102,16 @@ export default function WorkflowsPage() {
       toast.success(to("resubmitSuccess"))
     } catch {
       toast.error(to("resubmitFailed"))
+    }
+  }
+
+  const handleUninstall = async (id: string) => {
+    try {
+      await marketApi.unsubscribe({ resource_type: "workflow", resource_id: id })
+      setWorkflows((prev) => prev.filter((w) => w.id !== id))
+      toast.success(tc("uninstalled"))
+    } catch {
+      toast.error(tc("error"))
     }
   }
 
@@ -248,7 +262,7 @@ export default function WorkflowsPage() {
 
   // Filter and sort workflows
   const filteredWorkflows = useMemo(() => {
-    let result = workflows
+    let result = user ? filterByScope(workflows, user.id) : workflows
     if (statusFilter !== "all") {
       result = result.filter((w) => w.status === statusFilter)
     }
@@ -282,7 +296,7 @@ export default function WorkflowsPage() {
       }
     })
     return result
-  }, [workflows, searchQuery, statusFilter, sortBy, isFavorite])
+  }, [workflows, searchQuery, statusFilter, sortBy, isFavorite, scope, user, filterByScope])
 
   if (authLoading || !user) return null
 
@@ -327,6 +341,7 @@ export default function WorkflowsPage() {
       {/* Search + Filter bar */}
       {!isLoading && workflows.length > 0 && (
         <div className="flex items-center gap-2 px-6 py-2.5 border-b border-border/20 shrink-0">
+          <ScopeFilter value={scope} onChange={setScope} />
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
@@ -379,26 +394,23 @@ export default function WorkflowsPage() {
             ))}
           </div>
         ) : workflows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-sm text-muted-foreground">
-              {t("emptyState")}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4 gap-1.5"
-              onClick={() => setShowTemplatePicker(true)}
-            >
-              <Plus className="h-4 w-4" />
-              {t("createWorkflow")}
-            </Button>
-          </div>
+          <EmptyState
+            icon={<GitBranch />}
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
+            action={
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowTemplatePicker(true)}>
+                <Plus className="h-4 w-4" />
+                {t("createWorkflow")}
+              </Button>
+            }
+          />
         ) : filteredWorkflows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-sm text-muted-foreground">
-              {t("noSearchResults")}
-            </p>
-          </div>
+          <EmptyState
+            icon={<Search />}
+            title={tc("noResultsTitle")}
+            description={t("noSearchResultsDescription")}
+          />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredWorkflows.map((workflow) => (
@@ -413,6 +425,7 @@ export default function WorkflowsPage() {
                 onDuplicate={handleDuplicate}
                 onPublish={handlePublish}
                 onUnpublish={handleUnpublish}
+                onUninstall={handleUninstall}
                 onResubmit={handleResubmit}
               />
             ))}
@@ -524,5 +537,13 @@ export default function WorkflowsPage() {
         onOpenChange={setShowTemplateGallery}
       />
     </div>
+  )
+}
+
+export default function WorkflowsPage() {
+  return (
+    <Suspense fallback={null}>
+      <WorkflowsPageInner />
+    </Suspense>
   )
 }

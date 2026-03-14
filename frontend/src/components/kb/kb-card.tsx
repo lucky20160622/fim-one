@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useTranslations } from "next-intl"
-import { Download, Eye, MoreHorizontal, Pencil, Trash2, Users } from "lucide-react"
+import { Download, Eye, MoreHorizontal, PackageMinus, Pencil, Trash2, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,7 @@ interface KBCardProps {
   currentUserId?: string
   onEdit: (kb: KBResponse) => void
   onDelete: (id: string) => void
+  onUninstall?: (id: string) => void
 }
 
 export function KBCard({
@@ -27,6 +28,7 @@ export function KBCard({
   currentUserId,
   onEdit,
   onDelete,
+  onUninstall,
 }: KBCardProps) {
   const t = useTranslations("kb")
   const tc = useTranslations("common")
@@ -68,6 +70,31 @@ export function KBCard({
               <DropdownMenuItem variant="destructive" onClick={() => onDelete(kb.id)}>
                 <Trash2 className="h-4 w-4" />
                 {tc("delete")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : isInstalled && onUninstall ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/kb/${kb.id}`}>
+                  <Eye className="h-4 w-4" />
+                  {t("view")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => onUninstall(kb.id)}>
+                <PackageMinus className="h-4 w-4" />
+                {tc("uninstall")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

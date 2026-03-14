@@ -112,5 +112,7 @@
   "mine": "Mes éléments",
   "fromOrg": "Organisation",
   "installed": "Installé",
-  "fromMarket": "De la Marketplace"
+  "fromMarket": "De la Marketplace",
+  "uninstall": "Désinstaller",
+  "uninstalled": "Ressource désinstallée"
 }

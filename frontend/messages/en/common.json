@@ -112,5 +112,7 @@
   "createdAt": "Created",
   "you": "You",
   "installed": "Installed",
-  "fromMarket": "From Market"
+  "fromMarket": "From Market",
+  "uninstall": "Uninstall",
+  "uninstalled": "Resource uninstalled"
 }

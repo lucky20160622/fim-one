@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { mcpServerApi, orgApi } from "@/lib/api"
+import { mcpServerApi, marketApi, orgApi } from "@/lib/api"
 import type { UserOrg } from "@/lib/api"
 import { PublishDialog } from "@/components/shared/publish-dialog"
 import { MCPServerCard } from "@/components/tools/mcp-server-card"
@@ -159,6 +159,16 @@ export function MCPServersSection({ onReady, currentUserId, scope = "all" }: MCP
     }
   }
 
+  const handleUninstall = async (id: string) => {
+    try {
+      await marketApi.unsubscribe({ resource_type: "mcp_server", resource_id: id })
+      setServers((prev) => prev.filter((s) => s.id !== id))
+      toast.success(tc("uninstalled"))
+    } catch {
+      toast.error(tc("error"))
+    }
+  }
+
   const confirmPublish = async () => {
     if (!pendingPublishId || !publishOrgId) return
     const id = pendingPublishId
@@ -243,6 +253,7 @@ export function MCPServersSection({ onReady, currentUserId, scope = "all" }: MCP
               onTest={() => handleTest(server.id)}
               onPublish={(id) => handlePublish(id)}
               onUnpublish={(id) => handleUnpublish(id)}
+              onUninstall={handleUninstall}
               onResubmit={(id) => handleResubmit(id)}
               onCredentialsSaved={(serverId, hasCredentials) => {
                 setServers((prev) => prev.map((s) => s.id === serverId ? { ...s, my_has_credentials: hasCredentials } : s))

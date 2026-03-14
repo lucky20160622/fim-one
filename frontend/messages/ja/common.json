@@ -112,5 +112,7 @@
   "mine": "マイ",
   "fromOrg": "組織",
   "installed": "インストール済み",
-  "fromMarket": "マーケットから"
+  "fromMarket": "マーケットから",
+  "uninstall": "アンインストール",
+  "uninstalled": "リソースがアンインストールされました"
 }

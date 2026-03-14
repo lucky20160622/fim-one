@@ -112,5 +112,7 @@
   "mine": "Meine",
   "fromOrg": "Organisation",
   "installed": "Installiert",
-  "fromMarket": "Aus dem Marktplatz"
+  "fromMarket": "Aus dem Marktplatz",
+  "uninstall": "Deinstallieren",
+  "uninstalled": "Ressource deinstalliert"
 }

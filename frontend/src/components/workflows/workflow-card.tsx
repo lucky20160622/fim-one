@@ -11,6 +11,7 @@ import {
   Globe,
   GlobeLock,
   MoreHorizontal,
+  PackageMinus,
   Pencil,
   Play,
   RotateCw,
@@ -46,6 +47,7 @@ interface WorkflowCardProps {
   onDuplicate: (id: string) => void
   onPublish: (id: string) => void
   onUnpublish: (id: string) => void
+  onUninstall?: (id: string) => void
   onResubmit?: (id: string) => void
 }
 
@@ -59,6 +61,7 @@ export function WorkflowCard({
   onDuplicate,
   onPublish,
   onUnpublish,
+  onUninstall,
   onResubmit,
 }: WorkflowCardProps) {
   const t = useTranslations("workflows")
@@ -108,7 +111,7 @@ export function WorkflowCard({
             />
           </Button>
         )}
-        {isOwner && (
+        {isOwner ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -163,7 +166,25 @@ export function WorkflowCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        )}
+        ) : isInstalled && onUninstall ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem variant="destructive" onClick={() => onUninstall(workflow.id)}>
+                <PackageMinus className="h-4 w-4" />
+                {tc("uninstall")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
 
       {/* Status badges */}
