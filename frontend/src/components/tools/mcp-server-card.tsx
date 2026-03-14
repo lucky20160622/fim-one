@@ -3,9 +3,10 @@
 import { useState } from "react"
 import { useTranslations } from "next-intl"
 import {
-  MoreHorizontal, Pencil, Trash2, Terminal, Globe, GlobeLock, FlaskConical,
-  Loader2, CheckCircle2, XCircle, Key, AlertTriangle, RotateCw, Power,
+  Download, MoreHorizontal, Pencil, Trash2, Terminal, Globe, GlobeLock, FlaskConical,
+  Loader2, CheckCircle2, XCircle, Key, AlertTriangle, RotateCw, Power, Users,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -84,6 +85,10 @@ export function MCPServerCard({
   const isOwner = !currentUserId || server.user_id === currentUserId
   // true for any org-visibility state (pending_review, approved, rejected — visibility already set to "org")
   const isOrgResource = server.visibility === "org" || server.visibility === "global"
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const source = (server as any).source as string | undefined
+  const isInstalled = source === "installed"
+  const isOrgShared = source === "org" || (!source && !isOwner && isOrgResource)
   const needsKeyConfig = !isOwner && !server.allow_fallback && !server.my_has_credentials
 
   const handleTest = async () => {
@@ -276,6 +281,30 @@ export function MCPServerCard({
           </DropdownMenu>
         ) : null}
       </div>
+
+      {/* Installed / Shared badge */}
+      {isInstalled && (
+        <div className="flex items-center gap-1.5 mb-2">
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 h-5 bg-violet-500/10 text-violet-500 dark:text-violet-400 border-violet-500/20"
+          >
+            <Download className="h-2.5 w-2.5 mr-0.5" />
+            {tc("installed")}
+          </Badge>
+        </div>
+      )}
+      {!isInstalled && isOrgShared && (
+        <div className="flex items-center gap-1.5 mb-2">
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 h-5 bg-blue-500/10 text-blue-500 dark:text-blue-400 border-blue-500/20"
+          >
+            <Users className="h-2.5 w-2.5 mr-0.5" />
+            {tc("shared")}
+          </Badge>
+        </div>
+      )}
 
       {/* Publish review status badges — only visible to owner (non-owners just see it as a shared org resource) */}
       {isOwner && (server.publish_status === "pending_review" || server.publish_status === "approved" || server.publish_status === "rejected") && (

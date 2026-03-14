@@ -40,6 +40,8 @@
   "created": "Created",
   "updated": "Updated",
   "noResults": "No results found",
+  "noResultsTitle": "No results found",
+  "noResultsDescription": "Try adjusting your filters or search query.",
   "noData": "No data",
   "error": "Error",
   "success": "Success",
@@ -101,9 +103,14 @@
   "published": "Published",
   "unpublished": "Unpublished",
   "draft": "Draft",
+  "shared": "Shared",
+  "mine": "Mine",
+  "fromOrg": "Organization",
   "subscribed": "Subscribed",
   "unsubscribed": "Unsubscribed",
   "view": "View",
   "createdAt": "Created",
-  "you": "You"
+  "you": "You",
+  "installed": "Installed",
+  "fromMarket": "From Market"
 }

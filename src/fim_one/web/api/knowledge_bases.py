@@ -173,8 +173,20 @@ async def list_kbs(
     )
     kbs = result.scalars().all()
 
+    subscribed_kb_ids_set = set(subscribed_kb_ids)
+    items = []
+    for k in kbs:
+        resp = _kb_to_response(k)
+        if k.user_id == current_user.id:
+            resp.source = "own"
+        elif k.id in subscribed_kb_ids_set:
+            resp.source = "installed"
+        else:
+            resp.source = "org"
+        items.append(resp.model_dump())
+
     return PaginatedResponse(
-        items=[_kb_to_response(k).model_dump() for k in kbs],
+        items=items,
         total=total,
         page=page,
         size=size,

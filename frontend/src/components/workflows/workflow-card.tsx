@@ -6,6 +6,7 @@ import {
   Activity,
   Copy,
   Download,
+  Eye,
   GitBranch,
   Globe,
   GlobeLock,
@@ -15,6 +16,7 @@ import {
   RotateCw,
   Star,
   Trash2,
+  Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -65,6 +67,9 @@ export function WorkflowCard({
   const isPublished = workflow.visibility !== "personal"
   const isOwner = !currentUserId || workflow.user_id === currentUserId
   const isActive = workflow.status === "active"
+  const source = (workflow as unknown as { source?: string }).source
+  const isInstalled = source === "installed"
+  const isOrgShared = source === "org" || (!source && !isOwner)
   const nodeCount = workflow.blueprint?.nodes?.length ?? 0
 
   return (
@@ -176,6 +181,24 @@ export function WorkflowCard({
         >
           {isPublished ? tc("published") : isActive ? t("statusActive") : t("statusDraft")}
         </Badge>
+        {isInstalled && (
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 h-5 bg-violet-500/10 text-violet-500 dark:text-violet-400 border-violet-500/20"
+          >
+            <Download className="h-2.5 w-2.5 mr-0.5" />
+            {tc("installed")}
+          </Badge>
+        )}
+        {!isInstalled && isOrgShared && (
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 h-5 bg-blue-500/10 text-blue-500 dark:text-blue-400 border-blue-500/20"
+          >
+            <Users className="h-2.5 w-2.5 mr-0.5" />
+            {tc("shared")}
+          </Badge>
+        )}
         {nodeCount > 0 && (
           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 opacity-60">
             {t("nodeCount", { count: nodeCount })}
@@ -249,7 +272,7 @@ export function WorkflowCard({
         </div>
       )}
 
-      {/* Edit CTA */}
+      {/* CTA */}
       <Button
         variant="outline"
         size="sm"
@@ -257,8 +280,8 @@ export function WorkflowCard({
         asChild
       >
         <Link href={`/workflows/${workflow.id}`}>
-          <Pencil className="h-3 w-3" />
-          {tc("edit")}
+          {isOwner ? <Pencil className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+          {isOwner ? tc("edit") : tc("view")}
         </Link>
       </Button>
     </div>

@@ -68,6 +68,7 @@ class WorkflowResponse(BaseModel):
     total_runs: int = 0
     last_run_at: str | None = None
     success_rate: float | None = None
+    source: str | None = None
     created_at: str
     updated_at: str | None
 

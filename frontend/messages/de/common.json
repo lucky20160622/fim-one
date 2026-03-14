@@ -105,5 +105,12 @@
   "unsubscribed": "Abmeldung aufgehoben",
   "you": "Sie",
   "view": "Ansicht",
-  "createdAt": "Erstellt"
+  "createdAt": "Erstellt",
+  "noResultsTitle": "Keine Ergebnisse gefunden",
+  "noResultsDescription": "Versuchen Sie, Ihre Filter oder Suchabfrage anzupassen.",
+  "shared": "Geteilt",
+  "mine": "Meine",
+  "fromOrg": "Organisation",
+  "installed": "Installiert",
+  "fromMarket": "Aus dem Marktplatz"
 }

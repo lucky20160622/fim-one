@@ -105,5 +105,12 @@
   "unsubscribed": "구독 취소함",
   "you": "당신",
   "view": "보기",
-  "createdAt": "생성됨"
+  "createdAt": "생성됨",
+  "noResultsTitle": "결과를 찾을 수 없습니다",
+  "noResultsDescription": "필터 또는 검색 쿼리를 조정해 보세요.",
+  "shared": "공유됨",
+  "mine": "내 것",
+  "fromOrg": "조직",
+  "installed": "설치됨",
+  "fromMarket": "마켓에서"
 }

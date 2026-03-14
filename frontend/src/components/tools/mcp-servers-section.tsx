@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useTranslations } from "next-intl"
-import { Plus, Loader2 } from "lucide-react"
+import { Plus, Loader2, Wrench, Search } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,7 +19,9 @@ import { PublishDialog } from "@/components/shared/publish-dialog"
 import { MCPServerCard } from "@/components/tools/mcp-server-card"
 import { MCPServerDialog, type MCPServerInitialValues } from "@/components/tools/mcp-server-dialog"
 import { MCPHubDialog } from "@/components/tools/mcp-hub-dialog"
+import { EmptyState } from "@/components/shared/empty-state"
 import type { MCPServerResponse } from "@/types/mcp-server"
+import type { ScopeValue } from "@/hooks/use-scope-filter"
 
 export interface MCPServersSectionActions {
   openAdd: () => void
@@ -29,9 +31,10 @@ export interface MCPServersSectionActions {
 interface MCPServersSectionProps {
   onReady?: (actions: MCPServersSectionActions) => void
   currentUserId?: string
+  scope?: ScopeValue
 }
 
-export function MCPServersSection({ onReady, currentUserId }: MCPServersSectionProps) {
+export function MCPServersSection({ onReady, currentUserId, scope = "all" }: MCPServersSectionProps) {
   const t = useTranslations("tools")
   const tc = useTranslations("common")
   const to = useTranslations("organizations")
@@ -186,6 +189,17 @@ export function MCPServersSection({ onReady, currentUserId }: MCPServersSectionP
   // Find selected org for review notice
   const selectedOrg = publishOrgId ? userOrgs.find((o) => o.id === publishOrgId) : null
 
+  const filteredServers = useMemo(
+    () => {
+      if (!currentUserId || scope === "all") return servers
+      if (scope === "mine") return servers.filter((s) => s.user_id === currentUserId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (scope === "installed") return servers.filter((s) => (s as any).source === "installed")
+      return servers.filter((s) => s.user_id !== currentUserId)
+    },
+    [servers, scope, currentUserId],
+  )
+
   return (
     <>
       {isLoading ? (
@@ -193,23 +207,26 @@ export function MCPServersSection({ onReady, currentUserId }: MCPServersSectionP
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : servers.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 text-center rounded-lg border border-dashed border-border">
-          <p className="text-sm text-muted-foreground">
-            {t("noServersMessage")}
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-4 gap-1.5"
-            onClick={() => handleAdd()}
-          >
-            <Plus className="h-4 w-4" />
-            {t("addServer")}
-          </Button>
-        </div>
+        <EmptyState
+          icon={<Wrench />}
+          title={t("noServersTitle")}
+          description={t("noServersDescription")}
+          action={
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleAdd()}>
+              <Plus className="h-4 w-4" />
+              {t("addServer")}
+            </Button>
+          }
+        />
+      ) : filteredServers.length === 0 ? (
+        <EmptyState
+          icon={<Search />}
+          title={tc("noResultsTitle")}
+          description={tc("noResultsDescription")}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {servers.map((server) => (
+          {filteredServers.map((server) => (
             <MCPServerCard
               key={server.id}
               server={server}

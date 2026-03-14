@@ -350,6 +350,7 @@ async def list_workflows(
                 "success_rate": round(rate, 1) if rate is not None else None,
             }
 
+    subscribed_workflow_ids_set = set(subscribed_workflow_ids)
     items = []
     for w in workflows:
         resp = _workflow_to_response(w)
@@ -357,6 +358,12 @@ async def list_workflows(
         resp.total_runs = stats.get("total_runs", 0)
         resp.last_run_at = stats.get("last_run_at")
         resp.success_rate = stats.get("success_rate")
+        if w.user_id == current_user.id:
+            resp.source = "own"
+        elif w.id in subscribed_workflow_ids_set:
+            resp.source = "installed"
+        else:
+            resp.source = "org"
         items.append(resp.model_dump())
 
     return PaginatedResponse(

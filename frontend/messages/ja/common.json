@@ -105,5 +105,12 @@
   "unsubscribed": "購読解除",
   "you": "あなた",
   "view": "表示",
-  "createdAt": "作成日時"
+  "createdAt": "作成日時",
+  "noResultsTitle": "結果が見つかりません",
+  "noResultsDescription": "フィルターまたは検索クエリを調整してみてください。",
+  "shared": "共有",
+  "mine": "マイ",
+  "fromOrg": "組織",
+  "installed": "インストール済み",
+  "fromMarket": "マーケットから"
 }

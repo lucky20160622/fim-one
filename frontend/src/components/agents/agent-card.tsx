@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useTranslations } from "next-intl"
-import { Bot, MoreHorizontal, Pencil, Trash2, Globe, GlobeLock, MessageSquare, Radar, RotateCw } from "lucide-react"
+import { Bot, Download, MoreHorizontal, Pencil, Trash2, Globe, GlobeLock, MessageSquare, Radar, RotateCw, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -44,6 +44,10 @@ export function AgentCard({
   const isPublished = agent.status === "published"
   const isDiscoverable = agent.discoverable === true
   const isOwner = !currentUserId || agent.user_id === currentUserId
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const source = (agent as any).source as string | undefined
+  const isInstalled = source === "installed"
+  const isOrgShared = source === "org" || (!source && !isOwner)
 
   return (
     <div className="group flex flex-col rounded-lg border border-border bg-card p-4 transition-colors hover:border-ring/40 hover:bg-accent/10">
@@ -108,6 +112,24 @@ export function AgentCard({
         >
           {isPublished ? tc("published") : tc("draft")}
         </Badge>
+        {isInstalled && (
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 h-5 bg-violet-500/10 text-violet-500 dark:text-violet-400 border-violet-500/20"
+          >
+            <Download className="h-2.5 w-2.5 mr-0.5" />
+            {tc("installed")}
+          </Badge>
+        )}
+        {!isInstalled && isOrgShared && (
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 h-5 bg-blue-500/10 text-blue-500 dark:text-blue-400 border-blue-500/20"
+          >
+            <Users className="h-2.5 w-2.5 mr-0.5" />
+            {tc("shared")}
+          </Badge>
+        )}
         {isDiscoverable && (
           <Badge
             variant="secondary"

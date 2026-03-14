@@ -157,8 +157,20 @@ async def list_skills(
     )
     skills = result.scalars().all()
 
+    subscribed_skill_ids_set = set(subscribed_skill_ids)
+    items = []
+    for s in skills:
+        resp = _skill_to_response(s)
+        if s.user_id == current_user.id:
+            resp.source = "own"
+        elif s.id in subscribed_skill_ids_set:
+            resp.source = "installed"
+        else:
+            resp.source = "org"
+        items.append(resp.model_dump())
+
     return PaginatedResponse(
-        items=[_skill_to_response(s).model_dump() for s in skills],
+        items=items,
         total=total,
         page=page,
         size=size,

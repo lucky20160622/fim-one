@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useTranslations } from "next-intl"
-import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { Download, Eye, MoreHorizontal, Pencil, Trash2, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -31,6 +31,10 @@ export function KBCard({
   const t = useTranslations("kb")
   const tc = useTranslations("common")
   const isOwner = !currentUserId || kb.user_id === currentUserId
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const source = (kb as any).source as string | undefined
+  const isInstalled = source === "installed"
+  const isOrgShared = source === "org" || (!source && !isOwner)
   return (
     <div className="group flex flex-col rounded-lg border border-border bg-card p-4 transition-colors hover:border-ring/40 hover:bg-accent/10">
       {/* Header: name + hover menu */}
@@ -89,6 +93,30 @@ export function KBCard({
           </DropdownMenu>
         )}
       </div>
+
+      {/* Installed / Shared badge */}
+      {isInstalled && (
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 h-5 bg-violet-500/10 text-violet-500 dark:text-violet-400 border-violet-500/20"
+          >
+            <Download className="h-2.5 w-2.5 mr-0.5" />
+            {tc("installed")}
+          </Badge>
+        </div>
+      )}
+      {!isInstalled && isOrgShared && (
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 h-5 bg-blue-500/10 text-blue-500 dark:text-blue-400 border-blue-500/20"
+          >
+            <Users className="h-2.5 w-2.5 mr-0.5" />
+            {tc("shared")}
+          </Badge>
+        </div>
+      )}
 
       {/* Badges */}
       <div className="flex items-center gap-1.5 mb-2">

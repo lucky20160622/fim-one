@@ -216,8 +216,20 @@ async def list_agents(
     )
     agents = result.scalars().all()
 
+    subscribed_agent_ids_set = set(subscribed_agent_ids)
+    items = []
+    for a in agents:
+        resp = _agent_to_response(a)
+        if a.user_id == current_user.id:
+            resp.source = "own"
+        elif a.id in subscribed_agent_ids_set:
+            resp.source = "installed"
+        else:
+            resp.source = "org"
+        items.append(resp.model_dump())
+
     return PaginatedResponse(
-        items=[_agent_to_response(a).model_dump() for a in agents],
+        items=items,
         total=total,
         page=page,
         size=size,

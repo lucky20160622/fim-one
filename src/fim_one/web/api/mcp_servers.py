@@ -201,8 +201,20 @@ async def list_mcp_servers(
         )
         cred_set = {row[0] for row in cred_result.all()}
 
+    subscribed_mcp_ids_set = set(subscribed_mcp_ids)
+    items = []
+    for s in servers:
+        resp = _to_response(s, my_has_credentials=s.id in cred_set)
+        if s.user_id == current_user.id:
+            resp.source = "own"
+        elif s.id in subscribed_mcp_ids_set:
+            resp.source = "installed"
+        else:
+            resp.source = "org"
+        items.append(resp.model_dump())
+
     return PaginatedResponse(
-        items=[_to_response(s, my_has_credentials=s.id in cred_set).model_dump() for s in servers],
+        items=items,
         total=total,
         page=page,
         size=size,

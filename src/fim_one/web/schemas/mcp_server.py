@@ -62,6 +62,7 @@ class MCPServerResponse(BaseModel):
     reviewed_by: str | None = None
     reviewed_at: str | None = None
     review_note: str | None = None
+    source: str | None = None
     created_at: str
     updated_at: str | None
 

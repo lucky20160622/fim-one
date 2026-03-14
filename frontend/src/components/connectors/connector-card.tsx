@@ -1,8 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { MoreHorizontal, Pencil, Plug, Trash2, Globe, GlobeLock, RotateCw, Database, Download, Copy } from "lucide-react"
+import { MoreHorizontal, Pencil, Plug, Trash2, Globe, GlobeLock, RotateCw, Database, Download, Copy, Eye, Users } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -53,6 +54,10 @@ export function ConnectorCard({
   const authDisplay = authLabel === "noAuth" ? t("noAuth") : (authLabel || connector.auth_type)
   const isOwner = currentUserId ? connector.user_id === currentUserId : true
   const isOrgResource = connector.visibility === "org" || connector.visibility === "global"
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const source = (connector as any).source as string | undefined
+  const isInstalled = source === "installed"
+  const isOrgShared = source === "org" || (!source && !isOwner && isOrgResource)
 
   // For database connectors, show host:port/database
   const dbConfig = connector.db_config
@@ -82,49 +87,68 @@ export function ConnectorCard({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href={`/connectors/${connector.id}`}>
-                <Pencil className="h-4 w-4" />
-                {tc("edit")}
-              </Link>
-            </DropdownMenuItem>
-            {onExport && (
-              <DropdownMenuItem onClick={() => onExport(connector.id)}>
-                <Download className="h-4 w-4" />
-                {t("exportConnector")}
-              </DropdownMenuItem>
+            {isOwner ? (
+              <>
+                <DropdownMenuItem asChild>
+                  <Link href={`/connectors/${connector.id}`}>
+                    <Pencil className="h-4 w-4" />
+                    {tc("edit")}
+                  </Link>
+                </DropdownMenuItem>
+                {onExport && (
+                  <DropdownMenuItem onClick={() => onExport(connector.id)}>
+                    <Download className="h-4 w-4" />
+                    {t("exportConnector")}
+                  </DropdownMenuItem>
+                )}
+                {onFork && (
+                  <DropdownMenuItem onClick={() => onFork(connector.id)}>
+                    <Copy className="h-4 w-4" />
+                    {t("forkConnector")}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                {/* Publish / Unpublish */}
+                {onPublish && onUnpublish && (
+                  <DropdownMenuItem
+                    onClick={() => isOrgResource ? onUnpublish(connector.id) : onPublish(connector.id)}
+                  >
+                    {isOrgResource
+                      ? <GlobeLock className="h-4 w-4" />
+                      : <Globe className="h-4 w-4" />
+                    }
+                    {isOrgResource ? tc("unpublish") : tc("publish")}
+                  </DropdownMenuItem>
+                )}
+                {/* Resubmit -- only when rejected */}
+                {onResubmit && connector.publish_status === "rejected" && (
+                  <DropdownMenuItem onClick={() => onResubmit(connector.id)}>
+                    <RotateCw className="h-4 w-4" />
+                    {t("resubmit")}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={() => onDelete(connector.id)}>
+                  <Trash2 className="h-4 w-4" />
+                  {tc("delete")}
+                </DropdownMenuItem>
+              </>
+            ) : (
+              <>
+                <DropdownMenuItem asChild>
+                  <Link href={`/connectors/${connector.id}`}>
+                    <Eye className="h-4 w-4" />
+                    {tc("view")}
+                  </Link>
+                </DropdownMenuItem>
+                {onFork && (
+                  <DropdownMenuItem onClick={() => onFork(connector.id)}>
+                    <Copy className="h-4 w-4" />
+                    {t("forkConnector")}
+                  </DropdownMenuItem>
+                )}
+              </>
             )}
-            {onFork && (
-              <DropdownMenuItem onClick={() => onFork(connector.id)}>
-                <Copy className="h-4 w-4" />
-                {t("forkConnector")}
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            {/* Publish / Unpublish */}
-            {onPublish && onUnpublish && (
-              <DropdownMenuItem
-                onClick={() => isOrgResource ? onUnpublish(connector.id) : onPublish(connector.id)}
-              >
-                {isOrgResource
-                  ? <GlobeLock className="h-4 w-4" />
-                  : <Globe className="h-4 w-4" />
-                }
-                {isOrgResource ? tc("unpublish") : tc("publish")}
-              </DropdownMenuItem>
-            )}
-            {/* Resubmit -- only when rejected */}
-            {onResubmit && connector.publish_status === "rejected" && (
-              <DropdownMenuItem onClick={() => onResubmit(connector.id)}>
-                <RotateCw className="h-4 w-4" />
-                {t("resubmit")}
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={() => onDelete(connector.id)}>
-              <Trash2 className="h-4 w-4" />
-              {tc("delete")}
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -167,6 +191,30 @@ export function ConnectorCard({
               </Tooltip>
             </TooltipProvider>
           )}
+        </div>
+      )}
+
+      {/* Installed / Shared badge */}
+      {isInstalled && (
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 h-5 bg-violet-500/10 text-violet-500 dark:text-violet-400 border-violet-500/20"
+          >
+            <Download className="h-2.5 w-2.5 mr-0.5" />
+            {tc("installed")}
+          </Badge>
+        </div>
+      )}
+      {!isInstalled && isOrgShared && (
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 h-5 bg-blue-500/10 text-blue-500 dark:text-blue-400 border-blue-500/20"
+          >
+            <Users className="h-2.5 w-2.5 mr-0.5" />
+            {tc("shared")}
+          </Badge>
         </div>
       )}
 

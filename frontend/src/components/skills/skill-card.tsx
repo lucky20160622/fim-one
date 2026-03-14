@@ -1,15 +1,16 @@
 "use client"
 
-import Link from "next/link"
 import { useTranslations } from "next-intl"
 import {
   BookOpen,
+  Download,
   Globe,
   GlobeLock,
   MoreHorizontal,
   Pencil,
   RotateCw,
   Trash2,
+  Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +33,7 @@ import type { SkillResponse } from "@/types/skill"
 interface SkillCardProps {
   skill: SkillResponse
   currentUserId?: string
+  onEdit?: (skill: SkillResponse) => void
   onDelete: (id: string) => void
   onPublish: (id: string) => void
   onUnpublish: (id: string) => void
@@ -41,6 +43,7 @@ interface SkillCardProps {
 export function SkillCard({
   skill,
   currentUserId,
+  onEdit,
   onDelete,
   onPublish,
   onUnpublish,
@@ -52,6 +55,10 @@ export function SkillCard({
   const isPublished = skill.visibility !== "personal"
   const isOwner = !currentUserId || skill.user_id === currentUserId
   const isActive = skill.is_active
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const source = (skill as any).source as string | undefined
+  const isInstalled = source === "installed"
+  const isOrgShared = source === "org" || (!source && !isOwner)
 
   return (
     <div className="group flex flex-col rounded-lg border border-border bg-card p-4 transition-colors hover:border-ring/40 hover:bg-accent/10">
@@ -73,11 +80,9 @@ export function SkillCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href={`/skills/${skill.id}`}>
-                  <Pencil className="h-4 w-4" />
-                  {tc("edit")}
-                </Link>
+              <DropdownMenuItem onClick={() => onEdit?.(skill)}>
+                <Pencil className="h-4 w-4" />
+                {tc("edit")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => isPublished ? onUnpublish(skill.id) : onPublish(skill.id)}>
                 {isPublished ? <GlobeLock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
@@ -114,6 +119,25 @@ export function SkillCard({
         >
           {isPublished ? tc("published") : isActive ? t("statusActive") : t("statusDraft")}
         </Badge>
+
+        {isInstalled && (
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 h-5 bg-violet-500/10 text-violet-500 dark:text-violet-400 border-violet-500/20"
+          >
+            <Download className="h-2.5 w-2.5 mr-0.5" />
+            {tc("installed")}
+          </Badge>
+        )}
+        {!isInstalled && isOrgShared && (
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-1.5 py-0 h-5 bg-blue-500/10 text-blue-500 dark:text-blue-400 border-blue-500/20"
+          >
+            <Users className="h-2.5 w-2.5 mr-0.5" />
+            {tc("shared")}
+          </Badge>
+        )}
 
         {/* Publish review status badges */}
         {skill.publish_status === "pending_review" && (
@@ -158,18 +182,18 @@ export function SkillCard({
         {skill.description || t("noDescription")}
       </p>
 
-      {/* Edit CTA */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="mt-auto w-full gap-1.5 text-xs h-7"
-        asChild
-      >
-        <Link href={`/skills/${skill.id}`}>
+      {/* Edit CTA - only for owners */}
+      {isOwner && onEdit && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-auto w-full gap-1.5 text-xs h-7"
+          onClick={() => onEdit(skill)}
+        >
           <Pencil className="h-3 w-3" />
           {tc("edit")}
-        </Link>
-      </Button>
+        </Button>
+      )}
     </div>
   )
 }

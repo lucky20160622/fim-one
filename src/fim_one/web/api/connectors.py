@@ -327,8 +327,20 @@ async def list_connectors(
     )
     connectors = result.scalars().all()
 
+    subscribed_connector_ids_set = set(subscribed_connector_ids)
+    items = []
+    for c in connectors:
+        resp = _connector_to_response(c)
+        if c.user_id == current_user.id:
+            resp.source = "own"
+        elif c.id in subscribed_connector_ids_set:
+            resp.source = "installed"
+        else:
+            resp.source = "org"
+        items.append(resp.model_dump())
+
     return PaginatedResponse(
-        items=[_connector_to_response(c).model_dump() for c in connectors],
+        items=items,
         total=total,
         page=page,
         size=size,

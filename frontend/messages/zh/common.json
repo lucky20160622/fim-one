@@ -105,5 +105,12 @@
   "unsubscribed": "未订阅",
   "you": "您",
   "view": "查看",
-  "createdAt": "创建于"
+  "createdAt": "创建时间",
+  "noResultsTitle": "未找到结果",
+  "noResultsDescription": "尝试调整您的筛选条件或搜索查询。",
+  "shared": "已共享",
+  "mine": "我的",
+  "fromOrg": "组织",
+  "installed": "已安装",
+  "fromMarket": "来自市场"
 }
