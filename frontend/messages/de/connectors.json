@@ -208,5 +208,15 @@
   "connectorUnpublished": "Verbindung nicht veröffentlicht",
   "connectorUnpublishFailed": "Fehler beim Aufheben der Veröffentlichung der Verbindung",
   "connectorResubmitted": "Verbindung zur Überprüfung erneut eingereicht",
-  "connectorResubmitFailed": "Fehler beim erneuten Einreichen der Verbindung"
+  "connectorResubmitFailed": "Fehler beim erneuten Einreichen der Verbindung",
+  "exportConnector": "Exportieren",
+  "importConnector": "Importieren",
+  "forkConnector": "Forken",
+  "exportSuccess": "Connector exportiert",
+  "importSuccess": "Connector erfolgreich importiert",
+  "forkSuccess": "Geforkt als \"{name}\"",
+  "exportFailed": "Fehler beim Exportieren des Connectors",
+  "importFailed": "Fehler beim Importieren des Connectors",
+  "forkFailed": "Fehler beim Forken des Connectors",
+  "importFileInvalid": "Ungültige JSON-Datei"
 }

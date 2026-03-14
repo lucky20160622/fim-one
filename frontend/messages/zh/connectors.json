@@ -208,5 +208,15 @@
   "connectorUnpublished": "Connector 已取消发布",
   "connectorUnpublishFailed": "取消发布 connector 失败",
   "connectorResubmitted": "Connector 已重新提交审核",
-  "connectorResubmitFailed": "重新提交 connector 失败"
+  "connectorResubmitFailed": "重新提交 connector 失败",
+  "exportConnector": "导出",
+  "importConnector": "导入",
+  "forkConnector": "复刻",
+  "exportSuccess": "连接器已导出",
+  "importSuccess": "连接器导入成功",
+  "forkSuccess": "已复刻为 \"{name}\"",
+  "exportFailed": "连接器导出失败",
+  "importFailed": "连接器导入失败",
+  "forkFailed": "连接器复刻失败",
+  "importFileInvalid": "无效的 JSON 文件"
 }

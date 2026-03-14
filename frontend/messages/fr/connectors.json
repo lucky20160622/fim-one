@@ -208,5 +208,15 @@
   "connectorUnpublished": "Connecteur dépublié",
   "connectorUnpublishFailed": "Échec de la dépublication du connecteur",
   "connectorResubmitted": "Connecteur renvoyé pour examen",
-  "connectorResubmitFailed": "Échec du renvoi du connecteur"
+  "connectorResubmitFailed": "Échec du renvoi du connecteur",
+  "exportConnector": "Exporter",
+  "importConnector": "Importer",
+  "forkConnector": "Dupliquer",
+  "exportSuccess": "Connecteur exporté",
+  "importSuccess": "Connecteur importé avec succès",
+  "forkSuccess": "Dupliqué en tant que \"{name}\"",
+  "exportFailed": "Échec de l'export du connecteur",
+  "importFailed": "Échec de l'import du connecteur",
+  "forkFailed": "Échec de la duplication du connecteur",
+  "importFileInvalid": "Fichier JSON invalide"
 }

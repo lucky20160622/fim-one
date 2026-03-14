@@ -910,6 +910,24 @@ export const connectorApi = {
       method: "PUT",
       body: JSON.stringify({ is_active: isActive }),
     }).then((r) => r.data),
+
+  // Export / Import / Fork
+  exportConnector: (id: string) =>
+    apiFetch<ApiResponse<Record<string, unknown>>>(`/api/connectors/${id}/export`).then(
+      (r) => r.data,
+    ),
+
+  importConnector: (data: unknown) =>
+    apiFetch<ApiResponse<{ connector: ConnectorResponse; warnings: string[] }>>(
+      "/api/connectors/import",
+      { method: "POST", body: JSON.stringify(data) },
+    ).then((r) => r.data),
+
+  forkConnector: (id: string, name?: string) =>
+    apiFetch<ApiResponse<ConnectorResponse>>(`/api/connectors/${id}/fork`, {
+      method: "POST",
+      body: JSON.stringify(name ? { name } : {}),
+    }).then((r) => r.data),
 }
 
 // --- Workflow API ---

@@ -208,5 +208,15 @@
   "connectorUnpublished": "コネクタが非公開になりました",
   "connectorUnpublishFailed": "コネクタの非公開化に失敗しました",
   "connectorResubmitted": "コネクタがレビュー用に再送信されました",
-  "connectorResubmitFailed": "コネクタの再送信に失敗しました"
+  "connectorResubmitFailed": "コネクタの再送信に失敗しました",
+  "exportConnector": "エクスポート",
+  "importConnector": "インポート",
+  "forkConnector": "フォーク",
+  "exportSuccess": "コネクタをエクスポートしました",
+  "importSuccess": "コネクタを正常にインポートしました",
+  "forkSuccess": "\"{name}\" としてフォークしました",
+  "exportFailed": "コネクタのエクスポートに失敗しました",
+  "importFailed": "コネクタのインポートに失敗しました",
+  "forkFailed": "コネクタのフォークに失敗しました",
+  "importFileInvalid": "無効な JSON ファイルです"
 }

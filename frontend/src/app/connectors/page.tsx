@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Plus, Plug, Trash2, LayoutGrid, Database, Globe, ChevronDown } from "lucide-react"
+import { Plus, Plug, Trash2, LayoutGrid, Database, Globe, ChevronDown, Upload } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -49,6 +49,7 @@ function ConnectorsPageInner() {
   const tt = useTranslations("tools")
   const tc = useTranslations("common")
   const mcpActionsRef = useRef<MCPServersSectionActions | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const activeTab = searchParams.get("tab") === "mcp" ? "mcp" : "connectors"
 
@@ -119,6 +120,65 @@ function ConnectorsPageInner() {
     }
   }
 
+  const handleExport = async (id: string) => {
+    try {
+      const data = await connectorApi.exportConnector(id)
+      const connector = connectors.find((c) => c.id === id)
+      const slug = (connector?.name || "connector")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${slug}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success(t("exportSuccess"))
+    } catch {
+      toast.error(t("exportFailed"))
+    }
+  }
+
+  const handleFork = async (id: string) => {
+    try {
+      const forked = await connectorApi.forkConnector(id)
+      setConnectors((prev) => [forked, ...prev])
+      toast.success(t("forkSuccess", { name: forked.name }))
+      router.push(`/connectors/${forked.id}`)
+    } catch {
+      toast.error(t("forkFailed"))
+    }
+  }
+
+  const handleImport = () => {
+    fileInputRef.current?.click()
+  }
+
+  const onFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(text)
+      } catch {
+        toast.error(t("importFileInvalid"))
+        return
+      }
+      const result = await connectorApi.importConnector(parsed)
+      setConnectors((prev) => [result.connector, ...prev])
+      toast.success(t("importSuccess"))
+      router.push(`/connectors/${result.connector.id}`)
+    } catch {
+      toast.error(t("importFailed"))
+    }
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
   const confirmDelete = async () => {
     if (!pendingDeleteId) return
     const id = pendingDeleteId
@@ -185,29 +245,35 @@ function ConnectorsPageInner() {
         </div>
         <div className="flex items-center gap-2">
           {activeTab === "connectors" && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" className="gap-1.5">
-                  <Plus className="h-4 w-4" />
-                  {t("newConnector")}
-                  <ChevronDown className="h-3 w-3 opacity-60" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href="/connectors/new">
-                    <Globe className="h-4 w-4" />
-                    {t("newApiConnector")}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/connectors/new?type=database">
-                    <Database className="h-4 w-4" />
-                    {t("newDatabaseConnector")}
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <>
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={handleImport}>
+                <Upload className="h-3.5 w-3.5" />
+                {t("importConnector")}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" className="gap-1.5">
+                    <Plus className="h-4 w-4" />
+                    {t("newConnector")}
+                    <ChevronDown className="h-3 w-3 opacity-60" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href="/connectors/new">
+                      <Globe className="h-4 w-4" />
+                      {t("newApiConnector")}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/connectors/new?type=database">
+                      <Database className="h-4 w-4" />
+                      {t("newDatabaseConnector")}
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           )}
           {activeTab === "mcp" && (
             <>
@@ -223,6 +289,15 @@ function ConnectorsPageInner() {
           )}
         </div>
       </div>
+
+      {/* Hidden file input for import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        className="hidden"
+        onChange={onFileImport}
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} className="flex flex-col flex-1 overflow-hidden">
@@ -273,6 +348,8 @@ function ConnectorsPageInner() {
                   onPublish={handlePublish}
                   onUnpublish={handleUnpublish}
                   onResubmit={handleResubmit}
+                  onExport={handleExport}
+                  onFork={handleFork}
                 />
               ))}
             </div>

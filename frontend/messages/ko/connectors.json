@@ -208,5 +208,15 @@
   "connectorUnpublished": "커넥터가 게시 취소되었습니다",
   "connectorUnpublishFailed": "커넥터 게시 취소 실패",
   "connectorResubmitted": "커넥터가 검토를 위해 다시 제출되었습니다",
-  "connectorResubmitFailed": "커넥터 다시 제출 실패"
+  "connectorResubmitFailed": "커넥터 다시 제출 실패",
+  "exportConnector": "내보내기",
+  "importConnector": "가져오기",
+  "forkConnector": "포크",
+  "exportSuccess": "커넥터를 내보냈습니다",
+  "importSuccess": "커넥터를 성공적으로 가져왔습니다",
+  "forkSuccess": "\"{name}\"으로 포크되었습니다",
+  "exportFailed": "커넥터 내보내기 실패",
+  "importFailed": "커넥터 가져오기 실패",
+  "forkFailed": "커넥터 포크 실패",
+  "importFileInvalid": "유효하지 않은 JSON 파일입니다"
 }

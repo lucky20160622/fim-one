@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { MoreHorizontal, Pencil, Plug, Trash2, Globe, GlobeLock, RotateCw, Database } from "lucide-react"
+import { MoreHorizontal, Pencil, Plug, Trash2, Globe, GlobeLock, RotateCw, Database, Download, Copy } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +22,8 @@ interface ConnectorCardProps {
   onPublish?: (id: string) => void
   onUnpublish?: (id: string) => void
   onResubmit?: (id: string) => void
+  onExport?: (id: string) => void
+  onFork?: (id: string) => void
 }
 
 const AUTH_LABELS: Record<string, string> = {
@@ -39,6 +41,8 @@ export function ConnectorCard({
   onPublish,
   onUnpublish,
   onResubmit,
+  onExport,
+  onFork,
 }: ConnectorCardProps) {
   const t = useTranslations("connectors")
   const tc = useTranslations("common")
@@ -84,6 +88,18 @@ export function ConnectorCard({
                 {tc("edit")}
               </Link>
             </DropdownMenuItem>
+            {onExport && (
+              <DropdownMenuItem onClick={() => onExport(connector.id)}>
+                <Download className="h-4 w-4" />
+                {t("exportConnector")}
+              </DropdownMenuItem>
+            )}
+            {onFork && (
+              <DropdownMenuItem onClick={() => onFork(connector.id)}>
+                <Copy className="h-4 w-4" />
+                {t("forkConnector")}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             {/* Publish / Unpublish */}
             {onPublish && onUnpublish && (

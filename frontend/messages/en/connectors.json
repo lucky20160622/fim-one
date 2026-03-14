@@ -218,5 +218,16 @@
   "connectorUnpublished": "Connector unpublished",
   "connectorUnpublishFailed": "Failed to unpublish connector",
   "connectorResubmitted": "Connector resubmitted for review",
-  "connectorResubmitFailed": "Failed to resubmit connector"
+  "connectorResubmitFailed": "Failed to resubmit connector",
+
+  "exportConnector": "Export",
+  "importConnector": "Import",
+  "forkConnector": "Fork",
+  "exportSuccess": "Connector exported",
+  "importSuccess": "Connector imported successfully",
+  "forkSuccess": "Forked as \"{name}\"",
+  "exportFailed": "Failed to export connector",
+  "importFailed": "Failed to import connector",
+  "forkFailed": "Failed to fork connector",
+  "importFileInvalid": "Invalid JSON file"
 }
