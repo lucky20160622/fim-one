@@ -712,5 +712,8 @@
   "testNodeEnvKeyPlaceholder": "ENV_KEY",
   "testNodeEnvValuePlaceholder": "値",
   "favorite": "お気に入り",
-  "unfavorite": "お気に入りを削除"
+  "unfavorite": "お気に入りから削除",
+  "viewRunOnCanvas": "キャンバスで表示",
+  "runReplayActive": "過去の実行を表示中",
+  "clearRunOverlay": "クリア"
 }

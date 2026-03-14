@@ -706,11 +706,14 @@
   "versionDiffNoChanges": "Aucune modification entre ces versions",
   "versionDiffCompare": "Comparer",
   "exportRuns": "Exporter les exécutions",
-  "exportRunsSuccess": "Historique des exécutions exporté",
+  "exportRunsSuccess": "Historique d'exécution exporté",
   "testNodeKeyPlaceholder": "clé",
   "testNodeValuePlaceholder": "valeur",
   "testNodeEnvKeyPlaceholder": "ENV_KEY",
   "testNodeEnvValuePlaceholder": "valeur",
   "favorite": "Ajouter aux favoris",
-  "unfavorite": "Retirer des favoris"
+  "unfavorite": "Retirer des favoris",
+  "viewRunOnCanvas": "Afficher sur le canevas",
+  "runReplayActive": "Affichage d'une exécution antérieure",
+  "clearRunOverlay": "Effacer"
 }

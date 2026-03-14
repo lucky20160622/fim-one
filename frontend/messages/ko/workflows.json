@@ -705,12 +705,15 @@
   "versionDiffFieldChanged": "{field} 변경됨",
   "versionDiffNoChanges": "이 버전들 간에 변경 사항이 없습니다",
   "versionDiffCompare": "비교",
-  "exportRuns": "실행 내보내기",
-  "exportRunsSuccess": "실행 기록이 내보내졌습니다",
+  "exportRuns": "실행 내역 내보내기",
+  "exportRunsSuccess": "실행 내역이 내보내졌습니다",
   "testNodeKeyPlaceholder": "key",
   "testNodeValuePlaceholder": "value",
   "testNodeEnvKeyPlaceholder": "ENV_KEY",
   "testNodeEnvValuePlaceholder": "value",
   "favorite": "즐겨찾기",
-  "unfavorite": "즐겨찾기 제거"
+  "unfavorite": "즐겨찾기 제거",
+  "viewRunOnCanvas": "캔버스에서 보기",
+  "runReplayActive": "과거 실행 보기",
+  "clearRunOverlay": "지우기"
 }

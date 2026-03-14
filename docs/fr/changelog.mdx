@@ -9,49 +9,54 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/). Les versions cor
 
 ## [Non publié]
 
-### Ajoutés
+### Ajouté
 
-- **Point de terminaison de test de nœud de flux de travail** — `POST /api/workflows/{id}/test-node` pour l'exécution isolée d'un seul nœud avec VariableStore simulé, délai d'expiration de 30s, rejet START/END. Feuille `TestNodeDialog` frontend avec entrée de variable clé-valeur, section des variables d'environnement, visionneuse de résultats JSON. Intégré au panneau de configuration des nœuds (bouton Test) et au menu contextuel de l'éditeur. 23 tests.
-- **Dialogue de comparaison de version de flux de travail** — Comparaison côte à côte de deux versions de blueprint montrant les nœuds et arêtes ajoutés/supprimés/modifiés. Indicateurs codés par couleur (émeraude=ajouté, destructif=supprimé, ambre=modifié). Intégré à la feuille d'historique des versions avec bouton "Comparer" par version.
-- **35 tests de cycle de vie de bout en bout** — Tests complets du cycle de vie des flux de travail couvrant la création, l'édition, la validation, l'exécution, le versioning, la restauration et la suppression des flux.
-- **Statistiques d'exécution de flux de travail sur liste et cartes** — Le backend récupère par lot les nombres d'exécutions et les taux de réussite via une sous-requête GROUP BY ; le frontend affiche les statistiques sur les cartes de flux de travail avec des indicateurs de taux de réussite codés par couleur.
-- **Démon du planificateur de flux de travail** — Service asynchrone en arrière-plan interrogeant toutes les 60 secondes les flux de travail basés sur cron dus. Support des fuseaux horaires Croniter, contrôle de concurrence basé sur sémaphore, suivi de `last_scheduled_at` et livraison de webhook pour les résultats d'exécution planifiée. 14 tests du démon du planificateur.
-- **Résolveur de conflits d'importation de flux de travail** — Détecte les références d'agent/connecteur/KB/MCP non résolues lors de l'importation de flux de travail. Requêtes DB par lot avec filtrage de visibilité ; le frontend affiche des avertissements toast pour les dépendances externes manquantes. 17 tests du résolveur de conflits d'importation.
-- **Points de terminaison de suppression et d'effacement d'exécution de flux de travail** — `DELETE /api/workflows/{id}/runs/{run_id}` pour la suppression d'exécution individuelle ; `DELETE /api/workflows/{id}/runs` pour effacer toutes les exécutions terminées. Dialogues de confirmation frontend pour les deux actions.
-- **56 tests d'avertissement de validation de flux de travail** — Couverture complète des avertissements de validation des nœuds de Phase 2.
+- **Superposition de relecture d'exécution de flux de travail** — Bouton "View on Canvas" dans les superpositions d'historique d'exécution qui superpose les résultats d'exécution passés sur le canevas du flux de travail, affichant le statut par nœud et la sortie d'une exécution terminée sans réexécution.
+- **Exécuteur SubWorkflow complet** — Mise à niveau du nœud SubWorkflow de stub à exécution imbriquée complète sauvegardée en base de données. Charge le flux de travail cible à partir de la base de données, exécute avec des variables d'entrée mappées, applique une limite de profondeur configurable pour prévenir la récursion infinie, et retourne les sorties d'exécution imbriquées au flux de travail parent.
+- **Onglet de gestion des flux de travail administrateur** — Nouvel onglet "Workflows" dans le panneau d'administration pour gérer tous les flux de travail entre utilisateurs. Fonctionnalités : lister tous les flux de travail avec propriétaire/statut/statistiques, basculer actif/inactif, supprimer les flux de travail avec dialogue de confirmation.
+- **Favoris/épinglage de flux de travail** — Ajouter/épingler des flux de travail en haut de la liste avec persistance localStorage. Les flux de travail favoris apparaissent en premier dans la liste des flux de travail quel que soit l'ordre de tri.
+- **Export d'historique d'exécution de flux de travail** — Exporter l'historique d'exécution du flux de travail en tant que téléchargement de fichier JSON. Inclut les métadonnées d'exécution, les résultats par nœud, les entrées/sorties et les données de synchronisation.
+- **Point de terminaison de test de nœud de flux de travail** — `POST /api/workflows/{id}/test-node` pour l'exécution isolée d'un seul nœud avec VariableStore simulé, délai d'expiration de 30 s, rejet START/END. Feuille `TestNodeDialog` frontend avec entrée de variable clé-valeur, section variables d'environnement, visionneuse de résultats JSON. Intégré au panneau de configuration de nœud (bouton Test) et au menu contextuel de l'éditeur. 23 tests.
+- **Dialogue de comparaison de version de flux de travail** — Comparaison côte à côte de deux versions de blueprint montrant les nœuds et arêtes ajoutés/supprimés/modifiés. Indicateurs codés par couleur (émeraude=ajouté, destructif=supprimé, ambre=modifié). Intégré à la feuille d'historique des versions avec bouton "Compare" par version.
+- **35 tests de cycle de vie de bout en bout** — Tests complets du cycle de vie du flux de travail couvrant les flux de création, édition, validation, exécution, versioning, restauration et suppression.
+- **Statistiques d'exécution de flux de travail sur liste et cartes** — Backend récupère par lot les comptages d'exécution et les taux de succès via sous-requête GROUP BY ; frontend affiche les statistiques sur les cartes de flux de travail avec indicateurs de taux de succès codés par couleur.
+- **Démon planificateur de flux de travail** — Service asynchrone en arrière-plan interrogeant toutes les 60 secondes les flux de travail basés sur cron dus. Support de fuseau horaire Croniter, contrôle de concurrence basé sur sémaphore, suivi `last_scheduled_at` et livraison webhook pour les résultats d'exécution planifiés. 14 tests de démon planificateur.
+- **Résolveur de conflit d'importation de flux de travail** — Détecte les références d'agent/connecteur/KB/MCP non résolues lors de l'importation de flux de travail. Requêtes DB par lot avec filtrage de visibilité ; frontend affiche les avertissements toast pour les dépendances externes manquantes. 17 tests de résolveur de conflit d'importation.
+- **Points de terminaison de suppression d'exécution et d'effacement d'exécutions de flux de travail** — `DELETE /api/workflows/{id}/runs/{run_id}` pour la suppression d'exécution individuelle ; `DELETE /api/workflows/{id}/runs` pour effacer toutes les exécutions terminées. Dialogues de confirmation frontend pour les deux actions.
+- **56 tests d'avertissement de validation de flux de travail** — Couverture complète des avertissements de validation de nœud Phase 2.
 - **137 tests d'exécuteur de nœud Phase 2 de flux de travail** — Couverture de test complète pour tous les exécuteurs de type de nœud Phase 2.
-- **Déclencheurs planifiés** — Configuration cron par flux de travail avec sélection de fuseau horaire, entrées par défaut et calcul du prochain lancement. Dialogue frontend avec boutons cron prédéfinis (toutes les 5 min / horaire / quotidien / hebdomadaire / mensuel).
-- **Point de terminaison de déclenchement d'API publique** — Clés API par flux de travail (préfixe `wf_`) pour l'exécution externe sans authentification utilisateur, avec limitation de débit.
-- **Dialogue de gestion des clés API** — Générer, régénérer et révoquer les clés API de flux de travail avec bouton de copie, affichage de l'URL de déclenchement et exemples d'utilisation cURL/JavaScript.
+- **Déclencheurs planifiés** — Configuration cron par flux de travail avec sélection de fuseau horaire, entrées par défaut et calcul next-run-at. Dialogue frontend avec boutons cron prédéfinis (toutes les 5 min / toutes les heures / quotidien / hebdomadaire / mensuel).
+- **Point de terminaison de déclencheur API public** — Clés API par flux de travail (préfixe `wf_`) pour l'exécution externe sans authentification utilisateur, avec limitation de débit.
+- **Dialogue de gestion des clés API** — Générer, régénérer et révoquer les clés API de flux de travail avec bouton de copie, affichage d'URL de déclenchement et exemples d'utilisation cURL/JavaScript.
 - **Visionneuse de journal d'exécution en temps réel** — Flux d'événements SSE chronologique dans le panneau d'exécution avec horodatages, badges de type d'événement codés par couleur et bascules de filtre par type d'événement.
-- **Dialogue d'exécution par lot** — Exécuter les flux de travail avec plusieurs ensembles d'entrée (éditeur JSON), parallélisme configurable (1-10), résultats par élément réductibles et export JSON.
-- **30 tests de déclencheur planifié** — Validation cron, gestion de schéma et support des fuseaux horaires.
+- **Dialogue d'exécution par lot** — Exécuter des flux de travail avec plusieurs ensembles d'entrée (éditeur JSON), parallélisme configurable (1-10), résultats par élément réductibles et export JSON.
+- **30 tests de déclencheur planifié** — Validation cron, gestion de schéma et support de fuseau horaire.
 - **14 tests d'exécution par lot** — Validation de schéma et exécution du moteur concurrent.
-- **Délai d'expiration au niveau du flux de travail** — Nouveau paramètre `workflow_timeout_ms` dans le moteur qui annule tous les nœuds en attente/en cours lorsqu'il est dépassé, avec attente asynchrone bornée pour la détection de délai d'expiration réactive.
-- **Réexécution avec dernières entrées** — Bouton "Exécuter à nouveau" pré-remplit le formulaire d'entrée avec les valeurs de l'exécution précédente.
-- **Filtre de statut de l'historique d'exécution** — Liste déroulante pour filtrer les exécutions de flux de travail par Terminé/Échoué/Annulé/En cours.
-- **Historique des versions de flux de travail** — Versioning automatique lors de l'enregistrement du blueprint avec points de terminaison API de liste/obtention/restauration pour revenir aux versions précédentes.
-- **Point de terminaison de validation** — `POST /validate` pour la validation structurelle du blueprint sans exécution.
-- **Mode d'exécution à blanc** — `POST /run` avec `dry_run=true` retourne le plan d'exécution en JSON sans exécuter.
-- **13 tests de routage de branche conditionnelle** — Couverture complète pour le branchement, la fusion, l'imbrication et le routage du classificateur.
-- **Panneau de statistiques d'exécution par nœud** — Nouveau panneau de statistiques (`node-stats-panel.tsx`) affichant les taux de réussite par nœud, les durées moyennes et les comptages d'échecs triés du pire au premier. Intégré à la barre d'outils du flux de travail. Nouvelle méthode client API `getNodeStats` et type `NodeStatEntry` pour la consommation frontend.
+- **Délai d'expiration au niveau du flux de travail** — Nouveau paramètre `workflow_timeout_ms` dans le moteur qui annule tous les nœuds en attente/en cours en cas de dépassement, avec attente asynchrone bornée pour une détection de délai d'expiration réactive.
+- **Réexécution avec dernières entrées** — Bouton "Run Again" pré-remplit le formulaire d'entrée avec les valeurs de l'exécution précédente.
+- **Filtre de statut d'historique d'exécution** — Liste déroulante pour filtrer les exécutions de flux de travail par Terminé/Échoué/Annulé/En cours.
+- **Historique des versions de flux de travail** — Versioning automatique lors de la sauvegarde du blueprint avec points de terminaison API list/get/restore pour revenir aux versions précédentes.
+- **Point de terminaison de validation** — `POST /validate` pour la validation de blueprint structurelle sans exécution.
+- **Mode d'exécution à vide** — `POST /run` avec `dry_run=true` retourne le plan d'exécution en JSON sans exécuter.
+- **13 tests de routage de branche conditionnelle** — Couverture complète pour le branchement, la fusion, l'imbrication et le routage de classificateur.
+- **Panneau de statistiques d'exécution par nœud** — Nouveau panneau de statistiques (`node-stats-panel.tsx`) affichant les taux de succès par nœud, les durées moyennes et les comptages d'échecs triés du pire au premier. Intégré à la barre d'outils du flux de travail. Nouvelle méthode client API `getNodeStats` et type `NodeStatEntry` pour la consommation frontend.
 - **Nœuds Phase 3 : SubWorkflow et ENV** — Deux nouveaux types de nœud avec exécuteurs backend, validation d'analyseur et 14 nouveaux tests (total : 304 → 306) :
   - **SubWorkflow** : Exécuteur stub pour l'orchestration de flux de travail imbriqué — sélectionnez un flux de travail cible et mappez les variables d'entrée/sortie.
-  - **ENV** : Lit les variables d'environnement chiffrées au moment de l'exécution avec sélection de clé et valeurs par défaut de secours.
-- **Composants frontend SubWorkflow et ENV** — Intégration frontend complète : `sub-workflow-node.tsx` et `env-node.tsx` avec formulaires de configuration, entrées de palette, couleurs de minimap et entrées d'enregistrement de type de nœud dans tous les mappages de type.
-- **Deux nouveaux modèles de flux de travail (14 au total)** — "Intégration API sécurisée" (ENV → HTTP avec en-têtes d'authentification) et "Orchestration de sous-flux de travail" (LLM → SubWorkflow → résumer).
-- **Dialogue des raccourcis clavier** — Appuyez sur `?` pour afficher tous les raccourcis clavier disponibles dans une superposition de dialogue.
-- **Capture d'aperçu d'entrée de nœud** — Les événements d'exécution incluent désormais du JSON tronqué des sorties des prédécesseurs pour le débogage.
-- **Point de terminaison d'analyse de flux de travail** — `GET /analytics` retourne le nombre total d'exécutions, la distribution des statuts, le taux de réussite, les percentiles de durée p50/p95/p99, les tendances quotidiennes et les nœuds les plus défaillants.
-- **Panneau du tableau de bord d'analyse** — Cartes de statistiques, barre de distribution des statuts, graphique quotidien CSS pur, barres de percentile et tableau des nœuds défaillants avec sélecteur de plage 7j/14j/30j.
+  - **ENV** : Lit les variables d'environnement chiffrées à l'exécution avec sélection de clé et valeurs par défaut de secours.
+- **Composants frontend SubWorkflow et ENV** — Intégration frontend complète : `sub-workflow-node.tsx` et `env-node.tsx` avec formulaires de configuration, entrées de palette, couleurs de minimap et entrées de record de type de nœud dans tous les type maps.
+- **Deux nouveaux modèles de flux de travail (14 au total)** — "Secure API Integration" (ENV → HTTP avec en-têtes d'authentification) et "Sub-Workflow Orchestration" (LLM → SubWorkflow → résumer).
+- **Dialogue de raccourcis clavier** — Appuyez sur `?` pour afficher tous les raccourcis clavier disponibles dans une superposition de dialogue.
+- **Capture d'aperçu d'entrée de nœud** — Les événements d'exécution incluent maintenant JSON tronqué des sorties de prédécesseur pour le débogage.
+- **Point de terminaison d'analyse de flux de travail** — `GET /analytics` retourne les exécutions totales, la distribution de statut, le taux de succès, les percentiles de durée p50/p95/p99, les tendances quotidiennes et les nœuds les plus défaillants.
+- **Panneau de tableau de bord d'analyse** — Cartes de statistiques, barre de distribution de statut, graphique quotidien CSS pur, barres de percentile et tableau de nœuds défaillants avec sélecteur de plage 7j/14j/30j.
 - **Dialogue de galerie de modèles** — Navigation en grille visuelle des modèles de flux de travail avec filtres de catégorie et création en un clic.
-- **Arêtes étiquetées** — Noms de branches conditionnelles et de classificateur affichés sous forme de pilules sur les arêtes.
-- **Panneau de variables de flux de travail** — Définir, éditer et supprimer les variables au niveau du flux de travail avec type/défaut/description.
+- **Arêtes étiquetées** — Noms de branche conditionnelle et classificateur affichés sous forme de pilules sur les arêtes.
+- **Panneau de variables de flux de travail** — Définir, éditer et supprimer des variables au niveau du flux de travail avec type/défaut/description.
 - **Point de terminaison d'exécution par lot** — `POST /batch-run` exécute un flux de travail avec jusqu'à 100 ensembles d'entrée simultanément, avec parallélisme configurable (1–10).
-- **Dialogue de comparaison d'exécution** — Diff côte à côte de deux exécutions montrant le statut par nœud, la durée et les différences d'entrée.
-- **Dialogue de configuration du webhook** — Définir, tester et effacer une URL de webhook avec validation en ligne et test de connectivité.
-- **Recherche de nœud sur le canevas** — `Cmd+F` pour rechercher les nœuds par type, ID et contenu avec correspondances mises en évidence et navigation par touches fléchées.
-- **Commentaires/annotations de nœud** — Zone de texte Notes réductible dans le panneau de configuration avec une icône d'indicateur de canevas.
+- **Dialogue de comparaison d'exécution** — Diff côte à côte de deux exécutions affichant le statut par nœud, la durée et les différences d'entrée.
+- **Dialogue de configuration webhook** — Définir, tester et effacer une URL webhook avec validation en ligne et test de connectivité.
+- **Recherche de nœud sur canevas** — `Cmd+F` pour rechercher des nœuds par type, ID et contenu avec correspondances en surbrillance et navigation par flèche.
+- **Commentaires/annotations de nœud** — Zone de texte Notes réductible dans le panneau de configuration avec icône d'indicateur de canevas.
 
 ### Modifié
 

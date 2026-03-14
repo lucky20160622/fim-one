@@ -11,6 +11,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Added
 
+- **Workflow run replay overlay** — "View on Canvas" button in run history overlays past execution results on the workflow canvas, showing per-node status and output from a completed run without re-executing.
+- **Full SubWorkflow executor** — Upgraded SubWorkflow node from stub to full DB-backed nested execution. Loads target workflow from database, executes with mapped input variables, enforces configurable depth limit to prevent infinite recursion, and returns nested run outputs to the parent workflow.
+- **Admin workflows management tab** — New "Workflows" tab in the admin panel for managing all workflows across users. Features: list all workflows with owner/status/stats, toggle active/inactive, delete workflows with confirmation dialog.
+- **Workflow favorites/pinning** — Star/pin workflows to the top of the list with localStorage persistence. Favorited workflows appear first in the workflow list regardless of sort order.
+- **Workflow run history export** — Export workflow run history as JSON file download. Includes run metadata, per-node results, inputs/outputs, and timing data.
 - **Workflow test-node endpoint** — `POST /api/workflows/{id}/test-node` for isolated single-node execution with mock VariableStore, 30s timeout, START/END rejection. Frontend `TestNodeDialog` sheet with key-value variable input, env vars section, JSON result viewer. Integrated into node config panel (Test button) and editor context menu. 23 tests.
 - **Workflow version diff dialog** — Side-by-side comparison of two blueprint versions showing added/removed/modified nodes and edges. Color-coded indicators (emerald=added, destructive=removed, amber=modified). Integrated into version history sheet with "Compare" button per version.
 - **35 end-to-end lifecycle tests** — Comprehensive workflow lifecycle testing covering create, edit, validate, run, version, restore, delete flows.

@@ -707,10 +707,13 @@
   "versionDiffCompare": "比较",
   "exportRuns": "导出运行",
   "exportRunsSuccess": "运行历史已导出",
-  "testNodeKeyPlaceholder": "key",
-  "testNodeValuePlaceholder": "value",
+  "testNodeKeyPlaceholder": "键",
+  "testNodeValuePlaceholder": "值",
   "testNodeEnvKeyPlaceholder": "ENV_KEY",
-  "testNodeEnvValuePlaceholder": "value",
+  "testNodeEnvValuePlaceholder": "值",
   "favorite": "收藏",
-  "unfavorite": "取消收藏"
+  "unfavorite": "取消收藏",
+  "viewRunOnCanvas": "在画布上查看",
+  "runReplayActive": "查看过去的运行",
+  "clearRunOverlay": "清除"
 }

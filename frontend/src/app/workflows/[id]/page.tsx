@@ -677,6 +677,10 @@ export default function WorkflowEditorPage() {
     editorRef.current?.autoLayout()
   }, [])
 
+  const handleViewRunOnCanvas = useCallback((overlayNodeResults: Record<string, NodeRunResult>) => {
+    editorRef.current?.applyRunOverlay(overlayNodeResults)
+  }, [])
+
   const handleVersionRestored = useCallback(() => {
     // Reload the workflow data from the server after a version restore
     workflowApi
@@ -952,6 +956,7 @@ export default function WorkflowEditorPage() {
         open={historyOpen}
         onOpenChange={setHistoryOpen}
         nodeTypeMap={nodeTypeMap}
+        onViewRunOnCanvas={handleViewRunOnCanvas}
       />
 
       {/* Version History Sheet */}
