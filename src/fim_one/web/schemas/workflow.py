@@ -403,7 +403,6 @@ def _compute_next_run(cron_expr: str, tz_name: str = "UTC") -> str | None:
     try:
         from croniter import croniter
     except ImportError:
-        # TODO: croniter not installed — return None gracefully
         return None
 
     try:
