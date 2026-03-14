@@ -717,19 +717,13 @@ async def approve_approval(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
     """Approve a pending workflow approval."""
+    # Read approval to verify existence and check assignee
     result = await db.execute(
         select(WorkflowApproval).where(WorkflowApproval.id == approval_id)
     )
     approval = result.scalar_one_or_none()
     if approval is None:
         raise AppError("approval_not_found", status_code=404)
-
-    if approval.status != "pending":
-        raise AppError(
-            "approval_already_resolved",
-            status_code=409,
-            detail=f"Approval is already {approval.status}",
-        )
 
     # Check assignee -- only the assigned user (or anyone if unassigned) can approve
     if approval.assignee and approval.assignee != current_user.id:
@@ -739,10 +733,27 @@ async def approve_approval(
             detail="This approval is assigned to another user",
         )
 
-    approval.status = "approved"
-    approval.decision_by = current_user.id
-    approval.decision_note = body.note
-    approval.resolved_at = datetime.now(UTC)
+    # Atomic status transition: WHERE status='pending' prevents race condition
+    now = datetime.now(UTC)
+    update_result = await db.execute(
+        update(WorkflowApproval)
+        .where(
+            WorkflowApproval.id == approval_id,
+            WorkflowApproval.status == "pending",
+        )
+        .values(
+            status="approved",
+            decision_by=current_user.id,
+            decision_note=body.note,
+            resolved_at=now,
+        )
+    )
+    if update_result.rowcount == 0:
+        raise AppError(
+            "approval_already_resolved",
+            status_code=409,
+            detail="Approval has already been resolved",
+        )
     await db.commit()
 
     # Refresh to get updated fields
@@ -758,19 +769,13 @@ async def reject_approval(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
     """Reject a pending workflow approval."""
+    # Read approval to verify existence and check assignee
     result = await db.execute(
         select(WorkflowApproval).where(WorkflowApproval.id == approval_id)
     )
     approval = result.scalar_one_or_none()
     if approval is None:
         raise AppError("approval_not_found", status_code=404)
-
-    if approval.status != "pending":
-        raise AppError(
-            "approval_already_resolved",
-            status_code=409,
-            detail=f"Approval is already {approval.status}",
-        )
 
     if approval.assignee and approval.assignee != current_user.id:
         raise AppError(
@@ -779,10 +784,27 @@ async def reject_approval(
             detail="This approval is assigned to another user",
         )
 
-    approval.status = "rejected"
-    approval.decision_by = current_user.id
-    approval.decision_note = body.note
-    approval.resolved_at = datetime.now(UTC)
+    # Atomic status transition: WHERE status='pending' prevents race condition
+    now = datetime.now(UTC)
+    update_result = await db.execute(
+        update(WorkflowApproval)
+        .where(
+            WorkflowApproval.id == approval_id,
+            WorkflowApproval.status == "pending",
+        )
+        .values(
+            status="rejected",
+            decision_by=current_user.id,
+            decision_note=body.note,
+            resolved_at=now,
+        )
+    )
+    if update_result.rowcount == 0:
+        raise AppError(
+            "approval_already_resolved",
+            status_code=409,
+            detail="Approval has already been resolved",
+        )
     await db.commit()
 
     await db.refresh(approval)
