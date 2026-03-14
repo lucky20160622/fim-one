@@ -104,6 +104,7 @@ def _workflow_to_response(wf: Workflow) -> WorkflowResponse:
         is_active=wf.is_active,
         visibility=getattr(wf, "visibility", "personal"),
         org_id=getattr(wf, "org_id", None),
+        change_summary=getattr(wf, "change_summary", None),
         publish_status=getattr(wf, "publish_status", None),
         published_at=(
             wf.published_at.isoformat() if getattr(wf, "published_at", None) else None
@@ -606,19 +607,29 @@ async def update_workflow(
     wf = await _get_owned_workflow(workflow_id, current_user.id, db)
 
     update_data = body.model_dump(exclude_unset=True)
+
+    # Capture old blueprint BEFORE applying updates (for diff computation)
+    old_blueprint: dict | None = None
+    if "blueprint" in update_data and update_data["blueprint"] is not None:
+        old_blueprint = wf.blueprint or {"nodes": [], "edges": [], "viewport": {}}
+
     for field, value in update_data.items():
         setattr(wf, field, value)
 
-    # Auto-extract schemas when blueprint is updated
-    if "blueprint" in update_data and update_data["blueprint"] is not None:
-        input_schema, output_schema = _extract_schemas_from_blueprint(
-            update_data["blueprint"]
-        )
+    # Auto-extract schemas and compute change summary when blueprint is updated
+    if old_blueprint is not None:
+        new_bp = update_data["blueprint"]
+        input_schema, output_schema = _extract_schemas_from_blueprint(new_bp)
         wf.input_schema = input_schema
         wf.output_schema = output_schema
 
+        # Compute a human-readable diff between old and new blueprints
+        from fim_one.core.workflow.blueprint_diff import compute_blueprint_diff
+
+        diff_summary = compute_blueprint_diff(old_blueprint, new_bp)
+        wf.change_summary = diff_summary
+
         # Auto-version: snapshot blueprint when it actually changes
-        new_bp = update_data["blueprint"]
         latest_result = await db.execute(
             select(WorkflowVersion)
             .where(WorkflowVersion.workflow_id == workflow_id)
@@ -640,7 +651,7 @@ async def update_workflow(
                 blueprint=new_bp,
                 input_schema=input_schema,
                 output_schema=output_schema,
-                change_summary=None,
+                change_summary=diff_summary,
                 created_by=current_user.id,
             )
             db.add(ver)

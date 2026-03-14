@@ -53,6 +53,7 @@ class WorkflowResponse(BaseModel):
     is_active: bool = True
     visibility: str = "personal"
     org_id: str | None = None
+    change_summary: str | None = None
     publish_status: str | None = None
     published_at: str | None = None
     reviewed_by: str | None = None

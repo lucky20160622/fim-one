@@ -6,6 +6,7 @@ blueprint as a DAG, running nodes concurrently where possible and supporting
 conditional branching.
 """
 
+from .blueprint_diff import compute_blueprint_diff
 from .engine import WorkflowEngine
 from .import_resolver import ImportResolution, resolve_blueprint_references
 from .parser import BlueprintValidationError, parse_blueprint, topological_sort
@@ -24,6 +25,7 @@ from .variable_store import VariableStore
 
 __all__ = [
     "BlueprintValidationError",
+    "compute_blueprint_diff",
     "ErrorStrategy",
     "ExecutionContext",
     "ImportResolution",
