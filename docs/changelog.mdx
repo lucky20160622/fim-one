@@ -25,9 +25,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **SubWorkflow and ENV frontend components** — Full frontend integration: `sub-workflow-node.tsx` and `env-node.tsx` with config forms, palette entries, minimap colors, and node type record entries across all type maps.
 - **Two new workflow templates (14 total)** — "Secure API Integration" (ENV → HTTP with auth headers) and "Sub-Workflow Orchestration" (LLM → SubWorkflow → summarize).
 - **Keyboard shortcuts dialog** — Press `?` to view all available keyboard shortcuts in a dialog overlay.
+- **Node input preview capture** — Execution events now include truncated JSON of predecessor outputs for debugging.
+- **Workflow analytics endpoint** — `GET /analytics` returns total runs, status distribution, success rate, p50/p95/p99 duration percentiles, daily trends, and most-failed nodes.
+- **Analytics dashboard panel** — Stat cards, status distribution bar, pure CSS daily chart, percentile bars, and failed nodes table with 7d/14d/30d range selector.
+- **Template gallery dialog** — Visual grid browsing of workflow templates with category filters.
+- **Labeled edges** — Condition and classifier branch names shown as pills on edges.
+- **Workflow variables panel** — Define, edit, and delete workflow-level variables with type/default/description.
 
 ### Changed
 
+- **Replaced elkjs with lightweight BFS auto-layout** — Custom BFS algorithm replaces elkjs (430 kB); `/workflows/[id]` bundle reduced from 473 kB to 43 kB.
+- **Expanded workflow list sort options** — Newest, Oldest, Name A-Z, Name Z-A, Recently Updated.
 - **Workflow test suite expanded to 306 tests** — Added 14 Phase 3 tests for SubWorkflow and ENV node executors. Added per-node execution statistics tests. Total: 275 → 306.
 - **Workflow test suite expanded to 275 tests** — Added 23 advanced engine tests (retry with exponential backoff, cancellation during retry, expression evaluation, variable store helpers) in separate test file. Total: 252 → 275.
 - **Workflow test suite expanded to 252 tests** — Added HumanIntervention tests (8: auto-approve, interpolation, assignee/timeout, defaults, validation warnings) and new template tests (4: human approval pipeline, multi-step data processing, knowledge-enhanced agent, iterative review loop). Total: 240 → 252.
@@ -147,6 +155,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **Workflow `NodeRunResult.duration` field name**: Fixed `duration` to `duration_ms` to match the Pydantic schema and frontend parsing.
 - **Workflow export/import API response wrapping**: Fixed response envelope wrapping for workflow export and import endpoints.
 - **No re-review on `is_active` toggle**: Toggling `is_active` on agents, connectors, knowledge bases, or MCP servers no longer reverts `publish_status` from `approved` back to `pending_review`. The `check_edit_revert` guard now only fires when actual content fields change (not just `is_active`).
+- **Cascade-skip for condition branches** — Skipped condition/classifier nodes now correctly deactivate outgoing edges, preventing downstream nodes from running unexpectedly.
 
 ### Changed
 
