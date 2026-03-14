@@ -3228,8 +3228,13 @@ class SubWorkflowExecutor:
 
             sub_run_id = f"{context.run_id}:sub:{node.id}"
 
+            # M5: Propagate the parent cancel_event to the sub-engine so
+            # cancelling the parent workflow also cancels sub-workflows.
+            parent_cancel = getattr(context, "cancel_event", None)
+
             sub_engine = WorkflowEngine(
                 max_concurrency=3,
+                cancel_event=parent_cancel,
                 env_vars=context.env_vars,
                 run_id=sub_run_id,
                 user_id=context.user_id,
@@ -3244,6 +3249,7 @@ class SubWorkflowExecutor:
                 env_vars=context.env_vars,
                 db_session_factory=context.db_session_factory,
                 depth=context.depth + 1,
+                cancel_event=parent_cancel,
             )
 
             # --- Execute via streaming and collect final result ---

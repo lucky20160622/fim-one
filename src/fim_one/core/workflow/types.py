@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable
@@ -118,3 +119,4 @@ class ExecutionContext:
     db_session_factory: Callable[[], Any] | None = None
     depth: int = 0
     max_run_duration: int | None = None  # seconds; None = use engine default
+    cancel_event: asyncio.Event | None = None  # shared cancel signal
