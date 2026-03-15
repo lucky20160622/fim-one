@@ -6,14 +6,25 @@ import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import {
   BookOpen,
-  FileCode2,
-  Globe,
-  GitBranch,
-  Loader2,
-  LayoutTemplate,
+  Bot,
+  BrainCircuit,
   Boxes,
-  MessageSquare,
   Check,
+  Database,
+  FileCode2,
+  GitBranch,
+  GitFork,
+  Globe,
+  KeyRound,
+  Layers,
+  LayoutTemplate,
+  ListFilter,
+  Loader2,
+  MessageCircleQuestion,
+  MessageSquare,
+  RefreshCcw,
+  UserCheck,
+  type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -30,6 +41,23 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { workflowApi } from "@/lib/api"
 import type { WorkflowTemplate } from "@/types/workflow"
+
+const iconMap: Record<string, LucideIcon> = {
+  BookOpen,
+  Bot,
+  BrainCircuit,
+  Database,
+  GitBranch,
+  GitFork,
+  Globe,
+  KeyRound,
+  Layers,
+  ListFilter,
+  MessageCircleQuestion,
+  MessageSquare,
+  RefreshCcw,
+  UserCheck,
+}
 
 const categoryIcons: Record<string, React.ReactNode> = {
   basic: <MessageSquare className="h-5 w-5" />,
@@ -194,16 +222,14 @@ export function TemplateGalleryDialog({
                     )}
 
                     {/* Icon */}
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted mb-3">
-                      {tmpl.icon ? (
-                        <span className="text-lg">{tmpl.icon}</span>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          {categoryIcons[tmpl.category] ?? (
-                            <GitBranch className="h-5 w-5" />
-                          )}
-                        </span>
-                      )}
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted mb-3 text-muted-foreground">
+                      {(() => {
+                        const Icon = tmpl.icon ? iconMap[tmpl.icon] : null
+                        if (Icon) return <Icon className="h-5 w-5" />
+                        return categoryIcons[tmpl.category] ?? (
+                          <GitBranch className="h-5 w-5" />
+                        )
+                      })()}
                     </div>
 
                     {/* Name */}

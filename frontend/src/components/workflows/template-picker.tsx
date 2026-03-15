@@ -3,12 +3,23 @@
 import { useState, useEffect, useCallback } from "react"
 import { useTranslations } from "next-intl"
 import {
-  MessageSquare,
-  GitBranch,
   BookOpen,
-  Globe,
+  Bot,
+  BrainCircuit,
+  Database,
   FileCode2,
+  GitBranch,
+  GitFork,
+  Globe,
+  KeyRound,
+  Layers,
+  ListFilter,
   Loader2,
+  MessageCircleQuestion,
+  MessageSquare,
+  RefreshCcw,
+  UserCheck,
+  type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,6 +34,23 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { workflowApi } from "@/lib/api"
 import type { WorkflowTemplate } from "@/types/workflow"
+
+const iconMap: Record<string, LucideIcon> = {
+  BookOpen,
+  Bot,
+  BrainCircuit,
+  Database,
+  GitBranch,
+  GitFork,
+  Globe,
+  KeyRound,
+  Layers,
+  ListFilter,
+  MessageCircleQuestion,
+  MessageSquare,
+  RefreshCcw,
+  UserCheck,
+}
 
 const categoryIcons: Record<string, React.ReactNode> = {
   basic: <MessageSquare className="h-4 w-4" />,
@@ -136,8 +164,12 @@ export function TemplatePicker({
                     onClick={() => setSelectedId(tmpl.id)}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
-                        {categoryIcons[tmpl.category] ?? <GitBranch className="h-4 w-4 text-muted-foreground" />}
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                        {(() => {
+                          const Icon = tmpl.icon ? iconMap[tmpl.icon] : null
+                          if (Icon) return <Icon className="h-4 w-4" />
+                          return categoryIcons[tmpl.category] ?? <GitBranch className="h-4 w-4" />
+                        })()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
