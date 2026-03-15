@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useTranslations, useLocale } from "next-intl"
-import { MessageSquare, Bot, Database, Plug, TrendingUp, TrendingDown, Minus, Activity, Library, Clock, ChevronRight } from "lucide-react"
+import { MessageSquare, Bot, Database, Plug, TrendingUp, TrendingDown, Minus, Activity, Library, Clock, ChevronRight, Zap, ShoppingBag, Sparkles, Package } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN, enUS } from "date-fns/locale"
 import {
@@ -25,8 +25,8 @@ import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/auth-context"
 import { useConversation } from "@/contexts/conversation-context"
 import { UserAvatar as SharedUserAvatar } from "@/components/shared/user-avatar"
-import { dashboardApi, type DashboardStats } from "@/lib/api"
-import { formatTokens, cn } from "@/lib/utils"
+import { dashboardApi, marketApi, type DashboardStats, type MarketItem } from "@/lib/api"
+import { formatTokens } from "@/lib/utils"
 
 const TICK_STYLE = { fill: "currentColor", fontSize: 11 } as const
 
@@ -173,6 +173,7 @@ export function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [marketItems, setMarketItems] = useState<MarketItem[]>([])
 
   // Auth guard
   useEffect(() => {
@@ -181,7 +182,7 @@ export function DashboardPage() {
     }
   }, [authLoading, user, router])
 
-  // Fetch dashboard stats
+  // Fetch dashboard stats + market items
   useEffect(() => {
     if (!user) return
     setLoading(true)
@@ -190,6 +191,7 @@ export function DashboardPage() {
       .then((data) => setStats(data))
       .catch((err) => setError(err instanceof Error ? err.message : t("error")))
       .finally(() => setLoading(false))
+    marketApi.browse({ size: 4 }).then((res) => setMarketItems(res.items)).catch(() => {})
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // While auth is resolving or user is not available
@@ -241,6 +243,7 @@ export function DashboardPage() {
       label: t("statsConversations"),
       value: (stats?.total_conversations ?? 0).toLocaleString(),
       trend: stats ? <TrendBadge value={stats.conversations_week_trend} t={t} /> : null,
+      href: "/chats" as string | undefined,
     },
     {
       Icon: Bot,
@@ -253,12 +256,14 @@ export function DashboardPage() {
             : t("agentChatsNoneToday")}
         </span>
       ) : null,
+      href: "/agents" as string | undefined,
     },
     {
       Icon: Database,
       label: t("statsTokens"),
       value: formatTokens(stats?.total_tokens ?? 0),
       trend: stats ? <TrendBadge value={stats.tokens_week_trend} t={t} /> : null,
+      href: undefined as string | undefined,
     },
     {
       Icon: Plug,
@@ -271,7 +276,18 @@ export function DashboardPage() {
             : t("connectorCallsNoneToday")}
         </span>
       ) : null,
+      href: "/connectors" as string | undefined,
     },
+  ]
+
+  // Quick action links
+  const quickActions = [
+    { Icon: Zap, label: t("quickWorkflows"), href: "/workflows" },
+    { Icon: Sparkles, label: t("quickSkills"), href: "/skills" },
+    { Icon: Library, label: t("quickKnowledgeBase"), href: "/kb" },
+    { Icon: Plug, label: t("quickConnectors"), href: "/connectors" },
+    { Icon: ShoppingBag, label: t("quickMarket"), href: "/market" },
+    { Icon: Package, label: t("quickArtifacts"), href: "/artifacts" },
   ]
 
   return (
@@ -322,19 +338,32 @@ export function DashboardPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {statCards.map((card, i) => (
-              <Card key={i} className="overflow-hidden relative py-3 gap-0">
-                <CardContent className="px-5 space-y-1.5 relative z-10">
-                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {card.label}
-                  </span>
-                  <p className="text-2xl font-semibold text-foreground">{card.value}</p>
-                  {card.trend}
-                </CardContent>
-                {/* Watermark icon — large, faded, bottom-right */}
-                <card.Icon className="absolute -bottom-3 -right-3 h-20 w-20 text-muted-foreground/[0.06] pointer-events-none" />
-              </Card>
-            ))}
+            {statCards.map((card, i) => {
+              const cardContent = (
+                <>
+                  <CardContent className="px-5 space-y-1.5 relative z-10">
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {card.label}
+                    </span>
+                    <p className="text-2xl font-semibold text-foreground">{card.value}</p>
+                    {card.trend}
+                  </CardContent>
+                  {/* Watermark icon -- large, faded, bottom-right */}
+                  <card.Icon className="absolute -bottom-3 -right-3 h-20 w-20 text-muted-foreground/[0.06] pointer-events-none" />
+                </>
+              )
+              return card.href ? (
+                <Link key={i} href={card.href} className="rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                  <Card className="overflow-hidden relative py-3 gap-0 transition-colors hover:bg-accent/30 cursor-pointer h-full">
+                    {cardContent}
+                  </Card>
+                </Link>
+              ) : (
+                <Card key={i} className="overflow-hidden relative py-3 gap-0">
+                  {cardContent}
+                </Card>
+              )
+            })}
           </div>
         )}
 
@@ -496,7 +525,21 @@ export function DashboardPage() {
           </div>
         )}
 
-        {/* ---- 4 + 5. Two two-column grids ---- */}
+        {/* ---- 4. Quick Actions Bar ---- */}
+        <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
+          {quickActions.map((action, i) => (
+            <Link
+              key={i}
+              href={action.href}
+              className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <action.Icon className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">{action.label}</span>
+            </Link>
+          ))}
+        </div>
+
+        {/* ---- 5. Content Cards ---- */}
         {loading ? (
           <>
             {/* Row A skeleton */}
@@ -528,34 +571,27 @@ export function DashboardPage() {
               </Card>
             </div>
 
-            {/* Row B skeleton */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {/* Knowledge Bases skeleton */}
-              <Card className="gap-0 py-2">
-                <CardHeader className="px-5 py-3">
-                  <Skeleton className="h-5 w-36" />
-                </CardHeader>
-                <CardContent className="px-5 pb-4 pt-1">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {Array.from({ length: 3 }).map((_, i) => <Skeleton.KbCard key={i} />)}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Connectors skeleton */}
-              <Card className="gap-0 py-2">
-                <CardHeader className="px-5 py-3">
-                  <Skeleton className="h-5 w-28" />
-                </CardHeader>
-                <CardContent className="px-0 pb-1">
-                  <ul className="divide-y divide-border">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <li key={i}><Skeleton.ListRow twoLines /></li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Market Spotlight skeleton */}
+            <Card className="gap-0 py-2">
+              <CardHeader className="px-5 py-3">
+                <Skeleton className="h-5 w-36" />
+              </CardHeader>
+              <CardContent className="px-5 pb-4 pt-1">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="rounded-lg border border-border p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-8 w-8 rounded-lg" />
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-2/3" />
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </>
         ) : (
           <>
@@ -653,119 +689,52 @@ export function DashboardPage() {
               </Card>
             </div>
 
-            {/* Row B: Knowledge Bases + Connectors */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-
-              {/* Knowledge Bases */}
-              <Card className="gap-0 py-2">
-                <CardHeader className="px-5 py-3">
-                  <Link href="/kb" className="group flex items-center justify-between rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                    <CardTitle className="flex items-center gap-2 text-base font-medium">
-                      <Library className="h-4 w-4 text-muted-foreground" />
-                      {t("kbTitle")}
-                    </CardTitle>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                  </Link>
-                </CardHeader>
-                <CardContent className="px-5 pb-4 pt-1">
-                  {!stats?.top_kbs.length ? (
-                    <div className="flex flex-col items-center gap-3 py-6 text-sm text-muted-foreground">
-                      <p>{t("kbEmpty")}</p>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href="/kb/new">{t("kbCreate")}</Link>
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      {stats.top_kbs.slice(0, 3).map((kb) => (
-                        <Link
-                          key={kb.id}
-                          href={`/kb/${kb.id}`}
-                          className="flex flex-col gap-2 rounded-lg border border-border p-3 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                        >
-                          <span className="truncate text-sm font-medium text-foreground">
-                            {kb.name}
+            {/* Market Spotlight */}
+            <Card className="gap-0 py-2">
+              <CardHeader className="px-5 py-3">
+                <Link href="/market" className="group flex items-center justify-between rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                  <CardTitle className="flex items-center gap-2 text-base font-medium">
+                    <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                    {t("marketTitle")}
+                  </CardTitle>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                </Link>
+              </CardHeader>
+              <CardContent className="px-5 pb-4 pt-1">
+                {!marketItems.length ? (
+                  <div className="flex flex-col items-center gap-3 py-6 text-sm text-muted-foreground">
+                    <p>{t("marketEmpty")}</p>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href="/market">{t("marketEmptyCta")}</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+                    {marketItems.slice(0, 4).map((item) => (
+                      <Link
+                        key={item.id}
+                        href="/market"
+                        className="flex flex-col gap-2 rounded-lg border border-border p-3 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-base">
+                            {item.icon || <ShoppingBag className="h-3.5 w-3.5 text-muted-foreground" />}
                           </span>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="text-xs font-normal">
-                              {t("kbDocs", { count: kb.document_count })}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs font-normal">
-                              {t("kbChunks", { count: kb.total_chunks })}
-                            </Badge>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
                           </div>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Connectors */}
-              <Card className="gap-0 py-2">
-                <CardHeader className="px-5 py-3">
-                  <Link href="/connectors" className="group flex items-center justify-between rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                    <CardTitle className="flex items-center gap-2 text-base font-medium">
-                      <Plug className="h-4 w-4 text-muted-foreground" />
-                      {t("connectorsTitle")}
-                    </CardTitle>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                  </Link>
-                </CardHeader>
-                <CardContent className="px-0 pb-1">
-                  {!stats?.connector_health.length ? (
-                    <div className="flex flex-col items-center gap-3 px-6 py-8 text-sm text-muted-foreground">
-                      <p>{t("connectorsEmpty")}</p>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href="/connectors/new">{t("connectorsCreate")}</Link>
-                      </Button>
-                    </div>
-                  ) : (
-                    <ul className="divide-y divide-border">
-                      {stats.connector_health.map((connector) => (
-                        <li key={connector.id}>
-                          <Link
-                            href={`/connectors/${connector.id}`}
-                            className="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                          >
-                            <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-muted">
-                              {connector.icon ? (
-                                <span className="text-base leading-none">{connector.icon}</span>
-                              ) : (
-                                <Plug className="h-3.5 w-3.5 text-muted-foreground" />
-                              )}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium text-foreground">
-                                {connector.name}
-                              </p>
-                              <span className={cn(
-                                "inline-flex items-center rounded-full px-1.5 py-0 h-4 text-[10px] font-medium mt-0.5",
-                                connector.type === "database"
-                                  ? "bg-blue-500/10 text-blue-500"
-                                  : "bg-amber-500/10 text-amber-500"
-                              )}>
-                                {connector.type}
-                              </span>
-                            </div>
-                            <span className={cn(
-                              "shrink-0 inline-flex items-center rounded-full px-1.5 h-4 text-[10px] font-medium tabular-nums",
-                              connector.call_count_today === 0
-                                ? "bg-muted text-muted-foreground"
-                                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                            )}>
-                              {connector.call_count_today === 0
-                                ? t("connectorNoCallsRecently")
-                                : t("connectorCallsToday", { count: connector.call_count_today })}
-                            </span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                        </div>
+                        <p className="line-clamp-2 text-xs text-muted-foreground">{item.description || ""}</p>
+                        <div className="flex items-center gap-2 mt-auto">
+                          <Badge variant="secondary" className="text-xs font-normal">{item.resource_type.replace("_", " ")}</Badge>
+                          {item.is_subscribed && <Badge variant="outline" className="text-xs font-normal text-emerald-600">{t("marketSubscribed")}</Badge>}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </>
         )}
       </div>

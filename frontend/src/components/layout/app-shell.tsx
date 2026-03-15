@@ -391,11 +391,11 @@ function SidebarNav({ collapsed }: { collapsed: boolean }) {
       <SidebarTooltip label={t("agents")} collapsed={collapsed}>
         {navLink("/agents", pathname === "/agents" || pathname.startsWith("/agents/"), <Bot className="h-4 w-4" />, t("agents"))}
       </SidebarTooltip>
-      <SidebarTooltip label={t("workflows")} collapsed={collapsed}>
-        {navLink("/workflows", pathname === "/workflows" || pathname.startsWith("/workflows/"), <GitBranch className="h-4 w-4" />, t("workflows"))}
-      </SidebarTooltip>
       <SidebarTooltip label={t("skills")} collapsed={collapsed}>
         {navLink("/skills", pathname === "/skills" || pathname.startsWith("/skills/"), <BookOpen className="h-4 w-4" />, t("skills"))}
+      </SidebarTooltip>
+      <SidebarTooltip label={t("workflows")} collapsed={collapsed}>
+        {navLink("/workflows", pathname === "/workflows" || pathname.startsWith("/workflows/"), <GitBranch className="h-4 w-4" />, t("workflows"))}
       </SidebarTooltip>
       {/* Resources section */}
       {sectionLabel(t("sectionResources"))}

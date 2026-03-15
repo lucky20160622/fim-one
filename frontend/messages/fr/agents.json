@@ -124,8 +124,6 @@
   "ai_no_changes": "Aucune modification appliquée.",
   "global": "Global",
   "globalAgentNotice": "Ceci est un agent global géré par un administrateur.",
-  "discoverable": "Découverte automatique",
-  "discoverableHelp": "Permettre au LLM de découvrir automatiquement et de déléguer des tâches à cet agent",
   "disableOrgAgent": "Désactiver l'agent pour toute l'organisation ?",
   "disableOrgAgentDescription": "Cela empêchera immédiatement tous les membres de l'organisation d'utiliser cet agent. Vous pouvez le réactiver à tout moment.",
   "agentEnabled": "Agent activé",

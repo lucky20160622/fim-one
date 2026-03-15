@@ -207,7 +207,7 @@ async def create_workflow_from_template(
     wf = Workflow(
         user_id=current_user.id,
         name=body.name or template_name,
-        icon=template_icon,
+        icon=None,  # template icon is a Lucide name for gallery, not an emoji
         description=template_desc,
         blueprint=blueprint,
         input_schema=input_schema,

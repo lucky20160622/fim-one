@@ -23,7 +23,6 @@ class AgentCreate(BaseModel):
     skill_ids: list[str] | None = None
     compact_instructions: str | None = None
     is_active: bool = True
-    allow_as_sub_agent: bool = True
 
 
 class AgentUpdate(BaseModel):
@@ -42,7 +41,6 @@ class AgentUpdate(BaseModel):
     skill_ids: list[str] | None = None
     compact_instructions: str | None = None
     is_active: bool | None = None
-    allow_as_sub_agent: bool | None = None
 
 
 class AgentResponse(BaseModel):
@@ -64,9 +62,6 @@ class AgentResponse(BaseModel):
     published_at: str | None
     is_active: bool = True
     is_builder: bool = False
-    discoverable: bool = False
-    sub_agent_ids: list[str] | None = None
-    allow_as_sub_agent: bool = True
     skill_ids: list[str] | None = None
     compact_instructions: str | None = None
     visibility: str = "personal"

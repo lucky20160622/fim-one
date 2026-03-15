@@ -45,5 +45,15 @@
   "retry": "再試行",
   "tokenTrendTitle": "トークン使用量",
   "tokenTrendSubtitle": "過去14日間に消費されたトークン",
-  "tokenTrendEmpty": "トークン使用量はまだありません"
+  "tokenTrendEmpty": "トークン使用量はまだありません",
+  "quickWorkflows": "ワークフロー",
+  "quickSkills": "スキル",
+  "quickKnowledgeBase": "ナレッジベース",
+  "quickConnectors": "コネクタ",
+  "quickMarket": "マーケット",
+  "quickArtifacts": "アーティファクト",
+  "marketTitle": "マーケットスポットライト",
+  "marketEmpty": "エージェント、コネクタなどを発見する",
+  "marketEmptyCta": "マーケットを閲覧",
+  "marketSubscribed": "購読済み"
 }

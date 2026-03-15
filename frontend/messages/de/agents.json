@@ -124,8 +124,6 @@
   "ai_no_changes": "Keine Änderungen angewendet.",
   "global": "Global",
   "globalAgentNotice": "Dies ist ein globaler Agent, der von einem Administrator verwaltet wird.",
-  "discoverable": "Automatisch auffindbar",
-  "discoverableHelp": "Ermöglichen Sie dem LLM, diesen Agenten automatisch zu entdecken und Aufgaben an ihn zu delegieren",
   "disableOrgAgent": "Agent für gesamte Organisation deaktivieren?",
   "disableOrgAgentDescription": "Dies stoppt sofort alle Organisationsmitglieder von der Verwendung dieses Agenten. Sie können ihn jederzeit wieder aktivieren.",
   "agentEnabled": "Agent aktiviert",

@@ -45,5 +45,15 @@
   "viewAll": "View All",
   "loading": "Loading dashboard...",
   "error": "Failed to load dashboard",
-  "retry": "Retry"
+  "retry": "Retry",
+  "quickWorkflows": "Workflows",
+  "quickSkills": "Skills",
+  "quickKnowledgeBase": "Knowledge Base",
+  "quickConnectors": "Connectors",
+  "quickMarket": "Market",
+  "quickArtifacts": "Artifacts",
+  "marketTitle": "Market Spotlight",
+  "marketEmpty": "Discover agents, connectors, and more",
+  "marketEmptyCta": "Browse Market",
+  "marketSubscribed": "Subscribed"
 }
