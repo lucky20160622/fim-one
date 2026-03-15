@@ -88,7 +88,7 @@
   "noResourcesAvailable": "Keine Ressourcen dieses Typs verfügbar.",
   "resourceAlreadyAdded": "Diese Ressource wurde bereits hinzugefügt.",
   "editAlias": "Alias bearbeiten",
-  "mentionHint": "Geben Sie @ ein, um eine Ressource zu erwähnen",
+  "mentionHint": "Geben Sie @ ein, um eine Ressource zu erwähnen (verwenden Sie Pfeiltasten + Eingabe zum Auswählen)",
   "templateGalleryTitle": "Aus Vorlage erstellen",
   "templateGalleryDescription": "Wählen Sie eine vorgefertigte Fähigkeitsvorlage, um schnell zu beginnen",
   "templateSelectHint": "Wählen Sie eine Vorlage aus, um fortzufahren",
@@ -99,5 +99,6 @@
   "templateCategory_writing": "Schreiben",
   "templateCategory_code": "Code",
   "templateCategory_ai": "KI",
-  "fromTemplate": "Aus Vorlage"
+  "fromTemplate": "Aus Vorlage",
+  "aliasStillInContent": "{alias} wird immer noch im obigen Inhalt referenziert — Sie möchten es möglicherweise manuell aktualisieren."
 }

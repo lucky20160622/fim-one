@@ -88,7 +88,7 @@
   "noResourcesAvailable": "이 유형의 사용 가능한 리소스가 없습니다.",
   "resourceAlreadyAdded": "이 리소스는 이미 추가되었습니다.",
   "editAlias": "별칭 편집",
-  "mentionHint": "@를 입력하여 리소스를 언급합니다",
+  "mentionHint": "@ 키를 입력하여 리소스를 언급합니다 (화살표 키 + Enter로 선택)",
   "templateGalleryTitle": "템플릿에서 생성",
   "templateGalleryDescription": "미리 빌드된 스킬 템플릿을 선택하여 빠르게 시작합니다",
   "templateSelectHint": "계속하려면 템플릿을 선택합니다",
@@ -99,5 +99,6 @@
   "templateCategory_writing": "작성",
   "templateCategory_code": "코드",
   "templateCategory_ai": "AI",
-  "fromTemplate": "템플릿에서"
+  "fromTemplate": "템플릿에서",
+  "aliasStillInContent": "{alias}은(는) 위의 콘텐츠에서 여전히 참조되고 있습니다 — 수동으로 업데이트하는 것이 좋습니다."
 }

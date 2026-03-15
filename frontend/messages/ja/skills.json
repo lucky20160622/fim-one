@@ -88,7 +88,7 @@
   "noResourcesAvailable": "このタイプのリソースは利用できません。",
   "resourceAlreadyAdded": "このリソースは既に追加されています。",
   "editAlias": "エイリアスを編集",
-  "mentionHint": "@を入力してリソースをメンション",
+  "mentionHint": "@ を入力してリソースをメンションします（矢印キー + Enter で選択）",
   "templateGalleryTitle": "テンプレートから作成",
   "templateGalleryDescription": "事前構築されたスキルテンプレートを選択して、すぐに開始できます",
   "templateSelectHint": "続行するテンプレートを選択してください",
@@ -99,5 +99,6 @@
   "templateCategory_writing": "ライティング",
   "templateCategory_code": "コード",
   "templateCategory_ai": "AI",
-  "fromTemplate": "テンプレートから"
+  "fromTemplate": "テンプレートから",
+  "aliasStillInContent": "{alias} はまだ上記のコンテンツで参照されています — 手動で更新することをお勧めします。"
 }

@@ -88,7 +88,7 @@
   "noResourcesAvailable": "Aucune ressource de ce type disponible.",
   "resourceAlreadyAdded": "Cette ressource est déjà ajoutée.",
   "editAlias": "Modifier l'alias",
-  "mentionHint": "Tapez @ pour mentionner une ressource",
+  "mentionHint": "Tapez @ pour mentionner une ressource (utilisez les flèches + Entrée pour sélectionner)",
   "templateGalleryTitle": "Créer à partir d'un modèle",
   "templateGalleryDescription": "Choisissez un modèle de compétence prédéfini pour commencer rapidement",
   "templateSelectHint": "Sélectionnez un modèle pour continuer",
@@ -99,5 +99,6 @@
   "templateCategory_writing": "Rédaction",
   "templateCategory_code": "Code",
   "templateCategory_ai": "IA",
-  "fromTemplate": "À partir d'un modèle"
+  "fromTemplate": "À partir d'un modèle",
+  "aliasStillInContent": "{alias} est toujours référencé dans le contenu ci-dessus — vous voudrez peut-être le mettre à jour manuellement."
 }

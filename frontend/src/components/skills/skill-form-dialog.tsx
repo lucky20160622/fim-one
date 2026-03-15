@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useTranslations } from "next-intl"
 import { Loader2, Plus, Pencil } from "lucide-react"
+import { toast } from "sonner"
 import { ResourcePickerDialog } from "@/components/skills/resource-picker-dialog"
 import { ResourceRefsBadges } from "@/components/skills/resource-refs-badges"
 import { MentionTextarea } from "@/components/skills/mention-textarea"
@@ -52,6 +53,7 @@ export function SkillFormDialog({
   const [resourceRefs, setResourceRefs] = useState<ResourceRef[]>([])
   const [showResourcePicker, setShowResourcePicker] = useState(false)
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
+  const mentionPortalRef = useRef<HTMLDivElement>(null)
 
   const t = useTranslations("skills")
   const tc = useTranslations("common")
@@ -194,16 +196,26 @@ export function SkillFormDialog({
               <p className="text-xs text-muted-foreground">{t("resourceRefsHint")}</p>
               <ResourceRefsBadges
                 refs={resourceRefs}
-                onRemove={(index) =>
+                onRemove={(index) => {
+                  const alias = resourceRefs[index].alias
                   setResourceRefs((prev) => prev.filter((_, i) => i !== index))
-                }
-                onUpdateAlias={(index, newAlias) =>
+                  // Warn if the alias was used in content
+                  if (content.includes(alias)) {
+                    toast.warning(t("aliasStillInContent", { alias }))
+                  }
+                }}
+                onUpdateAlias={(index, newAlias) => {
+                  const oldAlias = resourceRefs[index].alias
                   setResourceRefs((prev) =>
                     prev.map((ref, i) =>
                       i === index ? { ...ref, alias: newAlias } : ref,
                     ),
                   )
-                }
+                  // Auto-replace old alias in content
+                  if (oldAlias !== newAlias && content.includes(oldAlias)) {
+                    setContent((prev) => prev.replaceAll(oldAlias, newAlias))
+                  }
+                }}
               />
             </div>
 
