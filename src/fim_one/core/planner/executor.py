@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from collections.abc import Callable
 from typing import Any
@@ -58,7 +59,7 @@ class DAGExecutor:
         context_guard: ContextGuard | None = None,
         original_goal: str | None = None,
         stop_event: asyncio.Event | None = None,
-        step_timeout: float = 600,
+        step_timeout: float = int(os.getenv("DAG_STEP_TIMEOUT", "600")),
         enable_tool_cache: bool = True,
         verify_llm: BaseLLM | None = None,
     ) -> None:
@@ -113,6 +114,7 @@ class DAGExecutor:
         step_index = {step.id: step for step in plan.steps}
         pending_ids = {step.id for step in plan.steps}
         completed_ids: set[str] = set()
+        failed_ids: set[str] = set()
         running_tasks: dict[asyncio.Task[None], str] = {}
 
         try:
@@ -127,6 +129,45 @@ class DAGExecutor:
                             "result": "Skipped — user changed requirements",
                         })
                     pending_ids.clear()
+
+                # Cascade failures: if any dependency of a pending step has
+                # failed, mark that step as failed too without running it.
+                # Repeat until no more steps can be cascade-failed (a step
+                # cascade-failed in this pass may unblock further cascades).
+                cascade_changed = True
+                while cascade_changed:
+                    cascade_changed = False
+                    for sid in sorted(pending_ids):
+                        step = step_index[sid]
+                        failed_deps = [
+                            dep for dep in step.dependencies if dep in failed_ids
+                        ]
+                        if failed_deps:
+                            cascade_changed = True
+                            pending_ids.discard(sid)
+                            step.status = "failed"
+                            dep_list = ", ".join(f"'{d}'" for d in failed_deps)
+                            step.result = StepOutput(
+                                summary=f"Skipped: dependency step {dep_list} failed"
+                            )
+                            step.completed_at = time.time()
+                            if step.started_at is not None:
+                                step.duration = round(
+                                    step.completed_at - step.started_at, 2,
+                                )
+                            completed_ids.add(sid)
+                            failed_ids.add(sid)
+                            self._notify(sid, "completed", {
+                                "task": step.task,
+                                "status": "failed",
+                                "result": step.result.summary,
+                            })
+                            logger.info(
+                                "Step '%s' cascade-failed due to failed "
+                                "dependency %s",
+                                sid,
+                                dep_list,
+                            )
 
                 # Identify steps that are ready to launch (sorted for deterministic order).
                 ready_ids: list[str] = sorted(
@@ -188,6 +229,8 @@ class DAGExecutor:
 
                     completed_ids.add(sid)
                     step = step_index[sid]
+                    if step.status == "failed":
+                        failed_ids.add(sid)
                     completed_data: dict[str, Any] = {
                         "task": step.task,
                         "status": step.status,
@@ -456,7 +499,24 @@ class DAGExecutor:
                             "passed": re_verification.passed,
                             "reason": re_verification.reason,
                         })
+                        if not re_verification.passed:
+                            step.status = "failed"
+                            step.result = StepOutput(
+                                summary=(
+                                    f"Verification failed after retry: "
+                                    f"{re_verification.reason}"
+                                ),
+                            )
+                            logger.warning(
+                                "Step '%s' failed re-verification: %s",
+                                step.id,
+                                re_verification.reason,
+                            )
                     except Exception as retry_exc:
+                        step.status = "failed"
+                        step.result = StepOutput(
+                            summary=f"Retry after verification failure also failed: {retry_exc}",
+                        )
                         logger.warning(
                             "Retry after verification failure also failed: %s",
                             retry_exc,

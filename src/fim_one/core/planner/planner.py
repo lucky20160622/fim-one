@@ -127,6 +127,7 @@ class DAGPlanner:
         goal: str,
         context: str = "",
         tool_names: list[str] | None = None,
+        tools: list[dict[str, str]] | None = None,
     ) -> ExecutionPlan:
         """Generate an execution plan for the given goal.
 
@@ -134,6 +135,11 @@ class DAGPlanner:
             goal: The high-level objective to decompose.
             context: Optional additional context to inform the planning
                 process (e.g. results from a previous round).
+            tool_names: Deprecated — use *tools* instead.  A plain list
+                of tool name strings (no descriptions).
+            tools: List of ``{"name": ..., "description": ...}`` dicts
+                describing available tools.  When provided, *tool_names*
+                is ignored.
 
         Returns:
             An ``ExecutionPlan`` with validated DAG structure.
@@ -142,7 +148,7 @@ class DAGPlanner:
             ValueError: If the LLM produces an invalid DAG (cycles or
                 dangling dependency references), or unparseable content.
         """
-        messages = self._build_messages(goal, context, tool_names)
+        messages = self._build_messages(goal, context, tool_names, tools)
 
         call_result = await structured_llm_call(
             self._llm,
@@ -175,14 +181,16 @@ class DAGPlanner:
         goal: str,
         context: str,
         tool_names: list[str] | None = None,
+        tools: list[dict[str, str]] | None = None,
     ) -> list[ChatMessage]:
         """Construct the message list for the planning LLM call.
 
         Args:
             goal: The high-level objective.
             context: Optional extra context.
-            tool_names: Optional list of available tool names to constrain
-                the planner's ``tool_hint`` suggestions.
+            tool_names: Deprecated plain list of tool name strings.
+            tools: Rich tool descriptors ``{"name": ..., "description": ...}``.
+                Takes priority over *tool_names* when both are provided.
 
         Returns:
             A list of ``ChatMessage`` objects.
@@ -200,7 +208,12 @@ class DAGPlanner:
         ]
 
         user_content = f"Goal: {goal}"
-        if tool_names:
+        if tools:
+            # Rich format: one line per tool with name + description
+            tool_lines = [f"- {t['name']}: {t.get('description', '')}" for t in tools]
+            user_content += "\n\nAvailable tools:\n" + "\n".join(tool_lines)
+        elif tool_names:
+            # Legacy fallback: names only
             user_content += f"\n\nAvailable tools: {', '.join(tool_names)}"
         if context:
             user_content += f"\n\nAdditional context:\n{context}"

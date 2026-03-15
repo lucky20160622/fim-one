@@ -2,6 +2,11 @@
 
 Caches identical tool calls within one DAG execution to avoid
 redundant API calls when multiple steps query the same data.
+
+Whitelist approach: only tools that explicitly set ``cacheable = True``
+are eligible for caching.  All other tools are treated as uncacheable
+by default.  This is safer for an open tool ecosystem where third-party
+or side-effectful tools should never be cached unless they opt in.
 """
 
 from __future__ import annotations
@@ -14,26 +19,13 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-# Tool names/categories that must never be cached (side-effectful)
-_UNCACHEABLE_TOOLS: set[str] = {
-    "python_exec", "shell_exec", "node_exec",
-    "email_send", "message_send",
-}
-_UNCACHEABLE_PREFIXES: tuple[str, ...] = ("file_",)
-_UNCACHEABLE_CATEGORIES: set[str] = {"code_execution", "file_ops"}
-
-
 def _is_cacheable(tool: Any) -> bool:
-    """Check whether a tool's results can safely be cached."""
-    name = getattr(tool, "name", "")
-    if name in _UNCACHEABLE_TOOLS:
-        return False
-    if any(name.startswith(p) for p in _UNCACHEABLE_PREFIXES):
-        return False
-    category = getattr(tool, "category", None)
-    if category in _UNCACHEABLE_CATEGORIES:
-        return False
-    return True
+    """Check whether a tool's results can safely be cached.
+
+    Uses a whitelist approach: the tool must explicitly declare
+    ``cacheable = True`` to be eligible for caching.
+    """
+    return getattr(tool, "cacheable", False) is True
 
 
 def _cache_key(tool_name: str, kwargs: dict) -> str:

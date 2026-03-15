@@ -25,6 +25,10 @@ class ReadSkillTool(BaseTool):
         return "read_skill"
 
     @property
+    def cacheable(self) -> bool:
+        return True
+
+    @property
     def display_name(self) -> str:
         return "Read Skill"
 

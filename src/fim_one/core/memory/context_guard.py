@@ -8,6 +8,7 @@ Also provides per-message content truncation as a safety net.
 from __future__ import annotations
 
 import logging
+import os
 from typing import TYPE_CHECKING
 
 from fim_one.core.model.types import ChatMessage
@@ -79,11 +80,16 @@ class ContextGuard:
             content.  Messages exceeding this are truncated.
     """
 
+    # Module-level defaults, configurable via environment variables.
+    _DEFAULT_BUDGET = int(os.getenv("CONTEXT_GUARD_DEFAULT_BUDGET", "32000"))
+    _MAX_MSG_CHARS = int(os.getenv("CONTEXT_GUARD_MAX_MSG_CHARS", "50000"))
+    _KEEP_RECENT = int(os.getenv("CONTEXT_GUARD_KEEP_RECENT", "4"))
+
     def __init__(
         self,
         compact_llm: BaseLLM | None = None,
-        default_budget: int = 32_000,
-        max_message_chars: int = 50_000,
+        default_budget: int = _DEFAULT_BUDGET,
+        max_message_chars: int = _MAX_MSG_CHARS,
         usage_tracker: UsageTracker | None = None,
         custom_compact_prompt: str | None = None,
     ) -> None:
@@ -188,7 +194,7 @@ class ContextGuard:
         pinned_msgs = [m for m in messages if m.pinned and m.role != "system"]
         compactable = [m for m in messages if m.role != "system" and not m.pinned]
 
-        keep_recent = 4
+        keep_recent = self._KEEP_RECENT
         if len(compactable) <= keep_recent:
             # Not enough to split — fall back to heuristic truncation.
             return CompactUtils.smart_truncate(messages, budget)

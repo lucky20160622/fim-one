@@ -30,7 +30,10 @@ DEFAULT_OFFLOAD_THRESHOLD = int(
 )
 
 # Number of preview characters to include in the truncated result.
-_PREVIEW_CHARS = 2000
+_PREVIEW_CHARS = int(os.getenv("WORKSPACE_PREVIEW_CHARS", "2000"))
+
+# Max age in hours before workspace cleanup deletes files.
+_CLEANUP_MAX_HOURS = int(os.getenv("WORKSPACE_CLEANUP_MAX_HOURS", "72"))
 
 
 class AgentWorkspace:
@@ -229,7 +232,7 @@ class AgentWorkspace:
     # Cleanup
     # ------------------------------------------------------------------
 
-    def cleanup(self, max_age_hours: int = 72) -> int:
+    def cleanup(self, max_age_hours: int = _CLEANUP_MAX_HOURS) -> int:
         """Delete workspace files older than *max_age_hours*.
 
         Args:

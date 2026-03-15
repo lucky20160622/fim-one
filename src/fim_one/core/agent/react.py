@@ -14,6 +14,7 @@ __fim_origin__ = "https://github.com/fim-ai/fim-one"
 import asyncio
 import json
 import logging
+import os
 from collections.abc import AsyncIterator, Callable
 from datetime import datetime, timezone
 from typing import Any
@@ -41,14 +42,17 @@ logger = logging.getLogger(__name__)
 # runs a lightweight "selection" LLM call first to pick the most relevant
 # tools for the current query.  This avoids injecting dozens of full schemas
 # into the main conversation context.
-TOOL_SELECTION_THRESHOLD = 12
+TOOL_SELECTION_THRESHOLD = int(os.getenv("REACT_TOOL_SELECTION_THRESHOLD", "12"))
 
 # Maximum number of tools the selection phase may pick.
-_TOOL_SELECTION_MAX = 6
+_TOOL_SELECTION_MAX = int(os.getenv("REACT_TOOL_SELECTION_MAX", "6"))
 
 # Every N tool-call iterations, inject a lightweight self-reflection prompt
 # to prevent goal drift in long reasoning chains.
-_SELF_REFLECTION_INTERVAL = 6
+_SELF_REFLECTION_INTERVAL = int(os.getenv("REACT_SELF_REFLECTION_INTERVAL", "6"))
+
+# Max chars per tool observation in synthesis prompt to prevent context overflow.
+_TOOL_OBS_TRUNCATION = int(os.getenv("REACT_TOOL_OBS_TRUNCATION", "8000"))
 
 _SELF_REFLECTION_PROMPT = (
     "[Self-check] You have completed {iteration} tool-call iterations. "
@@ -380,9 +384,11 @@ class ReActAgent:
                     )
             elif msg.role == "tool":
                 obs = msg.content or ""
-                # Truncate very long tool results to keep prompt lean.
-                if len(obs) > 2000:
-                    obs = obs[:2000] + "... (truncated)"
+                # Truncate very long tool results to keep the synthesis
+                # prompt within reasonable token limits while preserving
+                # enough content for structured data (JSON, tables, code).
+                if len(obs) > _TOOL_OBS_TRUNCATION:
+                    obs = obs[:_TOOL_OBS_TRUNCATION] + "... (truncated)"
                 context_parts.append(f"Tool result: {obs}")
             elif msg.role == "assistant" and msg.content:
                 # Final iteration content (the brief/fallback answer).

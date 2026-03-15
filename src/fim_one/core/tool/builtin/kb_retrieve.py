@@ -30,6 +30,10 @@ class KBRetrieveTool(BaseTool):
         return "kb_retrieve"
 
     @property
+    def cacheable(self) -> bool:
+        return True
+
+    @property
     def display_name(self) -> str:
         return "KB Retrieve"
 

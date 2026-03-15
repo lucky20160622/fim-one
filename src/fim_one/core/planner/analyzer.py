@@ -8,6 +8,7 @@ final answer.
 from __future__ import annotations
 
 import logging
+import os
 import re
 from collections.abc import AsyncIterator
 from typing import Any
@@ -19,6 +20,9 @@ from fim_one.core.model.usage import UsageSummary
 from .types import AnalysisResult, ExecutionPlan
 
 logger = logging.getLogger(__name__)
+
+# Max chars per step result in the analyzer prompt.
+_ANALYZER_TRUNCATION = int(os.getenv("DAG_ANALYZER_TRUNCATION", "10000"))
 
 _ANALYSIS_SCHEMA = {
     "type": "object",
@@ -215,7 +219,7 @@ class PlanAnalyzer:
     def _format_step_results(
         plan: ExecutionPlan,
         *,
-        max_result_chars: int = 10_000,
+        max_result_chars: int = _ANALYZER_TRUNCATION,
     ) -> str:
         """Format all step results into a readable summary.
 

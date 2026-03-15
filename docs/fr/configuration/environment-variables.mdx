@@ -118,16 +118,56 @@ Pour OpenAI et Gemini, le fournisseur gère l'allocation de tokens en interne en
 
 ## Exécution de l'agent
 
+### Agent ReAct
+
 | Variable | Requis | Par défaut | Description |
 |---|---|---|---|
-| `REACT_MAX_ITERATIONS` | Non | `20` | Nombre max d'itérations d'appels d'outils par requête ReAct |
-| `MAX_CONCURRENCY` | Non | `5` | Nombre max d'étapes parallèles dans l'exécuteur DAG |
-| `DAG_STEP_MAX_ITERATIONS` | Non | `15` | Nombre max d'itérations d'appels d'outils dans chaque étape DAG |
-| `DAG_MAX_REPLAN_ROUNDS` | Non | `3` | Nombre max de tentatives de re-planification autonome lorsque l'objectif n'est pas atteint |
-| `DAG_REPLAN_STOP_CONFIDENCE` | Non | `0.8` | Arrêter les tentatives lorsque la confiance de l'agent que l'objectif est inatteignable dépasse ce seuil (`0.0` = ne jamais arrêter tôt, `1.0` = arrêter en cas d'échec) |
-| `DAG_TOOL_CACHE` | Non | `true` | Mettre en cache les appels d'outils identiques au sein d'une seule exécution DAG. Les verrous asynchrones par clé préviennent les pics de charge. Définir à `false` pour désactiver la mise en cache |
-| `DAG_STEP_VERIFICATION` | Non | `false` | Activer la vérification de qualité basée sur LLM après la fin de chaque étape DAG. En cas d'échec, l'étape se réessaie une fois avec retour de vérification. Ajoute de la latence mais améliore la précision des résultats |
-| `AUTO_ROUTING` | Non | `true` | Activer la classification automatique des requêtes. Un LLM rapide analyse chaque requête et l'achemine vers le mode d'exécution ReAct (une seule étape) ou DAG (multi-étapes). Le point de terminaison `/api/auto` utilise ceci. Définir à `false` pour exiger une sélection de mode explicite |
+| `REACT_MAX_ITERATIONS` | Non | `20` | Nombre maximum d'itérations d'appels d'outils par requête ReAct. Plus élevé = plus complet mais plus lent et plus coûteux |
+| `REACT_TOOL_SELECTION_THRESHOLD` | Non | `12` | Lorsque le nombre total d'outils enregistrés dépasse ce seuil, un appel LLM léger sélectionne le sous-ensemble le plus pertinent avant chaque requête |
+| `REACT_TOOL_SELECTION_MAX` | Non | `6` | Nombre maximum d'outils à conserver après la sélection intelligente (effectif uniquement lorsque le nombre d'outils dépasse `REACT_TOOL_SELECTION_THRESHOLD`) |
+| `REACT_SELF_REFLECTION_INTERVAL` | Non | `6` | Injecter une invite d'auto-réflexion tous les N appels d'outils pour aider l'agent à se corriger et éviter les boucles |
+| `REACT_TOOL_OBS_TRUNCATION` | Non | `8000` | Nombre maximum de caractères par observation d'outil lors de la synthèse de la réponse finale. Les valeurs plus élevées préservent plus de données structurées (JSON, tableaux) au détriment de plus de jetons |
+
+### Planificateur DAG
+
+| Variable | Requis | Par défaut | Description |
+|---|---|---|---|
+| `MAX_CONCURRENCY` | Non | `5` | Nombre maximum d'étapes parallèles dans l'exécuteur DAG |
+| `DAG_STEP_MAX_ITERATIONS` | Non | `15` | Nombre maximum d'itérations d'appels d'outils dans chaque étape DAG |
+| `DAG_STEP_TIMEOUT` | Non | `600` | Délai d'expiration de l'exécution d'une étape en secondes. Les étapes dépassant ce délai sont marquées comme échouées et leurs dépendants sont ignorés en cascade |
+| `DAG_MAX_REPLAN_ROUNDS` | Non | `3` | Nombre maximum de tentatives de re-planification autonome lorsque l'objectif n'est pas atteint. Les interruptions utilisateur (injection) sont illimitées et ne comptent pas dans ce budget |
+| `DAG_REPLAN_STOP_CONFIDENCE` | Non | `0.8` | Arrêter les nouvelles tentatives lorsque la confiance de l'agent que l'objectif est inatteignable dépasse ce seuil (`0.0` = ne jamais arrêter tôt, `1.0` = arrêter en cas d'échec) |
+| `DAG_VERIFY_TRUNCATION` | Non | `2000` | Nombre maximum de caractères de la sortie d'étape envoyés au LLM vérificateur d'étape pour l'évaluation de la qualité |
+| `DAG_ANALYZER_TRUNCATION` | Non | `10000` | Nombre maximum de caractères par résultat d'étape lors du formatage pour l'analyseur post-exécution |
+| `DAG_REPLAN_RECENT_TRUNCATION` | Non | `500` | Nombre maximum de caractères par résultat d'étape du tour le plus récent lors de la construction du contexte de re-planification |
+| `DAG_REPLAN_OLDER_TRUNCATION` | Non | `200` | Nombre maximum de caractères par résultat d'étape des tours antérieurs lors de la construction du contexte de re-planification. Les tours antérieurs sont tronqués plus agressivement pour économiser le contexte |
+| `DAG_TOOL_CACHE` | Non | `true` | Mettre en cache les appels d'outils identiques au sein d'une seule exécution DAG. Seuls les outils explicitement marqués comme `cacheable` (outils en lecture seule comme la recherche, la récupération de connaissances) sont mis en cache. Définir sur `false` pour désactiver complètement la mise en cache |
+| `DAG_STEP_VERIFICATION` | Non | `false` | Activer la vérification de qualité basée sur LLM après la fin de chaque étape DAG. En cas d'échec, l'étape est relancée une fois avec les commentaires de vérification. Ajoute de la latence mais améliore la précision des résultats |
+| `AUTO_ROUTING` | Non | `true` | Activer la classification automatique des requêtes. Un LLM rapide analyse chaque requête et l'achemine vers le mode d'exécution ReAct (une seule étape) ou DAG (multi-étapes). Le point de terminaison `/api/auto` utilise ceci. Définir sur `false` pour exiger une sélection de mode explicite |
+
+### Context Guard
+
+Contrôle la gestion automatique de la fenêtre de contexte qui empêche les conversations de dépasser la limite du modèle.
+
+| Variable | Requis | Par défaut | Description |
+|---|---|---|---|
+| `CONTEXT_GUARD_DEFAULT_BUDGET` | Non | `32000` | Budget de jetons par défaut pour la gestion de la fenêtre de contexte. Lorsque la conversation dépasse cette limite, les messages plus anciens sont compactés |
+| `CONTEXT_GUARD_MAX_MSG_CHARS` | Non | `50000` | Limite de caractères stricte pour tout message unique. Les messages dépassant cette limite sont tronqués comme filet de sécurité |
+| `CONTEXT_GUARD_KEEP_RECENT` | Non | `4` | Nombre de messages les plus récents à conserver lors de la compaction de l'historique de conversation |
+
+### Espace de travail de l'agent
+
+| Variable | Requis | Par défaut | Description |
+|---|---|---|---|
+| `WORKSPACE_OFFLOAD_THRESHOLD` | Non | `8000` | Lorsqu'une sortie d'outil dépasse ce nombre de caractères, elle est enregistrée dans un fichier d'espace de travail et un aperçu tronqué est injecté dans le contexte de conversation |
+| `WORKSPACE_PREVIEW_CHARS` | Non | `2000` | Nombre de caractères d'aperçu à inclure dans les références d'espace de travail tronquées |
+| `WORKSPACE_CLEANUP_MAX_HOURS` | Non | `72` | Les fichiers d'espace de travail plus anciens que ce nombre d'heures sont éligibles au nettoyage automatique |
+
+### Système
+
+| Variable | Requis | Par défaut | Description |
+|---|---|---|---|
+| `SYSTEM_PROMPT_RESERVE` | Non | `4000` | Caractères réservés pour l'invite système lors du calcul du budget de contexte disponible |
 
 ---
 

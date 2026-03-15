@@ -36,6 +36,16 @@ class Tool(Protocol):
         """JSON Schema for tool parameters."""
         ...
 
+    @property
+    def cacheable(self) -> bool:
+        """Whether results can be cached across DAG steps.
+
+        Whitelist approach: only tools that explicitly opt in (True) are
+        cached.  Default is False — safe for side-effectful or
+        non-deterministic tools.
+        """
+        ...
+
     async def run(self, **kwargs: Any) -> str:
         """Execute the tool and return string result."""
         ...
@@ -63,6 +73,15 @@ class BaseTool:
     @property
     def parameters_schema(self) -> dict[str, Any]:
         return {"type": "object", "properties": {}, "required": []}
+
+    @property
+    def cacheable(self) -> bool:
+        """Whether results can be cached across DAG steps.
+
+        Whitelist approach: defaults to False (not cached).  Override to
+        True in read-only / idempotent tool subclasses.
+        """
+        return False
 
     def availability(self) -> tuple[bool, str | None]:
         """Return (is_available, reason_if_not).

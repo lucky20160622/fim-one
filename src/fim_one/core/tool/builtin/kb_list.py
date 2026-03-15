@@ -24,6 +24,10 @@ class KBListTool(BaseTool):
         return "kb_list"
 
     @property
+    def cacheable(self) -> bool:
+        return True
+
+    @property
     def display_name(self) -> str:
         return "KB List"
 

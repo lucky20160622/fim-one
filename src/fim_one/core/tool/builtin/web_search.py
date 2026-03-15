@@ -32,6 +32,10 @@ class WebSearchTool(BaseTool):
         return "web_search"
 
     @property
+    def cacheable(self) -> bool:
+        return True
+
+    @property
     def category(self) -> str:
         return "web"
 

@@ -11,17 +11,26 @@ description: "FIM One의 모든 주목할 만한 변경 사항입니다."
 
 ### 추가됨
 
-- **Shadow Market org** — 기본 제공 Platform org를 shadow Market org로 변환했습니다. 리소스는 이제 마켓플레이스 브라우징을 통해 발견되고 명시적으로 구독됩니다(pull 모델). 멤버십을 통한 자동 표시(push 모델) 대신 사용됩니다. 관리자가 아닌 사용자는 더 이상 등록 시 자동으로 org에 참여하지 않습니다. Market org는 사용자가 마켓플레이스 UI를 통해서만 상호작용하는 보이지 않는 백엔드 엔티티로 작동합니다.
-- **필수 검토를 포함한 마켓플레이스 게시** — Market org에 게시하려면 이제 Market org 소유자/관리자를 제외하고 항상 검토가 필요합니다. 게시 대화상자에는 필수 검토 공지와 함께 "마켓플레이스에 게시" 옵션이 표시됩니다.
-- **Skill 및 Workflow 마켓플레이스 브라우징** — Skill 및 Workflow 리소스 유형을 마켓플레이스에 추가하여 모든 5가지 리소스 유형(에이전트, 커넥터, 지식 베이스, MCP 서버, 스킬/워크플로우)에 대한 커뮤니티 발견 및 구독을 활성화했습니다.
-- **Market org 게시 엔드포인트 우회** — 6개의 리소스 게시 엔드포인트는 이제 Market org에 대한 멤버십 확인을 건너뜁니다. 이를 통해 모든 사용자가 멤버가 아니어도 마켓플레이스에 리소스를 게시할 수 있습니다.
-- **Platform-to-Market 마이그레이션** — Alembic 마이그레이션은 Platform org의 이름을 Market으로 변경하고 모든 비소유자 멤버십을 제거하여 push 기반에서 pull 기반 리소스 공유로의 전환을 완료합니다.
-- **Workflow 버전 변경 요약** — `compute_blueprint_diff()`는 새 버전을 저장할 때 blueprint diff에서 인간이 읽을 수 있는 요약을 자동 생성하여 추가/제거/수정된 노드 및 엣지를 설명합니다.
-- **Workflow 실행 보존 정리** — 구성 가능한 나이 및 개수 제한에 따라 이전 워크플로우 실행을 제거하는 백그라운드 정리 작업입니다. 워크플로우별 보존 재정의. 수동 정리 트리거를 위한 관리자 엔드포인트. 새 환경 변수: `WORKFLOW_RUN_MAX_AGE_DAYS`, `WORKFLOW_RUN_MAX_PER_WORKFLOW`, `WORKFLOW_RUN_CLEANUP_INTERVAL_HOURS`.
-- **Connector 회로 차단기** — 3가지 상태(closed/open/half-open) 회로 차단기와 커넥터별 장애 추적입니다. 5xx 오류를 감지하고 실패한 커넥터를 일시적으로 비활성화합니다. 회로 차단기 상태 검사를 위한 모니터링 엔드포인트.
-- **ConnectorMetaTool (Progressive Disclosure Phase 1-2)** — 단일 메타 도구가 에이전트 프롬프트의 작업별 도구를 대체합니다. 시스템 프롬프트는 경량 스텁(커넥터당 ~30 토큰 vs 작업당 ~250 토큰)을 수신합니다. 에이전트는 `discover(connector)`를 호출하여 전체 작업 스키마를 필요에 따라 로드하고 `execute`를 호출하여 작업을 실행합니다. 하위 호환성을 위한 기능 플래그 `CONNECTOR_TOOL_MODE`.
-- **Real MCP executor** — 스텁 MCP 노드 executor를 워크플로우 실행 내에서 MCP 서버 발견 및 도구 호출을 지원하는 전체 구현으로 교체했습니다.
-- **에이전트 중간 루프 자기 성찰** — ReAct 루프(JSON 및 기본 모드 모두)에서 6번의 도구 호출 반복마다 주입되는 경량 목표 확인 프롬프트로 긴 추론 체인에서 목표 이탈을 방지합니다. 에이전트에게 여전히 진행 중인지, 작업을 반복하고 있는지, 아니면 최종 답변을 생성해야 하는지 묻습니다.
+- **Tool cache whitelist refactor** — `ToolCache`의 하드코딩된 블랙리스트를 whitelist 방식으로 교체했습니다. `Tool` 프로토콜에 `cacheable` 속성 추가(기본값 `False`); `cacheable=True`로 명시적으로 표시된 도구만 캐시됩니다. 11개의 읽기 전용 도구(web_search, kb_retrieve, calculator 등)가 캐시 가능으로 표시되었고, 모든 부작용 도구(code exec, email, 커넥터)는 기본적으로 캐시되지 않습니다. 새로운 커넥터 도구는 추가 구성 없이 안전합니다.
+- **DAG executor cascade failure** — 실패하거나 시간 초과된 단계는 이제 종속 단계를 cascade-block합니다. `failed_ids` 추적이 transitive propagation(A→B→C chains)과 함께 추가되었습니다. 종속 단계는 오염된 컨텍스트로 실행되는 대신 설명적인 메시지와 함께 자동으로 실패로 표시됩니다.
+- **DAG step verifier status fix** — 단계 검증 재시도 실패는 이제 `"completed"` 상태로 남겨지는 대신 단계를 `"failed"`로 올바르게 표시합니다. 실패한 검증은 새로운 cascade failure 메커니즘을 통해 다운스트림 단계로 전파됩니다.
+- **DAG planner tool descriptions** — Planner는 이제 각 도구에 대해 이름만이 아닌 `{name, description}`을 받으므로 더 정확한 단계-도구 매핑이 가능하고 hallucinated `tool_hint` 값이 감소합니다.
+- **DAG re-planner full history** — Re-planning 컨텍스트는 이제 이전 라운드의 결과를 누적합니다(마지막 라운드만이 아닌 모든 이전 라운드). 이전 라운드는 더 적극적으로 truncated(200 chars/step)되고 가장 최근 라운드는 500 chars/step을 유지합니다.
+- **stream_answer synthesis quality** — 최종 답변을 합성할 때 도구 관찰 truncation을 2000에서 8000자로 증가시켜 더 많은 구조화된 데이터(JSON 테이블, 코드 출력)를 보존합니다.
+- **14 engine constants parameterized** — ReAct 에이전트, DAG planner, context guard, workspace 및 시스템 모듈 전반에 걸쳐 하드코딩된 숫자 상수를 환경 변수로 추출했습니다. 모든 새로운 env 변수는 `example.env` 및 `docs/configuration/environment-variables.mdx`에 문서화되어 있습니다.
+
+- **Evidence confidence UI enhancements** — grounding pipeline의 프론트엔드 표시에 대한 세 가지 개선 사항: (1) insufficient-evidence 관찰은 이제 원본 영어 텍스트 대신 i18n 앰버 경고 카드로 렌더링되고, (2) 인라인 `[N]` 인용 배지는 새로운 EvidenceContext를 통해 소스 이름, 인용 발췌 및 관련성 점수가 있는 hover Popovers를 표시하며, (3) 충돌 경고 배너는 References 섹션에 나타나고 증거 소스가 서로 모순될 때 확장 가능한 나란히 비교를 표시합니다.
+- **Shadow Market org** — 기본 제공 Platform org를 shadow Market org로 변환했습니다. 리소스는 이제 마켓플레이스 브라우징을 통해 발견되고 명시적으로 구독됩니다(pull 모델). 멤버십을 통한 자동 표시(push 모델) 대신입니다. 관리자가 아닌 사용자는 더 이상 등록 시 자동으로 org에 가입하지 않습니다. Market org는 사용자가 마켓플레이스 UI를 통해서만 상호 작용하는 보이지 않는 백엔드 엔티티로 작동합니다.
+- **Marketplace publish with mandatory review** — Market org에 게시하려면 이제 Market org 소유자/관리자를 제외하고 항상 검토가 필요합니다. 게시 대화 상자는 필수 검토 공지와 함께 "Publish to Marketplace" 옵션을 표시합니다.
+- **Skill and Workflow marketplace browsing** — Skill 및 Workflow 리소스 유형을 마켓플레이스에 추가하여 모든 5가지 리소스 유형(에이전트, 커넥터, 지식 베이스, MCP 서버, 스킬/워크플로우)에 대한 커뮤니티 발견 및 구독을 활성화합니다.
+- **Market org publish endpoint bypass** — 6개의 리소스 게시 엔드포인트는 이제 Market org에 대한 멤버십 확인을 건너뛰므로 모든 사용자가 멤버가 아니어도 마켓플레이스에 리소스를 게시할 수 있습니다.
+- **Platform-to-Market migration** — Alembic migration은 Platform org의 이름을 Market으로 변경하고 모든 비소유자 멤버십을 제거하여 push 기반에서 pull 기반 리소스 공유로의 전환을 완료합니다.
+- **Workflow version change summaries** — `compute_blueprint_diff()`는 새 버전을 저장할 때 blueprint diffs에서 인간이 읽을 수 있는 요약을 자동 생성하여 추가/제거/수정된 노드 및 엣지를 설명합니다.
+- **Workflow run retention cleanup** — 구성 가능한 나이 및 개수 제한에 따라 이전 워크플로우 실행을 제거하는 백그라운드 정리 작업입니다. 워크플로우별 보존 재정의. 수동 정리 트리거를 위한 관리자 엔드포인트. 새로운 env 변수: `WORKFLOW_RUN_MAX_AGE_DAYS`, `WORKFLOW_RUN_MAX_PER_WORKFLOW`, `WORKFLOW_RUN_CLEANUP_INTERVAL_HOURS`.
+- **Connector circuit breaker** — 3가지 상태 circuit breaker(closed/open/half-open)이며 커넥터별 실패 추적이 있습니다. 5xx 오류를 감지하고 실패한 커넥터를 일시적으로 비활성화합니다. circuit breaker 상태 검사를 위한 모니터링 엔드포인트.
+- **ConnectorMetaTool (Progressive Disclosure Phase 1-2)** — 단일 메타 도구가 에이전트 프롬프트의 작업별 도구를 대체합니다. 시스템 프롬프트는 경량 스텁(커넥터당 ~30 토큰 vs 작업당 ~250 토큰)을 받습니다. 에이전트는 `discover(connector)`를 호출하여 필요 시 전체 작업 스키마를 로드하고 `execute`를 호출하여 작업을 실행합니다. 하위 호환성을 위한 기능 플래그 `CONNECTOR_TOOL_MODE`.
+- **Real MCP executor** — stub MCP 노드 executor를 MCP 서버 발견 및 워크플로우 실행 내 도구 호출을 지원하는 전체 구현으로 교체했습니다.
+- **Agent mid-loop self-reflection** — ReAct 루프(JSON 및 네이티브 모드 모두)에서 6개 도구 호출 반복마다 주입된 경량 goal-check 프롬프트로 긴 추론 체인에서 goal drift를 방지합니다. 에이전트에게 여전히 올바른 경로에 있는지, 작업을 반복하고 있는지, 아니면 최종 답변을 생성해야 하는지 묻습니다.
 
 ### 변경 사항
 

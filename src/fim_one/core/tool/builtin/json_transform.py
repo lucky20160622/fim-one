@@ -20,6 +20,10 @@ class JsonTransformTool(BaseTool):
         return "json_transform"
 
     @property
+    def cacheable(self) -> bool:
+        return True
+
+    @property
     def display_name(self) -> str:
         return "JSON Transform"
 

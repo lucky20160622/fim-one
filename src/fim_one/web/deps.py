@@ -230,7 +230,7 @@ def get_react_max_iterations() -> int:
 
 
 # Reserve for system prompt + tool descriptions in the context window.
-_SYSTEM_PROMPT_RESERVE = 4_000
+_SYSTEM_PROMPT_RESERVE = int(os.getenv("SYSTEM_PROMPT_RESERVE", "4000"))
 
 
 def _compute_input_budget(context_size: int, max_output: int) -> int:

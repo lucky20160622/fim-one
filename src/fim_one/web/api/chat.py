@@ -162,22 +162,51 @@ def _chunk_answer(text: str, target_size: int = 30) -> list[str]:
 # DAG re-planning helper
 # ---------------------------------------------------------------------------
 
+# Chars per step result in the most recent replan round.
+_REPLAN_RECENT_TRUNCATION = int(os.getenv("DAG_REPLAN_RECENT_TRUNCATION", "500"))
+# Chars per step result in older replan rounds.
+_REPLAN_OLDER_TRUNCATION = int(os.getenv("DAG_REPLAN_OLDER_TRUNCATION", "200"))
 
-def _format_replan_context(plan: ExecutionPlan, analysis: AnalysisResult) -> str:
-    """Format previous round's results as context for re-planning."""
-    lines = [f"Previous attempt (round {plan.current_round}) did not fully achieve the goal."]
-    lines.append(f"Analyzer reasoning: {analysis.reasoning}")
-    lines.append("")
-    lines.append("Step results from previous round:")
-    for step in plan.steps:
-        status_info = f"[{step.id}] status={step.status}"
-        if step.result:
-            result = step.result.summary if step.result else "(no output)"
-            result_preview = result[:500] + "..." if len(result) > 500 else result
-            lines.append(f"  {status_info}: {result_preview}")
-        else:
-            lines.append(f"  {status_info}: (no output)")
-    lines.append("")
+
+def _format_replan_context(
+    round_history: list[tuple[ExecutionPlan, AnalysisResult]],
+) -> str:
+    """Format ALL previous rounds' results as context for re-planning.
+
+    Older rounds are truncated more aggressively to keep prompt size
+    manageable while still giving the planner visibility into the full
+    trajectory:
+    - Most recent round (N-1): ``DAG_REPLAN_RECENT_TRUNCATION`` chars per step
+    - Older rounds (N-2 and earlier): ``DAG_REPLAN_OLDER_TRUNCATION`` chars per step
+    """
+    if not round_history:
+        return ""
+
+    lines: list[str] = []
+    total_rounds = len(round_history)
+
+    for idx, (plan, analysis) in enumerate(round_history):
+        is_latest = idx == total_rounds - 1
+        # More generous truncation for the latest round
+        truncation_limit = _REPLAN_RECENT_TRUNCATION if is_latest else _REPLAN_OLDER_TRUNCATION
+
+        lines.append(f"--- Round {plan.current_round} ---")
+        lines.append(f"Analyzer reasoning: {analysis.reasoning}")
+        lines.append(f"Achieved: {analysis.achieved}, Confidence: {analysis.confidence}")
+        lines.append("Step results:")
+        for step in plan.steps:
+            status_info = f"[{step.id}] status={step.status}"
+            if step.result:
+                result = step.result.summary if step.result else "(no output)"
+                if len(result) > truncation_limit:
+                    result_preview = result[:truncation_limit] + "... (truncated)"
+                else:
+                    result_preview = result
+                lines.append(f"  {status_info}: {result_preview}")
+            else:
+                lines.append(f"  {status_info}: (no output)")
+        lines.append("")
+
     lines.append("Please create a revised plan that addresses the gaps identified above.")
     return "\n".join(lines)
 
@@ -2193,13 +2222,16 @@ async def dag_endpoint(
             round_num = 0
             autonomous_replans = 0
             inject_in_round = False
+            # Accumulate (plan, analysis) from every completed round so
+            # the re-planner can see the full execution history.
+            round_history: list[tuple[ExecutionPlan, AnalysisResult]] = []
             while True:
                 round_num += 1
                 inject_in_round = False
-                # -- Build replan context from previous round's results ----
+                # -- Build replan context from ALL previous rounds ---------
                 replan_context = ""
-                if plan is not None and analysis is not None:
-                    replan_context = _format_replan_context(plan, analysis)
+                if round_history:
+                    replan_context = _format_replan_context(round_history)
 
                 # Drain any injected messages at phase transition.
                 if dag_interrupt_queue is not None:
@@ -2225,12 +2257,15 @@ async def dag_endpoint(
                     logger.info("Client disconnected before planning round %d", round_num)
                     return
 
-                tool_names = [t.name for t in tools.list_tools()]
+                tool_descriptors = [
+                    {"name": t.name, "description": t.description}
+                    for t in tools.list_tools()
+                ]
                 planner = DAGPlanner(llm=llm, language_directive=lang_directive)
                 plan = await planner.plan(
                     enriched_query,
                     context=replan_context,
-                    tool_names=tool_names,
+                    tools=tool_descriptors,
                 )
                 plan.current_round = round_num
                 yield _emit(
@@ -2422,6 +2457,9 @@ async def dag_endpoint(
                         cumulative_usage = cumulative_usage + round_usage
                     else:
                         cumulative_usage = round_usage
+
+                # -- Record this round for future re-planning context ------
+                round_history.append((plan, analysis))
 
                 # -- Check if goal achieved or confident enough ------------
                 if analysis.achieved:

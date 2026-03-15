@@ -34,6 +34,10 @@ class WebFetchTool(BaseTool):
         return "web_fetch"
 
     @property
+    def cacheable(self) -> bool:
+        return True
+
+    @property
     def category(self) -> str:
         return "web"
 

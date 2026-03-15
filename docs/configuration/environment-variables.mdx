@@ -122,16 +122,56 @@ For OpenAI and Gemini, the provider handles token allocation internally based on
 
 ## Agent Execution
 
+### ReAct Agent
+
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `REACT_MAX_ITERATIONS` | No | `20` | Max tool-call iterations per ReAct request |
+| `REACT_MAX_ITERATIONS` | No | `20` | Max tool-call iterations per ReAct request. Higher = more thorough but slower and costlier |
+| `REACT_TOOL_SELECTION_THRESHOLD` | No | `12` | When the total number of registered tools exceeds this threshold, a lightweight LLM call selects the most relevant subset before each request |
+| `REACT_TOOL_SELECTION_MAX` | No | `6` | Max tools to keep after smart selection (only effective when tool count exceeds `REACT_TOOL_SELECTION_THRESHOLD`) |
+| `REACT_SELF_REFLECTION_INTERVAL` | No | `6` | Inject a self-reflection prompt every N tool calls to help the agent course-correct and avoid loops |
+| `REACT_TOOL_OBS_TRUNCATION` | No | `8000` | Max characters per tool observation when synthesizing the final answer. Higher values preserve more structured data (JSON, tables) at the cost of more tokens |
+
+### DAG Planner
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
 | `MAX_CONCURRENCY` | No | `5` | Max parallel steps in DAG executor |
 | `DAG_STEP_MAX_ITERATIONS` | No | `15` | Max tool-call iterations within each DAG step |
-| `DAG_MAX_REPLAN_ROUNDS` | No | `3` | Max autonomous re-plan attempts when goal is not achieved |
+| `DAG_STEP_TIMEOUT` | No | `600` | Step execution timeout in seconds. Steps exceeding this are marked as failed and their dependents are cascade-skipped |
+| `DAG_MAX_REPLAN_ROUNDS` | No | `3` | Max autonomous re-plan attempts when goal is not achieved. User interrupts (inject) are unlimited and do not count against this budget |
 | `DAG_REPLAN_STOP_CONFIDENCE` | No | `0.8` | Stop retrying when agent confidence that goal is unachievable exceeds this threshold (`0.0` = never stop early, `1.0` = stop on any failure) |
-| `DAG_TOOL_CACHE` | No | `true` | Cache identical tool calls within a single DAG execution. Per-key async locks prevent thundering herd. Set to `false` to disable caching |
+| `DAG_VERIFY_TRUNCATION` | No | `2000` | Max characters of step output sent to the step verifier LLM for quality judgment |
+| `DAG_ANALYZER_TRUNCATION` | No | `10000` | Max characters per step result when formatting for the post-execution analyzer |
+| `DAG_REPLAN_RECENT_TRUNCATION` | No | `500` | Max characters per step result from the most recent round when building re-plan context |
+| `DAG_REPLAN_OLDER_TRUNCATION` | No | `200` | Max characters per step result from older rounds when building re-plan context. Older rounds are more aggressively truncated to save context |
+| `DAG_TOOL_CACHE` | No | `true` | Cache identical tool calls within a single DAG execution. Only tools explicitly marked as `cacheable` (read-only tools like search, knowledge retrieval) are cached. Set to `false` to disable caching entirely |
 | `DAG_STEP_VERIFICATION` | No | `false` | Enable LLM-based quality check after each DAG step completes. On failure, the step retries once with verification feedback. Adds latency but improves result accuracy |
 | `AUTO_ROUTING` | No | `true` | Enable automatic query classification. A fast LLM analyzes each query and routes it to either ReAct (single-step) or DAG (multi-step) execution mode. The `/api/auto` endpoint uses this. Set to `false` to require explicit mode selection |
+
+### Context Guard
+
+Controls the automatic context window management that prevents conversations from exceeding the model's limit.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `CONTEXT_GUARD_DEFAULT_BUDGET` | No | `32000` | Default token budget for context window management. When the conversation exceeds this, older messages are compacted |
+| `CONTEXT_GUARD_MAX_MSG_CHARS` | No | `50000` | Hard character limit on any single message. Messages exceeding this are truncated as a safety net |
+| `CONTEXT_GUARD_KEEP_RECENT` | No | `4` | Number of most recent messages to preserve when compacting conversation history |
+
+### Agent Workspace
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `WORKSPACE_OFFLOAD_THRESHOLD` | No | `8000` | When a tool output exceeds this many characters, it is saved to a workspace file and a truncated preview is injected into the conversation context |
+| `WORKSPACE_PREVIEW_CHARS` | No | `2000` | Number of preview characters to include in truncated workspace references |
+| `WORKSPACE_CLEANUP_MAX_HOURS` | No | `72` | Workspace files older than this many hours are eligible for automatic cleanup |
+
+### System
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `SYSTEM_PROMPT_RESERVE` | No | `4000` | Characters reserved for the system prompt when calculating the available context budget |
 
 ---
 

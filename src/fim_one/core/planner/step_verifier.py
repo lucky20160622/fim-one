@@ -7,6 +7,7 @@ actually satisfies the step's stated task.
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -16,6 +17,9 @@ from fim_one.core.model.types import ChatMessage
 
 logger = logging.getLogger(__name__)
 
+# Max chars of step result sent to the verification prompt.
+_VERIFY_TRUNCATION = int(os.getenv("DAG_VERIFY_TRUNCATION", "2000"))
+
 _VERIFICATION_PROMPT = """\
 You are a quality-assurance judge. A task was given to an AI agent and it \
 produced a result. Determine whether the result adequately addresses the task.
@@ -23,7 +27,7 @@ produced a result. Determine whether the result adequately addresses the task.
 ## Task
 {task}
 
-## Result (truncated to 2000 chars)
+## Result (truncated to {truncation_limit} chars)
 {result}
 
 Respond with JSON: {{"passed": true/false, "reason": "brief explanation"}}
@@ -73,8 +77,10 @@ async def verify_step(
     Returns:
         A :class:`VerificationResult` with the verdict and reason.
     """
-    truncated = result_summary[:2000]
-    prompt = _VERIFICATION_PROMPT.format(task=task, result=truncated)
+    truncated = result_summary[:_VERIFY_TRUNCATION]
+    prompt = _VERIFICATION_PROMPT.format(
+        task=task, result=truncated, truncation_limit=_VERIFY_TRUNCATION,
+    )
 
     messages = [
         ChatMessage(role="user", content=prompt),

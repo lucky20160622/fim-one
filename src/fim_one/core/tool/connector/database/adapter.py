@@ -47,6 +47,10 @@ class _DatabaseListTablesTool(BaseTool):
         return self._name
 
     @property
+    def cacheable(self) -> bool:
+        return True
+
+    @property
     def display_name(self) -> str:
         return f"{self._connector_name}: List Tables"
 
@@ -141,6 +145,10 @@ class _DatabaseDescribeTableTool(BaseTool):
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def cacheable(self) -> bool:
+        return True
 
     @property
     def display_name(self) -> str:

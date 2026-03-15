@@ -132,6 +132,10 @@ class CalculatorTool(BaseTool):
         return "calculator"
 
     @property
+    def cacheable(self) -> bool:
+        return True
+
+    @property
     def category(self) -> str:
         return "computation"
 

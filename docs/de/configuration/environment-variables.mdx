@@ -120,16 +120,56 @@ Für OpenAI und Gemini verwaltet der Anbieter die Token-Zuweisung intern basiere
 
 ## Agent-Ausführung
 
+### ReAct-Agent
+
 | Variable | Erforderlich | Standard | Beschreibung |
 |---|---|---|---|
-| `REACT_MAX_ITERATIONS` | Nein | `20` | Max. Tool-Call-Iterationen pro ReAct-Anfrage |
-| `MAX_CONCURRENCY` | Nein | `5` | Max. parallele Schritte im DAG-Executor |
-| `DAG_STEP_MAX_ITERATIONS` | Nein | `15` | Max. Tool-Call-Iterationen innerhalb jedes DAG-Schritts |
-| `DAG_MAX_REPLAN_ROUNDS` | Nein | `3` | Max. autonome Neuplanungsversuche, wenn das Ziel nicht erreicht wird |
-| `DAG_REPLAN_STOP_CONFIDENCE` | Nein | `0.8` | Wiederholungen stoppen, wenn die Agent-Konfidenz, dass das Ziel unerreichbar ist, diesen Schwellenwert überschreitet (`0.0` = nie früh stoppen, `1.0` = bei jedem Fehler stoppen) |
-| `DAG_TOOL_CACHE` | Nein | `true` | Cache identischer Tool-Aufrufe innerhalb einer einzelnen DAG-Ausführung. Pro-Schlüssel-Async-Sperren verhindern Thundering Herd. Auf `false` setzen, um Caching zu deaktivieren |
-| `DAG_STEP_VERIFICATION` | Nein | `false` | LLM-basierte Qualitätsprüfung nach Abschluss jedes DAG-Schritts aktivieren. Bei Fehler wird der Schritt einmal mit Verifikations-Feedback wiederholt. Erhöht die Latenz, verbessert aber die Genauigkeit der Ergebnisse |
-| `AUTO_ROUTING` | Nein | `true` | Automatische Abfrageklassifizierung aktivieren. Ein schnelles LLM analysiert jede Abfrage und leitet sie entweder an ReAct (Einzelschritt) oder DAG (Mehrschritte) Ausführungsmodus weiter. Der `/api/auto`-Endpunkt verwendet dies. Auf `false` setzen, um explizite Modusauswahl zu erfordern |
+| `REACT_MAX_ITERATIONS` | Nein | `20` | Max. Werkzeugaufrufe pro ReAct-Anfrage. Höher = gründlicher, aber langsamer und teurer |
+| `REACT_TOOL_SELECTION_THRESHOLD` | Nein | `12` | Wenn die Gesamtzahl der registrierten Werkzeuge diesen Schwellenwert überschreitet, wählt ein einfacher LLM-Aufruf vor jeder Anfrage die relevanteste Teilmenge aus |
+| `REACT_TOOL_SELECTION_MAX` | Nein | `6` | Max. Werkzeuge nach intelligenter Auswahl (nur wirksam, wenn die Werkzeuganzahl `REACT_TOOL_SELECTION_THRESHOLD` überschreitet) |
+| `REACT_SELF_REFLECTION_INTERVAL` | Nein | `6` | Injizieren Sie alle N Werkzeugaufrufe eine Selbstreflexions-Eingabeaufforderung, um dem Agent zu helfen, den Kurs zu korrigieren und Schleifen zu vermeiden |
+| `REACT_TOOL_OBS_TRUNCATION` | Nein | `8000` | Max. Zeichen pro Werkzeugbeobachtung bei der Synthese der endgültigen Antwort. Höhere Werte bewahren mehr strukturierte Daten (JSON, Tabellen) auf Kosten von mehr Token |
+
+### DAG Planner
+
+| Variable | Erforderlich | Standard | Beschreibung |
+|---|---|---|---|
+| `MAX_CONCURRENCY` | Nein | `5` | Max parallele Schritte im DAG-Executor |
+| `DAG_STEP_MAX_ITERATIONS` | Nein | `15` | Max Tool-Call-Iterationen innerhalb jedes DAG-Schritts |
+| `DAG_STEP_TIMEOUT` | Nein | `600` | Timeout für Schrittausführung in Sekunden. Schritte, die diesen Wert überschreiten, werden als fehlgeschlagen markiert und ihre abhängigen Schritte werden kaskadenweise übersprungen |
+| `DAG_MAX_REPLAN_ROUNDS` | Nein | `3` | Max autonome Neuplanungsversuche, wenn das Ziel nicht erreicht wird. Benutzerunterbrechungen (Inject) sind unbegrenzt und werden nicht gegen dieses Budget angerechnet |
+| `DAG_REPLAN_STOP_CONFIDENCE` | Nein | `0.8` | Wiederholung stoppen, wenn die Konfidenz des Agenten, dass das Ziel nicht erreichbar ist, diesen Schwellenwert überschreitet (`0.0` = niemals früh stoppen, `1.0` = bei jedem Fehler stoppen) |
+| `DAG_VERIFY_TRUNCATION` | Nein | `2000` | Max Zeichen der Schrittausgabe, die an das Schrittverifikations-LLM zur Qualitätsbewertung gesendet werden |
+| `DAG_ANALYZER_TRUNCATION` | Nein | `10000` | Max Zeichen pro Schrittergebnis bei der Formatierung für den Post-Execution-Analyzer |
+| `DAG_REPLAN_RECENT_TRUNCATION` | Nein | `500` | Max Zeichen pro Schrittergebnis aus der letzten Runde beim Aufbau des Neuplanungskontexts |
+| `DAG_REPLAN_OLDER_TRUNCATION` | Nein | `200` | Max Zeichen pro Schrittergebnis aus älteren Runden beim Aufbau des Neuplanungskontexts. Ältere Runden werden aggressiver gekürzt, um Kontext zu sparen |
+| `DAG_TOOL_CACHE` | Nein | `true` | Cache identische Tool-Aufrufe innerhalb einer einzelnen DAG-Ausführung. Nur Tools, die explizit als `cacheable` markiert sind (schreibgeschützte Tools wie Suche, Wissensbeschaffung), werden gecacht. Auf `false` setzen, um Caching vollständig zu deaktivieren |
+| `DAG_STEP_VERIFICATION` | Nein | `false` | Aktiviere LLM-basierte Qualitätsprüfung nach Abschluss jedes DAG-Schritts. Bei Fehler wird der Schritt einmal mit Verifikationsfeedback wiederholt. Erhöht die Latenz, verbessert aber die Ergebnisgenauigkeit |
+| `AUTO_ROUTING` | Nein | `true` | Aktiviere automatische Abfrageklassifizierung. Ein schnelles LLM analysiert jede Abfrage und leitet sie entweder zum ReAct (Single-Step) oder DAG (Multi-Step) Ausführungsmodus weiter. Der `/api/auto` Endpoint verwendet dies. Auf `false` setzen, um explizite Modusauswahl zu erfordern |
+
+### Context Guard
+
+Steuert die automatische Verwaltung des Kontextfensters, die verhindert, dass Gespräche das Limit des Modells überschreiten.
+
+| Variable | Erforderlich | Standard | Beschreibung |
+|---|---|---|---|
+| `CONTEXT_GUARD_DEFAULT_BUDGET` | Nein | `32000` | Standard-Token-Budget für die Verwaltung des Kontextfensters. Wenn das Gespräch diesen Wert überschreitet, werden ältere Nachrichten komprimiert |
+| `CONTEXT_GUARD_MAX_MSG_CHARS` | Nein | `50000` | Hartes Zeichenlimit für jede einzelne Nachricht. Nachrichten, die diesen Wert überschreiten, werden als Sicherheitsmaßnahme gekürzt |
+| `CONTEXT_GUARD_KEEP_RECENT` | Nein | `4` | Anzahl der neuesten Nachrichten, die bei der Komprimierung des Gesprächsverlaufs beibehalten werden |
+
+### Agent-Arbeitsbereich
+
+| Variable | Erforderlich | Standard | Beschreibung |
+|---|---|---|---|
+| `WORKSPACE_OFFLOAD_THRESHOLD` | Nein | `8000` | Wenn eine Werkzeugausgabe diese Anzahl von Zeichen überschreitet, wird sie in einer Arbeitsbereichsdatei gespeichert und eine gekürzte Vorschau wird in den Gesprächskontext eingefügt |
+| `WORKSPACE_PREVIEW_CHARS` | Nein | `2000` | Anzahl der Vorschauzeichen, die in gekürzten Arbeitsbereichsreferenzen enthalten sein sollen |
+| `WORKSPACE_CLEANUP_MAX_HOURS` | Nein | `72` | Arbeitsbereichsdateien, die älter als diese Anzahl von Stunden sind, sind für die automatische Bereinigung berechtigt |
+
+### System
+
+| Variable | Erforderlich | Standard | Beschreibung |
+|---|---|---|---|
+| `SYSTEM_PROMPT_RESERVE` | Nein | `4000` | Zeichen, die für die Systemaufforderung reserviert sind, wenn das verfügbare Kontextbudget berechnet wird |
 
 ---
 

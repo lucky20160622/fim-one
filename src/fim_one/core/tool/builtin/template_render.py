@@ -28,6 +28,10 @@ class TemplateRenderTool(BaseTool):
         return "template_render"
 
     @property
+    def cacheable(self) -> bool:
+        return True
+
+    @property
     def display_name(self) -> str:
         return "Template Render"
 

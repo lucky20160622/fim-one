@@ -220,17 +220,26 @@ flowchart LR
 - [ ] **MCP Connection Pooling**: per-request STDIO subprocess spawning doesn't scale — 100 concurrent users = 100 subprocesses per MCP server. Pool STDIO connections with per-user env isolation (keyed by `(server_id, env_hash)`); SSE/HTTP transports share `httpx.AsyncClient` sessions. Target: sub-100ms warm-start for pooled STDIO, O(1) HTTP connections per MCP server regardless of user count
 - [ ] **Scheduled jobs + Event-triggered Agents (Loop)**: cron-like background task triggers; `scheduled_jobs` + `job_runs` DB tables; APScheduler integration; job CRUD API + job history UI; result notification via message push connectors. Scope covers both time-triggered (cron) and event-triggered (webhook inbound) patterns — an agent running asynchronously in the background IS the async sub-agent use case for Hub mode.
 - [ ] **DB Schema Advanced Builder**: AI-driven schema management agent for large-scale databases — strategic table annotation (pattern-based, SQL-execution-informed), bulk visibility management by domain prefix, iterative multi-round annotation for 1K–7K+ table deployments; complements existing batch-annotation job with selectivity and business-context reasoning
+- [ ] **Resource Fork (Package Phase 1 — prerequisite for v1.0 Package System)**: Per-resource clone/fork endpoints as atomic building blocks for Package fork. Each `POST /api/{type}/{id}/fork` creates a user-owned deep copy of the resource config, decoupled from the original (no update link). **Testing matrix**: each resource must be tested for both Market subscribe (install) and org-level publish (two distinct code paths). Implementation order by complexity:
+  1. **MCP Server fork** — simplest; copy config (command, args, env template). MCP credential per-user override (`mcp_server_credentials`) already provides atomic credential isolation — extend this pattern
+  2. **Skill fork** — copy name, content/SOP, scripts
+  3. **Agent fork** — copy config + re-map `skill_ids`, `connector_ids`, `kb_ids`, `sub_agent_ids`, `mcp_server_ids` to forked copies (requires leaf resources forked first)
+  4. **Connector fork** — already shipped (v0.8); verify it handles credential stripping on fork (user must provide own credentials)
+  5. **Workflow fork** — duplicate already exists; verify it handles node references to agents/connectors/KBs
+  6. **KB fork** — most complex; **shallow copy only** (metadata + document references, embeddings regenerated). Deep-copying vector indices is prohibitively expensive and wasteful since fork users typically modify documents. Reference npm's approach: don't over-design, shallow is good enough
+  **Fork wiring strategy**: topological sort on the resource dependency graph — fork leaf nodes first (KB, Connector, MCP), build `old_id → new_id` mapping table, then fork parent nodes (Agent, Skill) with ID substitution. Reuse patterns from Workflow import conflict resolver (`compute_blueprint_diff()` ID mapping). This Phase 1 is independently useful — users can fork individual resources from Market without needing a Package
 
 **Impact**: Run FIM One at scale with confidence. Three architectural layers now complete: **Trace Layer** (see what happened), **Hook System** (enforce what must happen), **Agent Workspace** (agent manages its own data access). Together they close the gap between "instructions the agent might follow" and "guarantees the system enforces" — the difference between a demo and a production enterprise tool.
 
 ### v1.0 — Hot-Plug + Embeddable
 
-**Goal**: Zero-restart connector addition and embedded delivery.
+**Goal**: Zero-restart connector addition, Package ecosystem, and embedded delivery.
 
 - [ ] **Connector Progressive Disclosure (Phase 5)**: **Semantic-Guided Tool Selection** (entity extraction from query → Ontology Registry lookup → connector set reduction; 90%+ token reduction for 50+ connector deployments); Scale mode for batch/ETL connectors; CLI-style universal `connector <name> <action> <params>` interface
 - [ ] **Cross-Connector Entity Alignment (Ontology Registry)**: define shared entity types (Customer, Order, Asset) with field mappings across connectors; DAGPlanner auto-resolves cross-system JOIN keys; enables cross-connector queries (e.g., "customers in Salesforce who ordered in Shopify") without hardcoded field names
 - [ ] **Hot-plug connectors**: upload OpenAPI spec, AI generates config, live in 5 minutes (no restart)
-- [ ] **Connector marketplace**: community-shared templates
+- [ ] **Market Package System**: Distributable resource bundles for the Marketplace — replaces per-type "marketplace" with a unified packaging layer. `fim-package.yaml` manifest declares: metadata (name, version, description, author, license, tags, `min_fim_version`), entry point (primary Skill or Agent), resource list (agents, skills, connectors, KBs, MCP servers, workflows) with config references, inter-package dependencies (semver ranges), required credentials (mapped to connector refs for install-time collection), and user-configurable variables with defaults. **Two consumption modes**: (1) **install** — batch-create all resources + auto-wire internal references via ID substitution; installation linked to source for version update notifications; `POST /api/market/packages/{id}/install`; (2) **fork** — clone as user-owned editable copies with no update link (this IS the template mode); `POST /api/market/packages/{id}/fork`. Additional endpoints: publish (`POST /api/market/packages` with review workflow), uninstall (`DELETE /packages/{id}/uninstall` with dependency check + modified-resource confirmation), version history (`GET /packages/{id}/versions`), upgrade (`POST /packages/{id}/upgrade` with per-resource diff preview). Dependency resolver for nested package requirements with conflict detection. `PackageInstallation` table tracks installed packages per user with resource ID mapping for uninstall/upgrade. **Coexists with individual resource publishing** — Package is a composition layer, not a replacement; a single Connector is still publishable standalone. Example dependency tree: `Package: contract-review` → `Skill: contract-review` (entry point) → `Agent: contract-analyst` + `Agent: risk-scorer` → `KB: legal-clauses` + `Connector: docusign-api` + `MCP: pdf-extractor` + `Workflow: contract-approval-flow`
+- [ ] **Creator Program**: Marketplace monetization layer — creator profiles with portfolio pages, per-package analytics (installs, forks, active users, ratings/reviews), affiliate commission tracking when packages drive new subscriptions. Paid package tier with pricing, purchase flow, and approval workflow. Creator dashboard with install trends, revenue reporting, and user feedback. Public creator API for programmatic package publishing (CI/CD for package authors). Community features: package comments, Q&A, changelogs per version
 - [ ] **Embeddable widget**: `<script src="fim-one.js">` injected into host page
 - [ ] **Page context injection**: widget reads host page context (current ID, URL, DOM selectors)
 - [ ] **Advanced triggers**: Webhook inbound events; scheduled job enhancements (multi-timezone, calendar-aware)
@@ -238,7 +247,7 @@ flowchart LR
 - [ ] **Enterprise security**: IP whitelisting, encryption at rest, SSO
 - [ ] **KB Advanced Editor**: Builder-mode agent for power users managing large knowledge bases — bulk URL ingestion, duplicate detection, gap analysis, document lifecycle management; extends existing KB AI chat with ReAct tool loop
 
-**Impact**: Enterprises deploy FIM One from zero to multi-system orchestration in days.
+**Impact**: Enterprises deploy FIM One from zero to multi-system orchestration in days. Package system creates a creator ecosystem — solution authors publish composite bundles (Skill + Agents + Connectors + KBs + Workflows), enterprises install with one click, creators earn from adoption. Install/fork duality covers both "use as-is" and "customize from template" use cases in a single mechanism.
 
 ## Frozen Features (Shipped, Maintain Only)
 
@@ -246,8 +255,8 @@ Per the [Orthogonality Strategy](/strategy/orthogonality-strategy), these featur
 
 | Feature | Version | Why frozen |
 |---------|---------|-----------|
-| ReAct Agent | v0.1, v0.9 | Models now have native tool calling. Mid-loop self-reflection (v0.9) prevents goal drift in long chains |
-| DAG Planning / Re-Planning | v0.1, v0.5, v0.7.5 | Model reasoning capabilities improving; decomposition becoming single-shot. Per-step verification shipped in v0.7.5 (`DAG_STEP_VERIFICATION`) — no further planning primitives planned |
+| ReAct Agent | v0.1, v0.9 | Models now have native tool calling. Mid-loop self-reflection (v0.9) prevents goal drift in long chains. Tool observation synthesis quality improved (8K chars, configurable via `REACT_TOOL_OBS_TRUNCATION`) |
+| DAG Planning / Re-Planning | v0.1, v0.5, v0.7.5 | Model reasoning capabilities improving; decomposition becoming single-shot. Per-step verification shipped in v0.7.5 (`DAG_STEP_VERIFICATION`). Hardened: cascade failure propagation, verifier status fix, planner tool descriptions, full replan history, whitelist-based tool cache. 14 engine constants exposed as ENV vars — no further planning primitives planned |
 | Memory (Window, Summary, Compact) | v0.2, v0.5 | Context windows growing (200K+); less need for external memory management |
 | RAG pipeline | v0.5 | Providers building retrieval natively (OpenAI file_search, Gemini Search Grounding) |
 | Grounded Generation | v0.5 | Models improving at citations; 5-stage pipeline adds diminishing value |
@@ -277,7 +286,7 @@ Per the Orthogonality Strategy, these would be high-effort and face absorption r
 | **v0.7** | Working | Ready | Ready | Admin platform; multi-tenant auth; ready for production |
 | **v0.8** | Working | Ready | Optimized | RBAC + audit log per-system; easier to onboard |
 | **v0.9** | Working | Ready | Production | Observability, performance, hardening |
-| **v1.0** | Working | Optimized | Enterprise | Hot-plug, marketplace, scheduled jobs, webhooks, batch |
+| **v1.0** | Working | Optimized | Enterprise | Package system, creator program, hot-plug, embeddable widget, webhooks, batch |
 
 ## Resource Allocation (v0.8–v1.0)
 
@@ -305,8 +314,11 @@ Success is measured by:
 
 ## Open Questions / TBD
 
-- **Marketplace moderation**: How to validate community connectors? (v1.0)
+- **Marketplace moderation**: How to validate community packages and individual resources? Automated scanning for credential leaks in package configs? (v1.0)
 - **Token economics**: How to price multi-user, multi-agent scenarios? (v1.0)
+- **Package versioning**: Breaking changes in installed packages — auto-upgrade with migration scripts, or manual approval per update? Dependency diamond problem resolution? (v1.0)
+- **Package pricing**: Free vs paid tiers, commission rates for Creator Program, payment provider integration? (v1.0)
+- **Package credential UX**: Install-time credential collection — wizard-style step-by-step or deferred setup? Credential sharing across packages that use the same connector type? (v1.0)
 - **Telemetry opt-out**: How to honor privacy preferences? (v0.8)
 - **Connector versioning**: How to manage breaking changes in connector APIs? (v0.8)
 - **Rate limiting**: Per-user workflow rate limiting shipped (sliding window 10 runs/min, 3 concurrent). Per-connector and per-agent rate limiting TBD (v0.9)
