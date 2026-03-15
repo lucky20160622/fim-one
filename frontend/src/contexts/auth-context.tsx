@@ -17,7 +17,7 @@ import {
   REFRESH_TOKEN_KEY,
   USER_KEY,
 } from "@/lib/constants"
-import type { UserInfo, LoginRequest, LoginWithCodeRequest, RegisterRequest } from "@/types/auth"
+import type { UserInfo, TokenResponse, LoginRequest, LoginWithCodeRequest, RegisterRequest } from "@/types/auth"
 
 /** Decode JWT payload and return the `exp` field in milliseconds, or null on failure. */
 function getTokenExpiry(token: string): number | null {
@@ -29,13 +29,20 @@ function getTokenExpiry(token: string): number | null {
   }
 }
 
+/** Returned by login() when the server requires a 2FA challenge. */
+export interface TwoFactorChallenge {
+  requires2fa: true
+  tempToken: string
+}
+
 interface AuthContextValue {
   user: UserInfo | null
   isLoading: boolean
   meLoaded: boolean   // true once /api/auth/me has responded with fresh server data
-  login: (body: LoginRequest) => Promise<void>
+  login: (body: LoginRequest) => Promise<TwoFactorChallenge | void>
   loginWithCode: (body: LoginWithCodeRequest) => Promise<void>
   register: (body: RegisterRequest) => Promise<void>
+  verify2fa: (tempToken: string, code: string) => Promise<void>
   logout: () => void
   updateUser: (partial: Partial<UserInfo>) => void
 }
@@ -153,8 +160,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = useCallback(
-    async (body: LoginRequest) => {
-      const data = await authApi.login(body)
+    async (body: LoginRequest): Promise<TwoFactorChallenge | void> => {
+      const data = await authApi.login(body) as TokenResponse & { requires_2fa?: boolean; temp_token?: string }
+      // If server indicates 2FA is required, return the challenge instead of proceeding
+      if (data.requires_2fa && data.temp_token) {
+        return { requires2fa: true, tempToken: data.temp_token }
+      }
       saveTokens(data.access_token, data.refresh_token, data.user)
       syncLocaleCookie(data.user.preferred_language)
       scheduleRefresh(data.expires_in)
@@ -185,6 +196,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [saveTokens, syncLocaleCookie, scheduleRefresh, refreshMe],
   )
 
+  const verify2fa = useCallback(
+    async (tempToken: string, code: string) => {
+      const data = await authApi.verify2fa({ temp_token: tempToken, code })
+      saveTokens(data.access_token, data.refresh_token, data.user)
+      syncLocaleCookie(data.user.preferred_language)
+      scheduleRefresh(data.expires_in)
+      refreshMe()
+    },
+    [saveTokens, syncLocaleCookie, scheduleRefresh, refreshMe],
+  )
+
   const updateUser = useCallback(
     (partial: Partial<UserInfo>) => {
       setUser((prev) => {
@@ -203,7 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [clearAuth, router])
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, meLoaded, login, loginWithCode, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isLoading, meLoaded, login, loginWithCode, register, verify2fa, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

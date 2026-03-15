@@ -372,6 +372,12 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  verify2fa: (body: { temp_token: string; code: string }) =>
+    apiFetch<TokenResponse>("/api/auth/login/verify-2fa", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 }
 
 // --- Conversation API ---
@@ -1328,12 +1334,12 @@ export interface AdminEvalStats {
   total_tokens: number
 }
 export interface AdminCredential {
-  id: string; user_id: string; username: string | null; email: string | null
-  resource_name: string; type: 'connector' | 'mcp'; status: string
-  updated_at: string
+  id: string; user_id: string | null; username: string | null; email: string | null
+  resource_name: string | null; resource_type: 'connector' | 'mcp'; resource_id: string
+  updated_at: string | null; created_at: string | null
 }
 export interface AdminCredentialStats {
-  total: number; connector_count: number; mcp_count: number; users_with_credentials: number
+  total_credentials: number; connector_credentials: number; mcp_credentials: number; users_with_credentials: number
 }
 export interface AdminReview {
   id: string; resource_type: string; resource_name: string; org_name: string | null
@@ -1692,8 +1698,8 @@ export const adminApi = {
   },
   getSkillDetail: (id: string) =>
     apiFetch<AdminSkillDetail>(`/api/admin/skills/${id}`),
-  toggleSkillActive: (id: string) =>
-    apiFetch<{ ok: boolean; is_active: boolean }>(`/api/admin/skills/${id}/active`, { method: 'PATCH' }),
+  toggleSkillActive: (id: string, is_active: boolean) =>
+    apiFetch<AdminSkillInfo>(`/api/admin/skills/${id}/active`, { method: 'PATCH', body: JSON.stringify({ is_active }) }),
   adminDeleteSkill: (id: string) =>
     apiFetch(`/api/admin/skills/${id}`, { method: 'DELETE' }),
   batchDeleteSkills: (ids: string[]) =>

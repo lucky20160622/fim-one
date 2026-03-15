@@ -33,7 +33,7 @@ function LoginPageInner() {
   const tc = useTranslations("common")
   const tError = useTranslations("errors")
   const locale = useLocale()
-  const { user, isLoading: authLoading, login, loginWithCode, register } = useAuth()
+  const { user, isLoading: authLoading, login, loginWithCode, register, verify2fa } = useAuth()
   const { resolvedTheme, setTheme } = useTheme()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -42,6 +42,12 @@ function LoginPageInner() {
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
   const [loginLoading, setLoginLoading] = useState(false)
+
+  // 2FA challenge state
+  const [twoFactorMode, setTwoFactorMode] = useState(false)
+  const [twoFactorTempToken, setTwoFactorTempToken] = useState("")
+  const [twoFactorCode, setTwoFactorCode] = useState("")
+  const [twoFactorVerifying, setTwoFactorVerifying] = useState(false)
 
   // OTP login state
   const [otpLoginMode, setOtpLoginMode] = useState(false)
@@ -242,7 +248,14 @@ function LoginPageInner() {
     e.preventDefault()
     setLoginLoading(true)
     try {
-      await login({ email: loginEmail, password: loginPassword })
+      const result = await login({ email: loginEmail, password: loginPassword })
+      if (result?.requires2fa) {
+        // Server requires 2FA — show the TOTP input step
+        setTwoFactorTempToken(result.tempToken)
+        setTwoFactorMode(true)
+        setTwoFactorCode("")
+        return
+      }
       // Redirect is handled by the useEffect that watches user state
     } catch (err) {
       if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
@@ -253,6 +266,26 @@ function LoginPageInner() {
     } finally {
       setLoginLoading(false)
     }
+  }
+
+  const doVerify2fa = useCallback(async (codeOverride?: string) => {
+    setTwoFactorVerifying(true)
+    try {
+      await verify2fa(twoFactorTempToken, codeOverride || twoFactorCode)
+      // Redirect is handled by the useEffect that watches user state
+    } catch (err) {
+      setFieldErrors(prev => ({ ...prev, twoFactor: getErrorMessage(err, tError) }))
+      setTwoFactorCode("")
+    } finally {
+      setTwoFactorVerifying(false)
+    }
+  }, [verify2fa, twoFactorTempToken, twoFactorCode, tError])
+
+  const handleCancel2fa = () => {
+    setTwoFactorMode(false)
+    setTwoFactorTempToken("")
+    setTwoFactorCode("")
+    clearFieldError("twoFactor")
   }
 
   const handleSendLoginCode = async () => {
@@ -640,7 +673,57 @@ function LoginPageInner() {
               {registrationEnabled && <TabsTrigger value="register">{tc("register")}</TabsTrigger>}
             </TabsList>
             <TabsContent value="login">
-              {forgotMode ? (
+              {twoFactorMode ? (
+                /* 2FA challenge step */
+                <div className="space-y-4 pt-4">
+                  <div className="text-center space-y-1">
+                    <h3 className="text-base font-semibold">{t("twoFactorRequired")}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {t("twoFactorSubtitle")}
+                    </p>
+                  </div>
+                  <div className="flex justify-center">
+                    <InputOTP
+                      maxLength={6}
+                      value={twoFactorCode}
+                      onChange={(v) => { setTwoFactorCode(v); clearFieldError("twoFactor") }}
+                      onComplete={(code) => doVerify2fa(code)}
+                      disabled={twoFactorVerifying}
+                      autoFocus
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                      </InputOTPGroup>
+                      <InputOTPSeparator />
+                      <InputOTPGroup>
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  {fieldErrors.twoFactor && (
+                    <p className="text-sm text-destructive text-center">{fieldErrors.twoFactor}</p>
+                  )}
+                  {twoFactorVerifying && (
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      {t("twoFactorVerifying")}
+                    </div>
+                  )}
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={handleCancel2fa}
+                    >
+                      {t("twoFactorCancel")}
+                    </button>
+                  </div>
+                </div>
+              ) : forgotMode ? (
                 forgotStep === "email" ? (
                   <div className="space-y-4 pt-4">
                     <p className="text-sm text-muted-foreground">
