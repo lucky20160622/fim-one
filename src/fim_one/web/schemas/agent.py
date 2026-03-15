@@ -62,8 +62,6 @@ class AgentResponse(BaseModel):
     published_at: str | None
     is_active: bool = True
     is_builder: bool = False
-    discoverable: bool = False
-    sub_agent_ids: list[str] | None = None
     skill_ids: list[str] | None = None
     compact_instructions: str | None = None
     visibility: str = "personal"

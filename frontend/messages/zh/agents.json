@@ -124,8 +124,6 @@
   "ai_no_changes": "未应用任何更改。",
   "global": "全局",
   "globalAgentNotice": "这是由管理员管理的全局智能体。",
-  "discoverable": "自动可发现",
-  "discoverableHelp": "允许 LLM 自动发现此智能体并将任务委托给它",
   "disableOrgAgent": "为整个组织禁用智能体？",
   "disableOrgAgentDescription": "这将立即停止所有组织成员使用此智能体。您可以随时重新启用它。",
   "agentEnabled": "智能体已启用",

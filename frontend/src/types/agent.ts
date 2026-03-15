@@ -24,8 +24,6 @@ export interface AgentResponse {
   visibility?: string // "personal" | "org" | "global"
   org_id?: string | null
   is_builder?: boolean
-  discoverable?: boolean
-  sub_agent_ids?: string[] | null
   skill_ids?: string[] | null
   compact_instructions?: string | null
   publish_status: string | null

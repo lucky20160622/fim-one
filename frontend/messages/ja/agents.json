@@ -124,8 +124,6 @@
   "ai_no_changes": "変更は適用されませんでした。",
   "global": "グローバル",
   "globalAgentNotice": "これは管理者が管理するグローバルエージェントです。",
-  "discoverable": "自動検出可能",
-  "discoverableHelp": "LLMがこのエージェントを自動的に検出し、タスクを委譲することを許可します",
   "disableOrgAgent": "組織全体でエージェントを無効にしますか?",
   "disableOrgAgentDescription": "これにより、組織のすべてのメンバーがこのエージェントを使用できなくなります。いつでも再度有効にできます。",
   "agentEnabled": "エージェントが有効です",

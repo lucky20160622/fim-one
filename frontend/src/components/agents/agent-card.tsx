@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useTranslations } from "next-intl"
-import { Bot, MoreHorizontal, Pencil, Trash2, Globe, GlobeLock, MessageSquare, Radar, RotateCw } from "lucide-react"
+import { Bot, MoreHorizontal, Pencil, Trash2, Globe, GlobeLock, MessageSquare, RotateCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -42,7 +42,6 @@ export function AgentCard({
   const to = useTranslations("organizations")
   const tc = useTranslations("common")
   const isPublished = agent.status === "published"
-  const isDiscoverable = agent.discoverable === true
   const isOwner = !currentUserId || agent.user_id === currentUserId
 
   return (
@@ -108,16 +107,6 @@ export function AgentCard({
         >
           {isPublished ? tc("published") : tc("draft")}
         </Badge>
-        {isDiscoverable && (
-          <Badge
-            variant="secondary"
-            className="text-[10px] px-1.5 py-0 h-5 bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/20"
-          >
-            <Radar className="h-2.5 w-2.5 mr-0.5" />
-            {t("discoverable")}
-          </Badge>
-        )}
-
         {/* Publish review status badges */}
         {agent.publish_status === "pending_review" && (
           <Badge

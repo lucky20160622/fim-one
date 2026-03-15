@@ -45,8 +45,6 @@ def _agent_to_response(agent: Agent) -> AgentResponse:
         ),
         is_active=agent.is_active,
         is_builder=agent.is_builder,
-        discoverable=agent.discoverable,
-        sub_agent_ids=agent.sub_agent_ids,
         skill_ids=agent.skill_ids,
         compact_instructions=agent.compact_instructions,
         visibility=getattr(agent, "visibility", "personal"),
