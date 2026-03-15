@@ -47,8 +47,8 @@
   "stay": "머물기",
   "discardAndLeave": "삭제 및 떠나기",
   "backToList": "스킬로 돌아가기",
-  "scriptComingSoonTitle": "스크립트 실행 — 곧 출시",
-  "scriptComingSoonDescription": "실행 가능한 Python 또는 Shell 스크립트를 스킬에 첨부합니다. 실행 시 에이전트는 스킬 콘텐츠를 반환하는 것과 함께 스크립트를 자동으로 호출할 수 있습니다.",
+  "scriptComingSoonTitle": "스크립트 실행 — 출시 예정",
+  "scriptComingSoonDescription": "실행 가능한 Python 또는 Shell 스크립트를 스킬에 첨부합니다. 실행 시 에이전트가 스킬 콘텐츠와 함께 스크립트를 자동으로 호출할 수 있습니다.",
   "scriptComingSoonFeatures": [
     "샌드박스 Python 3 실행기",
     "Shell 스크립트 지원",
@@ -66,5 +66,21 @@
   "settingUsageHint": "에이전트는 시스템 프롬프트에서 간단한 스텁을 봅니다. 전체 콘텐츠는 read_skill()을 호출할 때 필요에 따라 로드됩니다.",
   "settingStubPreview": "스텁 미리보기 (시스템 프롬프트에 주입됨)",
   "settingReadSkillCall": "도구 호출",
-  "settingReadSkillCallHint": "에이전트는 대화 중 전체 스킬 콘텐츠를 로드하기 위해 이 정확한 호출을 사용합니다."
+  "settingReadSkillCallHint": "에이전트는 대화 중에 전체 스킬 콘텐츠를 로드하기 위해 이 정확한 호출을 사용합니다.",
+  "resourceRefs": "리소스 참조",
+  "resourceRefsHint": "이 스킬이 참조하는 커넥터, MCP 서버, 지식 베이스 또는 에이전트를 첨부합니다. 콘텐츠에서 @alias를 사용하여 참조합니다.",
+  "addResource": "리소스 추가",
+  "resourcePickerTitle": "리소스 참조 추가",
+  "resourcePickerDescription": "이 스킬에서 참조할 리소스를 선택합니다.",
+  "resourceTypeConnector": "커넥터",
+  "resourceTypeMcpServer": "MCP 서버",
+  "resourceTypeKnowledgeBase": "지식 베이스",
+  "resourceTypeAgent": "에이전트",
+  "resourceAlias": "별칭",
+  "resourceAliasPlaceholder": "@my_resource",
+  "resourceAliasHint": "@mention을 통해 콘텐츠에서 사용되는 짧은 별칭 (예: @crm)",
+  "noResourcesAvailable": "이 유형의 사용 가능한 리소스가 없습니다.",
+  "resourceAlreadyAdded": "이 리소스는 이미 추가되었습니다.",
+  "editAlias": "별칭 편집",
+  "mentionHint": "@를 입력하여 리소스를 언급합니다"
 }

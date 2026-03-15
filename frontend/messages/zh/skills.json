@@ -55,7 +55,7 @@
     "超时和资源限制",
     "标准输入/输出管道到智能体上下文"
   ],
-  "settingActiveHint": "非活跃的技能对智能体隐藏，无法被调用。",
+  "settingActiveHint": "非活跃技能对智能体隐藏，无法被调用。",
   "settingSectionInfo": "技能信息",
   "settingSkillId": "技能 ID",
   "settingVisibility": "可见性",
@@ -66,5 +66,21 @@
   "settingUsageHint": "智能体在其系统提示中看到一个紧凑的存根。当它调用 read_skill() 时，完整内容按需加载。",
   "settingStubPreview": "存根预览（注入到系统提示中）",
   "settingReadSkillCall": "工具调用",
-  "settingReadSkillCallHint": "智能体使用此确切调用在对话期间加载完整技能内容。"
+  "settingReadSkillCallHint": "智能体使用此确切调用在对话期间加载完整技能内容。",
+  "resourceRefs": "资源引用",
+  "resourceRefsHint": "附加此技能引用的连接器、MCP 服务器、知识库或智能体。在内容中使用 @别名 来引用它们。",
+  "addResource": "添加资源",
+  "resourcePickerTitle": "添加资源引用",
+  "resourcePickerDescription": "选择要在此技能中引用的资源。",
+  "resourceTypeConnector": "连接器",
+  "resourceTypeMcpServer": "MCP 服务器",
+  "resourceTypeKnowledgeBase": "知识库",
+  "resourceTypeAgent": "智能体",
+  "resourceAlias": "别名",
+  "resourceAliasPlaceholder": "@my_resource",
+  "resourceAliasHint": "在内容中通过 @提及 使用的短别名（例如 @crm）",
+  "noResourcesAvailable": "此类型没有可用资源。",
+  "resourceAlreadyAdded": "此资源已添加。",
+  "editAlias": "编辑别名",
+  "mentionHint": "输入 @ 来提及资源"
 }

@@ -4,20 +4,12 @@ import { useState, useEffect, useCallback, Suspense } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
-import { ArrowLeft, BookOpen, Loader2, Code2, CheckCircle2 } from "lucide-react"
+import { ArrowLeft, BookOpen, Loader2, Code2, CheckCircle2, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   Tooltip,
   TooltipContent,
@@ -36,7 +28,10 @@ import {
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { skillApi } from "@/lib/api"
-import type { SkillResponse } from "@/types/skill"
+import { ResourcePickerDialog } from "@/components/skills/resource-picker-dialog"
+import { ResourceRefsBadges } from "@/components/skills/resource-refs-badges"
+import { MentionTextarea } from "@/components/skills/mention-textarea"
+import type { SkillResponse, ResourceRef } from "@/types/skill"
 
 type TabKey = "content" | "script" | "settings"
 
@@ -63,6 +58,9 @@ function SkillEditorContent() {
   const [script, setScript] = useState("")
   const [scriptType, setScriptType] = useState<"python" | "shell" | "__none__">("__none__")
   const [isActive, setIsActive] = useState(true)
+  const [resourceRefs, setResourceRefs] = useState<ResourceRef[]>([])
+  const [showResourcePicker, setShowResourcePicker] = useState(false)
+
   // Compute dirty state
   const isDirty = skill
     ? name !== skill.name ||
@@ -70,7 +68,8 @@ function SkillEditorContent() {
       content !== skill.content ||
       script !== (skill.script || "") ||
       (scriptType === "__none__" ? null : scriptType) !== skill.script_type ||
-      isActive !== skill.is_active
+      isActive !== skill.is_active ||
+      JSON.stringify(resourceRefs) !== JSON.stringify(skill.resource_refs || [])
     : false
 
   // Warn on browser refresh / tab close
@@ -99,6 +98,7 @@ function SkillEditorContent() {
       setScript(data.script || "")
       setScriptType(data.script_type || "__none__")
       setIsActive(data.is_active)
+      setResourceRefs(data.resource_refs || [])
     } catch (err) {
       console.error("Failed to load skill:", err)
       router.replace("/skills")
@@ -125,6 +125,7 @@ function SkillEditorContent() {
         script: script.trim() || null,
         script_type: scriptType === "__none__" ? null : scriptType,
         is_active: isActive,
+        resource_refs: resourceRefs.length > 0 ? resourceRefs : null,
       })
       setSkill(updated)
       setName(updated.name)
@@ -133,6 +134,7 @@ function SkillEditorContent() {
       setScript(updated.script || "")
       setScriptType(updated.script_type || "__none__")
       setIsActive(updated.is_active)
+      setResourceRefs(updated.resource_refs || [])
       toast.success(t("skillSaved"))
     } catch (err) {
       console.error("Failed to save skill:", err)
@@ -270,12 +272,46 @@ function SkillEditorContent() {
               <div className="space-y-2">
                 <Label htmlFor="skill-content">{t("fieldContent")}</Label>
                 <p className="text-xs text-muted-foreground">{t("fieldContentHint")}</p>
-                <Textarea
+                <MentionTextarea
                   id="skill-content"
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  onChange={setContent}
                   placeholder={t("fieldContentPlaceholder")}
                   className="min-h-[300px] resize-y font-mono text-sm"
+                  resourceRefs={resourceRefs}
+                />
+              </div>
+
+              {/* Resource References */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>{t("resourceRefs")}</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("resourceRefsHint")}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 shrink-0"
+                    onClick={() => setShowResourcePicker(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {t("addResource")}
+                  </Button>
+                </div>
+                <ResourceRefsBadges
+                  refs={resourceRefs}
+                  onRemove={(index) =>
+                    setResourceRefs((prev) => prev.filter((_, i) => i !== index))
+                  }
+                  onUpdateAlias={(index, newAlias) =>
+                    setResourceRefs((prev) =>
+                      prev.map((ref, i) =>
+                        i === index ? { ...ref, alias: newAlias } : ref,
+                      ),
+                    )
+                  }
                 />
               </div>
             </>
@@ -320,6 +356,16 @@ function SkillEditorContent() {
           )}
         </div>
       </div>
+
+      {/* Resource picker dialog */}
+      <ResourcePickerDialog
+        open={showResourcePicker}
+        onOpenChange={setShowResourcePicker}
+        existingRefs={resourceRefs}
+        onAdd={(ref) =>
+          setResourceRefs((prev) => [...prev, ref])
+        }
+      />
 
       {/* Unsaved changes dialog -- sibling of the main content, not nested */}
       <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>

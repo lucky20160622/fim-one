@@ -1,3 +1,12 @@
+export type ResourceRefType = "connector" | "mcp_server" | "knowledge_base" | "agent"
+
+export interface ResourceRef {
+  type: ResourceRefType
+  id: string
+  name: string
+  alias: string
+}
+
 export interface SkillResponse {
   id: string
   user_id: string | null
@@ -6,6 +15,7 @@ export interface SkillResponse {
   content: string
   script: string | null
   script_type: "python" | "shell" | null
+  resource_refs: ResourceRef[] | null
   visibility: string
   org_id: string | null
   is_active: boolean
@@ -25,6 +35,7 @@ export interface SkillCreate {
   content: string
   script?: string | null
   script_type?: "python" | "shell" | null
+  resource_refs?: ResourceRef[] | null
   is_active?: boolean
 }
 
@@ -34,5 +45,6 @@ export interface SkillUpdate {
   content?: string
   script?: string | null
   script_type?: "python" | "shell" | null
+  resource_refs?: ResourceRef[] | null
   is_active?: boolean
 }

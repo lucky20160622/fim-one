@@ -48,12 +48,12 @@
   "discardAndLeave": "Abandonner et quitter",
   "backToList": "Retour aux compétences",
   "scriptComingSoonTitle": "Exécution de script — À venir",
-  "scriptComingSoonDescription": "Joignez des scripts Python ou Shell exécutables aux compétences. Lors du lancement, l'agent peut invoquer le script automatiquement en parallèle du retour du contenu de la compétence.",
+  "scriptComingSoonDescription": "Attachez des scripts Python ou Shell exécutables aux compétences. Lorsqu'ils sont lancés, l'agent peut invoquer le script automatiquement en parallèle du retour du contenu de la compétence.",
   "scriptComingSoonFeatures": [
     "Exécuteur Python 3 en bac à sable",
     "Support des scripts Shell",
     "Limites de délai d'attente et de ressources",
-    "Redirection Stdin/stdout vers le contexte de l'agent"
+    "Redirection stdin/stdout vers le contexte de l'agent"
   ],
   "settingActiveHint": "Les compétences inactives sont masquées aux agents et ne peuvent pas être appelées.",
   "settingSectionInfo": "Informations sur la compétence",
@@ -66,5 +66,21 @@
   "settingUsageHint": "L'agent voit un stub compact dans son invite système. Le contenu complet est chargé à la demande lorsqu'il appelle read_skill().",
   "settingStubPreview": "Aperçu du stub (injecté dans l'invite système)",
   "settingReadSkillCall": "Appel d'outil",
-  "settingReadSkillCallHint": "L'agent utilise cet appel exact pour charger le contenu complet de la compétence lors d'une conversation."
+  "settingReadSkillCallHint": "L'agent utilise cet appel exact pour charger le contenu complet de la compétence lors d'une conversation.",
+  "resourceRefs": "Références de ressources",
+  "resourceRefsHint": "Attachez des connecteurs, des serveurs MCP, des bases de connaissances ou des agents que cette compétence référence. Utilisez @alias dans le contenu pour les référencer.",
+  "addResource": "Ajouter une ressource",
+  "resourcePickerTitle": "Ajouter une référence de ressource",
+  "resourcePickerDescription": "Sélectionnez une ressource à référencer dans cette compétence.",
+  "resourceTypeConnector": "Connecteur",
+  "resourceTypeMcpServer": "Serveur MCP",
+  "resourceTypeKnowledgeBase": "Base de connaissances",
+  "resourceTypeAgent": "Agent",
+  "resourceAlias": "Alias",
+  "resourceAliasPlaceholder": "@ma_ressource",
+  "resourceAliasHint": "Alias court utilisé dans le contenu via @mention (par exemple @crm)",
+  "noResourcesAvailable": "Aucune ressource de ce type disponible.",
+  "resourceAlreadyAdded": "Cette ressource est déjà ajoutée.",
+  "editAlias": "Modifier l'alias",
+  "mentionHint": "Tapez @ pour mentionner une ressource"
 }

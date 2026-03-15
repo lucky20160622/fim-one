@@ -53,7 +53,7 @@
     "Sandbox-Python-3-Executor",
     "Shell-Skript-Unterstützung",
     "Timeout- und Ressourcenlimits",
-    "Stdin/stdout-Piping zum Agent-Kontext"
+    "Stdin/Stdout-Piping zum Agent-Kontext"
   ],
   "settingActiveHint": "Inaktive Fähigkeiten sind für Agenten verborgen und können nicht aufgerufen werden.",
   "settingSectionInfo": "Fähigkeitsinformationen",
@@ -64,7 +64,23 @@
   "settingUpdatedAt": "Zuletzt aktualisiert",
   "settingSectionUsage": "Agent-Integration",
   "settingUsageHint": "Der Agent sieht einen kompakten Stub in seinem Systemprompt. Vollständiger Inhalt wird bei Bedarf geladen, wenn er read_skill() aufruft.",
-  "settingStubPreview": "Stub-Vorschau (in Systemprompt eingefügt)",
+  "settingStubPreview": "Stub-Vorschau (eingefügt in Systemprompt)",
   "settingReadSkillCall": "Tool-Aufruf",
-  "settingReadSkillCallHint": "Der Agent verwendet diesen genauen Aufruf, um vollständige Fähigkeitsinhalte während eines Gesprächs zu laden."
+  "settingReadSkillCallHint": "Der Agent verwendet diesen genauen Aufruf, um vollständige Fähigkeitsinhalte während eines Gesprächs zu laden.",
+  "resourceRefs": "Ressourcenreferenzen",
+  "resourceRefsHint": "Fügen Sie Connectoren, MCP-Server, Wissensdatenbanken oder Agenten an, auf die diese Fähigkeit verweist. Verwenden Sie @alias im Inhalt, um auf diese zu verweisen.",
+  "addResource": "Ressource hinzufügen",
+  "resourcePickerTitle": "Ressourcenreferenz hinzufügen",
+  "resourcePickerDescription": "Wählen Sie eine Ressource aus, auf die in dieser Fähigkeit verwiesen werden soll.",
+  "resourceTypeConnector": "Connector",
+  "resourceTypeMcpServer": "MCP-Server",
+  "resourceTypeKnowledgeBase": "Wissensdatenbank",
+  "resourceTypeAgent": "Agent",
+  "resourceAlias": "Alias",
+  "resourceAliasPlaceholder": "@meine_ressource",
+  "resourceAliasHint": "Kurzer Alias, der im Inhalt über @mention verwendet wird (z. B. @crm)",
+  "noResourcesAvailable": "Keine Ressourcen dieses Typs verfügbar.",
+  "resourceAlreadyAdded": "Diese Ressource wurde bereits hinzugefügt.",
+  "editAlias": "Alias bearbeiten",
+  "mentionHint": "Geben Sie @ ein, um eine Ressource zu erwähnen"
 }
