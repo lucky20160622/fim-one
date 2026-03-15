@@ -56,11 +56,15 @@ export function ResourceRefsBadges({
 
   const commitEdit = () => {
     if (editingIndex === null) return
-    const trimmed = editValue.trim()
-    if (trimmed) {
-      const finalAlias = trimmed.startsWith("@") ? trimmed : `@${trimmed}`
-      onUpdateAlias(editingIndex, finalAlias)
-    }
+    const trimmed = editValue.trim().replace(/^@/, "").trim()
+    // Fall back to default alias from resource name if empty
+    const asciiSlug = refs[editingIndex].name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_|_$/g, "")
+      .slice(0, 24)
+    const aliasBody = trimmed || asciiSlug || refs[editingIndex].name.trim().slice(0, 24)
+    onUpdateAlias(editingIndex, `@${aliasBody}`)
     setEditingIndex(null)
     setEditValue("")
   }

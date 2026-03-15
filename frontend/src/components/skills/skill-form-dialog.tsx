@@ -3,9 +3,12 @@
 import { useState, useEffect } from "react"
 import { useTranslations } from "next-intl"
 import { Loader2, Plus, Pencil } from "lucide-react"
+import { ResourcePickerDialog } from "@/components/skills/resource-picker-dialog"
+import { ResourceRefsBadges } from "@/components/skills/resource-refs-badges"
+import { MentionTextarea } from "@/components/skills/mention-textarea"
+import type { ResourceRef } from "@/types/skill"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -46,6 +49,8 @@ export function SkillFormDialog({
   const [description, setDescription] = useState("")
   const [content, setContent] = useState("")
   const [isActive, setIsActive] = useState(true)
+  const [resourceRefs, setResourceRefs] = useState<ResourceRef[]>([])
+  const [showResourcePicker, setShowResourcePicker] = useState(false)
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
 
   const t = useTranslations("skills")
@@ -60,11 +65,13 @@ export function SkillFormDialog({
       setDescription(skill.description || "")
       setContent(skill.content)
       setIsActive(skill.is_active)
+      setResourceRefs(skill.resource_refs || [])
     } else {
       setName("")
       setDescription("")
       setContent("")
       setIsActive(true)
+      setResourceRefs([])
     }
   }, [open, skill])
 
@@ -73,8 +80,9 @@ export function SkillFormDialog({
     ? name !== skill.name ||
       description !== (skill.description || "") ||
       content !== skill.content ||
-      isActive !== skill.is_active
-    : name.trim().length > 0 || description.trim().length > 0 || content.trim().length > 0 || !isActive
+      isActive !== skill.is_active ||
+      JSON.stringify(resourceRefs) !== JSON.stringify(skill.resource_refs || [])
+    : name.trim().length > 0 || description.trim().length > 0 || content.trim().length > 0 || !isActive || resourceRefs.length > 0
 
   const handleClose = (open: boolean) => {
     if (!open && isDirty) { setShowCloseConfirm(true); return }
@@ -92,6 +100,7 @@ export function SkillFormDialog({
       description: trimmedDesc || null,
       content,
       is_active: isActive,
+      resource_refs: resourceRefs.length > 0 ? resourceRefs : null,
     }
 
     await onSubmit(data)
@@ -104,6 +113,11 @@ export function SkillFormDialog({
       <DialogContent
         className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
         onInteractOutside={(e) => {
+          // Don't dismiss when clicking mention dropdown (Portal'd outside Dialog)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const target = (e as any)?.detail?.originalEvent?.target as HTMLElement | undefined
+          if (target?.closest?.("[data-mention-dropdown]")) { e.preventDefault(); return }
+          if (showResourcePicker) { e.preventDefault(); return }
           if (isDirty) { e.preventDefault(); setShowCloseConfirm(true) }
         }}
       >
@@ -152,12 +166,44 @@ export function SkillFormDialog({
                 {t("fieldContent")}
               </label>
               <p className="text-xs text-muted-foreground">{t("fieldContentHint")}</p>
-              <Textarea
+              <MentionTextarea
                 id="skill-content"
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={setContent}
                 placeholder={t("fieldContentPlaceholder")}
                 className="min-h-[200px] resize-y font-mono text-sm"
+                resourceRefs={resourceRefs}
+              />
+            </div>
+
+            {/* Resource References */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">{t("resourceRefs")}</label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 h-7 text-xs"
+                  onClick={() => setShowResourcePicker(true)}
+                >
+                  <Plus className="h-3 w-3" />
+                  {t("addResource")}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">{t("resourceRefsHint")}</p>
+              <ResourceRefsBadges
+                refs={resourceRefs}
+                onRemove={(index) =>
+                  setResourceRefs((prev) => prev.filter((_, i) => i !== index))
+                }
+                onUpdateAlias={(index, newAlias) =>
+                  setResourceRefs((prev) =>
+                    prev.map((ref, i) =>
+                      i === index ? { ...ref, alias: newAlias } : ref,
+                    ),
+                  )
+                }
               />
             </div>
 
@@ -194,6 +240,13 @@ export function SkillFormDialog({
         </form>
       </DialogContent>
     </Dialog>
+
+    <ResourcePickerDialog
+      open={showResourcePicker}
+      onOpenChange={setShowResourcePicker}
+      existingRefs={resourceRefs}
+      onAdd={(ref) => setResourceRefs((prev) => [...prev, ref])}
+    />
 
     <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
       <AlertDialogContent>

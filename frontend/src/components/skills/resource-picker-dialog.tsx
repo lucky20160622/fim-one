@@ -35,16 +35,16 @@ interface ResourcePickerDialogProps {
   onAdd: (ref: ResourceRef) => void
 }
 
-/** Generate a default alias from a resource name, e.g. "My CRM" -> "@my_crm" */
+/** Generate a default alias from a resource name, e.g. "My CRM" -> "@my_crm", "大钲数据库" -> "@大钲数据库" */
 function defaultAlias(name: string): string {
-  return (
-    "@" +
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_|_$/g, "")
-      .slice(0, 24)
-  )
+  // Try ASCII slug first
+  const ascii = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, 24)
+  // If name is purely CJK / non-ASCII, keep original (trimmed)
+  return "@" + (ascii || name.trim().slice(0, 24))
 }
 
 type ResourceItem = {
@@ -161,12 +161,14 @@ export function ResourcePickerDialog({
 
   const handleConfirm = () => {
     if (!selected) return
-    const finalAlias = alias.trim() || defaultAlias(selected.name)
+    // Strip @ prefix, then check if body is empty → fall back to default
+    const body = alias.trim().replace(/^@/, "").trim()
+    const finalAlias = `@${body || defaultAlias(selected.name).slice(1)}`
     onAdd({
       type: selected.type,
       id: selected.id,
       name: selected.name,
-      alias: finalAlias.startsWith("@") ? finalAlias : `@${finalAlias}`,
+      alias: finalAlias,
     })
     setSelected(null)
     setAlias("")

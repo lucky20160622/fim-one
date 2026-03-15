@@ -8,6 +8,7 @@ import {
   type KeyboardEvent,
   type ChangeEvent,
 } from "react"
+import { createPortal } from "react-dom"
 import { useTranslations } from "next-intl"
 import { Cable, Server, BookOpen, Bot } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
@@ -29,10 +30,6 @@ const TYPE_ICONS: Record<ResourceRefType, React.ReactNode> = {
   agent: <Bot className="h-3.5 w-3.5" />,
 }
 
-/**
- * A textarea that shows a dropdown of resource aliases when the user types `@`.
- * This is a simple autocomplete -- not a rich text editor.
- */
 export function MentionTextarea({
   id,
   value,
@@ -51,62 +48,59 @@ export function MentionTextarea({
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 })
 
-  // Compute filtered suggestions
   const suggestions = resourceRefs.filter((ref) => {
     if (!mentionQuery) return true
     const q = mentionQuery.toLowerCase()
-    return (
-      ref.alias.toLowerCase().includes(q) ||
-      ref.name.toLowerCase().includes(q)
-    )
+    return ref.alias.toLowerCase().includes(q) || ref.name.toLowerCase().includes(q)
   })
 
-  // Calculate caret position for dropdown placement
+  // Measure caret position using a mirror element, return viewport coords
   const updateDropdownPosition = useCallback(() => {
     const textarea = textareaRef.current
     if (!textarea) return
 
-    // Create a hidden mirror element to measure caret position
-    const mirror = document.createElement("div")
+    const rect = textarea.getBoundingClientRect()
     const style = window.getComputedStyle(textarea)
-    const properties = [
+    const lineHeight = parseInt(style.lineHeight || "20")
+
+    // Mirror the textarea to measure caret position
+    const mirror = document.createElement("div")
+    const props = [
       "fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing",
       "wordSpacing", "textIndent", "whiteSpace", "wordWrap", "overflowWrap",
       "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
       "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
     ] as const
-
     mirror.style.position = "absolute"
     mirror.style.visibility = "hidden"
     mirror.style.width = `${textarea.clientWidth}px`
     mirror.style.height = "auto"
+    for (const p of props) mirror.style[p] = style[p]
 
-    for (const prop of properties) {
-      mirror.style[prop] = style[prop]
-    }
-
+    // Text up to the @ character
     const textBefore = value.slice(0, textarea.selectionStart)
     mirror.textContent = textBefore
-
-    // Add a span at the caret position
-    const span = document.createElement("span")
-    span.textContent = "|"
-    mirror.appendChild(span)
-
+    const marker = document.createElement("span")
+    marker.textContent = "|"
+    mirror.appendChild(marker)
     document.body.appendChild(mirror)
-    const rect = textarea.getBoundingClientRect()
-    const spanRect = span.getBoundingClientRect()
+
     const mirrorRect = mirror.getBoundingClientRect()
-
-    const relativeTop = spanRect.top - mirrorRect.top
-    const relativeLeft = spanRect.left - mirrorRect.left
-
-    setDropdownPosition({
-      top: relativeTop + parseInt(style.lineHeight || "20") + 4 - textarea.scrollTop,
-      left: Math.min(relativeLeft, rect.width - 240),
-    })
-
+    const markerRect = marker.getBoundingClientRect()
+    const caretY = markerRect.top - mirrorRect.top
+    const caretX = markerRect.left - mirrorRect.left
     document.body.removeChild(mirror)
+
+    // Convert to viewport coordinates
+    let top = rect.top + caretY + lineHeight + 4 - textarea.scrollTop
+    let left = rect.left + caretX
+
+    // Clamp: don't go off-screen, flip up if near bottom
+    if (top + 200 > window.innerHeight) top = rect.top + caretY - 200 - textarea.scrollTop
+    left = Math.max(8, Math.min(left, window.innerWidth - 250))
+    top = Math.max(8, top)
+
+    setDropdownPosition({ top, left })
   }, [value])
 
   const handleChange = useCallback(
@@ -115,16 +109,14 @@ export function MentionTextarea({
       onChange(newValue)
 
       const cursorPos = e.target.selectionStart
-      // Look backward from cursor for an "@" that starts a mention
       const textBefore = newValue.slice(0, cursorPos)
       const lastAt = textBefore.lastIndexOf("@")
 
       if (lastAt >= 0) {
-        // Check that @ is at start of line, start of text, or preceded by whitespace
-        const charBefore = lastAt > 0 ? textBefore[lastAt - 1] : " "
-        if (charBefore === " " || charBefore === "\n" || charBefore === "\t" || lastAt === 0) {
+        const charBefore = lastAt > 0 ? textBefore[lastAt - 1] : "\n"
+        // Block only mid-word ASCII (like email@domain), allow CJK/punctuation
+        if (!/[a-zA-Z0-9]/.test(charBefore)) {
           const query = textBefore.slice(lastAt + 1)
-          // Only show dropdown if the query has no whitespace (still typing the alias)
           if (!/\s/.test(query) && query.length <= 30) {
             setMentionStart(lastAt)
             setMentionQuery(query)
@@ -134,18 +126,21 @@ export function MentionTextarea({
           }
         }
       }
-
       setShowDropdown(false)
     },
     [onChange],
   )
 
-  // Update dropdown position when it appears
   useEffect(() => {
-    if (showDropdown) {
-      updateDropdownPosition()
-    }
+    if (showDropdown) updateDropdownPosition()
   }, [showDropdown, updateDropdownPosition])
+
+  // Store insertMention in a ref so the native event listener can access it
+  const insertMentionRef = useRef<(ref: ResourceRef) => void>(() => {})
+  const suggestionsRef = useRef(suggestions)
+  const selectedIndexRef = useRef(selectedIndex)
+  suggestionsRef.current = suggestions
+  selectedIndexRef.current = selectedIndex
 
   const insertMention = useCallback(
     (ref: ResourceRef) => {
@@ -155,26 +150,22 @@ export function MentionTextarea({
       const before = value.slice(0, mentionStart)
       const cursorPos = textarea.selectionStart
       const after = value.slice(cursorPos)
-
       const aliasText = ref.alias + " "
-      const newValue = before + aliasText + after
-      onChange(newValue)
+      onChange(before + aliasText + after)
       setShowDropdown(false)
 
-      // Restore cursor position after the inserted alias
       requestAnimationFrame(() => {
-        const newPos = mentionStart + aliasText.length
         textarea.focus()
-        textarea.setSelectionRange(newPos, newPos)
+        textarea.setSelectionRange(mentionStart + aliasText.length, mentionStart + aliasText.length)
       })
     },
     [value, mentionStart, onChange],
   )
+  insertMentionRef.current = insertMention
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
       if (!showDropdown || suggestions.length === 0) return
-
       if (e.key === "ArrowDown") {
         e.preventDefault()
         setSelectedIndex((prev) => (prev + 1) % suggestions.length)
@@ -192,15 +183,36 @@ export function MentionTextarea({
     [showDropdown, suggestions, selectedIndex, insertMention],
   )
 
-  // Close dropdown when clicking outside
+  // Native pointerdown capture on the dropdown — stops Radix from seeing
+  // the click as "outside" the Dialog, preventing dismiss. mousedown still
+  // fires normally so our click handlers work.
+  useEffect(() => {
+    const el = dropdownRef.current
+    if (!el || !showDropdown) return
+    const handler = (e: PointerEvent) => {
+      e.stopImmediatePropagation()
+
+      // Handle click via event delegation (find which button was clicked)
+      const btn = (e.target as HTMLElement).closest("button[data-ref-index]")
+      if (btn) {
+        e.preventDefault() // prevent textarea blur
+        const idx = parseInt(btn.getAttribute("data-ref-index") || "0", 10)
+        const ref = suggestionsRef.current[idx]
+        if (ref) insertMentionRef.current(ref)
+      }
+    }
+    // capture phase: fires before Radix's document-level bubbling listener
+    el.addEventListener("pointerdown", handler, true)
+    return () => el.removeEventListener("pointerdown", handler, true)
+  }, [showDropdown])
+
+  // Close on outside click
   useEffect(() => {
     if (!showDropdown) return
     const handler = (e: MouseEvent) => {
       if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node) &&
-        textareaRef.current &&
-        !textareaRef.current.contains(e.target as Node)
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+        textareaRef.current && !textareaRef.current.contains(e.target as Node)
       ) {
         setShowDropdown(false)
       }
@@ -210,7 +222,7 @@ export function MentionTextarea({
   }, [showDropdown])
 
   return (
-    <div className="relative">
+    <div>
       <Textarea
         ref={textareaRef}
         id={id}
@@ -221,34 +233,27 @@ export function MentionTextarea({
         className={className}
       />
 
-      {/* Hint text */}
       {resourceRefs.length > 0 && (
         <p className="text-[11px] text-muted-foreground mt-1">
           {t("mentionHint")}
         </p>
       )}
 
-      {/* Mention dropdown */}
-      {showDropdown && suggestions.length > 0 && (
+      {showDropdown && suggestions.length > 0 && createPortal(
         <div
           ref={dropdownRef}
-          className="absolute z-50 w-60 rounded-md border border-border/60 bg-popover/95 backdrop-blur-md shadow-lg overflow-hidden"
-          style={{
-            top: dropdownPosition.top,
-            left: Math.max(0, dropdownPosition.left),
-          }}
+          data-mention-dropdown=""
+          className="fixed z-[100] w-60 rounded-md border border-border/60 bg-popover/95 backdrop-blur-md shadow-lg overflow-hidden"
+          style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
         >
           <div className="max-h-[180px] overflow-y-auto py-1">
             {suggestions.map((ref, index) => (
               <button
                 key={`${ref.type}:${ref.id}`}
                 type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault() // Prevent textarea blur
-                  insertMention(ref)
-                }}
+                data-ref-index={index}
                 onMouseEnter={() => setSelectedIndex(index)}
-                className={`flex items-center gap-2 w-full px-2.5 py-1.5 text-sm text-left transition-colors ${
+                className={`flex items-center gap-2 w-full px-2.5 py-1.5 text-sm text-left transition-colors cursor-pointer ${
                   index === selectedIndex
                     ? "bg-accent text-accent-foreground"
                     : "text-popover-foreground hover:bg-accent/50"
@@ -266,7 +271,8 @@ export function MentionTextarea({
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
