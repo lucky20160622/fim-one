@@ -4,7 +4,7 @@ import { memo, useMemo } from "react"
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  getSmoothStepPath,
+  getBezierPath,
   useNodesData,
 } from "@xyflow/react"
 import type { EdgeProps } from "@xyflow/react"
@@ -100,14 +100,13 @@ function LabeledEdgeComponent({
     [sourceHandleId, sourceNodeData, t],
   )
 
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
+  const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
-    borderRadius: 8,
   })
 
   // Position the label near the source end (45% of the way from source
@@ -122,8 +121,8 @@ function LabeledEdgeComponent({
         markerEnd={markerEnd}
         style={{
           ...style,
-          stroke: "hsl(var(--border))",
-          strokeWidth: 1.5,
+          stroke: "var(--muted-foreground)",
+          strokeWidth: 2,
         }}
       />
       {edgeLabel && (

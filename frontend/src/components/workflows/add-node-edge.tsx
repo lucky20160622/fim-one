@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  getSmoothStepPath,
+  getBezierPath,
   useReactFlow,
   useNodesData,
 } from "@xyflow/react"
@@ -94,14 +94,13 @@ export function AddNodeEdge({
   // conditions/classes are edited in the config panel
   const sourceNodeData = useNodesData(source)
 
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
+  const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
-    borderRadius: 8,
   })
 
   // Resolve edge label from condition/classifier source nodes
@@ -189,8 +188,8 @@ export function AddNodeEdge({
         markerEnd={markerEnd}
         style={{
           ...style,
-          stroke: "hsl(var(--border))",
-          strokeWidth: 1.5,
+          stroke: "var(--muted-foreground)",
+          strokeWidth: 2,
         }}
       />
       <EdgeLabelRenderer>
