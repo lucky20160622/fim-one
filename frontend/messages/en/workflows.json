@@ -225,7 +225,7 @@
   "configConditions": "Conditions",
   "configAddCondition": "Add condition",
   "configConditionLabel": "Label",
-  "configConditionVariable": "Variable (e.g. {{node_id.output}})",
+  "configConditionVariable": "Variable (e.g. '{{node_id.output}}')",
   "configConditionValue": "Value",
   "configExpression": "Expression",
   "configLLMPrompt": "LLM prompt",
@@ -256,7 +256,7 @@
   "configTemplate": "Template",
   "configLanguage": "Language",
   "configCode": "Code",
-  "configPromptHint": "Use {{variable}} for variable interpolation",
+  "configPromptHint": "Use '{{variable}}' for variable interpolation",
 
   "configSectionModel": "Model",
   "configSectionPrompt": "Prompt",
@@ -283,7 +283,7 @@
   "configCodeOutputHint_javascript": "Assign your result to a variable named 'output'",
   "configCodeHint": "Write your code below. Return values via the output variable.",
 
-  "configVariableRefHint": "Use {{node_id.output}} to reference upstream outputs",
+  "configVariableRefHint": "Use '{{node_id.output}}' to reference upstream outputs",
 
   "errorDuplicateStart": "Only one Start node is allowed per workflow",
   "errorDuplicateEnd": "Only one End node is allowed per workflow",
@@ -390,7 +390,7 @@
   "envVarsMenuItem": "Environment Variables",
 
   "configListVariable": "List variable",
-  "configListVariablePlaceholder": "{{node_id.output}} referencing a list",
+  "configListVariablePlaceholder": "'{{node_id.output}}' referencing a list",
   "configIteratorVariable": "Item variable name",
   "configIndexVariable": "Index variable name",
   "configMaxIterations": "Max iterations",
@@ -410,7 +410,7 @@
   "configLoopVariable": "Loop variable name",
 
   "configInputText": "Input text",
-  "configInputTextPlaceholder": "{{node_id.output}} — text to extract from",
+  "configInputTextPlaceholder": "'{{node_id.output}}' — text to extract from",
   "configExtractParams": "Parameters to extract",
   "configAddParam": "Add parameter",
   "configParamName": "Name",
@@ -687,7 +687,7 @@
   "scheduleEnabledLabel": "Enable schedule",
   "scheduleTimezoneLabel": "Timezone",
   "scheduleInputsLabel": "Default Inputs (JSON)",
-  "scheduleInputsPlaceholder": "{}",
+  "scheduleInputsPlaceholder": "'{}'",
   "scheduleInputsInvalid": "Invalid JSON",
   "scheduleNextRun": "Next run",
   "scheduleNextRunNone": "Not scheduled",
@@ -730,7 +730,7 @@
   "batchRunTitle": "Batch Run",
   "batchRunDescription": "Run this workflow with multiple input sets in parallel.",
   "batchRunInputLabel": "Input Sets (JSON)",
-  "batchRunInputPlaceholder": "Enter one JSON object per line, or a JSON array:\n{\"name\": \"Alice\"}\n{\"name\": \"Bob\"}\n\nor\n\n[{\"name\": \"Alice\"}, {\"name\": \"Bob\"}]",
+  "batchRunInputPlaceholder": "Enter one JSON object per line, or a JSON array:\n'{\"name\": \"Alice\"'}'\n'{\"name\": \"Bob\"'}'\n\nor\n\n['{\"name\": \"Alice\"'}', '{\"name\": \"Bob\"'}']",
   "batchRunInputHint": "Each line should be a valid JSON object, or provide a JSON array.",
   "batchRunParseError": "Failed to parse input: {error}",
   "batchRunInputCount": "{count} input set(s) detected",
