@@ -97,5 +97,17 @@
   "unsavedChangesDescription": "You have unsaved changes. Leaving this page will discard them.",
   "stay": "Stay",
   "discardAndLeave": "Discard & Leave",
-  "backToList": "Back to Skills"
+  "backToList": "Back to Skills",
+
+  "templateGalleryTitle": "Create from Template",
+  "templateGalleryDescription": "Choose a pre-built skill template to get started quickly",
+  "templateSelectHint": "Select a template to continue",
+  "templateEmpty": "No templates available",
+  "templateCreateFailed": "Failed to create skill from template",
+  "templateCategory_text": "Text",
+  "templateCategory_data": "Data",
+  "templateCategory_writing": "Writing",
+  "templateCategory_code": "Code",
+  "templateCategory_ai": "AI",
+  "fromTemplate": "From Template"
 }

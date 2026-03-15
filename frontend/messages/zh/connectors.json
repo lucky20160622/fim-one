@@ -220,5 +220,13 @@
   "forkFailed": "连接器复刻失败",
   "importFileInvalid": "无效的 JSON 文件",
   "emptyTitle": "还没有连接器",
-  "emptyDescription": "创建您的第一个连接器以链接外部 API 和服务。"
+  "emptyDescription": "创建您的第一个连接器以链接外部 API 和服务。",
+  "templateGalleryTitle": "从模板创建",
+  "templateGalleryDescription": "选择预构建的 API 连接器模板快速开始",
+  "templateSelectHint": "选择模板继续",
+  "templateEmpty": "没有可用的模板",
+  "templateCreateFailed": "从模板创建连接器失败",
+  "templateCategory_api": "API",
+  "templateCategory_database": "数据库",
+  "fromTemplate": "从模板"
 }

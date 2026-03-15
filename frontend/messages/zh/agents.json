@@ -135,5 +135,15 @@
   "compactInstructionsHint": "压缩对话历史时使用的自定义提示。留空则使用默认值。",
   "compactInstructionsPlaceholder": "保留订单 ID、金额和客户名称。删除原始 API 响应和中间推理。",
   "emptyTitle": "还没有智能体",
-  "emptyDescription": "创建您的第一个智能体以开始使用。"
+  "emptyDescription": "创建您的第一个智能体以开始使用。",
+  "fromTemplate": "从模板创建",
+  "templateGalleryTitle": "从模板创建",
+  "templateGalleryDescription": "选择预构建的智能体模板快速开始",
+  "templateSelectHint": "选择模板继续",
+  "templateEmpty": "没有可用的模板",
+  "templateCreateFailed": "从模板创建智能体失败",
+  "templateCategory_basic": "基础",
+  "templateCategory_advanced": "高级",
+  "templateCategory_ai": "AI",
+  "templateCategory_data": "数据"
 }

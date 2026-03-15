@@ -135,5 +135,15 @@
   "compactInstructionsHint": "Benutzerdefinierter Prompt zur Komprimierung des Gesprächsverlaufs. Leer lassen, um Standard zu verwenden.",
   "compactInstructionsPlaceholder": "Bestellnummern, Beträge und Kundennamen beibehalten. Rohe API-Antworten und Zwischenüberlegungen entfernen.",
   "emptyTitle": "Noch keine Agenten",
-  "emptyDescription": "Erstellen Sie Ihren ersten Agenten, um zu beginnen."
+  "emptyDescription": "Erstellen Sie Ihren ersten Agenten, um zu beginnen.",
+  "fromTemplate": "Aus Vorlage",
+  "templateGalleryTitle": "Aus Vorlage erstellen",
+  "templateGalleryDescription": "Wählen Sie eine vorgefertigte Agent-Vorlage, um schnell zu beginnen",
+  "templateSelectHint": "Wählen Sie eine Vorlage aus, um fortzufahren",
+  "templateEmpty": "Keine Vorlagen verfügbar",
+  "templateCreateFailed": "Agent aus Vorlage konnte nicht erstellt werden",
+  "templateCategory_basic": "Grundlagen",
+  "templateCategory_advanced": "Erweitert",
+  "templateCategory_ai": "KI",
+  "templateCategory_data": "Daten"
 }

@@ -88,5 +88,16 @@
   "noResourcesAvailable": "Aucune ressource de ce type disponible.",
   "resourceAlreadyAdded": "Cette ressource est déjà ajoutée.",
   "editAlias": "Modifier l'alias",
-  "mentionHint": "Tapez @ pour mentionner une ressource"
+  "mentionHint": "Tapez @ pour mentionner une ressource",
+  "templateGalleryTitle": "Créer à partir d'un modèle",
+  "templateGalleryDescription": "Choisissez un modèle de compétence prédéfini pour commencer rapidement",
+  "templateSelectHint": "Sélectionnez un modèle pour continuer",
+  "templateEmpty": "Aucun modèle disponible",
+  "templateCreateFailed": "Échec de la création de la compétence à partir du modèle",
+  "templateCategory_text": "Texte",
+  "templateCategory_data": "Données",
+  "templateCategory_writing": "Rédaction",
+  "templateCategory_code": "Code",
+  "templateCategory_ai": "IA",
+  "fromTemplate": "À partir d'un modèle"
 }

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
-import { Plus, Loader2, Bot, Trash2, Clock, Search } from "lucide-react"
+import { Plus, Loader2, Bot, Trash2, Clock, Search, LayoutTemplate } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import type { AgentResponse } from "@/types/agent"
 import { useScopeFilter } from "@/hooks/use-scope-filter"
 import { ScopeFilter } from "@/components/shared/scope-filter"
+import { AgentTemplateGallery } from "@/components/agents/agent-template-gallery"
 
 function AgentsPageInner() {
   const t = useTranslations("agents")
@@ -42,6 +43,7 @@ function AgentsPageInner() {
 
   const [agents, setAgents] = useState<AgentResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [templateGalleryOpen, setTemplateGalleryOpen] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [pendingPublishId, setPendingPublishId] = useState<string | null>(null)
   const [pendingUnpublishId, setPendingUnpublishId] = useState<string | null>(null)
@@ -181,12 +183,23 @@ function AgentsPageInner() {
             {t("subtitle")}
           </p>
         </div>
-        <Button size="sm" className="gap-1.5" asChild>
-          <Link href="/agents/new">
-            <Plus className="h-4 w-4" />
-            {t("newAgent")}
-          </Link>
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => setTemplateGalleryOpen(true)}
+          >
+            <LayoutTemplate className="h-4 w-4" />
+            {t("fromTemplate")}
+          </Button>
+          <Button size="sm" className="gap-1.5" asChild>
+            <Link href="/agents/new">
+              <Plus className="h-4 w-4" />
+              {t("newAgent")}
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Content */}
@@ -328,6 +341,12 @@ function AgentsPageInner() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Template Gallery */}
+      <AgentTemplateGallery
+        open={templateGalleryOpen}
+        onOpenChange={setTemplateGalleryOpen}
+      />
     </div>
   )
 }

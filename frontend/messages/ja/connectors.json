@@ -220,5 +220,13 @@
   "forkFailed": "コネクタのフォークに失敗しました",
   "importFileInvalid": "無効な JSON ファイルです",
   "emptyTitle": "コネクタがまだありません",
-  "emptyDescription": "最初のコネクタを作成して、外部APIとサービスをリンクします。"
+  "emptyDescription": "最初のコネクタを作成して、外部APIとサービスをリンクします。",
+  "templateGalleryTitle": "テンプレートから作成",
+  "templateGalleryDescription": "事前構築されたAPIコネクタテンプレートを選択して、すぐに開始できます",
+  "templateSelectHint": "続行するテンプレートを選択してください",
+  "templateEmpty": "利用可能なテンプレートがありません",
+  "templateCreateFailed": "テンプレートからのコネクタ作成に失敗しました",
+  "templateCategory_api": "API",
+  "templateCategory_database": "データベース",
+  "fromTemplate": "テンプレートから"
 }

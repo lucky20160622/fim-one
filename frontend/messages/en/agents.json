@@ -155,5 +155,16 @@
   "skillIdsHint": "Skills are referenced by name in the system prompt. Full content loads on demand via read_skill().",
   "compactInstructions": "Compact Instructions",
   "compactInstructionsHint": "Custom prompt used when compressing conversation history. Leave empty to use default.",
-  "compactInstructionsPlaceholder": "Preserve order IDs, amounts, and customer names. Drop raw API responses and intermediate reasoning."
+  "compactInstructionsPlaceholder": "Preserve order IDs, amounts, and customer names. Drop raw API responses and intermediate reasoning.",
+
+  "fromTemplate": "From Template",
+  "templateGalleryTitle": "Create from Template",
+  "templateGalleryDescription": "Choose a pre-built agent template to get started quickly",
+  "templateSelectHint": "Select a template to continue",
+  "templateEmpty": "No templates available",
+  "templateCreateFailed": "Failed to create agent from template",
+  "templateCategory_basic": "Basic",
+  "templateCategory_advanced": "Advanced",
+  "templateCategory_ai": "AI",
+  "templateCategory_data": "Data"
 }

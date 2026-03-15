@@ -49,3 +49,12 @@ export interface SkillUpdate {
   resource_refs?: ResourceRef[] | null
   is_active?: boolean
 }
+
+export interface SkillTemplate {
+  id: string
+  name: string
+  description: string
+  icon?: string | null
+  category: string
+  blueprint: Record<string, unknown>
+}

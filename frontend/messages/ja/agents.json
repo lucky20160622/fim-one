@@ -135,5 +135,15 @@
   "compactInstructionsHint": "会話履歴を圧縮する際に使用されるカスタムプロンプト。空のままにするとデフォルトを使用します。",
   "compactInstructionsPlaceholder": "注文ID、金額、顧客名の順序を保持します。生のAPI応答と中間推論は削除します。",
   "emptyTitle": "エージェントがまだありません",
-  "emptyDescription": "最初のエージェントを作成して開始してください。"
+  "emptyDescription": "最初のエージェントを作成して開始してください。",
+  "fromTemplate": "テンプレートから",
+  "templateGalleryTitle": "テンプレートから作成",
+  "templateGalleryDescription": "事前構築されたエージェントテンプレートを選択して、すぐに開始できます",
+  "templateSelectHint": "続行するにはテンプレートを選択してください",
+  "templateEmpty": "利用可能なテンプレートがありません",
+  "templateCreateFailed": "テンプレートからエージェントを作成できませんでした",
+  "templateCategory_basic": "基本",
+  "templateCategory_advanced": "高度",
+  "templateCategory_ai": "AI",
+  "templateCategory_data": "データ"
 }

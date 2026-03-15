@@ -135,5 +135,15 @@
   "compactInstructionsHint": "Invite personnalisée utilisée lors de la compression de l'historique de conversation. Laissez vide pour utiliser la valeur par défaut.",
   "compactInstructionsPlaceholder": "Conservez les ID de commande, les montants et les noms de clients. Supprimez les réponses API brutes et le raisonnement intermédiaire.",
   "emptyTitle": "Aucun agent pour le moment",
-  "emptyDescription": "Créez votre premier agent pour commencer."
+  "emptyDescription": "Créez votre premier agent pour commencer.",
+  "fromTemplate": "À partir d'un modèle",
+  "templateGalleryTitle": "Créer à partir d'un modèle",
+  "templateGalleryDescription": "Choisissez un modèle d'agent pré-construit pour commencer rapidement",
+  "templateSelectHint": "Sélectionnez un modèle pour continuer",
+  "templateEmpty": "Aucun modèle disponible",
+  "templateCreateFailed": "Échec de la création de l'agent à partir du modèle",
+  "templateCategory_basic": "Basique",
+  "templateCategory_advanced": "Avancé",
+  "templateCategory_ai": "IA",
+  "templateCategory_data": "Données"
 }

@@ -231,5 +231,14 @@
   "exportFailed": "Failed to export connector",
   "importFailed": "Failed to import connector",
   "forkFailed": "Failed to fork connector",
-  "importFileInvalid": "Invalid JSON file"
+  "importFileInvalid": "Invalid JSON file",
+
+  "templateGalleryTitle": "Create from Template",
+  "templateGalleryDescription": "Choose a pre-built API connector template to get started quickly",
+  "templateSelectHint": "Select a template to continue",
+  "templateEmpty": "No templates available",
+  "templateCreateFailed": "Failed to create connector from template",
+  "templateCategory_api": "API",
+  "templateCategory_database": "Database",
+  "fromTemplate": "From Template"
 }

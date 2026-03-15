@@ -220,5 +220,13 @@
   "forkFailed": "Fehler beim Forken des Connectors",
   "importFileInvalid": "Ungültige JSON-Datei",
   "emptyTitle": "Noch keine Konnektoren",
-  "emptyDescription": "Erstellen Sie Ihren ersten Konnektor, um externe APIs und Dienste zu verbinden."
+  "emptyDescription": "Erstellen Sie Ihren ersten Konnektor, um externe APIs und Dienste zu verbinden.",
+  "templateGalleryTitle": "Aus Vorlage erstellen",
+  "templateGalleryDescription": "Wählen Sie eine vorgefertigte API-Connector-Vorlage, um schnell zu beginnen",
+  "templateSelectHint": "Wählen Sie eine Vorlage aus, um fortzufahren",
+  "templateEmpty": "Keine Vorlagen verfügbar",
+  "templateCreateFailed": "Fehler beim Erstellen des Connectors aus der Vorlage",
+  "templateCategory_api": "API",
+  "templateCategory_database": "Datenbank",
+  "fromTemplate": "Aus Vorlage"
 }

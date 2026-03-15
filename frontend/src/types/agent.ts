@@ -69,6 +69,15 @@ export interface AgentUpdate {
   compact_instructions?: string | null
 }
 
+export interface AgentTemplate {
+  id: string
+  name: string
+  description: string
+  icon?: string | null
+  category: string
+  blueprint: Record<string, unknown>
+}
+
 export interface AICreateAgentResult {
   agent: AgentResponse
   message: string

@@ -88,5 +88,16 @@
   "noResourcesAvailable": "此类型没有可用的资源。",
   "resourceAlreadyAdded": "此资源已添加。",
   "editAlias": "编辑别名",
-  "mentionHint": "输入 @ 来提及资源"
+  "mentionHint": "输入 @ 来提及资源",
+  "templateGalleryTitle": "从模板创建",
+  "templateGalleryDescription": "选择预构建的技能模板快速开始",
+  "templateSelectHint": "选择模板继续",
+  "templateEmpty": "没有可用的模板",
+  "templateCreateFailed": "从模板创建技能失败",
+  "templateCategory_text": "文本",
+  "templateCategory_data": "数据",
+  "templateCategory_writing": "写作",
+  "templateCategory_code": "代码",
+  "templateCategory_ai": "AI",
+  "fromTemplate": "从模板"
 }

@@ -7,8 +7,8 @@ import type {
   ConversationCreate,
   PaginatedResponse,
 } from "@/types/conversation"
-import type { AgentResponse, AgentCreate, AgentUpdate, AICreateAgentResult, AIRefineAgentResult } from "@/types/agent"
-import type { SkillResponse, SkillCreate, SkillUpdate } from "@/types/skill"
+import type { AgentResponse, AgentCreate, AgentUpdate, AgentTemplate, AICreateAgentResult, AIRefineAgentResult } from "@/types/agent"
+import type { SkillResponse, SkillCreate, SkillUpdate, SkillTemplate } from "@/types/skill"
 import type { FileUploadResponse, FileListItem } from "@/types/file"
 import type {
   KBResponse,
@@ -46,6 +46,7 @@ import type {
   AIAnnotateJobStatus,
   CredentialUpsertRequest,
   MyCredentialStatus,
+  ConnectorTemplate,
 } from "@/types/connector"
 import type { AdminUser, AdminConversation, AdminMessage, StorageStats, InviteCode, AdminMCPServer, IntegrationHealth, AdminModelsResponse, AdminModelCreate, AdminModelUpdate, AdminUserFile, AdminOrganization, OrgMember as AdminOrgMember, ReviewLogItem } from "@/types/admin"
 import type { MCPServerResponse, MCPServerCreate, MCPServerUpdate, MCPMyCredentialStatus } from "@/types/mcp-server"
@@ -513,6 +514,16 @@ export const agentApi = {
       method: "PUT",
       body: JSON.stringify({ is_active: isActive }),
     }).then((r) => r.data),
+
+  getTemplates: () =>
+    apiFetch<ApiResponse<{ templates: AgentTemplate[]; by_category: Record<string, AgentTemplate[]> }>>(
+      "/api/agent-templates",
+    ).then((r) => r.data.templates),
+
+  createFromTemplate: (templateId: string) =>
+    apiFetch<ApiResponse<AgentResponse>>(`/api/agent-templates/${templateId}/create`, {
+      method: "POST",
+    }).then((r) => r.data),
 }
 
 // --- File API ---
@@ -934,6 +945,18 @@ export const connectorApi = {
       method: "POST",
       body: JSON.stringify(name ? { name } : {}),
     }).then((r) => r.data),
+
+  // Templates
+  getTemplates: () =>
+    apiFetch<ApiResponse<ConnectorTemplate[]>>("/api/connector-templates").then(
+      (r) => r.data,
+    ),
+
+  createFromTemplate: (templateId: string) =>
+    apiFetch<ApiResponse<ConnectorResponse>>(
+      `/api/connector-templates/${templateId}/create`,
+      { method: "POST" },
+    ).then((r) => r.data),
 }
 
 // --- Workflow API ---
@@ -1203,6 +1226,14 @@ export const skillApi = {
     }).then((r) => r.data),
   toggle: (id: string) =>
     apiFetch<ApiResponse<SkillResponse>>(`/api/skills/${id}/toggle`, {
+      method: "POST",
+    }).then((r) => r.data),
+
+  getTemplates: () =>
+    apiFetch<ApiResponse<SkillTemplate[]>>("/api/skill-templates").then((r) => r.data),
+
+  createFromTemplate: (templateId: string) =>
+    apiFetch<ApiResponse<SkillResponse>>(`/api/skill-templates/${templateId}/create`, {
       method: "POST",
     }).then((r) => r.data),
 }

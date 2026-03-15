@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
-import { Plus, BookOpen, Loader2, Clock, Search } from "lucide-react"
+import { Plus, BookOpen, Loader2, Clock, Search, LayoutTemplate } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -31,6 +31,7 @@ import type { SkillResponse, SkillCreate } from "@/types/skill"
 import { useScopeFilter } from "@/hooks/use-scope-filter"
 import { ScopeFilter } from "@/components/shared/scope-filter"
 import { EmptyState } from "@/components/shared/empty-state"
+import { SkillTemplateGallery } from "@/components/skills/skill-template-gallery"
 
 function SkillsPageInner() {
   const t = useTranslations("skills")
@@ -51,6 +52,7 @@ function SkillsPageInner() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingSkill, setEditingSkill] = useState<SkillResponse | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [templateGalleryOpen, setTemplateGalleryOpen] = useState(false)
 
   // Auth guard
   useEffect(() => {
@@ -209,6 +211,15 @@ function SkillsPageInner() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => setTemplateGalleryOpen(true)}
+          >
+            <LayoutTemplate className="h-4 w-4" />
+            {t("fromTemplate")}
+          </Button>
           <Button size="sm" className="gap-1.5" onClick={handleCreate}>
             <Plus className="h-4 w-4" />
             {t("newSkill")}
@@ -272,6 +283,12 @@ function SkillsPageInner() {
         skill={editingSkill}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+      />
+
+      <SkillTemplateGallery
+        open={templateGalleryOpen}
+        onOpenChange={setTemplateGalleryOpen}
+        onCreated={loadSkills}
       />
 
       {/* Delete Confirmation */}

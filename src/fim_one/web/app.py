@@ -78,11 +78,14 @@ from .api.eval_runs import router as eval_runs_router
 from .api.dashboard import router as dashboard_router
 from .api.market import router as market_router
 from .api.skills import router as skills_router
+from .api.skill_templates import router as skill_templates_router
 from .api.workflows import router as workflows_router
 from .api.workflow_templates import (
     router as workflow_templates_router,
     admin_router as admin_workflow_templates_router,
 )
+from .api.agent_templates import router as agent_templates_router
+from .api.connector_templates import router as connector_templates_router
 from .api.hooks import router as hooks_router
 from .api.metrics import router as metrics_router
 from .api.notifications import router as notifications_router
@@ -328,6 +331,7 @@ def create_app() -> FastAPI:
     app.include_router(reviews_router)
     app.include_router(db_connectors_router)
     app.include_router(connector_ai_router)
+    app.include_router(connector_templates_router)
     app.include_router(mcp_servers_router)
     app.include_router(agent_ai_router)
     app.include_router(artifacts_router)
@@ -341,9 +345,11 @@ def create_app() -> FastAPI:
     app.include_router(dashboard_router)
     app.include_router(market_router)
     app.include_router(skills_router)
+    app.include_router(skill_templates_router)
     app.include_router(workflows_router)
     app.include_router(workflow_templates_router)
     app.include_router(admin_workflow_templates_router)
+    app.include_router(agent_templates_router)
     app.include_router(metrics_router)
     app.include_router(hooks_router)
     app.include_router(notifications_router)

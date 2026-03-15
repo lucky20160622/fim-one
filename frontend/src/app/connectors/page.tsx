@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Plus, Plug, Trash2, LayoutGrid, Database, Globe, ChevronDown, Upload, Search } from "lucide-react"
+import { Plus, Plug, Trash2, LayoutTemplate, Database, Globe, ChevronDown, Upload, Search } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -43,6 +43,7 @@ import { toast } from "sonner"
 import { useScopeFilter } from "@/hooks/use-scope-filter"
 import { ScopeFilter } from "@/components/shared/scope-filter"
 import { EmptyState } from "@/components/shared/empty-state"
+import { ConnectorTemplateGallery } from "@/components/connectors/connector-template-gallery"
 
 function ConnectorsPageInner() {
   const { user, isLoading: authLoading } = useAuth()
@@ -66,6 +67,7 @@ function ConnectorsPageInner() {
   const [publishAllowFallback, setPublishAllowFallback] = useState(true)
   const [userOrgs, setUserOrgs] = useState<UserOrg[]>([])
   const [orgsLoading, setOrgsLoading] = useState(false)
+  const [templateGalleryOpen, setTemplateGalleryOpen] = useState(false)
 
   // Auth guard
   useEffect(() => {
@@ -265,6 +267,10 @@ function ConnectorsPageInner() {
         <div className="flex items-center gap-2">
           {activeTab === "connectors" && (
             <>
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setTemplateGalleryOpen(true)}>
+                <LayoutTemplate className="h-3.5 w-3.5" />
+                {t("fromTemplate")}
+              </Button>
               <Button variant="outline" size="sm" className="gap-1.5" onClick={handleImport}>
                 <Upload className="h-3.5 w-3.5" />
                 {t("importConnector")}
@@ -297,8 +303,8 @@ function ConnectorsPageInner() {
           {activeTab === "mcp" && (
             <>
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => mcpActionsRef.current?.openHub()}>
-                <LayoutGrid className="h-4 w-4" />
-                {tt("mcpCatalog")}
+                <LayoutTemplate className="h-3.5 w-3.5" />
+                {t("fromTemplate")}
               </Button>
               <Button size="sm" className="gap-1.5" onClick={() => mcpActionsRef.current?.openAdd()}>
                 <Plus className="h-4 w-4" />
@@ -444,6 +450,12 @@ function ConnectorsPageInner() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Connector Template Gallery */}
+      <ConnectorTemplateGallery
+        open={templateGalleryOpen}
+        onOpenChange={setTemplateGalleryOpen}
+      />
     </div>
   )
 }

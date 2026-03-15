@@ -3,19 +3,24 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useTranslations } from "next-intl"
 import {
+  BarChart3,
   BookOpen,
   Bot,
   BrainCircuit,
   Check,
+  Code,
   Database,
+  FileText,
   GitBranch,
   GitFork,
   Globe,
   KeyRound,
+  Languages,
   Layers,
   LayoutTemplate,
   ListFilter,
   Loader2,
+  Mail,
   MessageCircleQuestion,
   MessageSquare,
   RefreshCcw,
@@ -41,16 +46,21 @@ import { cn } from "@/lib/utils"
 // ---------------------------------------------------------------------------
 
 const iconMap: Record<string, LucideIcon> = {
+  BarChart3,
   BookOpen,
   Bot,
   BrainCircuit,
+  Code,
   Database,
+  FileText,
   GitBranch,
   GitFork,
   Globe,
   KeyRound,
+  Languages,
   Layers,
   ListFilter,
+  Mail,
   MessageCircleQuestion,
   MessageSquare,
   RefreshCcw,
@@ -150,11 +160,15 @@ export function TemplateGalleryDialog<T extends BaseTemplate>({
     }
   }, [open, loadTemplates])
 
-  // Extract unique categories from templates
+  // Extract categories from both templates AND categoryLabels keys
+  // This ensures tabs like "Database" appear even with 0 templates
   const categories = useMemo(() => {
-    const cats = new Set(templates.map((tmpl) => tmpl.category))
+    const cats = new Set([
+      ...templates.map((tmpl) => tmpl.category),
+      ...Object.keys(categoryLabels),
+    ])
     return Array.from(cats).sort()
-  }, [templates])
+  }, [templates, categoryLabels])
 
   // Filter templates by active category
   const filteredTemplates = useMemo(() => {

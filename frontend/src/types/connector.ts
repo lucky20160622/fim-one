@@ -237,3 +237,13 @@ export interface AIAnnotateJobStatus {
   annotated_count: number
   error: string | null
 }
+
+// Connector template (built-in, API-only)
+export interface ConnectorTemplate {
+  id: string
+  name: string
+  description: string
+  icon?: string | null
+  category: string
+  blueprint: Record<string, unknown>
+}

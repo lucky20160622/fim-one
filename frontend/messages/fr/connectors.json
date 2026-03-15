@@ -220,5 +220,13 @@
   "forkFailed": "Échec de la duplication du connecteur",
   "importFileInvalid": "Fichier JSON invalide",
   "emptyTitle": "Aucun connecteur pour le moment",
-  "emptyDescription": "Créez votre premier connecteur pour lier des API externes et des services."
+  "emptyDescription": "Créez votre premier connecteur pour lier des API externes et des services.",
+  "templateGalleryTitle": "Créer à partir d'un modèle",
+  "templateGalleryDescription": "Choisissez un modèle de connecteur API pré-construit pour commencer rapidement",
+  "templateSelectHint": "Sélectionnez un modèle pour continuer",
+  "templateEmpty": "Aucun modèle disponible",
+  "templateCreateFailed": "Échec de la création du connecteur à partir du modèle",
+  "templateCategory_api": "API",
+  "templateCategory_database": "Base de données",
+  "fromTemplate": "À partir d'un modèle"
 }

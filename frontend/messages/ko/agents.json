@@ -135,5 +135,15 @@
   "compactInstructionsHint": "대화 기록을 압축할 때 사용되는 사용자 정의 프롬프트입니다. 비워두면 기본값을 사용합니다.",
   "compactInstructionsPlaceholder": "주문 ID, 금액 및 고객 이름을 유지합니다. 원본 API 응답 및 중간 추론은 제거합니다.",
   "emptyTitle": "에이전트가 없습니다",
-  "emptyDescription": "시작하려면 첫 번째 에이전트를 만드세요."
+  "emptyDescription": "시작하려면 첫 번째 에이전트를 만드세요.",
+  "fromTemplate": "템플릿에서",
+  "templateGalleryTitle": "템플릿에서 생성",
+  "templateGalleryDescription": "미리 구축된 에이전트 템플릿을 선택하여 빠르게 시작하세요",
+  "templateSelectHint": "계속하려면 템플릿을 선택하세요",
+  "templateEmpty": "사용 가능한 템플릿이 없습니다",
+  "templateCreateFailed": "템플릿에서 에이전트 생성 실패",
+  "templateCategory_basic": "기본",
+  "templateCategory_advanced": "고급",
+  "templateCategory_ai": "AI",
+  "templateCategory_data": "데이터"
 }
