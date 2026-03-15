@@ -464,19 +464,28 @@ class WorkflowEngine:
             converge back outside the body).  Uses a BFS limited to
             nodes that have *all* their incoming edges rooted in the
             parent subgraph.
+
+            END nodes are excluded — they must execute once after the
+            Iterator/Loop completes, not per-iteration.
             """
             body: list[str] = []
             queue_bfs: list[str] = []
             for edge in outgoing_edges.get(parent_nid, []):
-                if edge.target not in body:
-                    queue_bfs.append(edge.target)
-                    body.append(edge.target)
+                target = edge.target
+                if target not in body and node_index[target].type != NodeType.END:
+                    queue_bfs.append(target)
+                    body.append(target)
             while queue_bfs:
                 cur = queue_bfs.pop(0)
                 for edge in outgoing_edges.get(cur, []):
-                    if edge.target not in body and edge.target != parent_nid:
-                        body.append(edge.target)
-                        queue_bfs.append(edge.target)
+                    target = edge.target
+                    if (
+                        target not in body
+                        and target != parent_nid
+                        and node_index[target].type != NodeType.END
+                    ):
+                        body.append(target)
+                        queue_bfs.append(target)
             return body
 
         async def _handle_iterator_node(nid: str) -> None:

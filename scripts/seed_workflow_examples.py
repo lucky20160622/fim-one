@@ -258,8 +258,7 @@ def wf2_batch_translator():
                 _node("end_1", "END", {
                     "label": "翻译结果",
                     "output_mapping": {
-                        "translation": "{{llm_translate.output}}",
-                        "index": "{{iterator_1.current_index}}"
+                        "translations": "{{iterator_1.results}}"
                     },
                 }, x=1000, y=200),
             ],
