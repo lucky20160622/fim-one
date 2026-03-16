@@ -186,10 +186,20 @@ class TestPythonExecToolSandbox:
         exec_dir = tmp_path / "conv_py" / "exec"
         tool = PythonExecTool(exec_dir=exec_dir, timeout=10)
 
-        result = await tool.run(code="import os; print(os.getcwd())")
-        # Docker backend maps exec_dir to /workspace inside the container,
-        # so os.getcwd() will report /workspace instead of the host path.
-        assert str(exec_dir) in result or _DOCKER_WORKSPACE in result
+        # Prove cwd is the exec_dir by writing a file via a relative path.
+        # We avoid `import os` / `import pathlib` because the local sandbox
+        # blocks them; writing a relative-path file works on both local and
+        # Docker backends.
+        result = await tool.run(
+            code=(
+                "with open('_cwd_probe.txt', 'w') as f:\n"
+                "    f.write('ok')\n"
+                "print('cwd_verified')"
+            )
+        )
+        assert "cwd_verified" in result
+        assert (exec_dir / "_cwd_probe.txt").exists()
+        assert (exec_dir / "_cwd_probe.txt").read_text() == "ok"
 
     async def test_file_io_in_custom_exec_dir(self, tmp_path: Path) -> None:
         exec_dir = tmp_path / "conv_py2" / "exec"
