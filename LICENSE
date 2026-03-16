@@ -1,5 +1,5 @@
 FIM One Source Available License
-Version 1.1, March 2026
+Version 1.2, March 2026
 
 Copyright 2024-2026 FIM AI / Beijing Feimu Network Technology Co., Ltd.
 (北京飞沐网络科技有限公司)
@@ -101,7 +101,7 @@ The following restrictions apply to Your use of the Software:
 
 4. Trademarks.
 
-"FIM One" and the FIM One logo are registered trademarks of the Licensor.
+"FIM One" and the FIM One logo are trademarks of the Licensor.
 This License does not grant any right to use the Licensor's trademarks, trade
 names, service marks, or logos, except as reasonably necessary to describe the
 origin of the Software in compliance with Section 3(c). In particular, You may
@@ -115,7 +115,8 @@ is restricted by Section 3, You may contact Licensor to obtain a commercial
 license. Commercial licenses may include permissions for Hosted Services,
 white-labeling, and other use cases not covered by this License.
 
-Contact: github.com/fim-ai/fim-one (via Issues or Discussions)
+Contact: license@fim.ai
+         github.com/fim-ai/fim-one (via Issues or Discussions)
 
 6. Patent License.
 
@@ -165,7 +166,42 @@ DAMAGES.
 (d) Upon termination, You must cease all use and distribution of the
     Software and destroy all copies in Your possession.
 
-10. General.
+10. Audit Rights.
+
+(a) Licensor reserves the right to audit Your use of the Software to verify
+    compliance with this License. Such audits may be conducted no more than
+    once per calendar year, upon at least thirty (30) days' prior written
+    notice.
+
+(b) You shall reasonably cooperate with any such audit, including providing
+    access to relevant systems, records, and personnel. If an audit reveals
+    non-compliance, You shall promptly cure the violation in accordance with
+    Section 9(b).
+
+(c) If an audit reveals material non-compliance (including but not limited
+    to unauthorized Hosted Service use or Competing Product development),
+    You shall bear the reasonable costs of the audit.
+
+11. Enforcement and Remedies.
+
+(a) INJUNCTIVE RELIEF. You acknowledge that any breach of Sections 3 or 4
+    may cause irreparable harm to Licensor for which monetary damages alone
+    would be an inadequate remedy. Accordingly, Licensor shall be entitled
+    to seek injunctive or other equitable relief in addition to any other
+    remedies available at law or in equity.
+
+(b) ATTORNEY FEES AND COSTS. In any action or proceeding to enforce this
+    License, the prevailing party shall be entitled to recover its
+    reasonable attorney fees, expert witness fees, and other costs of
+    enforcement from the non-prevailing party.
+
+(c) INDEMNIFICATION. If Your use of the Software in violation of this
+    License causes any third-party claim against Licensor, You shall
+    indemnify, defend, and hold harmless Licensor from all damages,
+    losses, costs, and expenses (including reasonable attorney fees)
+    arising from such claim.
+
+12. General.
 
 (a) This License constitutes the entire agreement between You and Licensor
     regarding the Software and supersedes all prior agreements.
