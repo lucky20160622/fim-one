@@ -173,7 +173,6 @@ async def admin_get_skill(
         raise AppError("skill_not_found", status_code=404)
 
     skill, user = row
-    agent_count = await _count_agents_using_skill(db, skill_id)
 
     return AdminSkillDetail(
         id=skill.id,
@@ -189,7 +188,7 @@ async def admin_get_skill(
         user_id=skill.user_id,
         username=user.username if user else None,
         email=user.email if user else None,
-        agent_count=agent_count,
+        agent_count=0,
         created_at=skill.created_at.isoformat() if skill.created_at else "",
     )
 

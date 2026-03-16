@@ -1,6 +1,7 @@
 """CallAgent builtin tool — delegate a task to a specialist agent."""
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fim_one.core.tool.base import BaseTool
@@ -13,12 +14,19 @@ class CallAgentTool(BaseTool):
     of available agents provided at construction time.
     """
 
-    def __init__(self, available_agents: list[dict], calling_user_id: str):
+    def __init__(
+        self,
+        available_agents: list[dict],
+        calling_user_id: str,
+        tool_resolver: Callable[[dict, str | None], Awaitable] | None = None,
+    ):
         """
         available_agents: list of {id, name, description, instructions, model_config_json, ...}
+        tool_resolver: optional async callback (agent_cfg, conv_id) -> ToolRegistry
         """
         self._agents = {a["id"]: a for a in available_agents}
         self._calling_user_id = calling_user_id
+        self._tool_resolver = tool_resolver
         agent_list = "\n".join(
             f"  - {a['name']} (id={a['id']}): {a.get('description', '')}"
             for a in available_agents
@@ -61,15 +69,23 @@ class CallAgentTool(BaseTool):
         task: str = kwargs.get("task", "")
         from fim_one.core.agent.react import ReActAgent
         from fim_one.core.model.registry import ModelRegistry
-        from fim_one.core.tool.registry import ToolRegistry
 
         agent_cfg = self._agents.get(agent_id)
         if not agent_cfg:
             return f"Error: agent {agent_id} not found"
 
-        # Build a minimal tool registry for the sub-agent (no call_agent to prevent recursion)
-        sub_tools = ToolRegistry()
-        # Sub-agent does NOT get CallAgentTool — only one level of delegation
+        # Resolve full tools for the sub-agent via callback
+        if self._tool_resolver:
+            try:
+                sub_tools = await self._tool_resolver(agent_cfg, None)
+                # Exclude call_agent from sub-tools to prevent infinite recursion
+                sub_tools = sub_tools.exclude_by_name("call_agent")
+            except Exception:
+                from fim_one.core.tool.registry import ToolRegistry
+                sub_tools = ToolRegistry()
+        else:
+            from fim_one.core.tool.registry import ToolRegistry
+            sub_tools = ToolRegistry()
 
         # Resolve model
         model_cfg = agent_cfg.get("model_config_json") or {}
@@ -89,7 +105,7 @@ class CallAgentTool(BaseTool):
         sub_agent = ReActAgent(
             llm=llm,
             tools=sub_tools,
-            system_prompt=instructions,
+            extra_instructions=instructions,
             max_iterations=5,
         )
 

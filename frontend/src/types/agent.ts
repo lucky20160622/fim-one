@@ -24,7 +24,6 @@ export interface AgentResponse {
   visibility?: string // "personal" | "org" | "global"
   org_id?: string | null
   is_builder?: boolean
-  skill_ids?: string[] | null
   compact_instructions?: string | null
   publish_status: string | null
   reviewed_by: string | null
@@ -48,7 +47,6 @@ export interface AgentCreate {
   grounding_config?: Record<string, unknown>
   sandbox_config?: SandboxConfig
   execution_mode?: "react" | "dag" | "auto"
-  skill_ids?: string[]
   compact_instructions?: string | null
 }
 
@@ -65,7 +63,6 @@ export interface AgentUpdate {
   grounding_config?: Record<string, unknown>
   sandbox_config?: SandboxConfig
   execution_mode?: "react" | "dag" | "auto"
-  skill_ids?: string[]
   compact_instructions?: string | null
 }
 

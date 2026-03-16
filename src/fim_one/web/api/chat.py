@@ -516,7 +516,6 @@ async def _resolve_agent_config(
             "grounding_config": agent.grounding_config,
             "sandbox_config": agent.sandbox_config,
             "owner_user_id": agent.user_id,
-            "skill_ids": agent.skill_ids,
             "compact_instructions": agent.compact_instructions,
         }
 
@@ -876,12 +875,112 @@ async def _resolve_tools(
         except Exception:
             logger.warning("Failed to load connector tools", exc_info=True)
 
-    # Load read_skill tool when the agent has bound skills.
-    skill_ids = (agent_cfg or {}).get("skill_ids") or []
-    if skill_ids and get_skill_tool_mode(agent_cfg) != "inline":
-        from fim_one.core.tool.builtin.read_skill import ReadSkillTool
+    elif user_id and not agent_cfg:
+        # No-agent mode: auto-discover all visible connectors (progressive mode).
+        try:
+            from fim_one.core.tool.connector import build_connector_meta_tool
+            from fim_one.core.tool.connector.database.adapter import (
+                DatabaseToolAdapter,
+            )
+            from fim_one.core.security.encryption import (
+                decrypt_db_config,
+            )
+            from fim_one.db import create_session
+            from fim_one.web.models.connector import Connector as ConnectorModel
+            from fim_one.web.models.database_schema import (
+                DatabaseSchema as DatabaseSchemaModel,
+            )
+            from fim_one.web.visibility import resolve_visibility
 
-        tools.register(ReadSkillTool(skill_ids=skill_ids, user_id=user_id))
+            from sqlalchemy import select
+            from sqlalchemy.orm import selectinload
+
+            async with create_session() as _ad_session:
+                _ad_vis, _, _ = await resolve_visibility(
+                    ConnectorModel, user_id, "connector", _ad_session
+                )
+                _ad_result = await _ad_session.execute(
+                    select(ConnectorModel)
+                    .where(_ad_vis, ConnectorModel.is_active == True)  # noqa: E712
+                    .options(
+                        selectinload(ConnectorModel.actions),
+                        selectinload(ConnectorModel.database_schemas).selectinload(
+                            DatabaseSchemaModel.columns
+                        ),
+                    )
+                )
+                _ad_connectors = _ad_result.scalars().unique().all()
+
+            if _ad_connectors:
+                # API connectors — use progressive mode (single meta-tool)
+                _ad_api_connectors = [
+                    c for c in _ad_connectors if c.type != "database"
+                ]
+                if _ad_api_connectors:
+                    meta_tool = build_connector_meta_tool(_ad_api_connectors)
+                    tools.register(meta_tool)
+                    logger.info(
+                        "Auto-discovered %d API connectors (progressive mode)",
+                        len(_ad_api_connectors),
+                    )
+
+                # Database connectors — create individual tool sets
+                for _ad_db_conn in _ad_connectors:
+                    if _ad_db_conn.type == "database" and _ad_db_conn.db_config:
+                        try:
+                            config = decrypt_db_config(_ad_db_conn.db_config)
+                            schema_tables = []
+                            for schema_obj in (_ad_db_conn.database_schemas or []):
+                                if not schema_obj.is_visible:
+                                    continue
+                                cols = []
+                                for col in (schema_obj.columns or []):
+                                    if not col.is_visible:
+                                        continue
+                                    cols.append({
+                                        "column_name": col.column_name,
+                                        "data_type": col.data_type,
+                                        "is_nullable": col.is_nullable,
+                                        "is_primary_key": col.is_primary_key,
+                                        "display_name": col.display_name,
+                                        "description": col.description,
+                                    })
+                                schema_tables.append({
+                                    "table_name": schema_obj.table_name,
+                                    "display_name": schema_obj.display_name,
+                                    "description": schema_obj.description,
+                                    "column_count": len(cols),
+                                    "columns": cols,
+                                })
+                            db_tools = DatabaseToolAdapter.create_tools(
+                                connector_name=_ad_db_conn.name,
+                                connector_id=_ad_db_conn.id,
+                                db_config=config,
+                                schema_tables=schema_tables,
+                            )
+                            for dt in db_tools:
+                                tools.register(dt)
+                        except Exception:
+                            logger.warning(
+                                "Failed to load DB connector tools: %s",
+                                _ad_db_conn.name,
+                                exc_info=True,
+                            )
+        except Exception:
+            logger.warning("Failed to auto-discover connectors", exc_info=True)
+
+    # Skills are global SOPs — always loaded regardless of agent selection.
+    if user_id:
+        _all_skill_ids = await _resolve_user_skill_ids(user_id)
+        if _all_skill_ids and get_skill_tool_mode(agent_cfg) != "inline":
+            from fim_one.core.tool.builtin.read_skill import ReadSkillTool
+
+            tools.register(
+                ReadSkillTool(
+                    skill_ids=_all_skill_ids,
+                    user_id=user_id,
+                )
+            )
 
     # Inject Connector Builder tools when this is a Builder Agent.
     if agent_cfg and "builder" in (agent_cfg.get("tool_categories") or []):
@@ -1021,6 +1120,67 @@ async def _resolve_tools(
             tools._mcp_user_id = user_id  # type: ignore[attr-defined]
     except Exception:
         logger.warning("Failed to load MCP server configs", exc_info=True)
+
+    # ------------------------------------------------------------------
+    # Register CallAgentTool with all visible agents for multi-agent
+    # delegation.  The tool_resolver callback allows sub-agents to
+    # inherit the full tool set (minus call_agent itself).
+    # ------------------------------------------------------------------
+    if user_id:
+        try:
+            from fim_one.db import create_session as _cs_agents
+            from fim_one.web.models.agent import Agent as AgentModel
+            from fim_one.web.visibility import resolve_visibility as _rv_agents
+
+            async with _cs_agents() as _cat_db:
+                _cat_vis, _, _ = await _rv_agents(
+                    AgentModel, user_id, "agent", _cat_db
+                )
+                _cat_result = await _cat_db.execute(
+                    sa_select(AgentModel).where(
+                        _cat_vis,
+                        AgentModel.is_active == True,  # noqa: E712
+                        AgentModel.is_builder == False,  # noqa: E712
+                    )
+                )
+                _visible_agents = _cat_result.scalars().all()
+
+            if _visible_agents:
+                _agent_catalog = [
+                    {
+                        "id": a.id,
+                        "name": a.name,
+                        "description": a.description or "",
+                        "instructions": a.instructions,
+                        "model_config_json": a.model_config_json,
+                        "tool_categories": a.tool_categories,
+                        "kb_ids": a.kb_ids,
+                        "connector_ids": a.connector_ids,
+                        "grounding_config": a.grounding_config,
+                        "sandbox_config": a.sandbox_config,
+                        "owner_user_id": a.user_id,
+                    }
+                    for a in _visible_agents
+                ]
+
+                async def _sub_agent_tool_resolver(
+                    sub_cfg: dict, conv_id: str | None
+                ):
+                    return await _resolve_tools(
+                        sub_cfg, conv_id, user_id=user_id
+                    )
+
+                from fim_one.core.tool.builtin.call_agent import CallAgentTool
+
+                tools.register(
+                    CallAgentTool(
+                        available_agents=_agent_catalog,
+                        calling_user_id=user_id,
+                        tool_resolver=_sub_agent_tool_resolver,
+                    )
+                )
+        except Exception:
+            logger.warning("Failed to build agent catalog", exc_info=True)
 
     return tools
 
@@ -1199,6 +1359,29 @@ async def _resolve_skill_stubs(skill_ids: list[str]) -> str:
         return "\n".join(lines)
     except Exception:
         return ""
+
+
+async def _resolve_user_skill_ids(user_id: str) -> list[str]:
+    """Fetch all active, visible skill IDs for a user (own + org + subscribed)."""
+    from fim_one.db import create_session
+    from fim_one.web.models.skill import Skill
+    from fim_one.web.visibility import resolve_visibility
+
+    try:
+        async with create_session() as session:
+            vis_filter, _, _ = await resolve_visibility(
+                Skill, user_id, "skill", session
+            )
+            result = await session.execute(
+                sa_select(Skill.id).where(
+                    vis_filter,
+                    Skill.is_active == True,  # noqa: E712
+                )
+            )
+            return list(result.scalars().all())
+    except Exception:
+        logger.warning("Failed to resolve user skill IDs", exc_info=True)
+        return []
 
 
 def get_skill_tool_mode(agent_cfg: dict[str, Any] | None = None) -> str:
@@ -1514,8 +1697,8 @@ async def react_endpoint(
         grounding_hint = _kb_system_hint(agent_cfg)
         extra_instructions = (extra_instructions or "") + grounding_hint
 
-    # Inject skill stubs when agent has bound skills
-    _react_skill_ids = agent_cfg.get("skill_ids") if agent_cfg else None
+    # Inject skill stubs — skills are global SOPs
+    _react_skill_ids = await _resolve_user_skill_ids(current_user_id) if current_user_id else None
     if _react_skill_ids:
         _skill_mode = get_skill_tool_mode(agent_cfg)
         if _skill_mode == "inline":
@@ -2095,8 +2278,8 @@ async def dag_endpoint(
         grounding_hint = _kb_system_hint(agent_cfg)
         extra_instructions = (extra_instructions or "") + grounding_hint
 
-    # Inject skill stubs when agent has bound skills
-    _dag_skill_ids = agent_cfg.get("skill_ids") if agent_cfg else None
+    # Inject skill stubs — skills are global SOPs
+    _dag_skill_ids = await _resolve_user_skill_ids(current_user_id) if current_user_id else None
     if _dag_skill_ids:
         _skill_mode = get_skill_tool_mode(agent_cfg)
         if _skill_mode == "inline":

@@ -15,7 +15,9 @@ class ReadSkillTool(BaseTool):
     """
 
     def __init__(
-        self, skill_ids: list[str], user_id: str | None = None
+        self,
+        skill_ids: list[str],
+        user_id: str | None = None,
     ) -> None:
         self._skill_ids = skill_ids
         self._user_id = user_id
@@ -78,6 +80,7 @@ class ReadSkillTool(BaseTool):
                 skill = result.scalar_one_or_none()
                 if not skill:
                     return f"[Error] skill not found: {name}"
+
                 output = skill.content
                 if skill.script and skill.script_type:
                     output += f"\n\n--- Script ({skill.script_type}) ---\n{skill.script}"
