@@ -321,6 +321,14 @@ class TestIteratorExecutor:
 class TestLoopExecutor:
     """Tests for LoopExecutor — while-loop with condition and max iterations."""
 
+    @staticmethod
+    async def _run_loop(executor, node, store, ctx) -> "NodeResult":
+        """Simulate the engine loop: call execute() until _loop_continue is False."""
+        while True:
+            result = await executor.execute(node, store, ctx)
+            if result.status != NodeStatus.COMPLETED or not result.output.get("_loop_continue"):
+                return result
+
     @pytest.mark.asyncio
     async def test_condition_false_immediately(self):
         """Loop exits immediately when condition is false from the start."""
@@ -334,7 +342,7 @@ class TestLoopExecutor:
             "loop_variable": "loop_index",
         })
 
-        result = await executor.execute(node, store, ctx)
+        result = await self._run_loop(executor, node, store, ctx)
 
         assert result.status == NodeStatus.COMPLETED
         output = result.output
@@ -354,7 +362,7 @@ class TestLoopExecutor:
             "loop_variable": "loop_index",
         })
 
-        result = await executor.execute(node, store, ctx)
+        result = await self._run_loop(executor, node, store, ctx)
 
         assert result.status == NodeStatus.COMPLETED
         assert result.output["iterations"] == 5
@@ -373,7 +381,7 @@ class TestLoopExecutor:
             "loop_variable": "loop_index",
         })
 
-        result = await executor.execute(node, store, ctx)
+        result = await self._run_loop(executor, node, store, ctx)
 
         assert result.status == NodeStatus.COMPLETED
         assert result.output["iterations"] == 3
@@ -439,7 +447,7 @@ class TestLoopExecutor:
             "loop_variable": "loop_index",
         })
 
-        result = await executor.execute(node, store, ctx)
+        result = await self._run_loop(executor, node, store, ctx)
 
         assert result.status == NodeStatus.COMPLETED
         # After 3 iterations (0, 1, 2), the final count is 3
@@ -459,7 +467,7 @@ class TestLoopExecutor:
             "loop_variable": "loop_index",
         })
 
-        result = await executor.execute(node, store, ctx)
+        result = await self._run_loop(executor, node, store, ctx)
 
         assert result.status == NodeStatus.COMPLETED
         assert result.output["iterations"] == 2
@@ -476,7 +484,7 @@ class TestLoopExecutor:
             "max_iterations": 50,
         })
 
-        result = await executor.execute(node, store, ctx)
+        result = await self._run_loop(executor, node, store, ctx)
 
         assert result.status == NodeStatus.COMPLETED
         assert result.output["loop_variable"] == "loop_index"
