@@ -252,12 +252,19 @@ class TestToolSelection:
         """If selection returns non-JSON, fall back to all tools."""
         reg = _make_large_registry(TOOL_SELECTION_THRESHOLD + 1)
 
-        # First call: garbage (selection fails) -> fallback to all tools
-        # Second call: final answer
+        # structured_llm_call uses 3-level degradation. With FakeLLM
+        # (no native FC, no json_mode), the plain_text level fires:
+        #   Call 1: first attempt -> "not json" -> extract_json fails
+        #   Call 2: reformat-prompt retry -> still garbage -> all levels
+        #           exhausted, default_value=None returned -> fallback
+        #   Call 3: main ReAct loop -> final answer
         llm = FakeLLM(
             responses=[
                 LLMResult(
                     message=ChatMessage(role="assistant", content="not json"),
+                ),
+                LLMResult(
+                    message=ChatMessage(role="assistant", content="still not json"),
                 ),
                 _final_answer_response("fallback"),
             ]
@@ -266,7 +273,7 @@ class TestToolSelection:
 
         result = await agent.run("test")
         assert result.answer == "fallback"
-        assert llm.call_count == 2
+        assert llm.call_count == 3
 
     async def test_selection_fallback_on_empty_list(self) -> None:
         """If selection returns empty tool list, fall back to all tools."""
