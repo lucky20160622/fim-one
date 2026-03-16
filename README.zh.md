@@ -5,26 +5,22 @@
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 [![CI](https://github.com/fim-ai/fim-one/actions/workflows/test.yml/badge.svg)](https://github.com/fim-ai/fim-one/actions/workflows/test.yml)
 ![License](https://img.shields.io/badge/license-Source%20Available-orange)
-[![GitHub stars](https://img.shields.io/github/stars/fim-ai/fim-one?style=social)](https://github.com/fim-ai/fim-one/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/fim-ai/fim-one?style=social)](https://github.com/fim-ai/fim-one/network)
-[![GitHub issues](https://img.shields.io/github/issues/fim-ai/fim-one)](https://github.com/fim-ai/fim-one/issues)
-[![Follow on X](https://img.shields.io/twitter/follow/FIM_One?style=social)](https://x.com/FIM_One)
 [![Discord](https://img.shields.io/discord/1480638265206771742?logo=discord&label=discord)](https://discord.gg/z64czxdC7z)
-[![Product Hunt](https://img.shields.io/badge/Product%20Hunt-FIM%20One-DA552F?logo=producthunt&logoColor=white)](https://www.producthunt.com/products/fim-one)
+[![Follow on X](https://img.shields.io/twitter/follow/FIM_One?style=social)](https://x.com/FIM_One)
 
 [🌐 English](README.md) | [🇨🇳 中文](README.zh.md) | [🇯🇵 日本語](README.ja.md) | [🇰🇷 한국어](README.ko.md) | [🇩🇪 Deutsch](README.de.md) | [🇫🇷 Français](README.fr.md)
 
-**您的系统无法相互通信。FIM One 将它们全部连接到 AI — 零代码更改，零数据迁移。**
+**您的系统无法相互通信。FIM One 将它们全部连接到 AI——无需代码更改，无需数据迁移。**
 
-*AI 驱动的连接器中心 — 作为 Copilot 嵌入到一个系统中，或作为中心连接所有系统。*
+*AI 驱动的连接器中心——嵌入到一个系统作为 Copilot，或将它们全部连接为中心。*
 
 🌐 [网站](https://one.fim.ai/) · 📖 [文档](https://docs.fim.ai) · 📋 [更新日志](https://docs.fim.ai/changelog) · 🐛 [报告错误](https://github.com/fim-ai/fim-one/issues) · 💬 [Discord](https://discord.gg/z64czxdC7z) · 🐦 [Twitter](https://x.com/FIM_One) · 🏆 [Product Hunt](https://www.producthunt.com/products/fim-one)
 
 </div>
 
 > [!TIP]
-> **☁️ 跳过设置 — 在云端尝试 FIM One。**
-> 托管版本已在 **[cloud.fim.ai](https://cloud.fim.ai/)** 上线：无需 Docker、无需 API 密钥、无需配置。登录即可在几秒内开始连接您的系统。_早期访问，欢迎反馈。_
+> **☁️ 跳过设置——在云上尝试 FIM One。**
+> 托管版本已在 **[cloud.fim.ai](https://cloud.fim.ai/)** 上线：无需 Docker、无需 API 密钥、无需配置。登录并在几秒内开始连接您的系统。_早期访问，欢迎反馈。_
 
 ---
 

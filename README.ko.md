@@ -5,26 +5,22 @@
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 [![CI](https://github.com/fim-ai/fim-one/actions/workflows/test.yml/badge.svg)](https://github.com/fim-ai/fim-one/actions/workflows/test.yml)
 ![License](https://img.shields.io/badge/license-Source%20Available-orange)
-[![GitHub stars](https://img.shields.io/github/stars/fim-ai/fim-one?style=social)](https://github.com/fim-ai/fim-one/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/fim-ai/fim-one?style=social)](https://github.com/fim-ai/fim-one/network)
-[![GitHub issues](https://img.shields.io/github/issues/fim-ai/fim-one)](https://github.com/fim-ai/fim-one/issues)
-[![Follow on X](https://img.shields.io/twitter/follow/FIM_One?style=social)](https://x.com/FIM_One)
 [![Discord](https://img.shields.io/discord/1480638265206771742?logo=discord&label=discord)](https://discord.gg/z64czxdC7z)
-[![Product Hunt](https://img.shields.io/badge/Product%20Hunt-FIM%20One-DA552F?logo=producthunt&logoColor=white)](https://www.producthunt.com/products/fim-one)
+[![Follow on X](https://img.shields.io/twitter/follow/FIM_One?style=social)](https://x.com/FIM_One)
 
 [🌐 English](README.md) | [🇨🇳 中文](README.zh.md) | [🇯🇵 日本語](README.ja.md) | [🇰🇷 한국어](README.ko.md) | [🇩🇪 Deutsch](README.de.md) | [🇫🇷 Français](README.fr.md)
 
-**당신의 시스템들이 서로 통신하지 않습니다. FIM One이 모든 시스템을 AI에 연결합니다 — 코드 변경 없음, 데이터 마이그레이션 없음.**
+**당신의 시스템들이 서로 통신하지 않습니다. FIM One이 모두를 AI에 연결합니다 — 코드 변경 없음, 데이터 마이그레이션 없음.**
 
-*AI 기반 커넥터 허브 — 한 시스템에 Copilot으로 임베드하거나 모든 시스템을 허브로 연결하세요.*
+*AI 기반 커넥터 허브 — 한 시스템에 코파일럿으로 임베드하거나 모두를 허브로 연결하세요.*
 
 🌐 [웹사이트](https://one.fim.ai/) · 📖 [문서](https://docs.fim.ai) · 📋 [변경 로그](https://docs.fim.ai/changelog) · 🐛 [버그 보고](https://github.com/fim-ai/fim-one/issues) · 💬 [Discord](https://discord.gg/z64czxdC7z) · 🐦 [Twitter](https://x.com/FIM_One) · 🏆 [Product Hunt](https://www.producthunt.com/products/fim-one)
 
 </div>
 
 > [!TIP]
-> **☁️ 설정을 건너뛰세요 — 클라우드에서 FIM One을 시도하세요.**
-> 관리형 버전이 **[cloud.fim.ai](https://cloud.fim.ai/)**에서 라이브입니다: Docker 없음, API 키 없음, 설정 없음. 로그인하고 몇 초 안에 시스템 연결을 시작하세요. _얼리 액세스, 피드백 환영합니다._
+> **☁️ 설정을 건너뛰세요 — FIM One을 클라우드에서 시도하세요.**
+> 관리형 버전이 **[cloud.fim.ai](https://cloud.fim.ai/)**에서 라이브입니다: Docker 없음, API 키 없음, 설정 없음. 로그인하고 몇 초 안에 시스템 연결을 시작하세요. *얼리 액세스, 피드백 환영합니다.*
 
 ---
 
