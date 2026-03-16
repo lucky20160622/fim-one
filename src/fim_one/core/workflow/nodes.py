@@ -2693,6 +2693,7 @@ class HumanInterventionExecutor:
             }
             await store.set(f"{node.id}.output", output)
             await store.set(output_variable, output)
+            await store.set(f"{node.id}.{output_variable}", output)
             logger.info(
                 "HumanIntervention node %s auto-approved (no db_session_factory)",
                 node.id,
