@@ -2203,8 +2203,10 @@ export interface MarketSubscription {
 
 // --- Market API ---
 export const marketApi = {
-  browse: async (params?: { resource_type?: string; page?: number; size?: number }) => {
+  browse: async (params?: { resource_type?: string; page?: number; size?: number; scope?: string; category?: string }) => {
     const sp = new URLSearchParams()
+    if (params?.scope) sp.set('scope', params.scope)
+    if (params?.category) sp.set('category', params.category)
     if (params?.resource_type) sp.set('resource_type', params.resource_type)
     if (params?.page) sp.set('page', String(params.page))
     if (params?.size) sp.set('size', String(params.size))

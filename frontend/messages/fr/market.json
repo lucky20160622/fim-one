@@ -1,6 +1,6 @@
 {
-  "title": "Marketplace",
-  "description": "Parcourir et s'abonner aux ressources partagées de la marketplace",
+  "title": "Marché",
+  "description": "Parcourir et s'abonner aux ressources partagées",
   "empty": "Aucune ressource disponible dans le marketplace",
   "subscribed": "Abonné",
   "subscribe": "S'abonner",
@@ -23,5 +23,10 @@
   "emptyTitle": "Aucune ressource pour le moment",
   "emptyDescription": "Les ressources publiées sur la marketplace apparaîtront ici.",
   "subscribeSuccess": "Abonnement réussi",
-  "unsubscribeSuccess": "Désabonnement réussi"
+  "unsubscribeSuccess": "Désabonnement réussi",
+  "scopeLabel": "Portée",
+  "scopeGlobalMarket": "Marché mondial",
+  "scopeOrg": "Organisation",
+  "categorySolutions": "Solutions",
+  "categoryComponents": "Composants"
 }

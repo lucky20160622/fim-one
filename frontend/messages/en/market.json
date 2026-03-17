@@ -1,6 +1,6 @@
 {
-  "title": "Marketplace",
-  "description": "Browse and subscribe to shared resources from the marketplace",
+  "title": "Market",
+  "description": "Browse and subscribe to shared resources",
   "empty": "No resources available in the marketplace",
   "emptyTitle": "No resources yet",
   "emptyDescription": "Resources published to the marketplace will appear here.",
@@ -15,6 +15,11 @@
   "publishTargetOrg": "My Organization",
   "publishTargetMarketplace": "Marketplace",
   "marketplaceReviewLocked": "Marketplace always requires review",
+  "scopeLabel": "Scope",
+  "scopeGlobalMarket": "Global Market",
+  "scopeOrg": "Organization",
+  "categorySolutions": "Solutions",
+  "categoryComponents": "Components",
   "types": {
     "all": "All",
     "agent": "Agents",

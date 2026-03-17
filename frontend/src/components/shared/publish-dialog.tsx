@@ -45,6 +45,8 @@ interface PublishDialogProps {
   noOrgsText: string
   selectOrgPlaceholder: string
   onConfirm: () => void
+  /** When true, hide the marketplace target and show org-only mode */
+  hideMarketplace?: boolean
 }
 
 export function PublishDialog({
@@ -64,6 +66,7 @@ export function PublishDialog({
   noOrgsText,
   selectOrgPlaceholder,
   onConfirm,
+  hideMarketplace,
 }: PublishDialogProps) {
   const tc = useTranslations("common")
   const to = useTranslations("organizations")
@@ -106,35 +109,37 @@ export function PublishDialog({
         </DialogHeader>
         <div className="space-y-4 py-2">
           {/* Publish target selector */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">{tm("publishTarget")}</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setPublishTarget("organization")}
-                className={`flex items-center gap-2 rounded-md border p-2.5 text-sm transition-colors ${
-                  !isMarketplace
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-border text-muted-foreground hover:bg-muted/50"
-                }`}
-              >
-                <Building2 className="h-4 w-4 shrink-0" />
-                {tm("publishTargetOrg")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPublishTarget("marketplace")}
-                className={`flex items-center gap-2 rounded-md border p-2.5 text-sm transition-colors ${
-                  isMarketplace
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-border text-muted-foreground hover:bg-muted/50"
-                }`}
-              >
-                <Store className="h-4 w-4 shrink-0" />
-                {tm("publishTargetMarketplace")}
-              </button>
+          {!hideMarketplace && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{tm("publishTarget")}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPublishTarget("organization")}
+                  className={`flex items-center gap-2 rounded-md border p-2.5 text-sm transition-colors ${
+                    !isMarketplace
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border text-muted-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  <Building2 className="h-4 w-4 shrink-0" />
+                  {tm("publishTargetOrg")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPublishTarget("marketplace")}
+                  className={`flex items-center gap-2 rounded-md border p-2.5 text-sm transition-colors ${
+                    isMarketplace
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border text-muted-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  <Store className="h-4 w-4 shrink-0" />
+                  {tm("publishTargetMarketplace")}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="space-y-2">
             {isMarketplace ? (
