@@ -49,5 +49,15 @@
   "marketTitle": "Coup de projecteur du marché",
   "marketEmpty": "Découvrez des agents, des connecteurs et bien plus",
   "marketEmptyCta": "Parcourir le marché",
-  "marketSubscribed": "Abonné"
+  "marketSubscribed": "Abonné",
+  "workflowsTitle": "Flux de travail",
+  "workflowsEmpty": "Aucun flux de travail pour le moment",
+  "workflowsCreate": "Créer un flux de travail",
+  "workflowTotal": "{count} flux de travail",
+  "workflowRunsToday": "{count} exécutions aujourd'hui",
+  "workflowSuccessRate": "{rate}% de réussite",
+  "workflowRunCompleted": "Terminé",
+  "workflowRunFailed": "Échoué",
+  "workflowRunCancelled": "Annulé",
+  "workflowRunRunning": "En cours d'exécution"
 }

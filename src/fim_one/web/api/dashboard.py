@@ -13,6 +13,7 @@ from fim_one.db import get_session
 from fim_one.web.auth import get_current_user, get_user_org_ids
 from fim_one.web.models import Agent, Connector, ConnectorCallLog, Conversation, KnowledgeBase, User
 from fim_one.web.models.resource_subscription import ResourceSubscription
+from fim_one.web.models.workflow import Workflow, WorkflowRun
 from fim_one.web.visibility import build_visibility_filter
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
@@ -56,6 +57,14 @@ class DashboardConnectorHealth(BaseModel):
     call_count_today: int
 
 
+class DashboardWorkflowRun(BaseModel):
+    id: str
+    workflow_id: str
+    workflow_name: str
+    status: str  # "completed" | "failed" | "cancelled" | "running"
+    created_at: str
+
+
 class DashboardDayStat(BaseModel):
     date: str  # "YYYY-MM-DD"
     count: int
@@ -80,6 +89,11 @@ class DashboardStatsResponse(BaseModel):
     top_kbs: list[DashboardKB]                         # top 3 by document_count
     connector_health: list[DashboardConnectorHealth]   # all connectors accessible to user
     activity_trend: list[DashboardDayStat]             # 14 days, zero-filled
+    # workflow stats
+    total_workflows: int                               # total active workflows owned by user
+    workflow_runs_today: int                            # runs started today
+    workflow_success_rate: float                        # percentage 0-100 across all runs (last 30 days)
+    recent_workflow_runs: list[DashboardWorkflowRun]   # last 5 runs
 
 
 # ---------------------------------------------------------------------------
@@ -436,6 +450,85 @@ async def get_dashboard_stats(
     ]
 
     # ------------------------------------------------------------------
+    # 8. Workflow stats
+    # ------------------------------------------------------------------
+
+    # total_workflows: active workflows owned by user
+    total_wf_result = await db.execute(
+        select(func.count())
+        .select_from(Workflow)
+        .where(
+            Workflow.user_id == current_user.id,
+            Workflow.is_active == True,  # noqa: E712
+        )
+    )
+    total_workflows: int = total_wf_result.scalar_one()
+
+    # workflow_runs_today: runs started today
+    wf_runs_today_result = await db.execute(
+        select(func.count())
+        .select_from(WorkflowRun)
+        .where(
+            WorkflowRun.user_id == current_user.id,
+            WorkflowRun.created_at >= today_start,
+        )
+    )
+    workflow_runs_today: int = wf_runs_today_result.scalar_one()
+
+    # workflow_success_rate: completed / total * 100 over last 30 days
+    thirty_days_ago = now - timedelta(days=30)
+
+    wf_total_30d_result = await db.execute(
+        select(func.count())
+        .select_from(WorkflowRun)
+        .where(
+            WorkflowRun.user_id == current_user.id,
+            WorkflowRun.created_at >= thirty_days_ago,
+        )
+    )
+    wf_total_30d: int = wf_total_30d_result.scalar_one()
+
+    if wf_total_30d > 0:
+        wf_completed_30d_result = await db.execute(
+            select(func.count())
+            .select_from(WorkflowRun)
+            .where(
+                WorkflowRun.user_id == current_user.id,
+                WorkflowRun.created_at >= thirty_days_ago,
+                WorkflowRun.status == "completed",
+            )
+        )
+        wf_completed_30d: int = wf_completed_30d_result.scalar_one()
+        workflow_success_rate = round((wf_completed_30d / wf_total_30d) * 100, 2)
+    else:
+        workflow_success_rate = 0.0
+
+    # recent_workflow_runs: last 5 runs joined with Workflow for name
+    recent_wf_rows = await db.execute(
+        select(
+            WorkflowRun.id,
+            WorkflowRun.workflow_id,
+            Workflow.name.label("workflow_name"),
+            WorkflowRun.status,
+            WorkflowRun.created_at,
+        )
+        .join(Workflow, Workflow.id == WorkflowRun.workflow_id)
+        .where(WorkflowRun.user_id == current_user.id)
+        .order_by(WorkflowRun.created_at.desc())
+        .limit(5)
+    )
+    recent_workflow_runs = [
+        DashboardWorkflowRun(
+            id=r.id,
+            workflow_id=r.workflow_id,
+            workflow_name=r.workflow_name,
+            status=r.status,
+            created_at=r.created_at.isoformat() if r.created_at else "",
+        )
+        for r in recent_wf_rows.all()
+    ]
+
+    # ------------------------------------------------------------------
     # Assemble and return
     # ------------------------------------------------------------------
 
@@ -453,4 +546,8 @@ async def get_dashboard_stats(
         top_kbs=top_kbs,
         connector_health=connector_health,
         activity_trend=activity_trend,
+        total_workflows=total_workflows,
+        workflow_runs_today=workflow_runs_today,
+        workflow_success_rate=workflow_success_rate,
+        recent_workflow_runs=recent_workflow_runs,
     )

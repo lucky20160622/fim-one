@@ -49,5 +49,15 @@
   "marketTitle": "Market Spotlight",
   "marketEmpty": "Discover agents, connectors, and more",
   "marketEmptyCta": "Browse Market",
-  "marketSubscribed": "Subscribed"
+  "marketSubscribed": "Subscribed",
+  "workflowsTitle": "Workflows",
+  "workflowsEmpty": "No workflows yet",
+  "workflowsCreate": "Create Workflow",
+  "workflowTotal": "{count} workflows",
+  "workflowRunsToday": "{count} runs today",
+  "workflowSuccessRate": "{rate}% success",
+  "workflowRunCompleted": "Completed",
+  "workflowRunFailed": "Failed",
+  "workflowRunCancelled": "Cancelled",
+  "workflowRunRunning": "Running"
 }

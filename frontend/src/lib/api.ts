@@ -2160,6 +2160,14 @@ export interface DashboardDayStat {
   tokens: number
 }
 
+export interface DashboardWorkflowRun {
+  id: string
+  workflow_id: string
+  workflow_name: string
+  status: string  // "completed" | "failed" | "cancelled" | "running"
+  created_at: string
+}
+
 export interface DashboardStats {
   total_conversations: number
   total_agents: number
@@ -2174,6 +2182,11 @@ export interface DashboardStats {
   top_kbs: DashboardKB[]
   connector_health: DashboardConnectorHealth[]
   activity_trend: DashboardDayStat[]
+  // Workflow stats
+  total_workflows: number
+  workflow_runs_today: number
+  workflow_success_rate: number  // 0-100
+  recent_workflow_runs: DashboardWorkflowRun[]
 }
 
 // --- Dashboard API ---

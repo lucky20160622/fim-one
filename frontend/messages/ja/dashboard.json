@@ -49,5 +49,15 @@
   "marketTitle": "マーケットスポットライト",
   "marketEmpty": "エージェント、コネクタなどを発見する",
   "marketEmptyCta": "マーケットを閲覧",
-  "marketSubscribed": "購読済み"
+  "marketSubscribed": "購読済み",
+  "workflowsTitle": "ワークフロー",
+  "workflowsEmpty": "ワークフローはまだありません",
+  "workflowsCreate": "ワークフローを作成",
+  "workflowTotal": "{count}個のワークフロー",
+  "workflowRunsToday": "今日の実行: {count}回",
+  "workflowSuccessRate": "成功率: {rate}%",
+  "workflowRunCompleted": "完了",
+  "workflowRunFailed": "失敗",
+  "workflowRunCancelled": "キャンセル済み",
+  "workflowRunRunning": "実行中"
 }

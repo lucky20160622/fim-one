@@ -49,5 +49,15 @@
   "marketTitle": "마켓 스포트라이트",
   "marketEmpty": "에이전트, 커넥터 등을 발견하세요",
   "marketEmptyCta": "마켓 둘러보기",
-  "marketSubscribed": "구독됨"
+  "marketSubscribed": "구독됨",
+  "workflowsTitle": "워크플로우",
+  "workflowsEmpty": "아직 워크플로우가 없습니다",
+  "workflowsCreate": "워크플로우 생성",
+  "workflowTotal": "{count}개의 워크플로우",
+  "workflowRunsToday": "오늘 {count}회 실행",
+  "workflowSuccessRate": "{rate}% 성공률",
+  "workflowRunCompleted": "완료됨",
+  "workflowRunFailed": "실패",
+  "workflowRunCancelled": "취소됨",
+  "workflowRunRunning": "실행 중"
 }

@@ -49,5 +49,15 @@
   "marketTitle": "Markt-Highlights",
   "marketEmpty": "Entdecken Sie Agenten, Konnektoren und mehr",
   "marketEmptyCta": "Markt durchsuchen",
-  "marketSubscribed": "Abonniert"
+  "marketSubscribed": "Abonniert",
+  "workflowsTitle": "Workflows",
+  "workflowsEmpty": "Noch keine Workflows",
+  "workflowsCreate": "Workflow erstellen",
+  "workflowTotal": "{count} Workflows",
+  "workflowRunsToday": "{count} Ausführungen heute",
+  "workflowSuccessRate": "{rate}% Erfolgsquote",
+  "workflowRunCompleted": "Abgeschlossen",
+  "workflowRunFailed": "Fehlgeschlagen",
+  "workflowRunCancelled": "Abgebrochen",
+  "workflowRunRunning": "Wird ausgeführt"
 }

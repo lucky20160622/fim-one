@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useTranslations, useLocale } from "next-intl"
-import { MessageSquare, Bot, Database, Plug, TrendingUp, TrendingDown, Minus, Activity, Library, Clock, ChevronRight, ShoppingBag } from "lucide-react"
+import { MessageSquare, Bot, Database, Plug, TrendingUp, TrendingDown, Minus, Activity, Library, Clock, ChevronRight, ShoppingBag, GitBranch } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN, enUS } from "date-fns/locale"
 import {
@@ -26,7 +26,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { useConversation } from "@/contexts/conversation-context"
 import { UserAvatar as SharedUserAvatar } from "@/components/shared/user-avatar"
 import { dashboardApi, marketApi, type DashboardStats, type MarketItem } from "@/lib/api"
-import { formatTokens } from "@/lib/utils"
+import { cn, formatTokens } from "@/lib/utils"
 
 const TICK_STYLE = { fill: "currentColor", fontSize: 11 } as const
 
@@ -547,6 +547,53 @@ export function DashboardPage() {
               </Card>
             </div>
 
+            {/* Row B skeleton: KB + Connectors + Workflows */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {/* KB skeleton */}
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Skeleton className="h-5 w-32" />
+                </CardHeader>
+                <CardContent className="px-5 pb-4 pt-1">
+                  <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => <Skeleton.KbCard key={i} />)}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Connectors skeleton */}
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Skeleton className="h-5 w-28" />
+                </CardHeader>
+                <CardContent className="px-0 pb-1">
+                  <ul className="divide-y divide-border">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <li key={i}><Skeleton.ListRow twoLines /></li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+
+              {/* Workflows skeleton */}
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Skeleton className="h-5 w-24" />
+                </CardHeader>
+                <CardContent className="px-5 pb-4 pt-1">
+                  <div className="space-y-2 mb-3">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                  <ul className="divide-y divide-border">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <li key={i}><Skeleton.ListRow /></li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Market Spotlight skeleton */}
             <Card className="gap-0 py-2">
               <CardHeader className="px-5 py-3">
@@ -660,6 +707,192 @@ export function DashboardPage() {
                         </Link>
                       ))}
                     </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Row B: Knowledge Bases + Connector Health + Workflows */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+
+              {/* Knowledge Bases */}
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Link href="/kb" className="group flex items-center justify-between rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                    <CardTitle className="flex items-center gap-2 text-base font-medium">
+                      <Library className="h-4 w-4 text-muted-foreground" />
+                      {t("kbTitle")}
+                    </CardTitle>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </Link>
+                </CardHeader>
+                <CardContent className="px-5 pb-4 pt-1">
+                  {!stats?.top_kbs.length ? (
+                    <div className="flex flex-col items-center gap-3 py-6 text-sm text-muted-foreground">
+                      <p>{t("kbEmpty")}</p>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href="/kb">{t("kbCreate")}</Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {stats.top_kbs.slice(0, 3).map((kb) => (
+                        <Link
+                          key={kb.id}
+                          href={`/kb/${kb.id}`}
+                          className="flex flex-col gap-2 rounded-lg border border-border p-3 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                        >
+                          <p className="truncate text-sm font-medium text-foreground">{kb.name}</p>
+                          <div className="flex gap-2">
+                            <Badge variant="secondary" className="h-5 px-2 text-xs font-normal">
+                              {t("kbDocs", { count: kb.document_count })}
+                            </Badge>
+                            <Badge variant="secondary" className="h-5 px-2 text-xs font-normal">
+                              {t("kbChunks", { count: kb.total_chunks })}
+                            </Badge>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Connector Health */}
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Link href="/connectors" className="group flex items-center justify-between rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                    <CardTitle className="flex items-center gap-2 text-base font-medium">
+                      <Plug className="h-4 w-4 text-muted-foreground" />
+                      {t("connectorsTitle")}
+                    </CardTitle>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </Link>
+                </CardHeader>
+                <CardContent className="px-0 pb-1">
+                  {!stats?.connector_health.length ? (
+                    <div className="flex flex-col items-center gap-3 px-6 py-6 text-sm text-muted-foreground">
+                      <p>{t("connectorsEmpty")}</p>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href="/connectors">{t("connectorsCreate")}</Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-border">
+                      {stats.connector_health.slice(0, 5).map((conn) => (
+                        <li key={conn.id}>
+                          <Link
+                            href={`/connectors/${conn.id}`}
+                            className="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                          >
+                            <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-muted">
+                              {conn.icon ? (
+                                <span className="text-base">{conn.icon}</span>
+                              ) : (
+                                <Plug className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-foreground">{conn.name}</p>
+                              <span className="text-xs text-muted-foreground">
+                                {conn.call_count_today > 0
+                                  ? t("connectorCallsToday", { count: conn.call_count_today })
+                                  : t("connectorNoCallsRecently")}
+                              </span>
+                            </div>
+                            <Badge
+                              variant={conn.status === "active" ? "secondary" : conn.status === "error" ? "destructive" : "outline"}
+                              className={cn(
+                                "h-5 px-2 text-xs font-normal shrink-0",
+                                conn.status === "active" && "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+                                conn.status === "inactive" && "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                              )}
+                            >
+                              {conn.status === "active" ? t("statusActive") : conn.status === "error" ? t("statusError") : t("statusInactive")}
+                            </Badge>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Workflows */}
+              <Card className="gap-0 py-2">
+                <CardHeader className="px-5 py-3">
+                  <Link href="/workflows" className="group flex items-center justify-between rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                    <CardTitle className="flex items-center gap-2 text-base font-medium">
+                      <GitBranch className="h-4 w-4 text-muted-foreground" />
+                      {t("workflowsTitle")}
+                    </CardTitle>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </Link>
+                </CardHeader>
+                <CardContent className="px-5 pb-4 pt-1">
+                  {!stats?.total_workflows ? (
+                    <div className="flex flex-col items-center gap-3 py-6 text-sm text-muted-foreground">
+                      <p>{t("workflowsEmpty")}</p>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href="/workflows">{t("workflowsCreate")}</Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Summary stats */}
+                      <div className="flex flex-wrap gap-3 mb-3">
+                        <span className="text-xs text-muted-foreground">
+                          {t("workflowTotal", { count: stats.total_workflows })}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {t("workflowRunsToday", { count: stats.workflow_runs_today })}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {t("workflowSuccessRate", { rate: stats.workflow_success_rate })}
+                        </span>
+                      </div>
+                      {/* Recent runs */}
+                      {!stats.recent_workflow_runs?.length ? (
+                        <p className="py-4 text-center text-xs text-muted-foreground">
+                          {t("workflowsEmpty")}
+                        </p>
+                      ) : (
+                        <ul className="-mx-5 divide-y divide-border">
+                          {stats.recent_workflow_runs.slice(0, 5).map((run) => (
+                            <li key={run.id}>
+                              <Link
+                                href={`/workflows/${run.workflow_id}`}
+                                className="flex items-center gap-3 px-4 py-2 transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                              >
+                                <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-muted">
+                                  <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
+                                </span>
+                                <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                                  {run.workflow_name}
+                                </p>
+                                <Badge
+                                  variant={run.status === "failed" ? "destructive" : "secondary"}
+                                  className={cn(
+                                    "h-5 px-2 text-xs font-normal shrink-0",
+                                    run.status === "completed" && "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+                                    run.status === "running" && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                                    run.status === "cancelled" && "bg-muted text-muted-foreground"
+                                  )}
+                                >
+                                  {run.status === "completed" ? t("workflowRunCompleted")
+                                    : run.status === "failed" ? t("workflowRunFailed")
+                                    : run.status === "running" ? t("workflowRunRunning")
+                                    : t("workflowRunCancelled")}
+                                </Badge>
+                                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                                  {relativeTime(run.created_at, locale)}
+                                </span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
                   )}
                 </CardContent>
               </Card>
