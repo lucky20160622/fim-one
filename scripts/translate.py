@@ -105,11 +105,22 @@ def _hash(text: str) -> str:
 
 
 def _split_sections(content: str) -> list[str]:
-    """Split markdown/MDX into sections at each heading line."""
+    """Split markdown/MDX into sections at each heading line.
+
+    Code-fence-aware: lines starting with '#' inside fenced code blocks
+    (``` ... ```) are NOT treated as section boundaries. This prevents
+    bash comments like '# Configure' from fragmenting code blocks and
+    causing the LLM to mangle their structure.
+    """
     sections: list[str] = []
     current: list[str] = []
+    in_code_fence = False
     for line in content.splitlines(keepends=True):
-        if line.startswith("#") and current:
+        stripped = line.rstrip("\n\r")
+        # Track code fence state (``` or ~~~, with optional language tag)
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            in_code_fence = not in_code_fence
+        if not in_code_fence and line.startswith("#") and current:
             sections.append("".join(current))
             current = [line]
         else:
@@ -776,7 +787,11 @@ def translate_readme_file(src_path: Path, locale: str, config: dict[str, str], f
         return None
 
     system = _README_SYSTEM_PROMPT.format(locale=locale)
-    translated = _translate_sections(src_path, content, locale, config, system, cache_key="README.md", force=force)
+    translated = _translate_sections(
+        src_path, content, locale, config, system,
+        cache_key="README.md", force=force,
+        validate_fn=_validate_mdx_section,
+    )
 
     target_path.write_text(translated, encoding="utf-8")
     tprint(f"  [{locale}] README.md: saved → {target_path.name}")
