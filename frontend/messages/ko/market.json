@@ -1,6 +1,6 @@
 {
-  "title": "마켓플레이스",
-  "description": "마켓플레이스에서 공유 리소스 찾아보기 및 구독",
+  "title": "마켓",
+  "description": "공유 리소스 찾아보기 및 구독",
   "empty": "마켓플레이스에서 사용 가능한 리소스가 없습니다",
   "subscribed": "구독됨",
   "subscribe": "구독",
@@ -23,5 +23,10 @@
   "emptyTitle": "아직 리소스가 없습니다",
   "emptyDescription": "마켓플레이스에 게시된 리소스가 여기에 표시됩니다.",
   "subscribeSuccess": "구독되었습니다",
-  "unsubscribeSuccess": "구독 취소되었습니다"
+  "unsubscribeSuccess": "구독 취소되었습니다",
+  "scopeLabel": "범위",
+  "scopeGlobalMarket": "글로벌 마켓",
+  "scopeOrg": "조직",
+  "categorySolutions": "솔루션",
+  "categoryComponents": "컴포넌트"
 }

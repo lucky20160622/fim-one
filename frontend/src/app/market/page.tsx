@@ -1,17 +1,29 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ShoppingBag } from 'lucide-react'
+import { ShoppingBag, Globe, Building2, Layers, Puzzle } from 'lucide-react'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { api, type MarketItem } from '@/lib/api'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { api, orgApi, type MarketItem, type UserOrg } from '@/lib/api'
 import { toast } from 'sonner'
 
-const RESOURCE_TYPES = ['all', 'agent', 'connector', 'knowledge_base', 'mcp_server', 'skill', 'workflow'] as const
+const CATEGORY_MAP = {
+  solutions: ['all', 'agent', 'skill', 'workflow'],
+  components: ['all', 'connector', 'mcp_server'],
+} as const
+
+type MarketCategory = keyof typeof CATEGORY_MAP
 
 function MarketContent() {
   const t = useTranslations('market')
@@ -21,13 +33,26 @@ function MarketContent() {
   const [items, setItems] = useState<MarketItem[]>([])
   const [loading, setLoading] = useState(true)
   const [subscribing, setSubscribing] = useState<string | null>(null)
+  const [orgs, setOrgs] = useState<UserOrg[]>([])
 
+  const scope = searchParams.get('scope') || 'market'
+  const category = (searchParams.get('category') || 'solutions') as MarketCategory
   const activeType = searchParams.get('type') || 'all'
 
-  const fetchMarket = async () => {
+  // Load user orgs on mount
+  useEffect(() => {
+    orgApi.list().then(setOrgs).catch(() => {})
+  }, [])
+
+  const fetchMarket = useCallback(async () => {
     setLoading(true)
     try {
-      const params: Parameters<typeof api.browseMarket>[0] = { page: 1, size: 50 }
+      const params: Parameters<typeof api.browseMarket>[0] = {
+        page: 1,
+        size: 50,
+        scope,
+        category,
+      }
       if (activeType !== 'all') params.resource_type = activeType
       const res = await api.browseMarket(params)
       setItems(res?.items ?? [])
@@ -36,9 +61,9 @@ function MarketContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [scope, category, activeType, tc])
 
-  useEffect(() => { fetchMarket() }, [activeType]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchMarket() }, [fetchMarket])
 
   const handleSubscribe = async (item: MarketItem) => {
     setSubscribing(item.id)
@@ -58,15 +83,43 @@ function MarketContent() {
     }
   }
 
-  const handleTypeChange = (type: string) => {
+  const updateParams = useCallback((updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString())
-    if (type === 'all') {
-      params.delete('type')
-    } else {
-      params.set('type', type)
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null || value === '') {
+        params.delete(key)
+      } else {
+        params.set(key, value)
+      }
     }
-    router.replace(`?${params.toString()}`)
+    const qs = params.toString()
+    router.replace(qs ? `?${qs}` : '?')
+  }, [searchParams, router])
+
+  const handleScopeChange = (newScope: string) => {
+    // Keep category, reset type to 'all'
+    updateParams({
+      scope: newScope === 'market' ? null : newScope,
+      type: null,
+    })
   }
+
+  const handleCategoryChange = (newCategory: MarketCategory) => {
+    // Reset type to 'all' when category changes
+    updateParams({
+      category: newCategory === 'solutions' ? null : newCategory,
+      type: null,
+    })
+  }
+
+  const handleTypeChange = (type: string) => {
+    updateParams({
+      type: type === 'all' ? null : type,
+    })
+  }
+
+  const validCategory = category in CATEGORY_MAP ? category : 'solutions'
+  const typeOptions = CATEGORY_MAP[validCategory]
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -83,9 +136,64 @@ function MarketContent() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {/* Scope selector */}
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-muted-foreground">{t('scopeLabel')}:</span>
+          <Select value={scope} onValueChange={handleScopeChange}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="market">
+                <span className="flex items-center gap-2">
+                  <Globe className="h-4 w-4" />
+                  {t('scopeGlobalMarket')}
+                </span>
+              </SelectItem>
+              {orgs.map((org) => (
+                <SelectItem key={org.id} value={org.id}>
+                  <span className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    {org.name}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Category toggle */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleCategoryChange('solutions')}
+            className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
+              validCategory === 'solutions'
+                ? 'border-primary bg-primary/5 text-primary'
+                : 'border-border text-muted-foreground hover:bg-muted/50'
+            }`}
+          >
+            <Layers className="h-4 w-4 shrink-0" />
+            {t('categorySolutions')}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleCategoryChange('components')}
+            className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
+              validCategory === 'components'
+                ? 'border-primary bg-primary/5 text-primary'
+                : 'border-border text-muted-foreground hover:bg-muted/50'
+            }`}
+          >
+            <Puzzle className="h-4 w-4 shrink-0" />
+            {t('categoryComponents')}
+          </button>
+        </div>
+
+        {/* Sub-tabs for resource types */}
         <Tabs value={activeType} onValueChange={handleTypeChange}>
           <TabsList>
-            {RESOURCE_TYPES.map(type => (
+            {typeOptions.map(type => (
               <TabsTrigger key={type} value={type}>
                 {t(`types.${type}`)}
               </TabsTrigger>

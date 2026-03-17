@@ -1,6 +1,6 @@
 {
-  "title": "Marketplace",
-  "description": "Durchsuchen und abonnieren Sie freigegebene Ressourcen aus dem Marketplace",
+  "title": "Marktplatz",
+  "description": "Durchsuchen und abonnieren Sie freigegebene Ressourcen",
   "empty": "Keine Ressourcen im Marketplace verfügbar",
   "subscribed": "Abonniert",
   "subscribe": "Abonnieren",
@@ -23,5 +23,10 @@
   "emptyTitle": "Noch keine Ressourcen",
   "emptyDescription": "Ressourcen, die im Marketplace veröffentlicht werden, werden hier angezeigt.",
   "subscribeSuccess": "Erfolgreich abonniert",
-  "unsubscribeSuccess": "Abonnement erfolgreich gekündigt"
+  "unsubscribeSuccess": "Abonnement erfolgreich gekündigt",
+  "scopeLabel": "Bereich",
+  "scopeGlobalMarket": "Globaler Marktplatz",
+  "scopeOrg": "Organisation",
+  "categorySolutions": "Lösungen",
+  "categoryComponents": "Komponenten"
 }
