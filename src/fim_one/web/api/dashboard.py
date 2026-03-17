@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fim_one.db import get_session
 from fim_one.web.auth import get_current_user, get_user_org_ids
 from fim_one.web.models import Agent, Connector, ConnectorCallLog, Conversation, KnowledgeBase, User
+from fim_one.web.models.resource_subscription import ResourceSubscription
 from fim_one.web.visibility import build_visibility_filter
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
@@ -108,6 +109,24 @@ async def get_dashboard_stats(
     """Return personal dashboard statistics for the logged-in user."""
     user_org_ids = await get_user_org_ids(current_user.id, db)
 
+    # Fetch subscribed connector IDs for visibility filter
+    conn_sub_result = await db.execute(
+        select(ResourceSubscription.resource_id).where(
+            ResourceSubscription.user_id == current_user.id,
+            ResourceSubscription.resource_type == "connector",
+        )
+    )
+    subscribed_connector_ids = list(conn_sub_result.scalars().all())
+
+    # Fetch subscribed KB IDs for visibility filter
+    kb_sub_result = await db.execute(
+        select(ResourceSubscription.resource_id).where(
+            ResourceSubscription.user_id == current_user.id,
+            ResourceSubscription.resource_type == "knowledge_base",
+        )
+    )
+    subscribed_kb_ids = list(kb_sub_result.scalars().all())
+
     # ------------------------------------------------------------------
     # 1. Aggregate totals (individual scalar queries for clarity)
     # ------------------------------------------------------------------
@@ -143,7 +162,7 @@ async def get_dashboard_stats(
     active_conn_result = await db.execute(
         select(func.count())
         .select_from(Connector)
-        .where(build_visibility_filter(Connector, current_user.id, user_org_ids))
+        .where(build_visibility_filter(Connector, current_user.id, user_org_ids, subscribed_ids=subscribed_connector_ids))
     )
     active_connectors: int = active_conn_result.scalar_one()
 
@@ -316,7 +335,7 @@ async def get_dashboard_stats(
             KnowledgeBase.document_count,
             KnowledgeBase.total_chunks,
         )
-        .where(build_visibility_filter(KnowledgeBase, current_user.id, user_org_ids))
+        .where(build_visibility_filter(KnowledgeBase, current_user.id, user_org_ids, subscribed_ids=subscribed_kb_ids))
         .order_by(KnowledgeBase.document_count.desc())
         .limit(3)
     )
@@ -345,7 +364,7 @@ async def get_dashboard_stats(
             Connector.type,
             Connector.status,
         )
-        .where(build_visibility_filter(Connector, current_user.id, user_org_ids))
+        .where(build_visibility_filter(Connector, current_user.id, user_org_ids, subscribed_ids=subscribed_connector_ids))
         .limit(10)
     )
     connector_list = connector_rows.all()
