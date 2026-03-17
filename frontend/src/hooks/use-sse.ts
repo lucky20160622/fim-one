@@ -39,7 +39,10 @@ export function useSSE() {
         const fetchInit: RequestInit = { signal: controller.signal }
         if (options?.body) {
           fetchInit.method = "POST"
-          fetchInit.headers = { "Content-Type": "application/json" }
+          fetchInit.headers = {
+            "Content-Type": "application/json",
+            "X-Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
+          }
           fetchInit.body = JSON.stringify(options.body)
         }
         const res = await fetch(url, fetchInit)

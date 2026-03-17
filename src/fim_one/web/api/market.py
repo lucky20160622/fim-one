@@ -16,10 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from fim_one.db import get_session
 from fim_one.web.auth import get_current_user
-from fim_one.web.dependency_analyzer import (
-    SOLUTION_TYPES,
-    resolve_solution_dependencies,
-)
+from fim_one.web.dependency_analyzer import resolve_solution_dependencies
 from fim_one.web.exceptions import AppError
 from fim_one.web.models.agent import Agent
 from fim_one.web.models.connector import Connector
@@ -149,9 +146,6 @@ MARKET_RESOURCE_TYPES = SOLUTION_TYPES + COMPONENT_TYPES
 _ALL_RESOURCE_TYPES = [
     "agent", "connector", "knowledge_base", "mcp_server", "skill", "workflow",
 ]
-
-# Solution types — resources that can have dependency trees
-SOLUTION_TYPES = {"agent", "skill", "workflow"}
 
 
 @router.get("", response_model=ApiResponse)
@@ -310,8 +304,6 @@ async def get_resource_dependencies(
     if resource_type not in SOLUTION_TYPES:
         return ApiResponse(data={"content_deps": [], "connection_deps": []})
 
-    from fim_one.web.dependency_analyzer import resolve_solution_dependencies
-
     manifest = await resolve_solution_dependencies(resource_type, resource_id, db)
     return ApiResponse(data=manifest.to_dict())
 
@@ -409,8 +401,6 @@ async def subscribe_resource(
     # Auto-subscribe content dependencies for Solutions
     manifest = None
     if body.resource_type in SOLUTION_TYPES:
-        from fim_one.web.dependency_analyzer import resolve_solution_dependencies
-
         manifest = await resolve_solution_dependencies(
             body.resource_type, body.resource_id, db
         )
