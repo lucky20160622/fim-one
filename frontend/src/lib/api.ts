@@ -2205,6 +2205,7 @@ export interface MarketItem {
   org_name: string | null
   owner_username: string | null
   is_subscribed: boolean
+  is_own: boolean
   publish_status: string | null
   created_at: string | null
 }

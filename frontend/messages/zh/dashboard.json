@@ -59,5 +59,6 @@
   "workflowRunCompleted": "已完成",
   "workflowRunFailed": "失败",
   "workflowRunCancelled": "已取消",
-  "workflowRunRunning": "运行中"
+  "workflowRunRunning": "运行中",
+  "marketYours": "您的"
 }

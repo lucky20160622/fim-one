@@ -239,7 +239,11 @@ export function ResourceDetailModal({
         </div>
 
         <DialogFooter>
-          {item.is_subscribed ? (
+          {item.is_own ? (
+            <Badge variant="outline" className="text-sm text-blue-600 px-3 py-1.5">
+              {t('yours')}
+            </Badge>
+          ) : item.is_subscribed ? (
             <Button
               variant="outline"
               disabled={subscribing}

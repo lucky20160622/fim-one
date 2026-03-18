@@ -244,7 +244,10 @@ function MarketContent() {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {item.is_subscribed && (
+                    {item.is_own && (
+                      <Badge variant="outline" className="text-xs text-blue-600">{t('yours')}</Badge>
+                    )}
+                    {!item.is_own && item.is_subscribed && (
                       <Badge variant="outline" className="text-xs">{t('subscribed')}</Badge>
                     )}
                     <Badge variant="secondary" className="text-xs">

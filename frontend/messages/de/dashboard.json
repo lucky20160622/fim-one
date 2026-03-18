@@ -59,5 +59,6 @@
   "workflowRunCompleted": "Abgeschlossen",
   "workflowRunFailed": "Fehlgeschlagen",
   "workflowRunCancelled": "Abgebrochen",
-  "workflowRunRunning": "Wird ausgeführt"
+  "workflowRunRunning": "Wird ausgeführt",
+  "marketYours": "Ihres"
 }

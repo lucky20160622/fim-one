@@ -224,7 +224,6 @@ async def browse_market(
         q = select(model_cls).where(
             model_cls.visibility == "org",
             model_cls.org_id == browse_org_id,
-            model_cls.user_id != current_user.id,  # exclude own resources
             # Only show approved / no-review-needed resources
             or_(
                 model_cls.publish_status == None,  # noqa: E711 — no review needed
@@ -237,6 +236,7 @@ async def browse_market(
         for obj in result.scalars().all():
             info = info_fn(obj)
             info["is_subscribed"] = obj.id in subscribed_ids
+            info["is_own"] = obj.user_id == current_user.id
             info["is_solution"] = rtype in SOLUTION_TYPES
             items.append(info)
 

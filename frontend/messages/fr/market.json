@@ -54,5 +54,6 @@
   "depRequiresSetup": "Nécessite une configuration : {name}",
   "credentialSetupRequired": "Les dépendances suivantes nécessitent une configuration des identifiants :",
   "credentialSetupWarning": "Sans identifiants, cette ressource ne peut pas fonctionner correctement.",
-  "configureDep": "Configurer"
+  "configureDep": "Configurer",
+  "yours": "Le vôtre"
 }

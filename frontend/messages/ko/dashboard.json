@@ -59,5 +59,6 @@
   "workflowRunCompleted": "완료됨",
   "workflowRunFailed": "실패",
   "workflowRunCancelled": "취소됨",
-  "workflowRunRunning": "실행 중"
+  "workflowRunRunning": "실행 중",
+  "marketYours": "당신의"
 }
