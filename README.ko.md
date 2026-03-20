@@ -127,8 +127,9 @@ cd frontend && pnpm install && cd ..
 - **확장 사고** — OpenAI o-series, Gemini 2.5+, Claude의 사고 연쇄.
 
 #### 워크플로우 & 도구
-- **시각적 워크플로우 편집기** — 12개 노드 타입, 드래그 앤 드롭 캔버스 (React Flow v12), JSON으로 가져오기/내보내기.
-- **플러그인 가능한 도구** — Python, Node.js, 셸 실행 (선택적 Docker 샌드박스 `CODE_EXEC_BACKEND=docker`).
+- **시각적 워크플로우 편집기** — 12가지 노드 타입, 드래그 앤 드롭 캔버스 (React Flow v12), JSON으로 가져오기/내보내기.
+- **스마트 파일 처리** — 업로드된 파일이 자동으로 컨텍스트에 인라인되거나 (작은 파일) `read_uploaded_file` 도구를 통해 필요에 따라 읽을 수 있으며, 페이지 나누기 및 정규식 검색 모드 지원.
+- **플러그인 가능한 도구** — Python, Node.js, 셸 실행 및 선택적 Docker 샌드박스 (`CODE_EXEC_BACKEND=docker`).
 - **완전한 RAG 파이프라인** — Jina 임베딩 + LanceDB + 하이브리드 검색 + 리랭커 + 인라인 `[N]` 인용.
 - **도구 아티팩트** — 풍부한 출력 (HTML 미리보기, 파일)이 채팅에서 렌더링됨.
 

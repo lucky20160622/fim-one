@@ -128,8 +128,9 @@ cd frontend && pnpm install && cd ..
 
 #### Flux de travail et outils
 - **Éditeur de flux de travail visuel** — 12 types de nœuds, canevas glisser-déposer (React Flow v12), import/export en JSON.
+- **Gestion intelligente des fichiers** — Les fichiers téléchargés sont automatiquement intégrés au contexte (petits) ou lisibles à la demande via l'outil `read_uploaded_file` avec modes de recherche paginée et regex.
 - **Outils enfichables** — Python, Node.js, exécution shell avec bac à sable Docker optionnel (`CODE_EXEC_BACKEND=docker`).
-- **Pipeline RAG complet** — Intégration Jina + LanceDB + récupération hybride + réclassement + citations intégrées `[N]`.
+- **Pipeline RAG complet** — Intégration Jina + LanceDB + récupération hybride + reclasseur + citations intégrées `[N]`.
 - **Artefacts d'outils** — Sorties enrichies (aperçus HTML, fichiers) rendus dans le chat.
 
 #### Plateforme

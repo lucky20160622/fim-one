@@ -15,6 +15,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 - **Marketplace redesign Phase 1 — Solutions + Components two-tier model** — Replaced the flat 6-type Market tab with a structured two-level navigation: top-level category toggle (Solutions: Agent/Skill/Workflow; Components: Connector/MCP Server) and type sub-tabs. Added scope selector dropdown to switch between Global Market and user's organizations. KB removed from Market scope (org-only). Unified org and market sharing: both now require explicit subscription (no more org auto-appear).
 
+- **Smart file content injection** — Small uploaded files (<32K chars) are automatically fetched and inlined into LLM context; large files receive metadata summary with a tool hint for on-demand reading.
+- **`read_uploaded_file` agent tool** — Dual-mode file reading tool: paginated reading (offset/limit) for sequential access and grep-like search (query with regex support) for targeted content extraction.
+- **`GET /api/files/{file_id}/content` endpoint** — Paginated text content API for accessing full extracted text from uploaded files.
+- **`.content` sidecar files** — Full extracted text stored alongside uploads as sidecar files, enabling persistent content access without re-extraction.
+- **`content_length` field in file API responses** — File upload and list endpoints now include `content_length` for text content size visibility.
+- **`fileApi.getContent()` frontend client method** — New API client method for fetching paginated file content from the frontend.
+
 ### Changed
 
 - **Subscription-based visibility model** — `build_visibility_filter()` simplified from 3-tier (own → org-member → subscribed) to 2-tier (own → subscribed). Data migration auto-creates `ResourceSubscription` rows for all existing org members to preserve access. Dashboard connector count and KB stats now include subscribed resources.

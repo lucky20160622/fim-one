@@ -11,9 +11,16 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/). Versionen ents
 
 ### Hinzugefügt
 
-- **Agent-Direktive in ReAct-Synthese** — Neuer `agent_directive`-Parameter auf `ReActAgent` injiziert den Kernzweck des Agenten (z. B. „Chinesisch ins Englische übersetzen") in den Synthesis-Systemprompt und stellt sicher, dass die endgültige Antwort die Identität des Agenten berücksichtigt, anstatt auf Gesprächsantworten zurückzugreifen. In beiden ReAct- und DAG-Chat-Endpunkten verdrahtet.
+- **Agent-Direktive in ReAct-Synthese** — Neuer `agent_directive`-Parameter auf `ReActAgent` injiziert den Kernzweck des Agenten (z. B. "Chinesisch ins Englische übersetzen") in den Synthese-Systemprompt und stellt sicher, dass die endgültige Antwort die Identität des Agenten respektiert, anstatt auf Gesprächsantworten zurückzugreifen. In beide ReAct- und DAG-Chat-Endpunkte integriert.
 
-- **Marketplace-Redesign Phase 1 — Solutions + Components Zwei-Ebenen-Modell** — Ersetzte die flache 6-Typ-Market-Registerkarte durch eine strukturierte zweistufige Navigation: Toggle für Top-Level-Kategorie (Solutions: Agent/Skill/Workflow; Components: Connector/MCP Server) und Typ-Unter-Registerkarten. Scope-Selector-Dropdown hinzugefügt, um zwischen Global Market und den Organisationen des Benutzers zu wechseln. KB aus dem Market-Scope entfernt (nur für Organisationen). Einheitliche Org- und Market-Freigabe: beide erfordern nun ein explizites Abonnement (kein automatisches Org-Erscheinen mehr).
+- **Marketplace-Redesign Phase 1 — Lösungen + Komponenten Zwei-Ebenen-Modell** — Ersetzte die flache 6-Typ-Market-Registerkarte durch eine strukturierte zweistufige Navigation: Umschalter auf oberster Ebene (Lösungen: Agent/Skill/Workflow; Komponenten: Connector/MCP Server) und Typ-Unterregisterkarten. Bereichsauswahl-Dropdown hinzugefügt, um zwischen Global Market und den Organisationen des Benutzers zu wechseln. KB aus Market-Bereich entfernt (nur org). Einheitliche Org- und Market-Freigabe: beide erfordern jetzt ein explizites Abonnement (keine automatische Org-Anzeige mehr).
+
+- **Intelligente Dateiinhaltseinspeisung** — Kleine hochgeladene Dateien (<32K Zeichen) werden automatisch abgerufen und in den LLM-Kontext eingefügt; große Dateien erhalten eine Metadaten-Zusammenfassung mit einem Tool-Hinweis zum bedarfsgerechten Lesen.
+- **`read_uploaded_file` Agent-Tool** — Dual-Mode-Datei-Lese-Tool: Paginiertes Lesen (Offset/Limit) für sequenziellen Zugriff und grep-ähnliche Suche (Abfrage mit Regex-Unterstützung) für gezielte Inhaltsextraktion.
+- **`GET /api/files/{file_id}/content` Endpunkt** — Paginierte Text-Inhalts-API für den Zugriff auf vollständig extrahierten Text aus hochgeladenen Dateien.
+- **`.content` Sidecar-Dateien** — Vollständig extrahierter Text wird neben Uploads als Sidecar-Dateien gespeichert und ermöglicht persistenten Inhaltszugriff ohne Neuextraktion.
+- **`content_length` Feld in Datei-API-Antworten** — Datei-Upload- und List-Endpunkte enthalten jetzt `content_length` für Sichtbarkeit der Textinhaltsgröße.
+- **`fileApi.getContent()` Frontend-Client-Methode** — Neue API-Client-Methode zum Abrufen paginierter Dateiinhalte vom Frontend.
 
 ### Geändert
 

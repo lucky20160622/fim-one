@@ -127,10 +127,11 @@ cd frontend && pnpm install && cd ..
 - **Extended Thinking** — Chain-of-Thought für OpenAI o-Serie, Gemini 2.5+, Claude.
 
 #### Workflow & Tools
-- **Visual workflow editor** — 12 node types, drag-and-drop canvas (React Flow v12), import/export as JSON.
-- **Pluggable tools** — Python, Node.js, shell exec with optional Docker sandbox (`CODE_EXEC_BACKEND=docker`).
-- **Full RAG pipeline** — Jina embedding + LanceDB + hybrid retrieval + reranker + inline `[N]` citations.
-- **Tool artifacts** — Rich outputs (HTML previews, files) rendered in-chat.
+- **Visual workflow editor** — 12 Knotentypen, Drag-and-Drop-Canvas (React Flow v12), Import/Export als JSON.
+- **Smart file handling** — Hochgeladene Dateien werden automatisch in den Kontext eingefügt (klein) oder können bei Bedarf über das Tool `read_uploaded_file` mit paginierten und Regex-Suchmodi gelesen werden.
+- **Pluggable tools** — Python, Node.js, Shell-Ausführung mit optionalem Docker-Sandbox (`CODE_EXEC_BACKEND=docker`).
+- **Full RAG pipeline** — Jina Embedding + LanceDB + Hybrid-Retrieval + Reranker + Inline-Zitate `[N]`.
+- **Tool artifacts** — Rich Outputs (HTML-Vorschau, Dateien) werden im Chat gerendert.
 
 #### Plattform
 - **Multi-Mandant** — JWT-Authentifizierung, Organisationsisolation, Admin-Panel mit Nutzungsanalysen und Connector-Metriken.

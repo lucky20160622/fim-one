@@ -11,9 +11,16 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/). Les versions cor
 
 ### Ajouté
 
-- **Directive d'agent dans la synthèse ReAct** — Nouveau paramètre `agent_directive` sur `ReActAgent` qui injecte l'objectif principal de l'agent (par ex. « traduire le chinois en anglais ») dans le système de synthèse, garantissant que la réponse finale respecte l'identité de l'agent au lieu de revenir à des réponses conversationnelles. Intégré dans les deux points de terminaison de chat ReAct et DAG.
+- **Directive d'agent dans la synthèse ReAct** — Nouveau paramètre `agent_directive` sur `ReActAgent` injecte l'objectif principal de l'agent (par exemple « traduire du chinois vers l'anglais ») dans le système de synthèse, garantissant que la réponse finale respecte l'identité de l'agent au lieu de revenir à des réponses conversationnelles. Intégré dans les deux points de terminaison de chat ReAct et DAG.
 
-- **Refonte du Marketplace Phase 1 — Modèle à deux niveaux Solutions + Composants** — Remplacement de l'onglet Market plat à 6 types par une navigation structurée à deux niveaux : bascule de catégorie de haut niveau (Solutions : Agent/Skill/Workflow ; Composants : Connector/MCP Server) et sous-onglets de type. Ajout d'une liste déroulante de sélecteur de portée pour basculer entre le Marketplace Global et les organisations de l'utilisateur. KB supprimé de la portée du Marketplace (organisations uniquement). Partage unifié org et market : les deux nécessitent désormais un abonnement explicite (plus d'apparition automatique org).
+- **Refonte de la Marketplace Phase 1 — Modèle à deux niveaux Solutions + Composants** — Remplacé l'onglet Market plat à 6 types par une navigation structurée à deux niveaux : bascule de catégorie de haut niveau (Solutions : Agent/Compétence/Workflow ; Composants : Connecteur/Serveur MCP) et sous-onglets de type. Ajout d'une liste déroulante de sélecteur de portée pour basculer entre le Marché Global et les organisations de l'utilisateur. KB supprimée de la portée du Marché (org uniquement). Partage unifié org et marché : les deux nécessitent maintenant un abonnement explicite (plus d'apparition automatique org).
+
+- **Injection intelligente de contenu de fichier** — Les petits fichiers téléchargés (<32K caractères) sont automatiquement récupérés et insérés dans le contexte LLM ; les fichiers volumineux reçoivent un résumé de métadonnées avec un indice d'outil pour une lecture à la demande.
+- **Outil d'agent `read_uploaded_file`** — Outil de lecture de fichier en mode dual : lecture paginée (offset/limit) pour l'accès séquentiel et recherche de type grep (requête avec support regex) pour l'extraction de contenu ciblée.
+- **Point de terminaison `GET /api/files/{file_id}/content`** — API de contenu texte paginée pour accéder au texte extrait complet des fichiers téléchargés.
+- **Fichiers sidecar `.content`** — Texte extrait complet stocké aux côtés des téléchargements en tant que fichiers sidecar, permettant un accès au contenu persistant sans ré-extraction.
+- **Champ `content_length` dans les réponses de l'API fichier** — Les points de terminaison de téléchargement et de liste de fichiers incluent maintenant `content_length` pour la visibilité de la taille du contenu texte.
+- **Méthode client frontend `fileApi.getContent()`** — Nouvelle méthode client API pour récupérer le contenu de fichier paginé depuis le frontend.
 
 ### Modifié
 
