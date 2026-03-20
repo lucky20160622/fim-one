@@ -86,13 +86,13 @@ Der kritische Designunterschied: Der Fallback von `structured_llm_call` ist **La
 
 ## Die Bedrock-Prefill-Falle
 
-Wenn `response_format={"type":"json_object"}` für ein Modell übergeben wird, das mit dem `anthropic/`-Präfix aufgelöst wird, injiziert LiteLLM intern eine Assistent-Prefill-Nachricht, um den JSON-Modus zu simulieren. Die Anthropic Messages API hat keinen nativen `response_format`-Parameter, daher approximiert LiteLLM dies, indem eine öffnende Klammer als Assistent-Inhalt vorangestellt wird:
+Wenn `response_format={"type":"json_object"}` für ein Modell übergeben wird, das mit dem Präfix `anthropic/` aufgelöst wird, injiziert LiteLLM intern eine Assistent-Prefill-Nachricht, um den JSON-Modus zu simulieren. Die Anthropic Messages API hat keinen nativen `response_format`-Parameter, daher approximiert LiteLLM dies durch Voranstellen einer öffnenden Klammer als Assistent-Inhalt:
 
 ```json
 {"role": "assistant", "content": "{"}
 ```
 
-Dies funktioniert auf Anthropics direkter API. Allerdings lehnen neuere AWS Bedrock-Modellversionen jedes Gespräch ab, dessen letzte Nachricht `role: "assistant"` hat — sie nennen dies „assistant message prefill" und werfen:
+Dies funktioniert auf Anthropics direkter API. Jedoch lehnen neuere AWS Bedrock-Modellversionen jede Konversation ab, deren letzte Nachricht `role: "assistant"` hat — sie nennen dies „Assistant Message Prefill" und werfen:
 
 ```
 ValidationException: This model does not support assistant message prefill.
@@ -101,25 +101,15 @@ The conversation must end with a user message.
 
 Dieser Fehler tritt nur auf, wenn **alle drei Bedingungen** gleichzeitig erfüllt sind:
 
-1. Das Modell wird mit dem `anthropic/`-Präfix aufgelöst (über Domain-Match oder URL-Pfad-Hinweis).
+1. Das Modell wird mit dem Präfix `anthropic/` aufgelöst (über Domain-Abgleich oder URL-Pfad-Hinweis).
 2. `response_format={"type":"json_object"}` wird übergeben (der json_mode-Codepfad in `structured_llm_call`).
-3. Das tatsächliche Backend ist AWS Bedrock (das Prefill ablehnt).
+3. Das eigentliche Backend ist AWS Bedrock (das Prefill ablehnt).
 
 <Warning>
 Dies betrifft NICHT natives Tool Calling (`tool_choice="auto"` mit `tools=`-Parameter). Die Prefill-Injektion erfolgt nur für `response_format`. Die ReAct-Agent-Ausführung ist völlig unbeeinträchtigt.
 </Warning>
 
-Der Fehlerpfad in der Praxis sieht folgendermaßen aus:
-
-```mermaid
-flowchart TD
-    S["structured_llm_call"] --> FC["Level 1: native_fc<br/>(forced tool_choice)"]
-    FC -->|"400: thinking + forced tool_choice"| JM["Level 2: json_mode<br/>(response_format)"]
-    JM -->|"400: Bedrock rejects prefill"| PT["Level 3: plain_text"]
-    PT -->|"System prompt guides JSON output"| OK["Success via prompt engineering"]
-```
-
-Wenn sowohl Level 1 (Thinking-Konflikt) als auch Level 2 (Bedrock-Prefill) fehlschlagen, erholt sich das System immer noch auf Level 3 — aber auf Kosten von zwei verschwendeten LLM-Aufrufen pro strukturierter Extraktion. Die nachstehende Korrektur eliminiert den verschwendeten json_mode-Aufruf.
+Wenn sowohl Level 1 (native_fc) als auch Level 2 (json_mode) auf Bedrock fehlschlagen, erholt sich das System auf Level 3 (plain_text). Das unten beschriebene Flag `json_mode_enabled` eliminiert den verschwendeten Level-2-Aufruf.
 
 ### Die Lösung: json_mode_enabled
 
@@ -130,35 +120,37 @@ Ein Pro-Modell-Flag `json_mode_enabled` steuert, ob Level 2 (json_mode) jemals v
 - **Auswirkung**: Wenn deaktiviert, gibt `abilities["json_mode"]` `False` zurück → `response_format` wird nie übergeben → kein Prefill → Bedrock funktioniert. Die Degradationskette wird zu `native_fc → plain_text`, wobei der fehlgeschlagene json_mode-Aufruf vollständig übersprungen wird.
 - **Kein Qualitätsverlust**: Das Modell gibt weiterhin gültiges JSON zurück, da das System-Prompt dies anweist. Die plain_text-Ebene verwendet `extract_json()`, um JSON aus Freitextinhalten zu analysieren, was bei modernen Modellen zuverlässig funktioniert.
 
-## Anthropic Denken + erzwungene tool_choice
+## Anthropic-Denken + erzwungene tool_choice
 
-Die API von Anthropic lehnt `tool_choice={"type":"function","function":{"name":"X"}}` ab, wenn erweitertes Denken aktiviert ist. Der Fehler:
+Die API von Anthropic lehnt `tool_choice={"type":"function","function":{"name":"X"}}` ab, wenn erweitertes Denken aktiviert ist:
 
 ```
 Thinking may not be enabled when tool_choice forces tool use
 ```
 
-Dies ist ein semantischer Konflikt auf Protokollebene: Das Erzwingen eines bestimmten Werkzeugaufrufs widerspricht der Freiheit des Modells, darüber nachzudenken, welches Werkzeug aufgerufen werden soll (oder ob überhaupt eines aufgerufen werden soll). Anthropic erzwingt diese Einschränkung; andere Anbieter tun dies nicht.
+Dies ist ein semantischer Konflikt auf Protokollebene: Das Erzwingen eines bestimmten Toolaufrufs widerspricht der Freiheit des Modells, darüber nachzudenken, welches Tool aufgerufen werden soll. Anthropic erzwingt diese Einschränkung; andere Anbieter tun dies nicht.
 
-Der Konflikt **betrifft nur** Level 1 (native_fc) von `structured_llm_call`, das erzwungene `tool_choice` verwendet, um strukturierte Ausgaben zu garantieren. Das vorhandene `try/except` in `_call_llm` fängt die 400-Antwort ab und fällt auf json_mode oder plain_text zurück. Es ist keine spezielle Behandlung im `abilities`-Wörterbuch erforderlich.
+`structured_llm_call` handhabt dies, indem `reasoning_effort=None` beim Aufrufen von native_fc (der erzwungenen `tool_choice`-Ebene) übergeben wird. Dies deaktiviert erweitertes Denken für diesen spezifischen Aufruf, sodass erzwungene tool_choice unabhängig von der globalen Reasoning-Konfiguration immer funktioniert. Strukturierte Ausgabeaufrufe (DAG-Planung, Schema-Annotation, Plan-Analyse) benötigen **Schema-Konformität**, nicht tiefes Denken — das Deaktivieren des Denkens hier ist sowohl korrekt als auch vorteilhaft (niedrigere Latenz, niedrigere Kosten).
 
-Entscheidend ist, dass `tool_choice="auto"` perfekt mit aktiviertem Anthropic-Denken funktioniert. Die ReAct-Engine verwendet ausschließlich `"auto"`, daher ist sie nie betroffen.
+`tool_choice="auto"` ist vom Denkmodus nicht betroffen. Die ReAct-Engine verwendet ausschließlich `"auto"`, sodass die Agent-Ausführung mit aktiviertem Denken funktioniert.
 
 <Warning>
-Setzen Sie NICHT `abilities["tool_call"] = False`, um den Konflikt zwischen Denken und erzwungener tool_choice zu umgehen. Das würde den ReAct-Modus `_run_native` deaktivieren (der `tool_choice="auto"` verwendet und perfekt mit Denken funktioniert) und würde ihn in den Modus `_run_json` zwingen. In `_run_json` muss das Modell gültiges JSON in seinem Inhalt produzieren – was weniger zuverlässig ist und auf Bedrock das Prefill-Problem auslösen könnte, wenn json_mode aktiviert ist. Die richtige Lösung besteht darin, die Fallback-Kette von `structured_llm_call` handhaben zu lassen.
+Setzen Sie NICHT `abilities["tool_call"] = False`, um diese Einschränkung zu vermeiden. Das würde den ReAct-Modus `_run_native` deaktivieren (der `tool_choice="auto"` verwendet und gut mit Denken funktioniert) und würde ihn in den weniger zuverlässigen Modus `_run_json` zwingen.
 </Warning>
 
-## Kurzreferenz: Was funktioniert wo
+<Note>
+**Hinweis zur Provider-Migration:** Einige Drittanbieter-Relays löschen stillschweigend nicht unterstützte Parameter wie `reasoning_effort` (`drop_params=True`), sodass Denken nie aktiviert wird, auch wenn es konfiguriert ist. Bei der Migration zu einem Anbieter, der Denken ordnungsgemäß unterstützt (Bedrock, direkte Anthropic-API), stellt `reasoning_effort=None` in native_fc konsistentes Verhalten sicher. Es ist keine Benutzeraktion erforderlich — strukturierte Ausgabe funktioniert identisch bei allen Anbietern.
+</Note>
 
-| Szenario | ReAct-Modus | structured_llm_call-Pfad | Notizen |
+## Schnellreferenz: Was funktioniert wo
+
+| Szenario | ReAct-Modus | structured_llm_call-Pfad | Hinweise |
 |---|---|---|---|
-| OpenAI (beliebiges Modell) | `_run_native` | native_fc | Vollständige Unterstützung, keine Einschränkungen |
+| OpenAI (beliebiges Modell) | `_run_native` | native_fc | Vollständige Unterstützung |
 | Anthropic (kein Denken) | `_run_native` | native_fc | Vollständige Unterstützung |
-| Anthropic + Denken | `_run_native` | native_fc → 400 → json_mode | Automatisches Fallback, ein verschwendeter Aufruf |
+| Anthropic + Denken | `_run_native` | native_fc (Denken automatisch deaktiviert) | Denken nur für strukturierte Ausgabe deaktiviert |
 | Bedrock-Relay (kein Denken) | `_run_native` | native_fc | Vollständige Unterstützung |
-| Bedrock-Relay + Denken | `_run_native` | native_fc → 400 → json_mode → 400 → plain_text | Zwei verschwendete Aufrufe; setzen Sie `json_mode_enabled=false` |
-| Bedrock-Relay + `json_mode_enabled=false` | `_run_native` | native_fc → 400 → plain_text | Empfohlene Konfiguration für Bedrock mit Denken |
-| Bedrock-Relay (kein Denken) + `json_mode_enabled=false` | `_run_native` | native_fc | Keine Auswirkung — native_fc erfolgreich beim ersten Versuch |
+| Bedrock-Relay + Denken | `_run_native` | native_fc (Denken automatisch deaktiviert) | Denken nur für strukturierte Ausgabe deaktiviert |
 | Gemini | `_run_native` | native_fc | Vollständige Unterstützung |
 | DeepSeek | `_run_native` | native_fc | Vollständige Unterstützung |
 | Generisch OpenAI-kompatibel | `_run_native` | native_fc | Vollständige Unterstützung |
@@ -167,13 +159,13 @@ Setzen Sie NICHT `abilities["tool_call"] = False`, um den Konflikt zwischen Denk
 **Empfohlene Konfiguration für AWS Bedrock-Relays:**
 
 ```bash
-# In .env oder Umgebung
+# In .env or environment
 LLM_JSON_MODE_ENABLED=false
 ```
 
-Oder pro Modell in der Admin-Benutzeroberfläche: Admin → Models → Bedrock-Modell auswählen → Advanced → "JSON Mode" deaktivieren.
+Oder pro Modell in der Admin-Benutzeroberfläche: Admin → Modelle → Bedrock-Modell auswählen → Erweitert → „JSON-Modus" deaktivieren.
 
-Dies eliminiert alle verschwendeten Aufrufe. Der Degradationspfad wird zu `native_fc → plain_text` (kein Denken) oder `native_fc → 400 → plain_text` (mit Denken). Beide Pfade sind schnell und zuverlässig.
+Das Setzen von `json_mode_enabled=false` für Bedrock wird als Defense-in-Depth empfohlen. Native_fc verarbeitet strukturierte Ausgaben zuverlässig, aber falls es unerwartet fehlschlägt, stellt das Deaktivieren des JSON-Modus sicher, dass die Fallback-Kette die Bedrock-Prefill-Falle überspringt und direkt zu plain_text geht.
 
 ## Reasoning-Aufwand und Thinking-Konfiguration
 
@@ -189,16 +181,38 @@ Wenn `reasoning_effort` gesetzt ist und das Modell als `anthropic/` aufgelöst w
 1. **Temperatur wird auf 1,0 erzwungen.** Bedrock lehnt `temperature != 1.0` ab, wenn Thinking aktiviert ist. FIM One handhabt dies automatisch — keine Benutzeraktion erforderlich.
 2. **GPT-5.x mit Tools**: `reasoning_effort` wird stillschweigend verworfen, wenn `tools` vorhanden sind, da der GPT-5-Endpunkt `/v1/chat/completions` die Kombination ablehnt. Dies betrifft nur die ReAct-Tool-Schleife; `structured_llm_call`-Aufrufe ohne `tools`-Parameter sind nicht betroffen.
 
+## Defensive Parsing für strukturierte Ausgabe
+
+Auch wenn native_fc korrekt funktioniert, enthält die Pipeline für strukturierte Ausgabe eine defensive Parsing-Schicht, um Grenzfälle von beliebigen Anbietern oder Kompatibilitätsschichten zu behandeln.
+
+Der `_dict_to_steps`-Parser des DAG-Planers behandelt drei häufige Grenzfälle:
+
+1. **Einzelnes Objekt statt Array.** Einige Modelle geben `{"steps": {"id": "1", "task": "..."}}` (ein einzelnes Step-Objekt) statt `{"steps": [{"id": "1", "task": "..."}]}` (ein Array) zurück. Der Parser erkennt dies, indem er auf `id`- oder `task`-Schlüssel prüft und das Objekt in eine Liste einbindet.
+
+2. **Doppelt kodierter JSON-String.** Wenn strukturierte Ausgabe auf json_mode zurückfällt (das keine Schema-Erzwingung hat), geben einige Anbieter den `steps`-Wert als JSON-String statt als natives Array zurück – z. B. `{"steps": "[{\"id\": \"1\", ...}]"}`. Dieser String kann auch Zeilenumbrüche enthalten (aus der Formatierung des Modells), die Standard-`json.loads` unterbrechen. Der Parser verwendet `extract_json_value()` (das `_repair_json_strings` enthält), um folgende Fälle zu behandeln:
+   - Literale Zeilenumbrüche innerhalb von JSON-Stringwerten
+   - Ungültige Escape-Sequenzen (häufig bei LaTeX- oder Code-Inhalten)
+   - Andere Serialisierungsbesonderheiten von Kompatibilitätsschichten
+
+3. **Fehlender `steps`-Wrapper.** Das Modell kann einen einzelnen Step als Top-Level-Objekt ohne den `steps`-Wrapper-Schlüssel zurückgeben. Der Parser erkennt `id` und `task` auf der Root-Ebene und bindet sie entsprechend ein.
+
+<Note>
+Unter normalen Bedingungen gibt native_fc korrekt strukturierte Tool-Call-Argumente zurück und diese Grenzfälle treten nicht auf. Die defensiven Parser existieren als Sicherheitsnetz für benutzerdefinierte `BaseLLM`-Unterklassen, ungewöhnliche Anbieterverhalten oder Fallback-Szenarien, in denen strukturierte Ausgabe zu json_mode oder plain_text degradiert.
+</Note>
+
 ## Fehlerbehebung
 
 **"This model does not support assistant message prefill"**
 Bedrock + json_mode. Setzen Sie `LLM_JSON_MODE_ENABLED=false` oder deaktivieren Sie JSON Mode in den Admin-Modelleinstellungen.
 
 **"Thinking may not be enabled when tool_choice forces tool use"**
-Anthropic thinking + erzwungener Funktionsaufruf in `structured_llm_call`. Dies ist **erwartetes Verhalten, kein Fehler**. Die Fallback-Kette fängt den 400er ab, überspringt native_fc und ist erfolgreich bei json_mode oder plain_text. Das Log befindet sich auf DEBUG-Ebene — Sie sehen es nur, wenn `LOG_LEVEL=DEBUG`. Kosten: ~300ms Netzwerk-Roundtrip, null Token (das Modell läuft nie bei einem 400er). Keine Maßnahmen erforderlich.
+`structured_llm_call` deaktiviert thinking für native_fc-Aufrufe automatisch. Wenn dieser Fehler auftritt, deutet dies auf einen Code-Pfad hin, der `structured_llm_call` umgeht, oder auf eine benutzerdefinierte `BaseLLM`-Unterklasse, die das `reasoning_effort`-Kwarg nicht akzeptiert. Überprüfen Sie, dass Ihre LLM-Unterklassensignatur `BaseLLM.chat()` entspricht.
+
+**"DAG pipeline failed: LLM 'steps' is not an array"**
+Das LLM hat das Feld `steps` als String oder einzelnes Objekt statt als Array zurückgegeben. Dies bedeutet typischerweise, dass die strukturierte Ausgabe auf json_mode zurückfiel (das keine Schema-Erzwingung hat). Überprüfen Sie das Protokoll auf `structured_llm_call: level=xxx` — wenn es `json_mode` statt `native_fc` anzeigt, schlägt native_fc stillschweigend fehl. Wenn Sie eine benutzerdefinierte `BaseLLM`-Unterklasse verwenden, überprüfen Sie, dass sie das `reasoning_effort`-Kwarg akzeptiert.
 
 **ReAct fällt unerwartet auf JSON Mode zurück**
-Überprüfen Sie, dass `abilities["tool_call"]` des Modells `True` ist. Dies ist immer `True` für `OpenAICompatibleLLM`, aber eine benutzerdefinierte `BaseLLM`-Unterklasse könnte dies überschreiben. Überprüfen Sie mit dem Modelldetail-Endpunkt in der Admin-API.
+Überprüfen Sie, dass `abilities["tool_call"]` des Modells `True` ist. Dies ist immer `True` für `OpenAICompatibleLLM`, aber eine benutzerdefinierte `BaseLLM`-Unterklasse könnte es überschreiben. Überprüfen Sie mit dem Modelldetail-Endpunkt in der Admin-API.
 
-**structured_llm_call erschöpft alle Ebenen und wirft StructuredOutputError**
-Das Modell konnte auf keiner Ebene gültiges JSON erzeugen. Dies ist selten bei modernen Modellen. Überprüfen Sie: (1) das Schema ist gültiges JSON Schema, (2) das Modell hat genug `max_tokens` um die vollständige Antwort zu erzeugen, (3) der System-Prompt widerspricht nicht den Schema-Anweisungen. Der DAG-Planer und Analyzer stellen beide `default_value`-Fallbacks bereit, daher wird dieser Fehler nur von Call Sites propagiert, die Defaults explizit auslassen.
+**structured_llm_call erschöpft alle Ebenen und löst StructuredOutputError aus**
+Das Modell konnte auf keiner Ebene gültiges JSON produzieren. Dies ist bei modernen Modellen selten. Überprüfen Sie: (1) das Schema ist gültiges JSON Schema, (2) das Modell hat genug `max_tokens`, um die vollständige Antwort zu produzieren, (3) der System-Prompt widerspricht nicht den Schema-Anweisungen. Der DAG-Planer und Analyzer stellen beide `default_value`-Fallbacks bereit, daher wird dieser Fehler nur von Call-Sites weitergegeben, die Defaults explizit weglassen.

@@ -109,17 +109,7 @@ This error occurs only when **all three conditions** are met simultaneously:
 This does NOT affect native tool calling (`tool_choice="auto"` with `tools=` parameter). The prefill injection only happens for `response_format`. ReAct agent execution is completely unaffected.
 </Warning>
 
-The failure path in practice looks like this:
-
-```mermaid
-flowchart TD
-    S["structured_llm_call"] --> FC["Level 1: native_fc<br/>(forced tool_choice)"]
-    FC -->|"400: thinking + forced tool_choice"| JM["Level 2: json_mode<br/>(response_format)"]
-    JM -->|"400: Bedrock rejects prefill"| PT["Level 3: plain_text"]
-    PT -->|"System prompt guides JSON output"| OK["Success via prompt engineering"]
-```
-
-When both Level 1 (thinking conflict) and Level 2 (Bedrock prefill) fail, the system still recovers at Level 3 — but at the cost of two wasted LLM calls per structured extraction. The fix below eliminates the wasted json_mode call.
+If both Level 1 (native_fc) and Level 2 (json_mode) fail on Bedrock, the system recovers at Level 3 (plain_text). The `json_mode_enabled` flag described below eliminates the wasted Level 2 call.
 
 ### The fix: json_mode_enabled
 
@@ -132,33 +122,35 @@ A per-model `json_mode_enabled` flag controls whether Level 2 (json_mode) is eve
 
 ## Anthropic thinking + forced tool_choice
 
-Anthropic's API rejects `tool_choice={"type":"function","function":{"name":"X"}}` when extended thinking is enabled. The error:
+Anthropic's API rejects `tool_choice={"type":"function","function":{"name":"X"}}` when extended thinking is enabled:
 
 ```
 Thinking may not be enabled when tool_choice forces tool use
 ```
 
-This is a semantic conflict at the protocol level: forcing a specific tool call contradicts the model's freedom to reason about which tool to call (or whether to call one at all). Anthropic enforces this constraint; other providers do not.
+This is a semantic conflict at the protocol level: forcing a specific tool call contradicts the model's freedom to reason about which tool to call. Anthropic enforces this constraint; other providers do not.
 
-The conflict **only affects** `structured_llm_call`'s Level 1 (native_fc), which uses forced `tool_choice` to guarantee structured output. The existing `try/except` in `_call_llm` catches the 400 response and falls through to json_mode or plain_text. No special handling is needed in the `abilities` dict.
+`structured_llm_call` handles this by passing `reasoning_effort=None` when calling native_fc (the forced `tool_choice` level). This disables extended thinking for that specific call, so forced tool_choice always works regardless of the global reasoning configuration. Structured output calls (DAG planning, schema annotation, plan analysis) need **schema compliance**, not deep reasoning — disabling thinking here is both correct and beneficial (lower latency, lower cost).
 
-Crucially, `tool_choice="auto"` works perfectly with Anthropic thinking enabled. The ReAct engine uses `"auto"` exclusively, so it is never affected.
+`tool_choice="auto"` is unaffected by thinking mode. The ReAct engine uses `"auto"` exclusively, so agent execution works with thinking enabled.
 
 <Warning>
-Do NOT set `abilities["tool_call"] = False` to work around the thinking + forced tool_choice conflict. That would disable ReAct's `_run_native` mode (which uses `tool_choice="auto"` and works fine with thinking), forcing it into `_run_json` mode. In `_run_json`, the model must produce valid JSON in its content — which is less reliable and, on Bedrock, could trigger the prefill issue if json_mode is enabled. The correct fix is to let the `structured_llm_call` fallback chain handle it.
+Do NOT set `abilities["tool_call"] = False` to avoid this constraint. That would disable ReAct's `_run_native` mode (which uses `tool_choice="auto"` and works fine with thinking), forcing it into the less reliable `_run_json` mode.
 </Warning>
+
+<Note>
+**Provider migration note:** Some third-party relays silently drop unsupported parameters like `reasoning_effort` (`drop_params=True`), so thinking is never activated even when configured. When migrating to a provider that properly supports thinking (Bedrock, direct Anthropic API), the `reasoning_effort=None` in native_fc ensures consistent behavior. No user action is needed — structured output works identically across all providers.
+</Note>
 
 ## Quick reference: what works where
 
 | Scenario | ReAct mode | structured_llm_call path | Notes |
 |---|---|---|---|
-| OpenAI (any model) | `_run_native` | native_fc | Full support, no caveats |
+| OpenAI (any model) | `_run_native` | native_fc | Full support |
 | Anthropic (no thinking) | `_run_native` | native_fc | Full support |
-| Anthropic + thinking | `_run_native` | native_fc → 400 → json_mode | Auto-fallback, one wasted call |
+| Anthropic + thinking | `_run_native` | native_fc (thinking auto-disabled) | Thinking disabled for structured output only |
 | Bedrock relay (no thinking) | `_run_native` | native_fc | Full support |
-| Bedrock relay + thinking | `_run_native` | native_fc → 400 → json_mode → 400 → plain_text | Two wasted calls; set `json_mode_enabled=false` |
-| Bedrock relay + `json_mode_enabled=false` | `_run_native` | native_fc → 400 → plain_text | Recommended config for Bedrock with thinking |
-| Bedrock relay (no thinking) + `json_mode_enabled=false` | `_run_native` | native_fc | No impact — native_fc succeeds on first try |
+| Bedrock relay + thinking | `_run_native` | native_fc (thinking auto-disabled) | Thinking disabled for structured output only |
 | Gemini | `_run_native` | native_fc | Full support |
 | DeepSeek | `_run_native` | native_fc | Full support |
 | Generic OpenAI-compatible | `_run_native` | native_fc | Full support |
@@ -173,7 +165,7 @@ LLM_JSON_MODE_ENABLED=false
 
 Or per-model in the admin UI: Admin → Models → select the Bedrock model → Advanced → disable "JSON Mode."
 
-This eliminates all wasted calls. The degradation path becomes `native_fc → plain_text` (no thinking) or `native_fc → 400 → plain_text` (with thinking). Both paths are fast and reliable.
+Setting `json_mode_enabled=false` for Bedrock is recommended as defense-in-depth. Native_fc handles structured output reliably, but if it ever fails for an unexpected reason, disabling json_mode ensures the fallback chain skips the Bedrock prefill trap and goes directly to plain_text.
 
 ## Reasoning effort and thinking configuration
 
@@ -189,13 +181,35 @@ When `reasoning_effort` is set and the model is resolved as `anthropic/`, two ad
 1. **Temperature is forced to 1.0.** Bedrock rejects `temperature != 1.0` when thinking is enabled. FIM One handles this automatically — no user action needed.
 2. **GPT-5.x with tools**: `reasoning_effort` is silently dropped when `tools` are present, because the GPT-5 `/v1/chat/completions` endpoint rejects the combination. This only affects the ReAct tool loop; `structured_llm_call` calls that lack a `tools` parameter are unaffected.
 
+## Defensive parsing for structured output
+
+Even with native_fc working correctly, the structured output pipeline includes a defensive parsing layer to handle edge cases from any provider or compatibility layer.
+
+The DAG planner's `_dict_to_steps` parser handles three common edge cases:
+
+1. **Single object instead of array.** Some models return `{"steps": {"id": "1", "task": "..."}}` (a single step object) instead of `{"steps": [{"id": "1", "task": "..."}]}` (an array). The parser detects this by checking for `id` or `task` keys and wraps the object in a list.
+
+2. **Double-encoded JSON string.** When structured output falls through to json_mode (which lacks schema enforcement), some providers return the `steps` value as a JSON string rather than a native array — e.g., `{"steps": "[{\"id\": \"1\", ...}]"}`. This string may also contain literal newlines (from the model's formatting) that break standard `json.loads`. The parser uses `extract_json_value()` (which includes `_repair_json_strings`) to handle:
+   - Literal newlines inside JSON string values
+   - Invalid escape sequences (common with LaTeX or code content)
+   - Other serialization quirks from compatibility layers
+
+3. **Missing `steps` wrapper.** The model may return a single step as the top-level object without the `steps` wrapper key. The parser detects `id` and `task` at the root level and wraps accordingly.
+
+<Note>
+Under normal operation, native_fc returns properly structured tool call arguments and these edge cases do not arise. The defensive parsers exist as a safety net for custom `BaseLLM` subclasses, unusual provider behaviors, or fallback scenarios where structured output degrades to json_mode or plain_text.
+</Note>
+
 ## Troubleshooting
 
 **"This model does not support assistant message prefill"**
 Bedrock + json_mode. Set `LLM_JSON_MODE_ENABLED=false` or disable JSON Mode in the admin model settings.
 
 **"Thinking may not be enabled when tool_choice forces tool use"**
-Anthropic thinking + forced function call in `structured_llm_call`. This is **expected behavior, not an error**. The fallback chain catches the 400, skips native_fc, and succeeds at json_mode or plain_text. The log is at DEBUG level — you will only see it if `LOG_LEVEL=DEBUG`. Cost: ~300ms network round-trip, zero tokens (the model never runs on a 400). No action needed.
+`structured_llm_call` disables thinking for native_fc calls automatically. If this error appears, it indicates a code path that bypasses `structured_llm_call` or a custom `BaseLLM` subclass that does not accept the `reasoning_effort` kwarg. Check that your LLM subclass signature matches `BaseLLM.chat()`.
+
+**"DAG pipeline failed: LLM 'steps' is not an array"**
+The LLM returned the `steps` field as a string or single object instead of an array. This typically means structured output fell through to json_mode (which lacks schema enforcement). Check the log for `structured_llm_call: level=xxx` — if it shows `json_mode` instead of `native_fc`, native_fc is failing silently. If using a custom `BaseLLM` subclass, verify it accepts the `reasoning_effort` kwarg.
 
 **ReAct falls back to JSON mode unexpectedly**
 Check that the model's `abilities["tool_call"]` is `True`. This is always `True` for `OpenAICompatibleLLM`, but a custom `BaseLLM` subclass might override it. Verify with the model detail endpoint in the admin API.

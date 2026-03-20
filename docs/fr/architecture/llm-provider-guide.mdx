@@ -84,9 +84,9 @@ flowchart TD
 
 La différence de conception critique : le fallback de `structured_llm_call` est **à l'exécution** — il essaie dynamiquement chaque niveau et capture les exceptions pour passer au suivant. La sélection de mode du moteur ReAct est **au moment de la compilation** — elle vérifie `_native_mode_active` une seule fois au démarrage et s'engage sur un mode pour l'ensemble de la boucle. Cela signifie que `structured_llm_call` peut récupérer de manière transparente les erreurs 400 spécifiques au fournisseur, tandis que ReAct s'appuie sur le fait que le mode soit correctement choisi dès le départ.
 
-## Le piège du prefill Bedrock
+## Le piège du préfill Bedrock
 
-Quand `response_format={"type":"json_object"}` est passé pour un modèle résolu avec le préfixe `anthropic/`, LiteLLM injecte en interne un message de prefill assistant pour simuler le mode JSON. L'API Messages d'Anthropic n'a pas de paramètre natif `response_format`, donc LiteLLM l'approxime en ajoutant une accolade ouvrante comme contenu assistant :
+Quand `response_format={"type":"json_object"}` est passé pour un modèle résolu avec le préfixe `anthropic/`, LiteLLM injecte en interne un message de préfill assistant pour simuler le mode JSON. L'API Messages d'Anthropic n'a pas de paramètre `response_format` natif, donc LiteLLM l'approxime en ajoutant une accolade ouvrante comme contenu assistant :
 
 ```json
 {"role": "assistant", "content": "{"}
@@ -103,23 +103,13 @@ Cette erreur se produit uniquement quand **les trois conditions** sont remplies 
 
 1. Le modèle est résolu avec le préfixe `anthropic/` (via correspondance de domaine ou indice de chemin URL).
 2. `response_format={"type":"json_object"}` est passé (le chemin de code json_mode dans `structured_llm_call`).
-3. Le backend réel est AWS Bedrock (qui rejette le prefill).
+3. Le backend réel est AWS Bedrock (qui rejette le préfill).
 
 <Warning>
-Cela n'affecte PAS l'appel d'outil natif (`tool_choice="auto"` avec le paramètre `tools=`). L'injection de prefill se produit uniquement pour `response_format`. L'exécution de l'agent ReAct n'est complètement pas affectée.
+Cela n'affecte PAS l'appel d'outils natif (`tool_choice="auto"` avec le paramètre `tools=`). L'injection de préfill se produit uniquement pour `response_format`. L'exécution de l'agent ReAct n'est complètement pas affectée.
 </Warning>
 
-Le chemin d'échec en pratique ressemble à ceci :
-
-```mermaid
-flowchart TD
-    S["structured_llm_call"] --> FC["Niveau 1 : native_fc<br/>(tool_choice forcé)"]
-    FC -->|"400 : thinking + tool_choice forcé"| JM["Niveau 2 : json_mode<br/>(response_format)"]
-    JM -->|"400 : Bedrock rejette le prefill"| PT["Niveau 3 : plain_text"]
-    PT -->|"Invite système guide la sortie JSON"| OK["Succès via ingénierie d'invite"]
-```
-
-Quand le Niveau 1 (conflit thinking) et le Niveau 2 (prefill Bedrock) échouent tous les deux, le système récupère toujours au Niveau 3 — mais au coût de deux appels LLM gaspillés par extraction structurée. La correction ci-dessous élimine l'appel json_mode gaspillé.
+Si à la fois le Niveau 1 (native_fc) et le Niveau 2 (json_mode) échouent sur Bedrock, le système se rétablit au Niveau 3 (plain_text). Le drapeau `json_mode_enabled` décrit ci-dessous élimine l'appel Niveau 2 gaspillé.
 
 ### Le correctif : json_mode_enabled
 
@@ -130,50 +120,52 @@ Un drapeau `json_mode_enabled` par modèle contrôle si le Niveau 2 (json_mode) 
 - **Effet** : lorsqu'il est désactivé, `abilities["json_mode"]` retourne `False` → `response_format` n'est jamais passé → pas de prefill → Bedrock fonctionne. La chaîne de dégradation devient `native_fc → plain_text`, en contournant entièrement l'appel json_mode condamné.
 - **Aucune perte de qualité** : le modèle retourne toujours du JSON valide car le système prompt l'impose. Le niveau plain_text utilise `extract_json()` pour analyser le JSON à partir de contenu en forme libre, ce qui fonctionne de manière fiable avec les modèles modernes.
 
-## Anthropic thinking + forced tool_choice
+## Pensée Anthropic + tool_choice forcé
 
-L'API d'Anthropic rejette `tool_choice={"type":"function","function":{"name":"X"}}` quand la réflexion étendue est activée. L'erreur :
+L'API d'Anthropic rejette `tool_choice={"type":"function","function":{"name":"X"}}` quand la pensée étendue est activée :
 
 ```
 Thinking may not be enabled when tool_choice forces tool use
 ```
 
-Il s'agit d'un conflit sémantique au niveau du protocole : forcer un appel d'outil spécifique contredit la liberté du modèle de raisonner sur l'outil à appeler (ou s'il faut en appeler un). Anthropic applique cette contrainte ; les autres fournisseurs ne le font pas.
+C'est un conflit sémantique au niveau du protocole : forcer un appel d'outil spécifique contredit la liberté du modèle de raisonner sur quel outil appeler. Anthropic applique cette contrainte ; les autres fournisseurs ne le font pas.
 
-Le conflit **affecte uniquement** le niveau 1 de `structured_llm_call` (native_fc), qui utilise `tool_choice` forcé pour garantir une sortie structurée. Le `try/except` existant dans `_call_llm` capture la réponse 400 et bascule vers json_mode ou plain_text. Aucune gestion spéciale n'est nécessaire dans le dictionnaire `abilities`.
+`structured_llm_call` gère cela en passant `reasoning_effort=None` lors de l'appel à native_fc (le niveau `tool_choice` forcé). Cela désactive la pensée étendue pour cet appel spécifique, donc le tool_choice forcé fonctionne toujours indépendamment de la configuration de raisonnement globale. Les appels de sortie structurée (planification DAG, annotation de schéma, analyse de plan) ont besoin de **conformité de schéma**, pas de raisonnement profond — désactiver la pensée ici est à la fois correct et bénéfique (latence plus faible, coût plus faible).
 
-De manière cruciale, `tool_choice="auto"` fonctionne parfaitement avec la réflexion Anthropic activée. Le moteur ReAct utilise `"auto"` exclusivement, il n'est donc jamais affecté.
+`tool_choice="auto"` n'est pas affecté par le mode de pensée. Le moteur ReAct utilise `"auto"` exclusivement, donc l'exécution de l'agent fonctionne avec la pensée activée.
 
 <Warning>
-NE définissez PAS `abilities["tool_call"] = False` pour contourner le conflit thinking + forced tool_choice. Cela désactiverait le mode `_run_native` de ReAct (qui utilise `tool_choice="auto"` et fonctionne bien avec la réflexion), le forçant dans le mode `_run_json`. En mode `_run_json`, le modèle doit produire du JSON valide dans son contenu — ce qui est moins fiable et, sur Bedrock, pourrait déclencher le problème de prefill si json_mode est activé. La correction correcte est de laisser la chaîne de secours `structured_llm_call` la gérer.
+Ne définissez PAS `abilities["tool_call"] = False` pour éviter cette contrainte. Cela désactiverait le mode `_run_native` de ReAct (qui utilise `tool_choice="auto"` et fonctionne bien avec la pensée), le forçant dans le mode `_run_json` moins fiable.
 </Warning>
+
+<Note>
+**Note de migration de fournisseur :** Certains relais tiers suppriment silencieusement les paramètres non pris en charge comme `reasoning_effort` (`drop_params=True`), donc la pensée n'est jamais activée même si elle est configurée. Lors de la migration vers un fournisseur qui supporte correctement la pensée (Bedrock, API Anthropic directe), le `reasoning_effort=None` dans native_fc assure un comportement cohérent. Aucune action de l'utilisateur n'est nécessaire — la sortie structurée fonctionne de manière identique sur tous les fournisseurs.
+</Note>
 
 ## Référence rapide : ce qui fonctionne où
 
-| Scénario | Mode ReAct | chemin structured_llm_call | Notes |
+| Scénario | Mode ReAct | Chemin structured_llm_call | Notes |
 |---|---|---|---|
-| OpenAI (n'importe quel modèle) | `_run_native` | native_fc | Support complet, sans restrictions |
-| Anthropic (sans thinking) | `_run_native` | native_fc | Support complet |
-| Anthropic + thinking | `_run_native` | native_fc → 400 → json_mode | Repli automatique, un appel gaspillé |
-| Relais Bedrock (sans thinking) | `_run_native` | native_fc | Support complet |
-| Relais Bedrock + thinking | `_run_native` | native_fc → 400 → json_mode → 400 → plain_text | Deux appels gaspillés ; définir `json_mode_enabled=false` |
-| Relais Bedrock + `json_mode_enabled=false` | `_run_native` | native_fc → 400 → plain_text | Configuration recommandée pour Bedrock avec thinking |
-| Relais Bedrock (sans thinking) + `json_mode_enabled=false` | `_run_native` | native_fc | Pas d'impact — native_fc réussit au premier essai |
+| OpenAI (n'importe quel modèle) | `_run_native` | native_fc | Support complet |
+| Anthropic (sans réflexion) | `_run_native` | native_fc | Support complet |
+| Anthropic + réflexion | `_run_native` | native_fc (réflexion auto-désactivée) | Réflexion désactivée pour la sortie structurée uniquement |
+| Relais Bedrock (sans réflexion) | `_run_native` | native_fc | Support complet |
+| Relais Bedrock + réflexion | `_run_native` | native_fc (réflexion auto-désactivée) | Réflexion désactivée pour la sortie structurée uniquement |
 | Gemini | `_run_native` | native_fc | Support complet |
 | DeepSeek | `_run_native` | native_fc | Support complet |
 | Compatible OpenAI générique | `_run_native` | native_fc | Support complet |
-| N'importe quel modèle avec `tool_call=false` | `_run_json` | json_mode ou plain_text | Repli pour les modèles sans support d'appel d'outil |
+| N'importe quel modèle avec `tool_call=false` | `_run_json` | json_mode ou plain_text | Secours pour les modèles sans support d'appel d'outil |
 
 **Configuration recommandée pour les relais AWS Bedrock :**
 
 ```bash
-# Dans .env ou environnement
+# In .env or environment
 LLM_JSON_MODE_ENABLED=false
 ```
 
-Ou par modèle dans l'interface d'administration : Admin → Models → sélectionnez le modèle Bedrock → Advanced → désactivez « JSON Mode ».
+Ou par modèle dans l'interface d'administration : Admin → Models → sélectionner le modèle Bedrock → Advanced → désactiver « JSON Mode ».
 
-Cela élimine tous les appels inutiles. Le chemin de dégradation devient `native_fc → plain_text` (sans réflexion) ou `native_fc → 400 → plain_text` (avec réflexion). Les deux chemins sont rapides et fiables.
+Il est recommandé de définir `json_mode_enabled=false` pour Bedrock comme défense en profondeur. Native_fc gère la sortie structurée de manière fiable, mais si cela échoue pour une raison inattendue, la désactivation de json_mode garantit que la chaîne de secours ignore le piège de préfillage Bedrock et va directement à plain_text.
 
 ## Effort de raisonnement et configuration de la réflexion
 
@@ -189,16 +181,38 @@ Lorsque `reasoning_effort` est défini et que le modèle est résolu en tant que
 1. **La température est forcée à 1.0.** Bedrock rejette `temperature != 1.0` lorsque la réflexion est activée. FIM One gère cela automatiquement — aucune action utilisateur nécessaire.
 2. **GPT-5.x avec outils** : `reasoning_effort` est silencieusement supprimé lorsque des `tools` sont présents, car le point de terminaison GPT-5 `/v1/chat/completions` rejette la combinaison. Cela n'affecte que la boucle d'outil ReAct ; les appels `structured_llm_call` qui manquent d'un paramètre `tools` ne sont pas affectés.
 
+## Analyse défensive pour la sortie structurée
+
+Même avec native_fc fonctionnant correctement, le pipeline de sortie structurée inclut une couche d'analyse défensive pour gérer les cas limites de n'importe quel fournisseur ou couche de compatibilité.
+
+L'analyseur `_dict_to_steps` du planificateur DAG gère trois cas limites courants :
+
+1. **Objet unique au lieu de tableau.** Certains modèles retournent `{"steps": {"id": "1", "task": "..."}}` (un objet d'étape unique) au lieu de `{"steps": [{"id": "1", "task": "..."}]}` (un tableau). L'analyseur détecte cela en vérifiant la présence de clés `id` ou `task` et enveloppe l'objet dans une liste.
+
+2. **Chaîne JSON double-encodée.** Lorsque la sortie structurée revient à json_mode (qui manque d'application de schéma), certains fournisseurs retournent la valeur `steps` comme chaîne JSON plutôt que comme tableau natif — par exemple, `{"steps": "[{\"id\": \"1\", ...}]"}`. Cette chaîne peut également contenir des sauts de ligne littéraux (du formatage du modèle) qui cassent le `json.loads` standard. L'analyseur utilise `extract_json_value()` (qui inclut `_repair_json_strings`) pour gérer :
+   - Les sauts de ligne littéraux à l'intérieur des valeurs de chaîne JSON
+   - Les séquences d'échappement invalides (courantes avec le contenu LaTeX ou de code)
+   - Autres particularités de sérialisation des couches de compatibilité
+
+3. **Enveloppe `steps` manquante.** Le modèle peut retourner une seule étape comme objet de niveau supérieur sans la clé d'enveloppe `steps`. L'analyseur détecte `id` et `task` au niveau racine et enveloppe en conséquence.
+
+<Note>
+En fonctionnement normal, native_fc retourne des arguments d'appel d'outil correctement structurés et ces cas limites ne se produisent pas. Les analyseurs défensifs existent comme filet de sécurité pour les sous-classes `BaseLLM` personnalisées, les comportements inhabituels des fournisseurs, ou les scénarios de secours où la sortie structurée se dégrade en json_mode ou plain_text.
+</Note>
+
 ## Dépannage
 
-**« This model does not support assistant message prefill »**
-Bedrock + json_mode. Définissez `LLM_JSON_MODE_ENABLED=false` ou désactivez JSON Mode dans les paramètres du modèle d'administration.
+**« Ce modèle ne supporte pas le préfixage des messages d'assistant »**
+Bedrock + json_mode. Définissez `LLM_JSON_MODE_ENABLED=false` ou désactivez JSON Mode dans les paramètres du modèle admin.
 
-**« Thinking may not be enabled when tool_choice forces tool use »**
-Anthropic thinking + appel de fonction forcé dans `structured_llm_call`. C'est un **comportement attendu, pas une erreur**. La chaîne de secours capture l'erreur 400, ignore native_fc et réussit avec json_mode ou plain_text. Le journal est au niveau DEBUG — vous ne le verrez que si `LOG_LEVEL=DEBUG`. Coût : ~300 ms d'aller-retour réseau, zéro token (le modèle ne s'exécute jamais sur une erreur 400). Aucune action requise.
+**« La réflexion ne peut pas être activée quand tool_choice force l'utilisation d'outils »**
+`structured_llm_call` désactive automatiquement la réflexion pour les appels native_fc. Si cette erreur apparaît, cela indique un chemin de code qui contourne `structured_llm_call` ou une sous-classe `BaseLLM` personnalisée qui n'accepte pas le kwarg `reasoning_effort`. Vérifiez que la signature de votre sous-classe LLM correspond à `BaseLLM.chat()`.
+
+**« Échec du pipeline DAG : le champ 'steps' du LLM n'est pas un tableau »**
+Le LLM a renvoyé le champ `steps` sous forme de chaîne ou d'objet unique au lieu d'un tableau. Cela signifie généralement que la sortie structurée est tombée en json_mode (qui manque d'application de schéma). Vérifiez le journal pour `structured_llm_call: level=xxx` — s'il affiche `json_mode` au lieu de `native_fc`, native_fc échoue silencieusement. Si vous utilisez une sous-classe `BaseLLM` personnalisée, vérifiez qu'elle accepte le kwarg `reasoning_effort`.
 
 **ReAct bascule vers JSON mode de manière inattendue**
-Vérifiez que `abilities["tool_call"]` du modèle est `True`. C'est toujours `True` pour `OpenAICompatibleLLM`, mais une sous-classe `BaseLLM` personnalisée pourrait le remplacer. Vérifiez avec le point de terminaison de détail du modèle dans l'API d'administration.
+Vérifiez que `abilities["tool_call"]` du modèle est `True`. C'est toujours `True` pour `OpenAICompatibleLLM`, mais une sous-classe `BaseLLM` personnalisée pourrait le remplacer. Vérifiez avec le point de terminaison de détail du modèle dans l'API admin.
 
 **structured_llm_call épuise tous les niveaux et lève StructuredOutputError**
-Le modèle n'a pas pu produire de JSON analysable à aucun niveau. C'est rare avec les modèles modernes. Vérifiez : (1) le schéma est un JSON Schema valide, (2) le modèle a suffisamment de `max_tokens` pour produire la réponse complète, (3) l'invite système ne contredit pas les instructions du schéma. Le planificateur DAG et l'analyseur fournissent tous deux des secours `default_value`, donc cette erreur ne se propage que depuis les sites d'appel qui omettent explicitement les valeurs par défaut.
+Le modèle n'a pas pu produire de JSON analysable à aucun niveau. C'est rare avec les modèles modernes. Vérifiez : (1) le schéma est un JSON Schema valide, (2) le modèle a suffisamment de `max_tokens` pour produire la réponse complète, (3) l'invite système ne contredit pas les instructions du schéma. Le planificateur et l'analyseur DAG fournissent tous deux des fallbacks `default_value`, donc cette erreur ne se propage que depuis les sites d'appel qui omettent explicitement les valeurs par défaut.
