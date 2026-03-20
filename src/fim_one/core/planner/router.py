@@ -7,6 +7,7 @@ ReAct (single-step, conversational) or DAG (multi-step, decomposable).
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -82,7 +83,8 @@ async def classify_execution_mode(
     Returns:
         A :class:`RouteDecision` with the selected mode and reasoning.
     """
-    truncated_query = query[:2000]
+    _query_limit = int(os.getenv("DAG_ROUTER_QUERY_TRUNCATION", "2000"))
+    truncated_query = query[:_query_limit]
     prompt = _CLASSIFICATION_PROMPT.format(query=truncated_query)
 
     messages = [

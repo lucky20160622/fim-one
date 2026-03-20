@@ -54,7 +54,7 @@ class DAGExecutor:
     def __init__(
         self,
         agent: ReActAgent,
-        max_concurrency: int = 5,
+        max_concurrency: int = int(os.getenv("DAG_MAX_CONCURRENCY", "8")),
         model_registry: ModelRegistry | None = None,
         context_guard: ContextGuard | None = None,
         original_goal: str | None = None,
