@@ -1060,9 +1060,11 @@ async def _resolve_tools(
                 )
             )
 
-    # ReadUploadedFileTool — always register when user is authenticated
+    # File tools — always register when user is authenticated
     if user_id:
+        from fim_one.core.tool.builtin.list_uploaded_files import ListUploadedFilesTool
         from fim_one.core.tool.builtin.read_uploaded_file import ReadUploadedFileTool
+        tools.register(ListUploadedFilesTool(user_id=user_id))
         tools.register(ReadUploadedFileTool(user_id=user_id))
 
     # Inject Connector Builder tools when this is a Builder Agent.
