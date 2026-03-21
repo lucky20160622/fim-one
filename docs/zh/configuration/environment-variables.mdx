@@ -60,9 +60,9 @@ echo 'NEXT_PUBLIC_API_URL=http://localhost:9000' > frontend/.env.local
 | `FAST_LLM_TEMPERATURE` | 否 | *（回退到 `LLM_TEMPERATURE`）* | 快速模型的采样温度 |
 | `FAST_LLM_CONTEXT_SIZE` | 否 | *（回退到 `LLM_CONTEXT_SIZE`）* | 快速 LLM 的上下文窗口大小 |
 | `FAST_LLM_MAX_OUTPUT_TOKENS` | 否 | *（回退到 `LLM_MAX_OUTPUT_TOKENS`）* | 快速 LLM 每次调用的最大输出令牌数 |
-| `LLM_REASONING_EFFORT` | 否 | *（禁用）* | 支持的模型的扩展思考级别（OpenAI o 系列、Gemini 2.5+、Claude）。值：`low`、`medium`、`high`。LiteLLM 自动将其转换为每个提供商的原生格式。模型的思维链在 UI"思考"步骤中显示。 |
-| `LLM_REASONING_BUDGET_TOKENS` | 否 | *（从努力级别自动计算）* | Anthropic 思考的显式令牌预算（最小 1024）。对于 OpenAI/Gemini，直接使用努力级别。仅在设置 `LLM_REASONING_EFFORT` 时有效。 |
-| `LLM_JSON_MODE_ENABLED` | 否 | `true` | 设置为 `false` 以禁用 ENV 配置模型的 `response_format=json_object`。当使用由 AWS Bedrock 支持的第三方中继时需要（较新版本拒绝 LiteLLM 的助手预填充注入，在第 2 次及以后的智能体迭代中导致 `ValidationException`）。数据库配置的模型通过管理员 → 模型 → 高级设置按模型覆盖此设置。 |
+| `LLM_REASONING_EFFORT` | 否 | *（已禁用）* | 支持的模型的扩展思考级别（OpenAI o 系列、Gemini 2.5+、Claude）。值：`low`、`medium`、`high`。LiteLLM 会自动将其转换为每个提供商的原生格式。模型的思维链在 UI"思考"步骤中显示。 |
+| `LLM_REASONING_BUDGET_TOKENS` | 否 | *（从努力级别自动计算）* | Anthropic 思考的显式令牌预算（最少 1024）。对于 OpenAI/Gemini，直接使用努力级别。仅在设置 `LLM_REASONING_EFFORT` 时有效。 |
+| `LLM_JSON_MODE_ENABLED` | 否 | `true` | `response_format=json_object` 的全局开关。如果您的提供商拒绝 LiteLLM 的助手预填充注入（例如 AWS Bedrock 中继 → 第 2 次及以后智能体迭代上的 `ValidationException`），请设置为 `false`。禁用时，结构化调用跳过 JSON 模式并回退到纯文本正则表达式提取 — 无质量损失。适用于所有模型（ENV 配置和管理员配置）。 |
 | `REASONING_LLM_MODEL` | 否 | *（回退到 `LLM_MODEL`）* | 推理层的模型名称。用于需要深度分析的任务（例如 DAG 规划、计划分析） |
 | `REASONING_LLM_API_KEY` | 否 | *（回退到 `LLM_API_KEY`）* | 推理模型提供商的 API 密钥 |
 | `REASONING_LLM_BASE_URL` | 否 | *（回退到 `LLM_BASE_URL`）* | 推理模型提供商的基础 URL |
@@ -177,30 +177,68 @@ LiteLLM 从 `LLM_BASE_URL` 自动检测提供商，并将其映射到正确的 A
 
 | 变量 | 必需 | 默认值 | 描述 |
 |---|---|---|---|
-| `JINA_API_KEY` | 否 | — | Jina API 密钥 — 也用于嵌入和重排序；在 [jina.ai](https://jina.ai/) 获取 |
-| `TAVILY_API_KEY` | 否 | — | Tavily 搜索 API 密钥（如果设置且 `WEB_SEARCH_PROVIDER` 未设置，则自动选择） |
-| `BRAVE_API_KEY` | 否 | — | Brave 搜索 API 密钥（如果设置且 `WEB_SEARCH_PROVIDER` 未设置，则自动选择） |
+| `JINA_API_KEY` | 否 | — | Jina API 密钥。当未设置特定服务密钥时，作为**搜索、获取、嵌入和重排序**的共享备用方案。在 [jina.ai](https://jina.ai/) 获取您的密钥 |
+| `TAVILY_API_KEY` | 否 | — | Tavily 搜索 API 密钥（如果已设置且 `WEB_SEARCH_PROVIDER` 未设置，则自动选择） |
+| `BRAVE_API_KEY` | 否 | — | Brave 搜索 API 密钥（如果已设置且 `WEB_SEARCH_PROVIDER` 未设置，则自动选择） |
 | `WEB_SEARCH_PROVIDER` | 否 | `jina` | 搜索提供商选择器：`jina` / `tavily` / `brave` |
-| `WEB_FETCH_PROVIDER` | 否 | `jina`（如果设置了密钥，否则 `httpx`） | 获取提供商：`jina` / `httpx` |
+| `WEB_FETCH_PROVIDER` | 否 | `jina`（如果设置了密钥，否则为 `httpx`） | 获取提供商：`jina`（使用 Jina Reader API）/ `httpx`（直接 HTTP 请求，无需 API 密钥） |
+
+> **快速开始提示**：仅设置 `JINA_API_KEY` 即可同时启用网络搜索、网络获取、嵌入和重排序——一个密钥，四项服务。您可以使用下面的变量单独覆盖每项服务。
 
 ---
 
 ## RAG 与知识库（推荐）
 
+### 嵌入
+
+嵌入将文本转换为向量以进行知识库搜索。FIM One 使用标准的 **OpenAI 兼容 `/v1/embeddings` 端点**，因此它适用于任何公开此接口的提供商 — 不仅仅是 Jina。
+
 | 变量 | 必需 | 默认值 | 描述 |
 |---|---|---|---|
-| `EMBEDDING_MODEL` | 否 | `jina-embeddings-v3` | 嵌入模型标识符 |
-| `EMBEDDING_DIMENSION` | 否 | `1024` | 嵌入向量维度 |
-| `EMBEDDING_API_KEY` | 否 | *（使用 `JINA_API_KEY`）* | 覆盖不同嵌入提供商的 API 密钥 |
-| `EMBEDDING_BASE_URL` | 否 | `https://api.jina.ai/v1` | 覆盖不同嵌入提供商的基础 URL |
-| `RETRIEVAL_MODE` | 否 | `grounding` | `grounding`（包含引用和置信度评分的完整管道）或 `simple`（基础 RAG） |
-| `RERANKER_MODEL` | 否 | `jina-reranker-v2-base-multilingual` | 重排序模型标识符 |
-| `RERANKER_PROVIDER` | 否 | `jina` | 重排序提供商：`jina` / `cohere` / `openai` |
-| `COHERE_API_KEY` | 否 | — | Cohere API 密钥（设置时自动选择 Cohere 重排序器） |
-| `COHERE_RERANKER_MODEL` | 否 | `rerank-multilingual-v3.0` | Cohere 重排序模型 |
-| `VECTOR_STORE_DIR` | 否 | `./data/vector_store` | LanceDB 向量存储数据的目录 |
+| `EMBEDDING_API_KEY` | 否 | *(回退到 `JINA_API_KEY`)* | 嵌入提供商的 API 密钥 |
+| `EMBEDDING_BASE_URL` | 否 | `https://api.jina.ai/v1` | 嵌入提供商的基础 URL |
+| `EMBEDDING_MODEL` | 否 | `jina-embeddings-v3` | 模型标识符 |
+| `EMBEDDING_DIMENSION` | 否 | `1024` | 向量维度 |
 
-> 嵌入**推荐**用于知识库功能。重排序是**可选的** — 搜索可以在不使用它的情况下通过融合评分工作。
+**提供商示例** — 只需设置这三个变量即可切换：
+
+| 提供商 | `EMBEDDING_BASE_URL` | `EMBEDDING_MODEL` | `EMBEDDING_DIMENSION` |
+|---|---|---|---|
+| **Jina** *(默认)* | `https://api.jina.ai/v1` | `jina-embeddings-v3` | `1024` |
+| **OpenAI** | `https://api.openai.com/v1` | `text-embedding-3-small` | `1536` |
+| **Voyage** | `https://api.voyageai.com/v1` | `voyage-3` | `1024` |
+| **Ollama** *(本地)* | `http://localhost:11434/v1` | `nomic-embed-text` | `768` |
+
+<Warning>
+**更改嵌入模型或维度会使所有现有知识库向量失效。** 旧向量是在不同的嵌入空间中计算的 — 检索准确性将无声地降低。切换后，您必须**重建所有知识库索引**。
+</Warning>
+
+### 检索
+
+| 变量 | 必需 | 默认值 | 描述 |
+|---|---|---|---|
+| `RETRIEVAL_MODE` | 否 | `grounding` | `grounding`（带引用和置信度评分的完整管道）或 `simple`（基础 RAG） |
+
+### 重排器
+
+重排器对检索到的文档重新评分以提高相关性。支持三个提供商 — 通过 `RERANKER_PROVIDER` 选择或让系统从可用的 API 密钥自动检测。
+
+| 变量 | 必需 | 默认值 | 描述 |
+|---|---|---|---|
+| `RERANKER_PROVIDER` | 否 | *(自动检测)* | `jina` / `cohere` / `openai`。如果未设置：如果设置了 `COHERE_API_KEY` 则使用 Cohere，否则使用 Jina |
+| `RERANKER_MODEL` | 否 | `jina-reranker-v2-base-multilingual` | 模型标识符（适用于 Jina 和 OpenAI 提供商） |
+| `COHERE_API_KEY` | 否 | — | Cohere API 密钥（当设置且 `RERANKER_PROVIDER` 未设置时自动选择 Cohere 重排器） |
+| `COHERE_RERANKER_MODEL` | 否 | `rerank-multilingual-v3.0` | Cohere 特定的重排器模型 |
+
+> **Jina** 使用 `JINA_API_KEY`（来自上面的 Web 工具）。**OpenAI** 复用 `LLM_API_KEY` / `LLM_BASE_URL` — 无需额外密钥。**Cohere** 需要其自己的 `COHERE_API_KEY`。
+
+> 重排器是**可选的** — 知识库搜索可以在不使用它的情况下使用融合评分。对于知识库功能，**推荐**使用嵌入。
+
+### 向量存储
+
+| 变量 | 必需 | 默认值 | 描述 |
+|---|---|---|---|
+| `VECTOR_STORE_DIR` | 否 | `./data/vector_store` | LanceDB 向量存储数据的目录（基于文件，无需外部服务） |
 
 ---
 
@@ -277,19 +315,25 @@ LiteLLM 从 `LLM_BASE_URL` 自动检测提供商，并将其映射到正确的 A
 | 变量 | 必需 | 默认值 | 描述 |
 |---|---|---|---|
 | `DATABASE_URL` | 否 | `sqlite+aiosqlite:///./data/fim_one.db` | 数据库连接字符串。**SQLite**（零配置）：`sqlite+aiosqlite:///./data/fim_one.db`。**PostgreSQL**（生产环境）：`postgresql+asyncpg://user:pass@localhost:5432/fim_one`。Docker Compose 自动配置 PostgreSQL。 |
-| `JWT_SECRET_KEY` | 否 | `CHANGE_ME` | JWT 令牌签名的密钥。占位符值 `CHANGE_ME`（或任何旧版默认值）会在首次启动时触发生成安全的 256 位随机密钥，并写回到 `.env`。在生产环境中显式设置以保持令牌在重启和副本间的有效性。 |
-| `CORS_ORIGINS` | 否 | — | 逗号分隔的额外允许 CORS 源列表，超出默认的 localhost 条目。当前端在非 localhost 域上运行时需要（例如 `https://app.example.com`）。 |
+| `JWT_SECRET_KEY` | 否 | `CHANGE_ME` | JWT 令牌签名的密钥。占位符值 `CHANGE_ME`（或任何旧版默认值）会在首次启动时触发自动生成安全的 256 位随机密钥，该密钥会写回到 `.env`。在生产环境中明确设置以保持令牌在重启和副本间的有效性。 |
+| `CORS_ORIGINS` | 否 | — | 逗号分隔的额外允许 CORS 源列表，超出默认 localhost 条目。当前端在非 localhost 域上运行时需要（例如 `https://app.example.com`）。 |
 | `UPLOADS_DIR` | 否 | `./uploads` | 上传文件的目录 |
 | `MAX_UPLOAD_SIZE_MB` | 否 | `50` | 最大文件上传大小（以兆字节为单位，后端强制执行） |
 | `NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB` | 否 | `50` | 前端 UI 中显示的最大文件上传大小。**构建时变量** — 必须与 `MAX_UPLOAD_SIZE_MB` 匹配。 |
 | `MCP_SERVERS` | 否 | — | MCP 服务器配置的 JSON 数组（需要 `uv sync --extra mcp`） |
-| `ALLOW_STDIO_MCP` | 否 | `false` | 允许 stdio MCP 服务器。仅对受信任的本地部署设置为 `true` |
+| `ALLOW_STDIO_MCP` | 否 | `false` | 允许 stdio MCP 服务器。仅对可信的本地部署设置为 `true` |
 | `ALLOWED_STDIO_COMMANDS` | 否 | `npx,uvx,node,python,python3,deno,bun` | stdio MCP 服务器允许的基础命令的逗号分隔列表。仅在 `ALLOW_STDIO_MCP=true` 时有效 |
 | `LOG_LEVEL` | 否 | `INFO` | 日志级别：`DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
-| `REDIS_URL` | 否 | — | 用于跨工作进程中断中继的 Redis 连接 URL。由 Docker Compose 自动配置。仅在本地多工作进程设置（`WORKERS>1`）时需要。 |
-| `WORKERS` | 否 | `1` | Uvicorn 工作进程数。`1` 是安全的，不需要外部服务。`>1` **需要 PostgreSQL**（SQLite 是单写入器）。身份验证、OAuth 和文件操作完全支持多工作进程（基于 JWT）。**限制**：没有 `REDIS_URL` 时，中途中断/注入仅在同一工作进程内有效。Docker Compose 自动配置 Redis。 |
+| `REDIS_URL` | 否 | — | Redis 连接 URL，用于跨工作进程中断中继。**当 `WORKERS>1` 时必需** — 没有它，中途中断/注入请求可能会命中不同的工作进程并无声地失败。由 Docker Compose 自动配置。 |
+| `WORKERS` | 否 | `1` | Uvicorn 工作进程数。`1` 是安全的，不需要外部服务。对于生产多工作进程，使用 PostgreSQL（SQLite 是单写入器）。SQLite 适用于轻负载的本地开发。身份验证、OAuth 和文件操作完全支持多工作进程（基于 JWT）。Docker Compose 自动配置 PostgreSQL 和 Redis。 |
 
----
+<Warning>
+**多工作进程检查清单**（`WORKERS>1`）：
+- **停止（中止流）** — 始终有效，无需额外配置（信号在同一 TCP 连接上传输）。
+- **注入（中途跟进）** — **需要 `REDIS_URL`**。没有 Redis，注入请求可能会落在没有正在运行的执行知识的不同工作进程上，导致无声失败。
+- **生产环境**：使用 PostgreSQL（`DATABASE_URL`）。SQLite 的单写入器锁在并发写入下可能导致争用。
+- **本地开发**：SQLite + 多工作进程对于轻度使用是可以的；如果使用注入功能，只需添加 `REDIS_URL`。
+</Warning>
 
 ## 工作流运行保留
 

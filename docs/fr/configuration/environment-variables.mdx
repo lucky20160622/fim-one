@@ -55,24 +55,24 @@ echo 'NEXT_PUBLIC_API_URL=http://localhost:9000' > frontend/.env.local
 | `LLM_TEMPERATURE` | Non | `0.7` | Température d'échantillonnage par défaut |
 | `LLM_CONTEXT_SIZE` | Non | `128000` | Taille de la fenêtre de contexte pour le LLM principal |
 | `LLM_MAX_OUTPUT_TOKENS` | Non | `64000` | Nombre maximal de jetons de sortie par appel pour le LLM principal |
-| `FAST_LLM_API_KEY` | Non | *(revient à `LLM_API_KEY`)* | Clé API du fournisseur de modèle rapide. À utiliser lorsque le modèle rapide est hébergé par un fournisseur différent du modèle principal |
-| `FAST_LLM_BASE_URL` | Non | *(revient à `LLM_BASE_URL`)* | URL de base du fournisseur de modèle rapide |
+| `FAST_LLM_API_KEY` | Non | *(revient à `LLM_API_KEY`)* | Clé API du fournisseur du modèle rapide. À utiliser lorsque le modèle rapide est hébergé par un fournisseur différent du modèle principal |
+| `FAST_LLM_BASE_URL` | Non | *(revient à `LLM_BASE_URL`)* | URL de base du fournisseur du modèle rapide |
 | `FAST_LLM_TEMPERATURE` | Non | *(revient à `LLM_TEMPERATURE`)* | Température d'échantillonnage pour le modèle rapide |
 | `FAST_LLM_CONTEXT_SIZE` | Non | *(revient à `LLM_CONTEXT_SIZE`)* | Taille de la fenêtre de contexte pour le LLM rapide |
 | `FAST_LLM_MAX_OUTPUT_TOKENS` | Non | *(revient à `LLM_MAX_OUTPUT_TOKENS`)* | Nombre maximal de jetons de sortie par appel pour le LLM rapide |
-| `LLM_REASONING_EFFORT` | Non | *(désactivé)* | Niveau de réflexion étendue pour les modèles supportés (OpenAI série o, Gemini 2.5+, Claude). Valeurs : `low`, `medium`, `high`. LiteLLM traduit cela au format natif de chaque fournisseur automatiquement. La chaîne de pensée du modèle est affichée dans l'étape « thinking » de l'interface utilisateur. |
+| `LLM_REASONING_EFFORT` | Non | *(désactivé)* | Niveau de réflexion étendue pour les modèles supportés (série o d'OpenAI, Gemini 2.5+, Claude). Valeurs : `low`, `medium`, `high`. LiteLLM traduit cela au format natif de chaque fournisseur automatiquement. La chaîne de pensée du modèle est affichée dans l'étape « thinking » de l'interface utilisateur. |
 | `LLM_REASONING_BUDGET_TOKENS` | Non | *(auto à partir de l'effort)* | Budget de jetons explicite pour la réflexion Anthropic (minimum 1024). Pour OpenAI/Gemini, le niveau d'effort est utilisé directement. Effectif uniquement lorsque `LLM_REASONING_EFFORT` est défini. |
-| `LLM_JSON_MODE_ENABLED` | Non | `true` | Définir à `false` pour désactiver `response_format=json_object` pour les modèles configurés via ENV. Requis lors de l'utilisation d'un relais tiers soutenu par AWS Bedrock (les versions plus récentes rejettent l'injection de préfixe assistant de LiteLLM, causant une `ValidationException` à la 2e itération d'agent et au-delà). Les modèles configurés en base de données remplacent cela par modèle via Admin → Models → Advanced settings. |
+| `LLM_JSON_MODE_ENABLED` | Non | `true` | Basculement global pour `response_format=json_object`. Définissez à `false` si votre fournisseur rejette l'injection de préfixe assistant de LiteLLM (par exemple, relais AWS Bedrock → `ValidationException` à la 2e itération d'agent et au-delà). Lorsque désactivé, les appels structurés ignorent le mode JSON et reviennent à l'extraction regex en texte brut — aucune perte de qualité. S'applique à tous les modèles (configurés par ENV et configurés par Admin). |
 | `REASONING_LLM_MODEL` | Non | *(revient à `LLM_MODEL`)* | Nom du modèle pour le niveau de réflexion. Utilisé pour les tâches nécessitant une analyse approfondie (par exemple, planification DAG, analyse de plan) |
-| `REASONING_LLM_API_KEY` | Non | *(revient à `LLM_API_KEY`)* | Clé API du fournisseur de modèle de réflexion |
-| `REASONING_LLM_BASE_URL` | Non | *(revient à `LLM_BASE_URL`)* | URL de base du fournisseur de modèle de réflexion |
+| `REASONING_LLM_API_KEY` | Non | *(revient à `LLM_API_KEY`)* | Clé API du fournisseur du modèle de réflexion |
+| `REASONING_LLM_BASE_URL` | Non | *(revient à `LLM_BASE_URL`)* | URL de base du fournisseur du modèle de réflexion |
 | `REASONING_LLM_TEMPERATURE` | Non | *(revient à `LLM_TEMPERATURE`)* | Température d'échantillonnage pour le modèle de réflexion |
 | `REASONING_LLM_CONTEXT_SIZE` | Non | *(revient à `LLM_CONTEXT_SIZE`)* | Taille de la fenêtre de contexte pour le modèle de réflexion |
 | `REASONING_LLM_MAX_OUTPUT_TOKENS` | Non | *(revient à `LLM_MAX_OUTPUT_TOKENS`)* | Nombre maximal de jetons de sortie par appel pour le modèle de réflexion |
-| `REASONING_LLM_EFFORT` | Non | *(revient à `LLM_REASONING_EFFORT`)* | Niveau d'effort de réflexion pour le niveau de modèle de réflexion. Valeurs : `low`, `medium`, `high` |
+| `REASONING_LLM_EFFORT` | Non | *(revient à `LLM_REASONING_EFFORT`)* | Niveau d'effort de réflexion pour le niveau du modèle de réflexion. Valeurs : `low`, `medium`, `high` |
 | `REASONING_LLM_BUDGET` | Non | *(revient à `LLM_REASONING_BUDGET_TOKENS`)* | Budget de jetons pour la réflexion (principalement Anthropic). Remplace le budget calculé automatiquement pour le niveau de réflexion |
 
-> **Ordre de résolution** : Préférence utilisateur → Modèles Admin (BD) → Secours ENV. Si un modèle admin avec le rôle « General » est configuré dans Admin → Models, ces variables ENV servent de secours uniquement. Le contrôle de santé considère les deux sources.
+> **Ordre de résolution** : Préférence utilisateur → Modèles Admin (BD) → Fallback ENV. Si un modèle admin avec le rôle « General » est configuré dans Admin → Models, ces variables ENV servent de fallback uniquement. La vérification de santé considère les deux sources.
 
 ### Réflexion étendue (Raisonnement)
 
@@ -175,30 +175,70 @@ Contrôle la gestion automatique de la fenêtre de contexte qui empêche les con
 
 | Variable | Requis | Défaut | Description |
 |---|---|---|---|
-| `JINA_API_KEY` | Non | — | Clé API Jina — également utilisée pour l'intégration et le reclassement ; obtenez la vôtre sur [jina.ai](https://jina.ai/) |
+| `JINA_API_KEY` | Non | — | Clé API Jina. Agit comme un fallback partagé pour **search, fetch, embedding, et reranker** quand aucune clé spécifique au service n'est définie. Obtenez la vôtre sur [jina.ai](https://jina.ai/) |
 | `TAVILY_API_KEY` | Non | — | Clé API Tavily Search (sélectionnée automatiquement si définie et `WEB_SEARCH_PROVIDER` n'est pas défini) |
 | `BRAVE_API_KEY` | Non | — | Clé API Brave Search (sélectionnée automatiquement si définie et `WEB_SEARCH_PROVIDER` n'est pas défini) |
 | `WEB_SEARCH_PROVIDER` | Non | `jina` | Sélecteur de fournisseur de recherche : `jina` / `tavily` / `brave` |
-| `WEB_FETCH_PROVIDER` | Non | `jina` (si clé définie, sinon `httpx`) | Fournisseur de récupération : `jina` / `httpx` |
+| `WEB_FETCH_PROVIDER` | Non | `jina` (si clé définie, sinon `httpx`) | Fournisseur de fetch : `jina` (utilise Jina Reader API) / `httpx` (requête HTTP directe, aucune clé API nécessaire) |
+
+> **Conseil de démarrage rapide** : Définir simplement `JINA_API_KEY` active la recherche web, le fetch web, l'embedding et le reranking en une seule fois — une clé, quatre services. Vous pouvez remplacer chaque service individuellement avec les variables ci-dessous.
 
 ---
 
-## RAG et base de connaissances (Recommandé)
+## RAG et Base de Connaissances (Recommandé)
+
+### Intégration
+
+L'intégration convertit le texte en vecteurs pour la recherche de base de connaissances. FIM One utilise le point de terminaison standard compatible OpenAI **`/v1/embeddings`**, il fonctionne donc avec n'importe quel fournisseur qui expose cette interface — pas seulement Jina.
 
 | Variable | Requis | Par défaut | Description |
 |---|---|---|---|
-| `EMBEDDING_MODEL` | Non | `jina-embeddings-v3` | Identifiant du modèle d'embedding |
-| `EMBEDDING_DIMENSION` | Non | `1024` | Dimension du vecteur d'embedding |
-| `EMBEDDING_API_KEY` | Non | *(utilise `JINA_API_KEY`)* | Clé API de remplacement pour un fournisseur d'embedding différent |
-| `EMBEDDING_BASE_URL` | Non | `https://api.jina.ai/v1` | URL de base de remplacement pour un fournisseur d'embedding différent |
-| `RETRIEVAL_MODE` | Non | `grounding` | `grounding` (pipeline complet avec citations et scoring de confiance) ou `simple` (RAG basique) |
-| `RERANKER_MODEL` | Non | `jina-reranker-v2-base-multilingual` | Identifiant du modèle de reranking |
-| `RERANKER_PROVIDER` | Non | `jina` | Fournisseur de reranking : `jina` / `cohere` / `openai` |
-| `COHERE_API_KEY` | Non | — | Clé API Cohere (sélectionne automatiquement le reranker Cohere lorsqu'elle est définie) |
-| `COHERE_RERANKER_MODEL` | Non | `rerank-multilingual-v3.0` | Modèle de reranking Cohere |
-| `VECTOR_STORE_DIR` | Non | `./data/vector_store` | Répertoire pour les données du magasin vectoriel LanceDB |
+| `EMBEDDING_API_KEY` | Non | *(revient à `JINA_API_KEY`)* | Clé API pour le fournisseur d'intégration |
+| `EMBEDDING_BASE_URL` | Non | `https://api.jina.ai/v1` | URL de base pour le fournisseur d'intégration |
+| `EMBEDDING_MODEL` | Non | `jina-embeddings-v3` | Identifiant du modèle |
+| `EMBEDDING_DIMENSION` | Non | `1024` | Dimension du vecteur |
 
-> L'embedding est **recommandé** pour les fonctionnalités de base de connaissances. Le reranking est **optionnel** — la recherche fonctionne sans lui en utilisant le scoring de fusion.
+**Exemples de fournisseurs** — définissez simplement les trois variables pour basculer :
+
+| Fournisseur | `EMBEDDING_BASE_URL` | `EMBEDDING_MODEL` | `EMBEDDING_DIMENSION` |
+|---|---|---|---|
+| **Jina** *(par défaut)* | `https://api.jina.ai/v1` | `jina-embeddings-v3` | `1024` |
+| **OpenAI** | `https://api.openai.com/v1` | `text-embedding-3-small` | `1536` |
+| **Voyage** | `https://api.voyageai.com/v1` | `voyage-3` | `1024` |
+| **Ollama** *(local)* | `http://localhost:11434/v1` | `nomic-embed-text` | `768` |
+
+<Warning>
+**Modifier le modèle d'intégration ou la dimension invalide tous les vecteurs de base de connaissances existants.** Les anciens vecteurs ont été calculés dans un espace d'intégration différent — la précision de la récupération se dégradера silencieusement. Vous devez **reconstruire tous les index de base de connaissances** après le basculement.
+</Warning>
+
+### Récupération
+
+| Variable | Requis | Par défaut | Description |
+|---|---|---|---|
+| `RETRIEVAL_MODE` | Non | `grounding` | `grounding` (pipeline complet avec citations et scoring de confiance) ou `simple` (RAG basique) |
+
+### Réorganiseur
+
+Le réorganiseur reclasse les documents récupérés pour améliorer la pertinence. Trois fournisseurs sont pris en charge — sélectionnez via `RERANKER_PROVIDER` ou laissez le système détecter automatiquement à partir des clés API disponibles.
+
+| Variable | Requis | Par défaut | Description |
+|---|---|---|---|
+| `RERANKER_PROVIDER` | Non | *(auto-détection)* | `jina` / `cohere` / `openai`. Si non défini : utilise Cohere si `COHERE_API_KEY` est défini, sinon Jina |
+| `RERANKER_MODEL` | Non | `jina-reranker-v2-base-multilingual` | Identifiant du modèle (s'applique aux fournisseurs Jina et OpenAI) |
+| `COHERE_API_KEY` | Non | — | Clé API Cohere (sélectionne automatiquement le réorganiseur Cohere quand défini et `RERANKER_PROVIDER` n'est pas défini) |
+| `COHERE_RERANKER_MODEL` | Non | `rerank-multilingual-v3.0` | Modèle de réorganiseur spécifique à Cohere |
+
+> **Jina** utilise `JINA_API_KEY` (à partir des outils Web ci-dessus). **OpenAI** réutilise `LLM_API_KEY` / `LLM_BASE_URL` — aucune clé supplémentaire nécessaire. **Cohere** nécessite sa propre `COHERE_API_KEY`.
+
+> Le réorganiseur est **optionnel** — la recherche de base de connaissances fonctionne sans lui en utilisant le score de fusion. L'intégration est **recommandée** pour les fonctionnalités de base de connaissances.
+
+### Magasin vectoriel
+
+| Variable | Requis | Par défaut | Description |
+|---|---|---|---|
+| `VECTOR_STORE_DIR` | Non | `./data/vector_store` | Répertoire pour les données du magasin vectoriel LanceDB (basé sur fichier, zéro services externes) |
+
+---
 
 ## Exécution de Code
 
@@ -268,22 +308,28 @@ Enregistre automatiquement l'outil intégré `email_send` lorsque `SMTP_HOST`, `
 
 ## Plateforme
 
-| Variable | Requis | Défaut | Description |
+| Variable | Requis | Par défaut | Description |
 |---|---|---|---|
 | `DATABASE_URL` | Non | `sqlite+aiosqlite:///./data/fim_one.db` | Chaîne de connexion à la base de données. **SQLite** (zéro configuration) : `sqlite+aiosqlite:///./data/fim_one.db`. **PostgreSQL** (production) : `postgresql+asyncpg://user:pass@localhost:5432/fim_one`. Docker Compose configure automatiquement PostgreSQL. |
-| `JWT_SECRET_KEY` | Non | `CHANGE_ME` | Clé secrète pour la signature des jetons JWT. La valeur d'espace réservé `CHANGE_ME` (ou tout défaut hérité) déclenche la génération automatique d'une clé aléatoire sécurisée de 256 bits au premier démarrage, qui est écrite dans `.env`. Définissez explicitement en production pour maintenir la validité des jetons entre les redémarrages et les réplicas. |
-| `CORS_ORIGINS` | Non | — | Liste séparée par des virgules d'origines CORS supplémentaires autorisées au-delà des entrées localhost par défaut. Requis lorsque le frontend s'exécute sur un domaine non-localhost (par ex. `https://app.example.com`). |
+| `JWT_SECRET_KEY` | Non | `CHANGE_ME` | Clé secrète pour la signature des jetons JWT. La valeur d'espace réservé `CHANGE_ME` (ou tout autre défaut hérité) déclenche la génération automatique d'une clé aléatoire sécurisée de 256 bits au premier démarrage, qui est écrite dans `.env`. Définissez explicitement en production pour maintenir la validité des jetons lors des redémarrages et des répliques. |
+| `CORS_ORIGINS` | Non | — | Liste séparée par des virgules des origines CORS supplémentaires autorisées au-delà des entrées localhost par défaut. Requis lorsque le frontend s'exécute sur un domaine non-localhost (par exemple `https://app.example.com`). |
 | `UPLOADS_DIR` | Non | `./uploads` | Répertoire pour les fichiers téléchargés |
 | `MAX_UPLOAD_SIZE_MB` | Non | `50` | Taille maximale de téléchargement de fichier en mégaoctets (application backend) |
-| `NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB` | Non | `50` | Taille maximale de téléchargement de fichier affichée dans l'interface utilisateur du frontend. **Variable de temps de construction** — doit correspondre à `MAX_UPLOAD_SIZE_MB`. |
+| `NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB` | Non | `50` | Taille maximale de téléchargement de fichier affichée dans l'interface utilisateur frontend. **Variable au moment de la compilation** — doit correspondre à `MAX_UPLOAD_SIZE_MB`. |
 | `MCP_SERVERS` | Non | — | Tableau JSON des configurations de serveur MCP (nécessite `uv sync --extra mcp`) |
 | `ALLOW_STDIO_MCP` | Non | `false` | Autoriser les serveurs MCP stdio. Définissez `true` uniquement pour les déploiements locaux de confiance |
 | `ALLOWED_STDIO_COMMANDS` | Non | `npx,uvx,node,python,python3,deno,bun` | Liste séparée par des virgules des commandes de base autorisées pour les serveurs MCP stdio. Effectif uniquement lorsque `ALLOW_STDIO_MCP=true` |
 | `LOG_LEVEL` | Non | `INFO` | Niveau de journalisation : `DEBUG` / `INFO` / `WARNING` / `ERROR` / `CRITICAL` |
-| `REDIS_URL` | Non | — | URL de connexion Redis pour le relais d'interruption entre workers. Auto-configuré par Docker Compose. Nécessaire uniquement pour les configurations locales multi-worker (`WORKERS>1`). |
-| `WORKERS` | Non | `1` | Processus workers Uvicorn. `1` est sûr et ne nécessite aucun service externe. `>1` **nécessite PostgreSQL** (SQLite est à writer unique). L'authentification, OAuth et les opérations de fichiers sont entièrement sûrs pour multi-worker (basés sur JWT). **Limitation** : sans `REDIS_URL`, l'interruption/injection en cours de flux fonctionne uniquement dans le même processus worker. Docker Compose configure automatiquement Redis. |
+| `REDIS_URL` | Non | — | URL de connexion Redis pour le relais d'interruption entre workers. **Requis lorsque `WORKERS>1`** — sans cela, les demandes d'interruption/injection en milieu de flux peuvent atteindre un worker différent et échouer silencieusement. Configuré automatiquement par Docker Compose. |
+| `WORKERS` | Non | `1` | Processus workers Uvicorn. `1` est sûr et ne nécessite aucun service externe. Pour la production multi-worker, utilisez PostgreSQL (SQLite est à écrivain unique). SQLite fonctionne pour le développement local sous charge légère. L'authentification, OAuth et les opérations sur fichiers sont entièrement sûrs pour multi-worker (basés sur JWT). Docker Compose configure automatiquement PostgreSQL et Redis. |
 
----
+<Warning>
+**Liste de contrôle multi-worker** (`WORKERS>1`) :
+- **Arrêt (interruption du streaming)** — fonctionne toujours, aucune configuration supplémentaire nécessaire (le signal voyage sur la même connexion TCP).
+- **Injection (suivi en milieu de flux)** — **nécessite `REDIS_URL`**. Sans Redis, la demande d'injection peut atterrir sur un worker différent qui n'a aucune connaissance de l'exécution en cours, ce qui provoque un échec silencieux.
+- **Production** : utilisez PostgreSQL (`DATABASE_URL`). Le verrou à écrivain unique de SQLite peut causer de la contention lors d'écritures concurrentes.
+- **Développement local** : SQLite + multi-worker est correct pour une utilisation légère ; ajoutez simplement `REDIS_URL` si vous utilisez la fonctionnalité d'injection.
+</Warning>
 
 ## Rétention des exécutions de flux de travail
 
