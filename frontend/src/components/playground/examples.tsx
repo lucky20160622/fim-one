@@ -131,7 +131,7 @@ export function Examples({
   // Agent-specific prompts layout
   if (hasAgentPrompts) {
     return (
-      <div className="mx-auto w-full max-w-3xl space-y-6 px-4">
+      <div className="mx-auto w-full max-w-4xl space-y-6 px-4">
         {/* Agent header */}
         <div className="space-y-1">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -171,7 +171,7 @@ export function Examples({
 
   // Default hardcoded examples layout
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 px-4">
+    <div className="mx-auto w-full max-w-4xl space-y-6 px-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">

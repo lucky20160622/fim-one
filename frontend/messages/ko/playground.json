@@ -146,5 +146,6 @@
   "evidenceInsufficientHint": "검색된 증거가 신뢰할 수 있는 답변을 제공하기에 충분하지 않습니다.",
   "tryRephrase": "질문을 다시 표현해 보세요",
   "citationRelevance": "관련성: {value}%",
-  "retryUpload": "업로드 다시 시도"
+  "retryUpload": "업로드 다시 시도",
+  "newChat": "새 채팅"
 }

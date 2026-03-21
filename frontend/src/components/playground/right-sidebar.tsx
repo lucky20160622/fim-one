@@ -21,7 +21,7 @@ export function RightSidebar({ title, subtitle, badge, expanded, onToggleExpand,
   const t = useTranslations("playground")
   return (
     <div className={cn(
-      "flex flex-col rounded-lg border border-border/50 bg-muted/10 overflow-hidden",
+      "flex flex-col overflow-hidden",
       className
     )} style={style}>
       {/* Header */}

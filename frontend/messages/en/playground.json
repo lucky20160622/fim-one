@@ -4,6 +4,7 @@
   "switchModeDescription": "This will start a new conversation. Your current conversation is saved and accessible from the sidebar.",
   "switchButton": "Switch",
   "executionLog": "Execution Log",
+  "newChat": "New Chat",
   "history": "History",
   "executionPlan": "Execution Plan",
   "waitingForPlan": "Waiting for plan...",

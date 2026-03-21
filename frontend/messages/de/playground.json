@@ -146,5 +146,6 @@
   "evidenceInsufficientHint": "Die abgerufenen Beweise sind nicht zuverlässig genug, um eine sichere Antwort zu geben.",
   "tryRephrase": "Versuchen Sie, Ihre Frage umzuformulieren",
   "citationRelevance": "Relevanz: {value}%",
-  "retryUpload": "Upload erneut versuchen"
+  "retryUpload": "Upload erneut versuchen",
+  "newChat": "Neuer Chat"
 }

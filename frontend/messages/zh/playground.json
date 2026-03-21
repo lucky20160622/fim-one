@@ -146,5 +146,6 @@
   "evidenceInsufficientHint": "检索到的证据不够可靠，无法提供有把握的答案。",
   "tryRephrase": "尝试重新表述您的问题",
   "citationRelevance": "相关性：{value}%",
-  "retryUpload": "重试上传"
+  "retryUpload": "重试上传",
+  "newChat": "新对话"
 }

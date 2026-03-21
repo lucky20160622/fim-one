@@ -191,7 +191,7 @@ export default function ChatsPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-    <div className="flex-1 overflow-y-auto px-6 py-6">
+    <div className="flex-1 overflow-y-auto px-6 py-6 [&>*]:max-w-6xl [&>*]:mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold flex items-center gap-2">

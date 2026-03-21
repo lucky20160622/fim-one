@@ -146,5 +146,6 @@
   "evidenceInsufficientHint": "取得した証拠は、確実な回答を提供するのに十分な信頼性がありません。",
   "tryRephrase": "質問を言い換えてみてください",
   "citationRelevance": "関連性: {value}%",
-  "retryUpload": "アップロードを再試行"
+  "retryUpload": "アップロードを再試行",
+  "newChat": "新しいチャット"
 }
