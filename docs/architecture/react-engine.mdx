@@ -147,7 +147,7 @@ Every `_SELF_REFLECTION_INTERVAL` tool-call iterations (default: **6**), the age
 
 The counter tracks **actual tool calls only** — JSON parse retries, thinking events, and interrupt injections do not count. In native mode, the reflection message is appended strictly after all `tool_result` messages to preserve the tool_use/tool_result pairing constraint.
 
-This costs ~100 tokens per injection (no extra LLM call) and has no effect on short runs (< 6 tool calls). It complements ContextGuard (which manages token budgets) and per-step verification (which validates individual results) by addressing a different failure mode: the agent losing sight of its goal over many iterations.
+This costs ~100 tokens per injection (no extra LLM call) and has no effect on short runs (`< 6` tool calls). It complements ContextGuard (which manages token budgets) and per-step verification (which validates individual results) by addressing a different failure mode: the agent losing sight of its goal over many iterations.
 
 ## Answer synthesis (stream_answer)
 

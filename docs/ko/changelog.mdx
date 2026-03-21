@@ -37,48 +37,46 @@ description: "FIM One의 모든 주목할 만한 변경 사항입니다."
 
 ### 추가됨
 
-- **ReAct 합성의 에이전트 지시문** — `ReActAgent`의 새로운 `agent_directive` 매개변수는 에이전트의 핵심 목적(예: "중국어를 영어로 번역")을 합성 시스템 프롬프트에 주입하여 최종 답변이 대화형 응답으로 기본값을 지정하는 대신 에이전트의 정체성을 존중하도록 합니다. ReAct 및 DAG 채팅 엔드포인트 모두에 연결됨.
+- **ReAct 합성의 에이전트 지시문** — `ReActAgent`의 새로운 `agent_directive` 매개변수는 에이전트의 핵심 목적(예: "중국어를 영어로 번역")을 합성 시스템 프롬프트에 주입하여 최종 답변이 대화형 응답으로 기본값을 설정하는 대신 에이전트의 정체성을 존중하도록 보장합니다. ReAct 및 DAG 채팅 엔드포인트 모두에 연결되어 있습니다.
 
-- **마켓플레이스 재설계 1단계 — 솔루션 + 컴포넌트 2계층 모델** — 평면 6가지 유형 Market 탭을 구조화된 2단계 네비게이션으로 교체: 최상위 카테고리 토글(솔루션: 에이전트/스킬/워크플로우; 컴포넌트: 커넥터/MCP 서버) 및 유형 하위 탭. 전역 마켓과 사용자의 조직 간 전환을 위한 범위 선택기 드롭다운 추가. 마켓 범위에서 KB 제거(조직 전용). 통합된 조직 및 마켓 공유: 둘 다 이제 명시적 구독 필요(더 이상 조직 자동 표시 없음).
+- **마켓플레이스 재설계 1단계 — 솔루션 + 컴포넌트 2계층 모델** — 평면 6가지 유형의 Market 탭을 구조화된 2단계 네비게이션으로 교체: 최상위 카테고리 토글(솔루션: 에이전트/스킬/워크플로우; 컴포넌트: 커넥터/MCP 서버) 및 유형 하위 탭. 글로벌 마켓과 사용자의 조직 간 전환을 위한 범위 선택기 드롭다운 추가. Market 범위에서 KB 제거(조직 전용). 통합된 조직 및 마켓 공유: 둘 다 이제 명시적 구독 필요(조직 자동 표시 없음).
 
-- **스마트 파일 콘텐츠 주입** — 작은 업로드 파일(<32K 문자)은 자동으로 가져와 LLM 컨텍스트에 인라인되고, 큰 파일은 온디맨드 읽기를 위한 도구 힌트가 있는 메타데이터 요약을 받습니다.
+- **스마트 파일 콘텐츠 주입** — 작은 업로드된 파일(`<32K` 문자)은 자동으로 가져와 LLM 컨텍스트에 인라인되고, 큰 파일은 메타데이터 요약과 온디맨드 읽기를 위한 도구 힌트를 받습니다.
 - **`read_uploaded_file` 에이전트 도구** — 이중 모드 파일 읽기 도구: 순차 액세스를 위한 페이지 매김 읽기(오프셋/제한) 및 대상 콘텐츠 추출을 위한 grep 유사 검색(정규식 지원 쿼리).
 - **`GET /api/files/{file_id}/content` 엔드포인트** — 업로드된 파일에서 추출된 전체 텍스트에 액세스하기 위한 페이지 매김 텍스트 콘텐츠 API.
-- **`.content` 사이드카 파일** — 업로드와 함께 사이드카 파일로 저장된 전체 추출 텍스트로, 재추출 없이 지속적인 콘텐츠 액세스 가능.
+- **`.content` 사이드카 파일** — 업로드와 함께 사이드카 파일로 저장된 전체 추출 텍스트로, 재추출 없이 지속적인 콘텐츠 액세스를 가능하게 합니다.
 - **파일 API 응답의 `content_length` 필드** — 파일 업로드 및 목록 엔드포인트는 이제 텍스트 콘텐츠 크기 가시성을 위해 `content_length`를 포함합니다.
 - **`fileApi.getContent()` 프론트엔드 클라이언트 메서드** — 프론트엔드에서 페이지 매김 파일 콘텐츠를 가져오기 위한 새로운 API 클라이언트 메서드.
 
-- **워크플로우 엔진 노드 재시도** — 지수 백오프를 사용한 노드별 재시도. 노드는 데이터 구성에서 `retry_count` 및 `retry_delay_ms`를 지정할 수 있습니다. 실패한 노드는 N번까지 지연 시간 상한 60초로 재시도됩니다. 시도 번호 및 이전 오류와 함께 `node_retrying` SSE 이벤트를 내보냅니다. 재시도 대기 중 취소 이벤트를 존중합니다.
-- **워크플로우 변수 저장소 표현식 평가** — simpleeval을 통한 안전한 Python 표현식 평가. `evaluate_expression()` 메서드는 저장소 변수(env 제외)를 일반 내장 함수(len, str, int, float, bool, abs, min, max, sum, round, sorted)와 함께 노출합니다. 또한 `has()`, `delete()`, `keys()` 헬퍼 메서드.
-- **워크플로우 2단계 노드: HumanIntervention** — 승인 대기 노드(자동 승인 스텁). prompt_message({{variable}} 보간 포함), assignee, timeout_hours를 읽습니다. Sky-500 테마 프론트엔드 노드(프롬프트 미리보기 및 @assignee 배지 포함). 프롬프트 텍스트 영역, assignee 입력, 타임아웃 필드가 있는 구성 패널.
+- **워크플로우 엔진 노드 재시도** — 지수 백오프를 사용한 노드별 재시도. 노드는 데이터 구성에서 `retry_count` 및 `retry_delay_ms`를 지정할 수 있습니다. 실패한 노드는 최대 N번 재시도되며 지연은 60초로 제한됩니다. 시도 번호 및 이전 오류와 함께 `node_retrying` SSE 이벤트를 내보냅니다. 재시도 대기 중 취소 이벤트를 존중합니다.
+- **워크플로우 변수 저장소 표현식 평가** — simpleeval을 통한 안전한 Python 표현식 평가. `evaluate_expression()` 메서드는 저장소 변수(환경 제외)를 일반적인 내장 함수(len, str, int, float, bool, abs, min, max, sum, round, sorted)와 함께 노출합니다. 또한 `has()`, `delete()`, `keys()` 헬퍼 메서드가 있습니다.
+- **워크플로우 2단계 노드: HumanIntervention** — 승인 대기 노드(자동 승인 스텁). prompt_message({{variable}} 보간 포함), assignee, timeout_hours를 읽습니다. 프롬프트 미리보기 및 @assignee 배지가 있는 Sky-500 테마 프론트엔드 노드. 프롬프트 텍스트 영역, assignee 입력, 타임아웃 필드가 있는 구성 패널.
 - **워크플로우 템플릿 12개로 확장** — 4개의 새로운 템플릿: Human Approval Pipeline(LLM → HumanIntervention → ConditionBranch → 이중 End), Multi-Step Data Processing(CodeExecution → ConditionBranch → Transform → ListOperation), Knowledge-Enhanced Agent(QuestionUnderstanding → KnowledgeRetrieval → LLM), Iterative Review Loop(Loop → LLM → VariableAssign).
-- **워크플로우 창 컨텍스트 메뉴** — 빈 캔버스에서 마우스 우클릭하여 Paste(클립보드가 비어있을 때 비활성화), Select All, Fit View, Auto Layout 작업에 액세스합니다. 판별된 합집합 상태는 노드 vs 창 컨텍스트 메뉴를 분리합니다.
-- **워크플로우 노드 컨텍스트 메뉴** — 모든 노드를 마우스 우클릭하여 Configure, Copy, Duplicate, Delete 작업에 액세스합니다. Delete 작업은 Start/End 싱글톤 노드에 대해 숨겨집니다. 메뉴는 외부 클릭 또는 스크롤 시 자동으로 닫힙니다.
+- **워크플로우 창 컨텍스트 메뉴** — 빈 캔버스에서 마우스 오른쪽 버튼 클릭하여 Paste(클립보드가 비어 있을 때 비활성화), Select All, Fit View, Auto Layout 작업에 액세스합니다. 판별된 합집합 상태는 노드 대 창 컨텍스트 메뉴를 분리합니다.
+- **워크플로우 노드 컨텍스트 메뉴** — 모든 노드를 마우스 오른쪽 버튼으로 클릭하여 Configure, Copy, Duplicate, Delete 작업에 액세스합니다. Delete 작업은 Start/End 싱글톤 노드에 대해 숨겨집니다. 메뉴는 외부 클릭 또는 스크롤 시 자동으로 닫힙니다.
 - **워크플로우 2단계 템플릿** — 2개의 새로운 기본 제공 템플릿(총 8개): List Processing Pipeline(Start → ListOperation → Transform → End) 및 Enhanced Question Answering(Start → QuestionUnderstanding → LLM → End).
-- **워크플로우 2단계 검증** — ListOperation(입력/표현식 누락), Transform(입력/빈 작업 누락), Iterator(목록 변수 누락), Loop(조건 누락), DocumentExtractor, QuestionUnderstanding(입력 누락), ParameterExtractor(입력 텍스트/빈 매개변수 누락)에 대한 확장 블루프린트 검증 경고. 수정됨: 정렬 작업은 더 이상 표현식을 잘못 요구하지 않습니다.
-- **워크플로우 노드 노트** — 노드별 주석 기능. 모든 노드의 구성 패널에서 "Note"를 클릭하여 캔버스의 노드 아래에 기울임꼴 텍스트로 표시되는 자유 형식 노트를 추가합니다. `data.note` 저장소가 있는 자동 확장 텍스트 영역.
+- **워크플로우 2단계 검증** — ListOperation(입력/표현식 누락), Transform(입력/빈 작업 누락), Iterator(목록 변수 누락), Loop(조건 누락), DocumentExtractor, QuestionUnderstanding(입력 누락), ParameterExtractor(입력 텍스트/빈 매개변수 누락)에 대한 확장된 블루프린트 검증 경고. 수정: 정렬 작업은 더 이상 표현식을 잘못 요구하지 않습니다.
+- **워크플로우 노드 메모** — 노드별 주석 기능. 모든 노드의 구성 패널에서 "Note"를 클릭하여 캔버스의 노드 아래에 이탤릭 텍스트로 표시되는 자유 형식 메모를 추가합니다. `data.note` 저장소가 있는 자동 확장 텍스트 영역.
 - **워크플로우 격자에 맞추기** — 정확한 노드 정렬을 위해 점 배경 패턴과 일치하는 16px 스냅 격자.
-- **워크플로우 연결 검증** — 기존 Start/End 제한 외에도 자체 연결 및 중복 간선을 방지합니다.
+- **워크플로우 연결 검증** — 기존 Start/End 제한 외에도 자체 연결 및 중복 모서리를 방지합니다.
 - **워크플로우 확대/축소 인식 드롭** — 노드 팔레트 드래그 앤 드롭은 모든 확대/축소 수준에서 올바른 배치를 위해 `screenToFlowPosition()`을 사용합니다.
 - **워크플로우 SSE 다중 라인 데이터** — SSE 파서는 이제 다중 라인 `data:` 필드를 처리하고 keepalive 주석 라인을 무시합니다.
 - **워크플로우 키보드 단축키** — Copy(Cmd+C), Paste(Cmd+V), Duplicate(Cmd+D), Select All(Cmd+A), Escape로 선택 해제. 복사/붙여넣기는 새 ID를 생성하고 위치를 오프셋합니다. Start/End 노드는 싱글톤 제약을 유지하기 위해 복사에서 제외됩니다.
 - **워크플로우 인라인 설명 편집** — 도구 모음의 설명 라인을 클릭하여 워크플로우 설명을 편집하기 위해 팝오버 텍스트 영역을 열고 다른 곳으로 이동하지 않습니다.
-- **워크플로우 ConditionBranch LLM 모드** — 순진한 "첫 번째 일치" 스텁을 대체하는 적절한 LLM 기반 조건 평가. 조건 레이블에서 분류 프롬프트를 작성하고, 빠른 LLM을 호출하고, 대소문자 구분 없음 + 퍼지 일치를 사용합니다.
-- **반응형 간선 레이블** — 조건/분류자 분기의 간선 레이블은 이제 `useNodesData()`를 사용하여 구성 패널에서 조건 또는 클래스가 편집될 때 실시간 업데이트합니다.
-- **워크플로우 통계 패널** — 총 실행, 완료/실패/취소 횟수, 시각적 진행 표시줄이 있는 성공률, 평균 기간, 상대 형식의 마지막 실행 시간을 표시하는 시트 기반 통계 표시. 도구 모음의 BarChart3 아이콘에서 트리거됨.
+- **워크플로우 ConditionBranch LLM 모드** — 순진한 "첫 번째 일치" 스텁을 대체하는 적절한 LLM 기반 조건 평가. 조건 레이블에서 분류 프롬프트를 빌드하고, 빠른 LLM을 호출하고, 대소문자를 구분하지 않는 + 퍼지 일치를 사용합니다.
+- **반응형 모서리 레이블** — 조건/분류자 분기의 모서리 레이블은 이제 `useNodesData()`를 사용하여 구성 패널에서 조건 또는 클래스를 편집할 때 실시간 업데이트를 수행합니다.
+- **워크플로우 통계 패널** — 총 실행, 완료/실패/취소 횟수, 시각적 진행률 표시줄이 있는 성공률, 평균 지속 시간, 상대 형식의 마지막 실행 시간을 표시하는 시트 기반 통계 표시. 도구 모음의 BarChart3 아이콘에서 트리거됩니다.
 - **2단계 워크플로우 노드: DocumentExtractor & QuestionUnderstanding** — 2개의 추가 노드 유형:
-  - **DocumentExtractor**: 문서 텍스트 처리를 위한 스텁 실행기 — 텍스트/base64 입력 유형 및 4가지 추출 모드(full_text, page_range가 있는 페이지, 단어/문자/라인/페이지 수가 있는 메타데이터, 마크다운 테이블 감지가 있는 테이블) 지원. URL 입력은 나중 구현을 위해 연기됨.
-  - **QuestionUnderstanding**: 4가지 모드가 있는 LLM 기반 질문 전처리 — rewrite(명확성), expand(컨텍스트 + 하위 질문), classify(의도/주제/신뢰도 JSON), decompose(하위 질문 배열). 선택적 사용자 정의 시스템 프롬프트 재정의가 있는 빠른 LLM 사용.
-  - 전체 프론트엔드: 노드 컴포넌트, 구성 패널, 팔레트 항목(QU의 AI 카테고리, DE의 데이터 카테고리), 변수 선택기 지원.
+  - **DocumentExtractor**: 문서 텍스트 처리를 위한 스텁 실행기 — 텍스트/base64 입력 유형 및 4가지 추출 모드(full_text, page_range가 있는 페이지, 단어/문자/라인/페이지 수가 있는 메타데이터, 마크다운 테이블 감지가 있는 테이블)를 지원합니다. URL 입력은 나중 구현을 위해 연기됩니다.
+  - **QuestionUnderstanding**: 4가지 모드를 사용한 LLM 기반 질문 전처리 — rewrite(명확성), expand(컨텍스트 + 하위 질문), classify(의도/주제/신뢰도 JSON), decompose(하위 질문 배열). 선택적 사용자 정의 시스템 프롬프트 재정의를 사용하는 빠른 LLM을 사용합니다.
+  - 전체 프론트엔드: 노드 컴포넌트, 구성 패널, 팔레트 항목(QU의 AI 카테고리, DE의 Data 카테고리), 변수 선택기 지원.
 - **2단계 워크플로우 노드: ListOperation & Transform** — 2개의 데이터 처리 노드 유형:
-  - **ListOperation**: 8가지 목록 작업(filter, map, sort, slice, flatten, unique, reverse, length)과 filter/map/sort를 위한 simpleeval 표현식. JSON 문자열 입력 자동 파싱 지원.
-  - **Transform**: 6가지 작업 유형(json_path, type_cast, format, regex_extract, string_op, math_op)이 있는 파이프라인 기반 데이터 변환. 작업이 순차적으로 적용됨 — 하나의 출력이 다음 입력으로 공급됨.
+  - **ListOperation**: 8가지 목록 작업(filter, map, sort, slice, flatten, unique, reverse, length)과 filter/map/sort를 위한 simpleeval 표현식. JSON 문자열 입력 자동 파싱을 지원합니다.
+  - **Transform**: 6가지 작업 유형(json_path, type_cast, format, regex_extract, string_op, math_op)이 있는 파이프라인 기반 데이터 변환. 작업은 순차적으로 적용됩니다 — 하나의 출력이 다음으로 공급됩니다.
   - 전체 프론트엔드: 노드 컴포넌트, 작업별 편집기가 있는 구성 패널, 팔레트 항목, 변수 선택기 지원.
 - **2단계 워크플로우 노드: Loop & ParameterExtractor** — 2개의 추가 고급 노드 유형:
-  - **Loop**: simpleeval 표현식 평가, 구성 가능한 루프 변수 이름, max_iterations 안전 제한이 있는 while 조건 루프. 조건 입력, 변수 이름, 반복 제한 구성이 있는 프론트엔드.
-  - **ParameterExtractor**: 텍스트에서 LLM 기반 구조화된 매개변수 추출. 입력된 매개변수(이름/유형/설명/필수) 정의, 입력 텍스트 참조 제공, 선택적으로 추출 지침 추가. 구문 분석된 JSON 반환. 매개변수 목록 편집기 및 추출 프롬프트 텍스트 영역이 있는 프론트엔드.
-- **2단계 워크플로우 노드: Iterator & VariableAggregator** — 2개의 새로운 고급 노드 유형:
-  - **Iterator**: 구성 가능한 항목/인덱스 변수 이름 및 max_iterations 안전
+  - **Loop**: simpleeval 표현식 평가, 구성 가능한 루프 변수 이름, 최대 반복 안전 제한이 있는 while 조건 루프. 조건 입력, 변수 이름, 반복 제한 구성이 있는 프론트엔드.
+  - **ParameterExtractor**: 텍스트에서 LLM 기반 구조화된 매개변수 추출. 입력된 매개변수(이름/유형/설명/필수) 정의, 입력 텍스트 참조 제공, 선택적으로 추출 지침 추가. 구문 분석된 JSON을 반환합니다. 매개변수 목록 편집기 및 추출 프롬프트 텍스트 영역이 있는 프론트엔드.
 
 ### 변경사항
 
