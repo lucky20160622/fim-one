@@ -649,6 +649,32 @@ function ModelFormDialog({ open, onOpenChange, providerId, model, onSuccess }: M
                         onValueChange={([v]) => setTemperature(v)}
                         className="w-full"
                       />
+                      <p className="text-xs text-muted-foreground">
+                        {t("temperatureReasoningHint")}
+                      </p>
+                    </div>
+                    {/* Native Function Calling toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Label htmlFor="tool-choice" className="text-sm font-medium">
+                          {t("toolChoiceEnabled")}
+                        </Label>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs">
+                              <p className="text-xs">{t("toolChoiceEnabledDesc")}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <Switch
+                        id="tool-choice"
+                        checked={toolChoiceEnabled}
+                        onCheckedChange={setToolChoiceEnabled}
+                      />
                     </div>
                     {/* JSON Mode toggle */}
                     <div className="flex items-center justify-between">
@@ -671,29 +697,6 @@ function ModelFormDialog({ open, onOpenChange, providerId, model, onSuccess }: M
                         id="json-mode"
                         checked={jsonModeEnabled}
                         onCheckedChange={setJsonModeEnabled}
-                      />
-                    </div>
-                    {/* Tool Choice (Native FC) toggle */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <Label htmlFor="tool-choice" className="text-sm font-medium">
-                          {t("toolChoiceEnabled")}
-                        </Label>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent side="right" className="max-w-xs">
-                              <p className="text-xs">{t("toolChoiceEnabledDesc")}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <Switch
-                        id="tool-choice"
-                        checked={toolChoiceEnabled}
-                        onCheckedChange={setToolChoiceEnabled}
                       />
                     </div>
                   </div>

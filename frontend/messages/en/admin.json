@@ -255,6 +255,7 @@
     "apiKeyEditHint": "Leave blank to keep the existing key.",
     "apiKeyRequired": "API key is required for this provider.",
     "temperature": "Temperature",
+    "temperatureReasoningHint": "When reasoning is enabled, some providers (e.g. Anthropic) require temperature = 1.0 — applied automatically.",
     "maxOutputTokens": "Max Output Tokens",
     "contextSize": "Context Size",
     "role": "Role",
