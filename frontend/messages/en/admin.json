@@ -253,6 +253,7 @@
     "apiKey": "API Key",
     "apiKeyPlaceholder": "Enter API key (hidden after save)",
     "apiKeyEditHint": "Leave blank to keep the existing key.",
+    "apiKeyRequired": "API key is required for this provider.",
     "temperature": "Temperature",
     "maxOutputTokens": "Max Output Tokens",
     "contextSize": "Context Size",

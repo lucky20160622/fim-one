@@ -155,7 +155,7 @@ function ProviderFormDialog({ open, onOpenChange, provider, onSuccess }: Provide
   const [isActive, setIsActive] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; baseUrl?: string }>({})
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; baseUrl?: string; apiKey?: string }>({})
 
   useEffect(() => {
     if (open) {
@@ -188,8 +188,10 @@ function ProviderFormDialog({ open, onOpenChange, provider, onSuccess }: Provide
     onOpenChange(nextOpen)
   }
 
+  const apiKeyRequired = !isEdit && preset !== "openai-compatible"
+
   const handleSubmit = async () => {
-    const errors: { name?: string; baseUrl?: string } = {}
+    const errors: { name?: string; baseUrl?: string; apiKey?: string } = {}
     if (!name.trim()) errors.name = t("providerNameRequired")
     if (!baseUrl.trim()) {
       errors.baseUrl = t("baseUrlRequired")
@@ -201,6 +203,7 @@ function ProviderFormDialog({ open, onOpenChange, provider, onSuccess }: Provide
         errors.baseUrl = t("baseUrlInvalid")
       }
     }
+    if (apiKeyRequired && !apiKey.trim()) errors.apiKey = t("apiKeyRequired")
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors)
       return
@@ -322,17 +325,26 @@ function ProviderFormDialog({ open, onOpenChange, provider, onSuccess }: Provide
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pf-api-key">{t("apiKey")}</Label>
+                <Label htmlFor="pf-api-key">
+                  {t("apiKey")} {apiKeyRequired && <span className="text-destructive">*</span>}
+                </Label>
                 <Input
                   id="pf-api-key"
                   type="password"
                   placeholder={isEdit ? t("apiKeyEditHint") : t("apiKeyPlaceholder")}
                   value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
+                  onChange={(e) => {
+                    setApiKey(e.target.value)
+                    if (fieldErrors.apiKey) setFieldErrors((prev) => ({ ...prev, apiKey: undefined }))
+                  }}
                   autoComplete="new-password"
+                  aria-invalid={!!fieldErrors.apiKey}
                 />
                 {isEdit && (
                   <p className="text-xs text-muted-foreground">{t("apiKeyEditHint")}</p>
+                )}
+                {fieldErrors.apiKey && (
+                  <p className="text-sm text-destructive">{fieldErrors.apiKey}</p>
                 )}
               </div>
               <div className="flex items-center justify-between gap-3 rounded-md border p-3">
