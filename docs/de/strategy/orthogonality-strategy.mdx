@@ -40,17 +40,17 @@ Der Builder-Agent nutzt Modellintelligenz, um **verwaltete, persistente Connecto
 
 Analogie: Cursor nutzt Claude zum Schreiben von Code. Wenn Claude intelligenter wird, wird Cursor *besser*, nicht *redundant*, weil Cursor Engineering-Wert bietet (Projektmanagement, Dateiorganisation, Versionskontrolle), den das Modell nicht ersetzt.
 
-### Warum v0.1–v0.5 Features "eingefroren" sind
+### Warum v0.1–v0.5 Features „eingefroren" sind
 
 | Feature | Was in der Branche passiert |
 |---------|--------------------------------|
-| ReAct loop | Modelle haben natives Tool Calling (OpenAI, Anthropic). Die externe Reasoning-Schleife bietet weniger Mehrwert, da Modelle dies internalisieren. |
+| ReAct loop | Modelle haben natives Tool Calling (OpenAI, Anthropic). Die externe Reasoning Loop bietet weniger Mehrwert, da Modelle dies internalisieren. |
 | DAG Planning | Die Reasoning-Fähigkeiten von Modellen verbessern sich schnell. Komplexe Task-Zerlegung, die externe Planer benötigte, wird zu einer Single-Shot-Fähigkeit. |
 | Memory management | Context Windows wachsen schnell (Gemini 2M+, Claude 200K+). Der Bedarf für externes Window Management, Zusammenfassung und Komprimierung schrumpft. |
-| RAG pipeline | Anbieter bauen Retrieval in ihre Plattformen ein (OpenAI file_search, Google NotebookLM, Gemini Search Grounding). Für öffentliches Wissen wird die traditionelle Chunk-Embed-Retrieve-Pipeline ersetzt. |
-| Grounded Generation | Modelle werden besser darin, Quellen nativ zu zitieren. Die 5-stufige Grounding-Pipeline, die wir gebaut haben, bietet abnehmenden Mehrwert. |
+| RAG pipeline | Anbieter bauen Retrieval in ihre Plattformen ein (OpenAI file_search, Google NotebookLM, Gemini Search Grounding). Für öffentliches Wissen wird die traditionelle Chunk-Embed-Retrieve Pipeline ersetzt. |
+| Grounded Generation | Modelle werden besser darin, Quellen nativ zu zitieren. Die 3-stufige Grounding Pipeline, die wir gebaut haben, bietet abnehmenden Mehrwert. |
 
-**Diese Features sind nicht schlecht** — sie wurden ausgeliefert, sie funktionieren, sie machen das Produkt heute funktionsfähig. Die Entscheidung ist einfach, sie nicht weiter auszubauen und die Bemühungen umzuleiten.
+**Diese Features sind nicht schlecht** — sie wurden ausgeliefert, sie funktionieren, sie machen das Produkt heute funktionsfähig. Die Entscheidung ist einfach, sie nicht weiter auszubauen und die Anstrengungen umzuleiten.
 
 ### Warum Multi-Agent-Orchestrierung aufgeschoben wurde
 

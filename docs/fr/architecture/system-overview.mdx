@@ -87,13 +87,13 @@ Le résultat : l'agent voit exactement les outils dont il a besoin, pas plus. Un
 | Besoin | Utiliser | Pourquoi |
 |------|-----|-----|
 | Calcul général, exécution de code, transformations de texte | Outil intégré | Toujours disponible, aucune configuration nécessaire |
-| Intégration de systèmes d'entreprise (ERP, CRM, OA) | Connecteur | Gouvernance d'authentification, piste d'audit, contrôle d'accès au niveau des opérations |
-| Récupération de connaissances avec citations et preuves | Base de connaissances | Pipeline RAG, génération fondée, détection de conflits |
+| Intégration de systèmes d'entreprise (ERP, CRM, OA) | Connecteur | Gouvernance de l'authentification, piste d'audit, contrôle d'accès au niveau des opérations |
+| Récupération de connaissances avec citations et preuves | Base de connaissances | Pipeline RAG, génération ancrée, scoring de confiance |
 | Écosystème d'outils tiers | MCP | Protocole standard, isolation des processus, serveurs communautaires |
-| Politiques organisationnelles, procédures opérationnelles, procédures de traitement | Compétence | Globale par défaut, chargement progressif, visibilité limitée |
-| Délégation de tâches à des agents spécialisés | AppelAgent | Routage sémantique d'agents, héritage complet des outils, exécution parallèle |
-| Accès direct à la base de données | Connecteur de base de données | SQL sensible au schéma, application optionnelle du mode lecture seule |
-| Outils internes personnalisés | MCP ou Outil intégré | MCP pour l'isolation des processus ; outil intégré pour une intégration étroite |
+| Politiques organisationnelles, procédures opérationnelles, procédures de traitement | Compétence | Global par défaut, chargement progressif, visibilité limitée |
+| Délégation de tâches à des agents spécialisés | AppelAgent | Routage sémantique des agents, héritage complet des outils, exécution parallèle |
+| Accès direct à la base de données | Connecteur de base de données | SQL conscient du schéma, application optionnelle du mode lecture seule |
+| Outillage interne personnalisé | MCP ou Outil intégré | MCP pour l'isolation des processus ; outil intégré pour une intégration étroite |
 
 Les catégories ne s'excluent pas mutuellement. Un seul agent peut utiliser les cinq sources de capacités dans une conversation -- charger une Compétence pour la procédure opérationnelle de traitement des réclamations, interroger une base de connaissances pour les documents de politique, appeler un connecteur pour vérifier l'ERP, déléguer l'analyse à un sous-agent spécialisé, et utiliser un outil intégré pour formater les résultats.
 

@@ -82,9 +82,6 @@
   "showLess": "显示更少",
   "showMore": "显示 {count} 个更多",
   "evidence": "证据 ({count} 个来源)",
-  "conflictCount": "{count} 个冲突",
-  "conflictCountPlural": "{count} 个冲突",
-  "conflictsDetected": "检测到冲突",
   "tokenIn": "{value}k 输入",
   "tokenOut": "{value}k 输出",
   "showMoreText": "显示更多（{chars} 个字符）",
@@ -148,10 +145,6 @@
   "evidenceInsufficientDetail": "置信度 {confidence}% 低于所需阈值 {threshold}%。",
   "evidenceInsufficientHint": "检索到的证据不够可靠，无法提供有把握的答案。",
   "tryRephrase": "尝试重新表述您的问题",
-  "conflictWarning": "{count} 个来源对此主题有相互矛盾的信息",
-  "conflictWarningOne": "1 个来源对此主题有相互矛盾的信息",
-  "viewConflicts": "查看详情",
-  "hideConflicts": "隐藏",
   "citationRelevance": "相关性：{value}%",
   "retryUpload": "重试上传"
 }

@@ -94,11 +94,11 @@ flowchart LR
 
 ### v0.5 (2026-02-28) — Full RAG + Grounded Gen
 - Full RAG パイプライン (embedding + vector store + FTS + RRF + reranker)
-- Grounded Generation (citations, conflict detection, confidence scores)
-- ナレッジベース ドキュメント管理 (CRUD, search, retry, schema migration)
-- ContextGuard + pinned messages (token budget manager)
-- DbMemory persistence + LLM Compact
-- DAG Re-Planning (up to 3 rounds)
+- Grounded Generation (引用、信頼度スコア)
+- ナレッジベース ドキュメント管理 (CRUD、検索、再試行、スキーマ移行)
+- ContextGuard + ピン留めメッセージ (トークン予算マネージャー)
+- DbMemory 永続化 + LLM Compact
+- DAG 再計画 (最大3ラウンド)
 
 ### v0.6 (2026-03-01) — コネクタプラットフォーム
 - **コネクタ CRUD**: 作成、読み取り、更新、削除

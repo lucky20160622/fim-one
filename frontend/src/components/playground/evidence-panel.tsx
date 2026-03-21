@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useTranslations } from "next-intl"
-import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2 } from "lucide-react"
+import { ChevronDown, ChevronRight, CheckCircle2 } from "lucide-react"
 import { parseEvidence } from "@/lib/evidence-utils"
 
 interface EvidencePanelProps {
@@ -46,12 +46,6 @@ export function EvidencePanel({ content }: EvidencePanelProps) {
         <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
         <span>{t("evidence", { count: parsed.sourceCount })}</span>
         <ConfidenceBadge value={parsed.confidence} />
-        {parsed.conflicts.length > 0 && (
-          <span className="ml-auto flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400">
-            <AlertTriangle className="h-3 w-3" />
-            {parsed.conflicts.length > 1 ? t("conflictCountPlural", { count: parsed.conflicts.length }) : t("conflictCount", { count: parsed.conflicts.length })}
-          </span>
-        )}
       </button>
 
       {isOpen && (
@@ -74,27 +68,6 @@ export function EvidencePanel({ content }: EvidencePanelProps) {
             </div>
           ))}
 
-          {parsed.conflicts.length > 0 && (
-            <div className="space-y-2 pt-2 border-t border-border">
-              <div className="flex items-center gap-1 text-xs font-medium text-yellow-600 dark:text-yellow-400">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                {t("conflictsDetected")}
-              </div>
-              {parsed.conflicts.map((conflict, i) => (
-                <div key={i} className="rounded border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-2 text-xs space-y-1">
-                  <div className="font-medium">
-                    {conflict.sourceA} vs {conflict.sourceB}
-                  </div>
-                  <div className="text-muted-foreground">
-                    A: &ldquo;{conflict.textA}&rdquo;
-                  </div>
-                  <div className="text-muted-foreground">
-                    B: &ldquo;{conflict.textB}&rdquo;
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
     </div>

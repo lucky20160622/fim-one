@@ -92,13 +92,13 @@ flowchart LR
 - JWT 인증
 - 에이전트별 실행 모드 + 온도 제어
 
-### v0.5 (2026-02-28) — 전체 RAG + 기반 생성
-- 전체 RAG 파이프라인 (임베딩 + 벡터 저장소 + FTS + RRF + 리랭커)
-- 기반 생성 (인용, 충돌 감지, 신뢰도 점수)
-- 지식 기반 문서 관리 (CRUD, 검색, 재시도, 스키마 마이그레이션)
-- ContextGuard + 고정 메시지 (토큰 예산 관리자)
-- DbMemory 지속성 + LLM Compact
-- DAG 재계획 (최대 3라운드)
+### v0.5 (2026-02-28) — Full RAG + Grounded Gen
+- Full RAG pipeline (embedding + vector store + FTS + RRF + reranker)
+- Grounded Generation (citations, confidence scores)
+- Knowledge base document management (CRUD, search, retry, schema migration)
+- ContextGuard + pinned messages (token budget manager)
+- DbMemory persistence + LLM Compact
+- DAG Re-Planning (up to 3 rounds)
 
 ### v0.6 (2026-03-01) — 커넥터 플랫폼
 - **커넥터 CRUD**: 생성, 읽기, 업데이트, 삭제

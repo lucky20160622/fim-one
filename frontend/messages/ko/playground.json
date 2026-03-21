@@ -82,9 +82,6 @@
   "showLess": "덜 보기",
   "showMore": "{count}개 더 보기",
   "evidence": "증거 ({count}개 출처)",
-  "conflictCount": "{count}개 충돌",
-  "conflictCountPlural": "{count}개 충돌",
-  "conflictsDetected": "충돌 감지됨",
   "tokenIn": "{value}k 입력",
   "tokenOut": "{value}k 출력",
   "showMoreText": "더보기 ({chars}자)",
@@ -148,10 +145,6 @@
   "evidenceInsufficientDetail": "신뢰도 {confidence}%는 필요한 임계값 {threshold}% 이하입니다.",
   "evidenceInsufficientHint": "검색된 증거가 신뢰할 수 있는 답변을 제공하기에 충분하지 않습니다.",
   "tryRephrase": "질문을 다시 표현해 보세요",
-  "conflictWarning": "{count}개의 출처에 이 주제에 대한 상충하는 정보가 있습니다",
-  "conflictWarningOne": "1개의 출처에 이 주제에 대한 상충하는 정보가 있습니다",
-  "viewConflicts": "세부 정보 보기",
-  "hideConflicts": "숨기기",
   "citationRelevance": "관련성: {value}%",
   "retryUpload": "업로드 다시 시도"
 }

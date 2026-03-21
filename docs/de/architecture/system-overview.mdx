@@ -84,18 +84,18 @@ Das Ergebnis: Der Agent sieht genau die Werkzeuge, die er benötigt, nicht mehr.
 
 ## Wann man was verwendet
 
-| Anforderung | Verwenden | Grund |
+| Anforderung | Verwendung | Grund |
 |------|-----|-----|
-| Allgemeine Berechnungen, Code-Ausführung, Texttransformationen | Built-in Tool | Immer verfügbar, keine Konfiguration erforderlich |
-| Enterprise-Systemintegration (ERP, CRM, OA) | Connector | Auth-Governance, Audit-Trail, Zugriffskontrolle auf Operationsebene |
-| Wissensabruf mit Zitaten und Belegen | Knowledge Base | RAG-Pipeline, fundierte Generierung, Konflikterkennung |
+| Allgemeine Berechnung, Code-Ausführung, Texttransformationen | Integriertes Tool | Immer verfügbar, keine Konfiguration erforderlich |
+| Enterprise-Systemintegration (ERP, CRM, OA) | Konnektor | Auth-Governance, Audit-Trail, Zugriffskontrolle auf Operationsebene |
+| Wissensabruf mit Zitaten und Belegen | Wissensdatenbank | RAG-Pipeline, fundierte Generierung, Konfidenzscoring |
 | Ökosystem von Drittanbieter-Tools | MCP | Standardprotokoll, Prozessisolation, Community-Server |
-| Organisationsrichtlinien, SOPs, Handlungsverfahren | Skill | Standardmäßig global, progressive Ladung, Sichtbarkeitsbereich |
-| Aufgabendelegation an spezialisierte Agenten | CallAgent | Semantisches Agenten-Routing, vollständige Tool-Vererbung, parallele Ausführung |
-| Direkter Datenbankzugriff | Database Connector | Schema-bewusstes SQL, optionale Nur-Lese-Durchsetzung |
-| Benutzerdefinierte interne Tools | MCP oder Built-in | MCP für Prozessisolation; Built-in für enge Integration |
+| Organisationsrichtlinien, SOPs, Handlungsverfahren | Fähigkeit | Standardmäßig global, progressives Laden, Sichtbarkeitsbereich |
+| Aufgaben an spezialisierte Agenten delegieren | Agent aufrufen | Semantisches Agent-Routing, vollständige Tool-Vererbung, parallele Ausführung |
+| Direkter Datenbankzugriff | Datenbank-Konnektor | Schema-bewusstes SQL, optionale Nur-Lese-Erzwingung |
+| Benutzerdefinierte interne Tools | MCP oder Integriert | MCP für Prozessisolation; integriert für enge Integration |
 
-Die Kategorien schließen sich nicht gegenseitig aus. Ein einzelner Agent kann alle fünf Funktionsquellen in einem Gespräch nutzen – ein Skill für die SOP zur Beschwerdeverarbeitung laden, eine Knowledge Base für Richtliniendokumente abfragen, einen Connector aufrufen, um das ERP zu überprüfen, die Analyse an einen spezialisierten Sub-Agent delegieren und ein Built-in Tool verwenden, um die Ergebnisse zu formatieren.
+Die Kategorien schließen sich nicht gegenseitig aus. Ein einzelner Agent kann alle fünf Funktionsquellen in einem Gespräch verwenden – eine Fähigkeit für das SOP zur Beschwerdeverarbeitung laden, eine Wissensdatenbank nach Richtliniendokumenten abfragen, einen Konnektor aufrufen, um das ERP zu überprüfen, die Analyse an einen spezialisierten Sub-Agenten delegieren und ein integriertes Tool verwenden, um die Ergebnisse zu formatieren.
 
 ## Ausführungs-Engines sind orthogonal
 

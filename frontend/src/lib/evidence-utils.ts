@@ -12,7 +12,6 @@ export interface ParsedEvidence {
   confidence: number
   sourceCount: number
   sources: ParsedSource[]
-  conflicts: { sourceA: string; sourceB: string; textA: string; textB: string }[]
 }
 
 /**
@@ -57,22 +56,7 @@ export function parseEvidence(content: string): ParsedEvidence | null {
     })
   }
 
-  // Match conflicts
-  const conflicts: ParsedEvidence["conflicts"] = []
-  const conflictSection = content.match(/\*\*Conflicts detected:\*\*([\s\S]*?)$/)
-  if (conflictSection) {
-    const conflictRegex = /- (.+?) vs (.+?):\s*\n\s*A: "([^"]+)"\s*\n\s*B: "([^"]+)"/g
-    while ((match = conflictRegex.exec(conflictSection[1])) !== null) {
-      conflicts.push({
-        sourceA: match[1].trim(),
-        sourceB: match[2].trim(),
-        textA: match[3],
-        textB: match[4],
-      })
-    }
-  }
-
-  return { confidence, sourceCount, sources, conflicts }
+  return { confidence, sourceCount, sources }
 }
 
 /**
@@ -108,7 +92,6 @@ export function parseSimpleEvidence(content: string): ParsedEvidence | null {
     confidence: Math.round(avgRelevance * 100),
     sourceCount: sources.length,
     sources,
-    conflicts: [],
   }
 }
 
@@ -153,11 +136,10 @@ export function parseInsufficientEvidence(content: string): InsufficientEvidence
  * - confidence: max across all blocks
  * - sourceCount: sum across all blocks
  * - sources: concatenated (backend uses cumulative numbering so indices are non-overlapping)
- * - conflicts: concatenated
  */
 export function mergeEvidence(blocks: ParsedEvidence[]): ParsedEvidence {
   if (blocks.length === 0) {
-    return { confidence: 0, sourceCount: 0, sources: [], conflicts: [] }
+    return { confidence: 0, sourceCount: 0, sources: [] }
   }
   if (blocks.length === 1) {
     return blocks[0]
@@ -166,6 +148,5 @@ export function mergeEvidence(blocks: ParsedEvidence[]): ParsedEvidence {
     confidence: Math.max(...blocks.map((b) => b.confidence)),
     sourceCount: blocks.reduce((sum, b) => sum + b.sourceCount, 0),
     sources: blocks.flatMap((b) => b.sources),
-    conflicts: blocks.flatMap((b) => b.conflicts),
   }
 }
