@@ -2988,7 +2988,7 @@ async def dag_endpoint(
                         f"**{s.id}**: {s.result}" for s in completed
                     )
                 else:
-                    answer = "(goal not achieved)"
+                    answer = "The task could not be completed — none of the planned steps produced a result. You can try rephrasing the goal or breaking it into simpler steps."
                 for _ans_chunk in _chunk_answer(answer):
                     yield _emit(
                         sse_events, "answer",

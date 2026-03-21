@@ -797,11 +797,14 @@ function DagDoneCard({ done, stepStates, suggestions, onSuggestionSelect, isPost
     : []
 
   return (
-    <Card className="border-green-500/20 py-4">
+    <Card className={done.achieved === false ? "border-destructive/20 py-4" : "border-green-500/20 py-4"}>
       <CardHeader className="pb-0">
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-500/10">
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${done.achieved === false ? "bg-destructive/10" : "bg-green-500/10"}`}>
+            {done.achieved === false
+              ? <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+              : <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+            }
           </div>
           <CardTitle className="text-sm">{t("result")}</CardTitle>
           <div className="ml-auto flex items-center gap-3 text-[10px] text-muted-foreground">

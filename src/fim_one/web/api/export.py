@@ -91,7 +91,7 @@ _I18N: dict[str, dict[str, str]] = {
         "dependencies": "Dependencies",
         "none": "none",
         "goal_achieved": "Goal Achieved",
-        "goal_not_achieved": "Goal Not Achieved",
+        "goal_not_achieved": "Goal Not Achieved — No Steps Completed",
         "analysis": "Analysis",
         "confidence": "confidence",
         "step_result": "Step Result",
