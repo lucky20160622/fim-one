@@ -113,6 +113,9 @@ class OpenAICompatibleLLM(BaseLLM):
             Pass ``None`` to disable rate limiting entirely.
         reasoning_effort: Optional reasoning effort level (``low``/``medium``/``high``).
         reasoning_budget_tokens: Optional explicit token budget for Anthropic thinking.
+        context_size: Optional context window size in tokens.  When provided,
+            downstream components (e.g. ContextGuard in DAG executor) can
+            compute model-aware token budgets instead of using a global default.
     """
 
     def __init__(
@@ -130,6 +133,7 @@ class OpenAICompatibleLLM(BaseLLM):
         provider: str | None = None,
         json_mode_enabled: bool = True,
         tool_choice_enabled: bool = True,
+        context_size: int | None = None,
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url
@@ -147,10 +151,15 @@ class OpenAICompatibleLLM(BaseLLM):
         self._reasoning_budget_tokens = reasoning_budget_tokens
         self._json_mode_enabled = json_mode_enabled
         self._tool_choice_enabled = tool_choice_enabled
+        self._context_size = context_size
 
     @property
     def model_id(self) -> str:
         return self._model
+
+    @property
+    def context_size(self) -> int | None:
+        return self._context_size
 
     @property
     def api_key(self) -> str:
