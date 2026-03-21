@@ -164,92 +164,92 @@ Die folgende Tabelle behandelt häufige Anbieter und Modelle. Daten stammen aus 
 
 **OpenAI**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
 |---|---|---|---|---|---|---|
 | `gpt-5.4` | Allgemein | 1.050K | 128K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
 | `gpt-5.4-mini` | Schnell | 400K | 128K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
-| `o3-pro` | Reasoning | 200K | 100K | AN | AN | Reasoning-Modell; FC funktioniert mit automatisch deaktiviertem Denken |
+| `o3-pro` | Reasoning | 200K | 100K | AN | AN | Reasoning-Modell; FC funktioniert mit automatisch deaktiviertem Thinking |
 
 **Anthropic (Claude)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
 |---|---|---|---|---|---|---|
-| `claude-sonnet-4-6` | Allgemein | 1.000K | 64K | AN | AN | Funktionsaufrufe + Reasoning; Denken automatisch deaktiviert für FC |
+| `claude-sonnet-4-6` | Allgemein | 1.000K | 64K | AN | AN | Funktionsaufrufe + Reasoning; Thinking automatisch deaktiviert für FC |
 | `claude-haiku-4-5` | Schnell | 200K | 64K | AN | AN | Funktionsaufrufe unterstützt |
-| `claude-opus-4-6` | Reasoning | 1.000K | 128K | AN | AN | Funktionsaufrufe + Reasoning; Denken automatisch deaktiviert für FC |
+| `claude-opus-4-6` | Reasoning | 1.000K | 128K | AN | AN | Funktionsaufrufe + Reasoning; Thinking automatisch deaktiviert für FC |
 
 **Google Gemini**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
 |---|---|---|---|---|---|---|
-| `gemini-3-pro-preview` | Allgemein | 1.048K | 65K | AN | AN | Vollständige Unterstützung (UniAPI-Tags unvollständig -- Gemini unterstützt FC nativ) |
-| `gemini-2.5-pro` | Schnell | 1.048K | 65K | AN | AN | Vollständige Unterstützung |
-| `gemini-3.1-pro-preview` | Reasoning | 1.048K | 65K | AN | AN | Vollständige Unterstützung |
+| `gemini-3.1-pro-preview` | Allgemein | 1.048K | 65K | AN | AN | Neueste Vorschau; Nachfolger des veralteten gemini-3-pro-preview |
+| `gemini-2.5-pro` | Schnell | 1.048K | 65K | AN | AN | Stabiles GA; produktionsreif |
+| `gemini-3.1-pro-preview` | Reasoning | 1.048K | 65K | AN | AN | Thinking-Unterstützung mit konfigurierbarem thinking_level |
 
 **DeepSeek**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
 |---|---|---|---|---|---|---|
-| `deepseek-v3.2` | Allgemein | 164K | 64K | AN | AN | FC unterstützt (UniAPI-Tags unvollständig) |
-| `deepseek-chat` | Schnell | 64K | 8K | AN | AN | Basis-Chat-Modell; FC unterstützt |
-| `deepseek-reasoner` | Reasoning | 164K | 164K | **AUS** | AN | Denken immer aktiviert; erzwungenes tool_choice kann abgelehnt werden |
+| `deepseek-chat` | Allgemein | 128K | 8K | AN | AN | V3.2 Non-Thinking-Modus; FC + JSON-Modus unterstützt |
+| `deepseek-chat` | Schnell | 128K | 8K | AN | AN | Gleiches Modell wie Allgemein; nur zwei offizielle API-Modell-IDs vorhanden |
+| `deepseek-reasoner` | Reasoning | 128K | 64K | **AUS** | AN | Thinking immer aktiviert; erzwungene tool_choice abgelehnt; 64K beinhaltet CoT |
 
 **xAI (Grok)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
 |---|---|---|---|---|---|---|
-| `grok-4-1-fast-non-reasoning` | Allgemein | 2.000K | 2.000K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe |
-| `grok-3-mini-fast` | Schnell | 131K | 131K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
-| `grok-4-1-fast-reasoning` | Reasoning | 2.000K | 2.000K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
+| `grok-4-1-fast-non-reasoning` | Allgemein | 2.000K | 30K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe |
+| `grok-3-mini-fast` | Schnell | 131K | 131K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning; 131K ist gemeinsames Kontext-Budget |
+| `grok-4-1-fast-reasoning` | Reasoning | 2.000K | 30K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
 
 **Qwen (Alibaba Cloud)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
 |---|---|---|---|---|---|---|
 | `qwen3.5-plus` | Allgemein | 1.000K | 64K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe |
 | `qwen-turbo-latest` | Schnell | 1.000K | 16K | AN | AN | FC wahrscheinlich unterstützt (UniAPI-Tags unvollständig) |
-| `qwq-plus` | Reasoning | 128K | 8K | AN | AN | Reasoning + Funktionsaufrufe (Denken möglicherweise umschaltbar) |
+| `qwq-plus` | Reasoning | 131K | 16K | AN | AN | Reasoning + Funktionsaufrufe; Thinking umschaltbar via enable_thinking |
 
 **Zhipu (GLM)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
 |---|---|---|---|---|---|---|
-| `glm-4.7` | Allgemein | 200K | -- | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
-| `glm-4.7-flashx` | Schnell | 200K | -- | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
-| `glm-5` | Reasoning | 200K | -- | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
+| `glm-4.7` | Allgemein | 200K | 128K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
+| `glm-4.7-flashx` | Schnell | 200K | 128K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
+| `glm-5` | Reasoning | 200K | 128K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
 
 **Moonshot (Kimi)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
 |---|---|---|---|---|---|---|
-| `kimi-k2.5` | Allgemein | 262K | -- | **AUS** | AN | Denken immer aktiviert; erzwungenes tool_choice abgelehnt (400-Fehler) |
-| `kimi-k2` | Schnell | 131K | -- | AN | AN | Kein Denken; natives FC funktioniert (in Produktion verifiziert) |
-| `kimi-k2-thinking` | Reasoning | 63K | -- | **AUS** | AN | Denken immer aktiviert; erzwungenes tool_choice abgelehnt |
+| `kimi-k2.5` | Allgemein | 262K | 65K | **AUS** | AN | FC funktioniert, aber erzwungene tool_choice wird abgelehnt, wenn Thinking aktiviert ist (Standard) |
+| `kimi-k2` | Schnell | 131K | 32K | AN | AN | Non-Thinking; natives FC funktioniert (in Produktion verifiziert) |
+| `kimi-k2-thinking` | Reasoning | 131K | -- | **AUS** | AN | Thinking immer aktiviert; erzwungene tool_choice abgelehnt |
 
 **MiniMax**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
 |---|---|---|---|---|---|---|
-| `MiniMax-M2.5` | Allgemein | 205K | -- | AN | AN | Funktionsaufrufe + strukturierte Ausgabe (in Produktion verifiziert) |
-| `MiniMax-M2.5-highspeed` | Schnell | 205K | -- | AN | AN | Funktionsaufrufe + strukturierte Ausgabe (in Produktion verifiziert) |
-| `MiniMax-M1` | Reasoning | -- | -- | AN | AN | Funktionsaufrufe + strukturierte Ausgabe |
+| `MiniMax-M2.5` | Allgemein | 205K | 65K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe (in Produktion verifiziert) |
+| `MiniMax-M2.5-highspeed` | Schnell | 205K | 65K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe (in Produktion verifiziert) |
+| `MiniMax-M1` | Reasoning | 1.000K | 80K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe; 456B-Parameter-Hybrid-MoE |
 
 **ByteDance (Doubao)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
 |---|---|---|---|---|---|---|
 | `doubao-seed-2-0-pro` | Allgemein | 256K | 128K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
-| `doubao-seed-1-6` | Schnell | 256K | 32K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
-| `doubao-seed-1-6` | Reasoning | 256K | 32K | AN | AN | Unterstützt `reasoning_effort` (minimal/low/medium/high) |
+| `doubao-seed-1-6` | Schnell | 256K | 16K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
+| `doubao-seed-1-6` | Reasoning | 256K | 16K | AN | AN | Unterstützt `reasoning_effort` (minimal/low/medium/high) |
 
 **Meta (Llama)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
 |---|---|---|---|---|---|---|
-| `llama-3.3-70b` | Allgemein | 131K | 131K | AN | AN | FC hängt vom Hosting-Anbieter ab; versuchen Sie zuerst die Standardeinstellungen |
+| `llama-3.3-70b` | Allgemein | 131K | 16K | AN | AN | FC + JSON-Modus hängen vom Hosting-Anbieter ab; Max. Ausgabe variiert (2K–16K) |
 
 <Note>
-**"--" in Max. Ausgabe** bedeutet, dass der Anbieter kein Limit angegeben hat. In der Praxis unterstützen diese Modelle typischerweise 4K-16K Ausgabe-Token. Legen Sie **Max. Ausgabe-Token** explizit in den erweiterten Einstellungen des Modells fest, wenn Sie einen bestimmten Wert benötigen.
+**"--" in Max. Ausgabe** bedeutet, dass der Anbieter kein Limit angegeben hat. In der Praxis unterstützen diese Modelle typischerweise 4K–16K Ausgabe-Token. Legen Sie **Max. Ausgabe-Token** explizit in den erweiterten Einstellungen des Modells fest, wenn Sie einen bestimmten Wert benötigen.
 </Note>
 
 <Tip>
@@ -257,7 +257,7 @@ Die folgende Tabelle behandelt häufige Anbieter und Modelle. Daten stammen aus 
 </Tip>
 
 <Warning>
-Modellkapazitäten ändern sich häufig, wenn Anbieter ihre APIs aktualisieren. Die obigen Empfehlungen basieren auf Daten vom **22.03.2026** (UniAPI-Kapazitäts-Tags + Produktions-Laufzeit-Verifizierung). Wenn ein Modell, das zuvor funktioniert hat, plötzlich Fehler zurückgibt, überprüfen Sie das Änderungsprotokoll des Anbieters auf Breaking Changes.
+Modellkapazitäten ändern sich häufig, wenn Anbieter ihre APIs aktualisieren. Die obigen Empfehlungen basieren auf Daten vom **22.03.2026** (UniAPI-Kapazitäts-Tags + Produktions-Laufzeit-Verifizierung). Wenn ein Modell, das zuvor funktioniert hat, Fehler zurückgibt, überprüfen Sie das Änderungsprotokoll des Anbieters auf Breaking Changes.
 </Warning>
 
 ## Modellgruppen
