@@ -23,14 +23,15 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/). Les versions cor
 - **Bannières des clés API mises à jour en « Actif »** — Les pages Clés API des paramètres administrateur et utilisateur affichent maintenant une bannière verte « Clés API actives » (remplaçant l'avis précédent « À venir ») avec un lien vers la documentation d'authentification API.
 - **Documentation multi-worker clarifiée** — Les descriptions des variables d'environnement `REDIS_URL` et `WORKERS` ont été mises à jour avec une liste de contrôle d'avertissement couvrant l'arrêt, l'injection, les exigences PostgreSQL et les conseils de développement local.
 
-### Corrections
+### Corrigé
 
-- **Chaîne de dégradation de la sortie structurée** — Le basculement à 3 niveaux (FC natif → mode JSON → extraction de texte brut) traverse maintenant correctement tous les niveaux lorsqu'un modèle produit du JSON malformé. Auparavant, il s'arrêtait au niveau 2 avec une `ValueError`.
-- **Valeur DB `json_mode_enabled` ignorée** — Les modèles configurés via Admin (groupes de modèles) utilisent maintenant correctement leur paramètre `json_mode_enabled` par modèle au lieu de toujours se replier sur la variable d'environnement `LLM_JSON_MODE_ENABLED`.
+- **Doublons des points de terminaison OpenAPI dans les documents de locale** — Suppression du groupe OpenAPI `Endpoints` redondant de tous les onglets API de locale non-anglaise dans `docs.json`. La section anglaise conserve la source unique ; les sections de locale ne la dupliquent plus.
+- **Chaîne de dégradation de la sortie structurée** — Le fallback à 3 niveaux (FC natif → mode JSON → extraction de texte brut) traverse maintenant correctement tous les niveaux lorsqu'un modèle produit du JSON malformé. Auparavant, il s'arrêtait au niveau 2 avec une `ValueError`.
+- **Valeur `json_mode_enabled` de la base de données ignorée** — Les modèles configurés via Admin (groupes de modèles) utilisent maintenant correctement leur paramètre `json_mode_enabled` par modèle au lieu de toujours revenir à la variable d'environnement `LLM_JSON_MODE_ENABLED`.
 - **Message d'échec de planification DAG** — Les échecs de planification affichent maintenant un message bilingue convivial suggérant un changement de modèle au lieu d'une erreur de pipeline brute.
-- **Disposition de la carte d'étape DAG** — Redessin de `StepProgressCard` pour que le texte de la tâche s'enroule sous le badge d'étape au lieu de se tronquer sur une seule ligne. Les badges d'outils dans les nœuds d'étape ne s'affichent maintenant que lorsqu'aucun `tools_used` n'existe mais que `tool_hint` est présent, évitant un affichage redondant.
+- **Disposition de la carte d'étape DAG** — Redessin de `StepProgressCard` pour que le texte de la tâche s'enroule sous le badge d'étape au lieu de se tronquer sur une seule ligne. Les badges d'outil dans les nœuds d'étape ne s'affichent maintenant que lorsqu'aucun `tools_used` n'existe mais que `tool_hint` est présent, évitant un affichage redondant.
 - **Contournement du propriétaire du serveur MCP pour allow_fallback** — Le propriétaire du serveur n'est plus bloqué par la restriction `allow_fallback=False`. Auparavant, même le créateur d'un serveur MCP pouvait être ignoré si `allow_fallback=False` était défini ; maintenant, seuls les utilisateurs non-propriétaires sans identifiants sont exclus.
-- **Validation de la clé API du fournisseur de modèle** — La création d'un fournisseur non compatible avec openai nécessite maintenant une clé API avec validation d'erreur en ligne, indicateur d'astérisque obligatoire et attribut d'accessibilité `aria-invalid` approprié.
+- **Validation de la clé API du fournisseur de modèle** — La création d'un fournisseur non compatible avec openai nécessite maintenant une clé API avec validation d'erreur en ligne, indicateur d'astérisque requis et attribut d'accessibilité `aria-invalid` approprié.
 
 ## [v0.8] - 2026-03-20
 

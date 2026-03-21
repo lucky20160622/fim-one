@@ -25,12 +25,13 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/). Versionen ents
 
 ### Behoben
 
-- **Structured output degradation chain** — Die 3-stufige Fallback-Kette (native FC → JSON mode → plain text extraction) durchläuft nun alle Stufen ordnungsgemäß, wenn ein Modell malformed JSON erzeugt. Zuvor wurde auf Stufe 2 mit einem `ValueError` unterbrochen.
-- **`json_mode_enabled` DB-Wert ignoriert** — Modelle, die über Admin (Modellgruppen) konfiguriert werden, verwenden nun korrekt ihre modellspezifische `json_mode_enabled`-Einstellung, anstatt immer auf die Umgebungsvariable `LLM_JSON_MODE_ENABLED` zurückzugreifen.
-- **DAG-Planungsfehler-Nachricht** — Planungsfehler zeigen nun eine benutzerfreundliche zweisprachige Nachricht, die einen Modellwechsel vorschlägt, anstatt einen rohen Pipeline-Fehler anzuzeigen.
-- **DAG-Schrittkartenlayout** — `StepProgressCard` wurde neu gestaltet, sodass der Aufgabentext unter dem Schrittabzeichen umbrochen wird, anstatt auf einer einzelnen Zeile abgeschnitten zu werden. Tool-Abzeichen in Schrittknoten werden nun nur angezeigt, wenn keine `tools_used` vorhanden sind, aber `tool_hint` vorhanden ist, um redundante Anzeige zu vermeiden.
-- **MCP-Server-Eigentümer-Bypass für allow_fallback** — Der Server-Eigentümer wird nicht mehr durch die `allow_fallback=False`-Einschränkung blockiert. Zuvor konnte selbst der Ersteller eines MCP-Servers übersprungen werden, wenn `allow_fallback=False` gesetzt war; nun werden nur Nicht-Eigentümer ohne Anmeldedaten ausgeschlossen.
-- **Modell-Provider-API-Schlüssel-Validierung** — Das Erstellen eines nicht-openai-kompatiblen Providers erfordert nun einen API-Schlüssel mit Inline-Validierungsfehler, erforderlichem Sternchen-Indikator und korrektem `aria-invalid`-Barrierefreiheitsattribut.
+- **Doppelte OpenAPI-Endpunkte in Locale-Dokumentation** — Redundante `Endpoints` OpenAPI-Gruppe aus allen nicht-englischen Locale-API-Tabs in `docs.json` entfernt. Der englische Abschnitt behält die einzelne Quelle; Locale-Abschnitte duplizieren sie nicht mehr.
+- **Abbau der strukturierten Ausgabe** — Das 3-stufige Fallback (native FC → JSON-Modus → Nur-Text-Extraktion) fällt jetzt ordnungsgemäß durch alle Ebenen, wenn ein Modell fehlerhaftes JSON erzeugt. Zuvor wurde auf Stufe 2 mit einem `ValueError` unterbrochen.
+- **`json_mode_enabled` DB-Wert ignoriert** — Modelle, die über Admin (Modellgruppen) konfiguriert werden, verwenden jetzt korrekt ihre Pro-Modell-Einstellung `json_mode_enabled` statt immer auf die Umgebungsvariable `LLM_JSON_MODE_ENABLED` zurückzugreifen.
+- **DAG-Planungsfehler-Nachricht** — Planungsfehler zeigen jetzt eine benutzerfreundliche zweisprachige Nachricht, die einen Modellwechsel vorschlägt, statt eines rohen Pipeline-Fehlers.
+- **DAG-Schrittkartenayout** — `StepProgressCard` wurde überarbeitet, sodass der Aufgabentext unter dem Schritt-Badge umbrochen wird, statt auf einer einzelnen Zeile abgeschnitten zu werden. Tool-Badges in Schrittknoten werden jetzt nur angezeigt, wenn keine `tools_used` vorhanden sind, aber `tool_hint` vorhanden ist, um redundante Anzeige zu vermeiden.
+- **MCP-Server-Eigentümer-Umgehung für allow_fallback** — Der Server-Eigentümer wird nicht mehr durch die Einschränkung `allow_fallback=False` blockiert. Zuvor konnte selbst der Ersteller eines MCP-Servers übersprungen werden, wenn `allow_fallback=False` gesetzt war; jetzt werden nur Nicht-Eigentümer ohne Anmeldedaten ausgeschlossen.
+- **Validierung des Modell-Provider-API-Schlüssels** — Das Erstellen eines nicht-openai-kompatiblen Providers erfordert jetzt einen API-Schlüssel mit Inline-Validierungsfehler, erforderlichem Sternchen-Indikator und ordnungsgemäßem `aria-invalid` Barrierefreiheits-Attribut.
 
 ## [v0.8] - 2026-03-20
 
