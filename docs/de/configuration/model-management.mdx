@@ -164,7 +164,7 @@ Die folgende Tabelle behandelt häufige Anbieter und Modelle. Daten stammen aus 
 
 **OpenAI**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
 |---|---|---|---|---|---|---|
 | `gpt-5.4` | Allgemein | 1.050K | 128K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
 | `gpt-5.4-mini` | Schnell | 400K | 128K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
@@ -172,7 +172,7 @@ Die folgende Tabelle behandelt häufige Anbieter und Modelle. Daten stammen aus 
 
 **Anthropic (Claude)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
 |---|---|---|---|---|---|---|
 | `claude-sonnet-4-6` | Allgemein | 1.000K | 64K | AN | AN | Funktionsaufrufe + Reasoning; Denken automatisch deaktiviert für FC |
 | `claude-haiku-4-5` | Schnell | 200K | 64K | AN | AN | Funktionsaufrufe unterstützt |
@@ -180,7 +180,7 @@ Die folgende Tabelle behandelt häufige Anbieter und Modelle. Daten stammen aus 
 
 **Google Gemini**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
 |---|---|---|---|---|---|---|
 | `gemini-3-pro-preview` | Allgemein | 1.048K | 65K | AN | AN | Vollständige Unterstützung (UniAPI-Tags unvollständig -- Gemini unterstützt FC nativ) |
 | `gemini-2.5-pro` | Schnell | 1.048K | 65K | AN | AN | Vollständige Unterstützung |
@@ -188,15 +188,15 @@ Die folgende Tabelle behandelt häufige Anbieter und Modelle. Daten stammen aus 
 
 **DeepSeek**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
 |---|---|---|---|---|---|---|
 | `deepseek-v3.2` | Allgemein | 164K | 64K | AN | AN | FC unterstützt (UniAPI-Tags unvollständig) |
 | `deepseek-chat` | Schnell | 64K | 8K | AN | AN | Basis-Chat-Modell; FC unterstützt |
-| `deepseek-reasoner` | Reasoning | 164K | 164K | **AUS** | AN | Denken immer aktiviert; erzwungene tool_choice kann abgelehnt werden |
+| `deepseek-reasoner` | Reasoning | 164K | 164K | **AUS** | AN | Denken immer aktiviert; erzwungenes tool_choice kann abgelehnt werden |
 
 **xAI (Grok)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
 |---|---|---|---|---|---|---|
 | `grok-4-1-fast-non-reasoning` | Allgemein | 2.000K | 2.000K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe |
 | `grok-3-mini-fast` | Schnell | 131K | 131K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
@@ -204,7 +204,7 @@ Die folgende Tabelle behandelt häufige Anbieter und Modelle. Daten stammen aus 
 
 **Qwen (Alibaba Cloud)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
 |---|---|---|---|---|---|---|
 | `qwen3.5-plus` | Allgemein | 1.000K | 64K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe |
 | `qwen-turbo-latest` | Schnell | 1.000K | 16K | AN | AN | FC wahrscheinlich unterstützt (UniAPI-Tags unvollständig) |
@@ -212,7 +212,7 @@ Die folgende Tabelle behandelt häufige Anbieter und Modelle. Daten stammen aus 
 
 **Zhipu (GLM)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
 |---|---|---|---|---|---|---|
 | `glm-4.7` | Allgemein | 200K | -- | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
 | `glm-4.7-flashx` | Schnell | 200K | -- | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
@@ -220,15 +220,15 @@ Die folgende Tabelle behandelt häufige Anbieter und Modelle. Daten stammen aus 
 
 **Moonshot (Kimi)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
 |---|---|---|---|---|---|---|
-| `kimi-k2.5` | Allgemein | 262K | -- | **AUS** | AN | Denken immer aktiviert; erzwungene tool_choice abgelehnt (400-Fehler) |
+| `kimi-k2.5` | Allgemein | 262K | -- | **AUS** | AN | Denken immer aktiviert; erzwungenes tool_choice abgelehnt (400-Fehler) |
 | `kimi-k2` | Schnell | 131K | -- | AN | AN | Kein Denken; natives FC funktioniert (in Produktion verifiziert) |
-| `kimi-k2-thinking` | Reasoning | 63K | -- | **AUS** | AN | Denken immer aktiviert; erzwungene tool_choice abgelehnt |
+| `kimi-k2-thinking` | Reasoning | 63K | -- | **AUS** | AN | Denken immer aktiviert; erzwungenes tool_choice abgelehnt |
 
 **MiniMax**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
 |---|---|---|---|---|---|---|
 | `MiniMax-M2.5` | Allgemein | 205K | -- | AN | AN | Funktionsaufrufe + strukturierte Ausgabe (in Produktion verifiziert) |
 | `MiniMax-M2.5-highspeed` | Schnell | 205K | -- | AN | AN | Funktionsaufrufe + strukturierte Ausgabe (in Produktion verifiziert) |
@@ -236,14 +236,15 @@ Die folgende Tabelle behandelt häufige Anbieter und Modelle. Daten stammen aus 
 
 **ByteDance (Doubao)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
 |---|---|---|---|---|---|---|
 | `doubao-seed-2-0-pro` | Allgemein | 256K | 128K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
 | `doubao-seed-1-6` | Schnell | 256K | 32K | AN | AN | Funktionsaufrufe + strukturierte Ausgabe + Reasoning |
+| `doubao-seed-1-6` | Reasoning | 256K | 32K | AN | AN | Unterstützt `reasoning_effort` (minimal/low/medium/high) |
 
 **Meta (Llama)**
 
-| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Notizen |
+| Modell | Rolle | Kontext | Max. Ausgabe | Native FC | JSON-Modus | Hinweise |
 |---|---|---|---|---|---|---|
 | `llama-3.3-70b` | Allgemein | 131K | 131K | AN | AN | FC hängt vom Hosting-Anbieter ab; versuchen Sie zuerst die Standardeinstellungen |
 
@@ -252,11 +253,11 @@ Die folgende Tabelle behandelt häufige Anbieter und Modelle. Daten stammen aus 
 </Note>
 
 <Tip>
-**Diagnose:** Suchen Sie in Ihren Anwendungsprotokollen nach `structured_llm_call: native_fc call raised`-Warnungen. Wenn Sie diese Warnungen gefolgt von erfolgreicher JSON-Modus-Extraktion sehen, profitiert das Modell nicht von nativen Funktionsaufrufen. Deaktivieren Sie **Native Function Calling** für dieses Modell, um den verschwendeten API-Aufruf und die ~10-Sekunden-Latenzstrafe pro strukturierter Ausgabeanfrage zu vermeiden.
+**Diagnose:** Überprüfen Sie Ihre Anwendungsprotokolle auf `structured_llm_call: native_fc call raised`-Warnungen. Wenn Sie diese Warnungen gefolgt von erfolgreicher JSON-Modus-Extraktion sehen, profitiert das Modell nicht von nativen Funktionsaufrufen. Deaktivieren Sie **Native Funktionsaufrufe** für dieses Modell, um den verschwendeten API-Aufruf und die ~10-Sekunden-Latenzstrafe pro strukturierter Ausgabeanfrage zu vermeiden.
 </Tip>
 
 <Warning>
-Modellkapazitäten ändern sich häufig, wenn Anbieter ihre APIs aktualisieren. Die obigen Empfehlungen basieren auf Daten vom **22.03.2026** (UniAPI-Kapazitäts-Tags + Produktionsruntime-Verifizierung). Wenn ein Modell, das zuvor funktioniert hat, Fehler zurückgibt, überprüfen Sie das Änderungsprotokoll des Anbieters auf Breaking Changes.
+Modellkapazitäten ändern sich häufig, wenn Anbieter ihre APIs aktualisieren. Die obigen Empfehlungen basieren auf Daten vom **22.03.2026** (UniAPI-Kapazitäts-Tags + Produktions-Laufzeit-Verifizierung). Wenn ein Modell, das zuvor funktioniert hat, plötzlich Fehler zurückgibt, überprüfen Sie das Änderungsprotokoll des Anbieters auf Breaking Changes.
 </Warning>
 
 ## Modellgruppen
