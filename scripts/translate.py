@@ -1080,6 +1080,9 @@ def main() -> None:
             except Exception as exc:
                 tprint(f"  [{locale}] {src.name}: UNEXPECTED ERROR — {exc}")
 
+    # Git hook mode flag (must be set before first use)
+    git_hook = os.environ.get("GIT_HOOK") == "1"
+
     # Sync docs.json navigation (ensure all locales mirror EN page list)
     docs_json_path = ROOT / "docs" / "docs.json"
     nav_modified = sync_docs_navigation()
@@ -1094,7 +1097,6 @@ def main() -> None:
     _flush_cache()
 
     # Git hook mode: stage all output files
-    git_hook = os.environ.get("GIT_HOOK") == "1"
     if git_hook and output_files:
         try:
             subprocess.run(["git", "add", "--"] + [str(p) for p in output_files], check=True, cwd=ROOT)

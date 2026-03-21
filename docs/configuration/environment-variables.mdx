@@ -64,7 +64,7 @@ echo 'NEXT_PUBLIC_API_URL=http://localhost:9000' > frontend/.env.local
 | `FAST_LLM_MAX_OUTPUT_TOKENS` | No | *(falls back to `LLM_MAX_OUTPUT_TOKENS`)* | Max output tokens per call for the fast LLM |
 | `LLM_REASONING_EFFORT` | No | *(disabled)* | Extended thinking level for supported models (OpenAI o-series, Gemini 2.5+, Claude). Values: `low`, `medium`, `high`. LiteLLM translates this to each provider's native format automatically. The model's chain-of-thought is surfaced in the UI "thinking" step. |
 | `LLM_REASONING_BUDGET_TOKENS` | No | *(auto from effort)* | Explicit token budget for Anthropic thinking (minimum 1024). For OpenAI/Gemini the effort level is used directly. Only effective when `LLM_REASONING_EFFORT` is set. |
-| `LLM_JSON_MODE_ENABLED` | No | `true` | Set to `false` to disable `response_format=json_object` for ENV-configured models. Required when using a third-party relay backed by AWS Bedrock (newer versions reject LiteLLM's assistant prefill injection, causing a `ValidationException` on the 2nd+ agent iteration). DB-configured models override this per-model via Admin → Models → Advanced settings. |
+| `LLM_JSON_MODE_ENABLED` | No | `true` | Global toggle for `response_format=json_object`. Set to `false` if your provider rejects LiteLLM's assistant prefill injection (e.g. AWS Bedrock relay → `ValidationException` on the 2nd+ agent iteration). When disabled, structured calls skip JSON mode and fall back to plain-text regex extraction — no quality loss. Applies to all models (ENV-configured and Admin-configured). |
 | `REASONING_LLM_MODEL` | No | *(falls back to `LLM_MODEL`)* | Model name for the reasoning tier. Used for tasks requiring deep analysis (e.g., DAG planning, plan analysis) |
 | `REASONING_LLM_API_KEY` | No | *(falls back to `LLM_API_KEY`)* | API key for the reasoning model provider |
 | `REASONING_LLM_BASE_URL` | No | *(falls back to `LLM_BASE_URL`)* | Base URL for the reasoning model provider |
@@ -179,30 +179,68 @@ Controls the automatic context window management that prevents conversations fro
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `JINA_API_KEY` | No | — | Jina API key — also used for embedding and reranker; get yours at [jina.ai](https://jina.ai/) |
+| `JINA_API_KEY` | No | — | Jina API key. Acts as a shared fallback for **search, fetch, embedding, and reranker** when no service-specific key is set. Get yours at [jina.ai](https://jina.ai/) |
 | `TAVILY_API_KEY` | No | — | Tavily Search API key (auto-selected if set and `WEB_SEARCH_PROVIDER` is unset) |
 | `BRAVE_API_KEY` | No | — | Brave Search API key (auto-selected if set and `WEB_SEARCH_PROVIDER` is unset) |
 | `WEB_SEARCH_PROVIDER` | No | `jina` | Search provider selector: `jina` / `tavily` / `brave` |
-| `WEB_FETCH_PROVIDER` | No | `jina` (if key set, else `httpx`) | Fetch provider: `jina` / `httpx` |
+| `WEB_FETCH_PROVIDER` | No | `jina` (if key set, else `httpx`) | Fetch provider: `jina` (uses Jina Reader API) / `httpx` (direct HTTP request, no API key needed) |
+
+> **Quick start tip**: Setting just `JINA_API_KEY` enables web search, web fetch, embedding, and reranking all at once — one key, four services. You can override each service individually with the variables below.
 
 ---
 
 ## RAG & Knowledge Base (Recommended)
 
+### Embedding
+
+Embedding converts text into vectors for knowledge base search. FIM One uses the standard **OpenAI-compatible `/v1/embeddings` endpoint**, so it works with any provider that exposes this interface — not just Jina.
+
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `EMBEDDING_MODEL` | No | `jina-embeddings-v3` | Embedding model identifier |
-| `EMBEDDING_DIMENSION` | No | `1024` | Embedding vector dimension |
-| `EMBEDDING_API_KEY` | No | *(uses `JINA_API_KEY`)* | Override API key for a different embedding provider |
-| `EMBEDDING_BASE_URL` | No | `https://api.jina.ai/v1` | Override base URL for a different embedding provider |
-| `RETRIEVAL_MODE` | No | `grounding` | `grounding` (full pipeline with citations and confidence scoring) or `simple` (basic RAG) |
-| `RERANKER_MODEL` | No | `jina-reranker-v2-base-multilingual` | Reranker model identifier |
-| `RERANKER_PROVIDER` | No | `jina` | Reranker provider: `jina` / `cohere` / `openai` |
-| `COHERE_API_KEY` | No | — | Cohere API key (auto-selects Cohere reranker when set) |
-| `COHERE_RERANKER_MODEL` | No | `rerank-multilingual-v3.0` | Cohere reranker model |
-| `VECTOR_STORE_DIR` | No | `./data/vector_store` | Directory for LanceDB vector store data |
+| `EMBEDDING_API_KEY` | No | *(falls back to `JINA_API_KEY`)* | API key for the embedding provider |
+| `EMBEDDING_BASE_URL` | No | `https://api.jina.ai/v1` | Base URL for the embedding provider |
+| `EMBEDDING_MODEL` | No | `jina-embeddings-v3` | Model identifier |
+| `EMBEDDING_DIMENSION` | No | `1024` | Vector dimension |
 
-> Embedding is **recommended** for knowledge base features. Reranker is **optional** — search works without it using fusion scoring.
+**Provider examples** — just set the three variables to switch:
+
+| Provider | `EMBEDDING_BASE_URL` | `EMBEDDING_MODEL` | `EMBEDDING_DIMENSION` |
+|---|---|---|---|
+| **Jina** *(default)* | `https://api.jina.ai/v1` | `jina-embeddings-v3` | `1024` |
+| **OpenAI** | `https://api.openai.com/v1` | `text-embedding-3-small` | `1536` |
+| **Voyage** | `https://api.voyageai.com/v1` | `voyage-3` | `1024` |
+| **Ollama** *(local)* | `http://localhost:11434/v1` | `nomic-embed-text` | `768` |
+
+<Warning>
+**Changing the embedding model or dimension invalidates all existing knowledge base vectors.** Old vectors were computed in a different embedding space — retrieval accuracy will degrade silently. You must **rebuild all knowledge base indexes** after switching.
+</Warning>
+
+### Retrieval
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `RETRIEVAL_MODE` | No | `grounding` | `grounding` (full pipeline with citations and confidence scoring) or `simple` (basic RAG) |
+
+### Reranker
+
+Reranker re-scores retrieved documents to improve relevance. Three providers are supported — select via `RERANKER_PROVIDER` or let the system auto-detect from available API keys.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `RERANKER_PROVIDER` | No | *(auto-detect)* | `jina` / `cohere` / `openai`. If unset: uses Cohere if `COHERE_API_KEY` set, otherwise Jina |
+| `RERANKER_MODEL` | No | `jina-reranker-v2-base-multilingual` | Model identifier (applies to Jina and OpenAI providers) |
+| `COHERE_API_KEY` | No | — | Cohere API key (auto-selects Cohere reranker when set and `RERANKER_PROVIDER` is unset) |
+| `COHERE_RERANKER_MODEL` | No | `rerank-multilingual-v3.0` | Cohere-specific reranker model |
+
+> **Jina** uses `JINA_API_KEY` (from Web Tools above). **OpenAI** reuses `LLM_API_KEY` / `LLM_BASE_URL` — no extra key needed. **Cohere** requires its own `COHERE_API_KEY`.
+
+> Reranker is **optional** — knowledge base search works without it using fusion scoring. Embedding is **recommended** for knowledge base features.
+
+### Vector Store
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `VECTOR_STORE_DIR` | No | `./data/vector_store` | Directory for LanceDB vector store data (file-based, zero external services) |
 
 ---
 

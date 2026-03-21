@@ -25,6 +25,7 @@ frontend/            # Next.js portal (shadcn/ui)
 
 ## Git Rules (MANDATORY)
 
+- **Commit scope**: (1) if the current session has context, commit all files involved in the session's tasks; (2) if this is a fresh session with no prior discussion, commit everything (`git add -A`); (3) if the user provides an inline instruction specifying which files to commit, follow that scope exactly. All three cases must exclude sensitive files (.env, credentials, etc.)
 - **Atomic commits**: always split unrelated changes into separate commits, even if user says "commit all"
 - **NEVER `git stash --include-untracked`** with important untracked files — `git add` them first; use `git stash pop` not `apply` + `drop`
 - **Worktrees**: clean working tree before starting; agents MUST commit on their branch; merge via `git merge`/`git cherry-pick`, not file copying

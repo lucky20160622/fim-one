@@ -202,6 +202,22 @@ flowchart LR
 - [ ] **YAML/JSON connector config**: platform auto-generates MCP server
 - [ ] **Database connectors Phase 4**: enterprise drivers — Oracle (`oracledb`), SQL Server (`aioodbc`), 达梦 DM8 (`aioodbc` + DM ODBC), 南大通用 GBase (`aioodbc` + GBase ODBC)
 - [ ] **IM Channel Integration (Bidirectional)**: **Phase 1 — Outbound push**: Lark, WeCom, Slack, Email, Teams notification actions from Agent/Workflow results. **Phase 2 — Inbound trigger**: users @mention Agent in IM group chats to trigger tasks without opening Portal; webhook receiver per channel; each IM channel modeled as a Connector with bidirectional actions (send + receive). Hub mode killer feature
+
+#### Public API (Phase 2)
+
+Phase 1 (shipped): API key authentication middleware, scope support, curated OpenAPI spec, Mintlify API Reference with interactive playground.
+
+- [ ] **Per-key rate limiting** — Configurable requests/minute and requests/day limits per API key; `429 Too Many Requests` responses with `X-RateLimit-*` headers
+- [ ] **Per-key usage quota** — Monthly token/request budgets with admin dashboard and threshold alerts
+- [ ] **Scope enforcement per endpoint** — `require_scope("chat")` dependency on all protected endpoints; keys with `scopes=chat` can only access chat-related APIs
+- [ ] **API versioning** (`/v1/...`) — Stable versioned API contract; deprecation headers for sunset endpoints
+- [ ] **Webhook callbacks** — Register webhook URLs per API key; receive POST notifications for conversation completion, agent errors, and async task results
+- [ ] **SDK generation** — Auto-generated Python and TypeScript client SDKs from OpenAPI spec; published to PyPI and npm
+- [ ] **Developer Portal** — Interactive "Try it" panels in Mintlify docs; usage analytics visible to key owners
+- [ ] **API key rotation** — One-click key rotation with grace period (old key valid for 24h after rotation)
+- [ ] **Batch / async API** — `POST /api/batch` accepting up to 100 queries; returns a `batch_id` for polling results; useful for bulk KB queries or multi-agent orchestration
+- [ ] **Circuit breaker per external dependency** — Prevent cascading failures when downstream LLM providers or connectors are unavailable; automatic fallback and recovery
+
 - [ ] **Agent Trace Layer (Observability++)**: Application-level run/trace/thread hierarchy for agent debugging — each conversation → `Trace`, each LLM call / tool call / DAG step → `Span` with input/output/tokens/timing. Frontend trace viewer with timeline and expandable LLM call payloads. This goes beyond OTel (infrastructure-level) to provide actionable agent-loop debugging for developers and enterprise clients. OpenTelemetry export as a data sink option. Modeled after LangSmith's run/trace/thread concepts — the industry-validated pattern for agent observability.
 - [ ] **Metrics dashboard**: latency, success rate, token usage, connector call analytics — per-agent, per-user, per-org breakdowns
 - [x] ~~**Circuit breaker**: three-state machine (closed/open/half-open) with per-connector failure tracking, 5xx detection, and monitoring endpoints~~ *(shipped early — implemented in v0.8)*
