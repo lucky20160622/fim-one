@@ -132,5 +132,17 @@
   "previous": "Précédent",
   "pageInfo": "Page {current} sur {total}",
   "uninstallConfirmTitle": "Se désabonner",
-  "uninstallConfirmDescription": "Êtes-vous sûr de vouloir vous désabonner de cette ressource ? Vous pouvez vous réabonner depuis le Marché à tout moment."
+  "uninstallConfirmDescription": "Êtes-vous sûr de vouloir vous désabonner de cette ressource ? Vous pouvez vous réabonner depuis le Marché à tout moment.",
+  "about": "À propos",
+  "aboutTagline": "Hub de connecteurs alimenté par l'IA",
+  "aboutVersion": "Version",
+  "aboutBuildTime": "Heure de compilation",
+  "aboutCraftedBy": "Créé par l'équipe FIM",
+  "aboutCopyright": "© {year} FIM One. Tous droits réservés.",
+  "aboutActiveModels": "Modèles actifs",
+  "aboutModelGeneral": "Général",
+  "aboutModelFast": "Rapide",
+  "aboutModelReasoning": "Raisonnement",
+  "aboutContext": "Contexte",
+  "aboutMaxOutput": "Sortie maximale"
 }

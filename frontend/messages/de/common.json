@@ -132,5 +132,17 @@
   "previous": "Zurück",
   "pageInfo": "Seite {current} von {total}",
   "uninstallConfirmTitle": "Abmelden",
-  "uninstallConfirmDescription": "Möchten Sie sich wirklich von dieser Ressource abmelden? Sie können sich jederzeit über den Marktplatz erneut anmelden."
+  "uninstallConfirmDescription": "Möchten Sie sich wirklich von dieser Ressource abmelden? Sie können sich jederzeit über den Marktplatz erneut anmelden.",
+  "about": "Über",
+  "aboutTagline": "KI-gestützter Connector-Hub",
+  "aboutVersion": "Version",
+  "aboutBuildTime": "Build-Zeit",
+  "aboutCraftedBy": "Erstellt vom FIM Team",
+  "aboutCopyright": "© {year} FIM One. Alle Rechte vorbehalten.",
+  "aboutActiveModels": "Aktive Modelle",
+  "aboutModelGeneral": "Allgemein",
+  "aboutModelFast": "Schnell",
+  "aboutModelReasoning": "Reasoning",
+  "aboutContext": "Kontext",
+  "aboutMaxOutput": "Maximale Ausgabe"
 }

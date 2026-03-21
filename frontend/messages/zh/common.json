@@ -132,5 +132,17 @@
   "previous": "上一页",
   "pageInfo": "第 {current} 页，共 {total} 页",
   "uninstallConfirmTitle": "取消订阅",
-  "uninstallConfirmDescription": "确定要取消订阅此资源吗？您可以随时从市场重新订阅。"
+  "uninstallConfirmDescription": "确定要取消订阅此资源吗？您可以随时从市场重新订阅。",
+  "about": "关于",
+  "aboutTagline": "AI驱动的连接器中心",
+  "aboutVersion": "版本",
+  "aboutBuildTime": "构建时间",
+  "aboutCraftedBy": "由FIM团队精心打造",
+  "aboutCopyright": "© {year} FIM One. 版权所有。",
+  "aboutActiveModels": "活跃模型",
+  "aboutModelGeneral": "通用",
+  "aboutModelFast": "快速",
+  "aboutModelReasoning": "推理",
+  "aboutContext": "上下文",
+  "aboutMaxOutput": "最大输出"
 }

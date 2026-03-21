@@ -139,5 +139,11 @@
   "aboutVersion": "Version",
   "aboutBuildTime": "Build Time",
   "aboutCraftedBy": "Crafted by FIM Team",
-  "aboutCopyright": "\u00a9 {year} FIM One. All rights reserved."
+  "aboutCopyright": "\u00a9 {year} FIM One. All rights reserved.",
+  "aboutActiveModels": "Active Models",
+  "aboutModelGeneral": "General",
+  "aboutModelFast": "Fast",
+  "aboutModelReasoning": "Reasoning",
+  "aboutContext": "Context",
+  "aboutMaxOutput": "Max Output"
 }
