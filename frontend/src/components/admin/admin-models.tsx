@@ -624,12 +624,24 @@ function ModelFormDialog({ open, onOpenChange, providerId, model, onSuccess }: M
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="mf-temperature">
-                          {t("temperature")}{" "}
-                          <span className="text-xs font-normal text-muted-foreground">
-                            {temperature !== null ? temperature.toFixed(1) : ""}
-                          </span>
-                        </Label>
+                        <div className="flex items-center gap-1.5">
+                          <Label htmlFor="mf-temperature">
+                            {t("temperature")}{" "}
+                            <span className="text-xs font-normal text-muted-foreground">
+                              {temperature !== null ? temperature.toFixed(1) : ""}
+                            </span>
+                          </Label>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="max-w-xs">
+                                <p className="text-xs">{t("temperatureReasoningHint")}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                         <Button
                           type="button"
                           variant="ghost"
@@ -649,9 +661,6 @@ function ModelFormDialog({ open, onOpenChange, providerId, model, onSuccess }: M
                         onValueChange={([v]) => setTemperature(v)}
                         className="w-full"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        {t("temperatureReasoningHint")}
-                      </p>
                     </div>
                     {/* Native Function Calling toggle */}
                     <div className="flex items-center justify-between">
