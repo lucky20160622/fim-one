@@ -26,12 +26,18 @@ Truncation strategy (truncate_tool_output)
 from __future__ import annotations
 
 import json
+import os
+
+# Module-level defaults, overridable via environment variables.
+_DEFAULT_MAX_CHARS = int(os.environ.get("TOOL_OUTPUT_MAX_CHARS", "50000"))
+_DEFAULT_MAX_ITEMS = int(os.environ.get("TOOL_OUTPUT_MAX_ITEMS", "10"))
+_DEFAULT_MAX_BYTES = int(os.environ.get("TOOL_OUTPUT_MAX_BYTES", str(100 * 1024)))
 
 
 def truncate_tool_output(
     content: str,
-    max_chars: int = 50_000,
-    max_items: int = 10,
+    max_chars: int = _DEFAULT_MAX_CHARS,
+    max_items: int = _DEFAULT_MAX_ITEMS,
 ) -> str:
     """Truncate *content* with JSON-aware structure hints.
 
@@ -105,7 +111,7 @@ def _item_keys(item: object) -> list[str]:
 
 def truncate_bytes(
     text: str,
-    max_bytes: int = 100 * 1024,
+    max_bytes: int = _DEFAULT_MAX_BYTES,
 ) -> str:
     """Truncate *text* if its UTF-8 encoding exceeds *max_bytes*.
 

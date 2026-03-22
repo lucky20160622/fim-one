@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ### Changed
 
+- **Centralized tool truncation** — All tool types (WebFetch, HttpRequest, ShellExec, PythonExec, NodeExec) now delegate truncation to the shared `truncation.py` module instead of inline logic. Two entry points: `truncate_tool_output()` (JSON-aware, character-level) for web/API tools, `truncate_bytes()` (byte-level) for code execution tools. Defaults configurable via `TOOL_OUTPUT_MAX_CHARS`, `TOOL_OUTPUT_MAX_ITEMS`, `TOOL_OUTPUT_MAX_BYTES` environment variables.
 - **Domain detection decoupled into independent middleware** — Domain classification (legal, medical, financial, etc.) is now a standalone module (`domain.py`) that runs independently inside each endpoint (ReAct and DAG), rather than being bundled with auto-routing classification. Both endpoints call `classify_domain()` directly, removing the dependency on the auto-router to propagate `domain_hint`.
 - **Domain SOP instructions softened** — Specialist domain instructions now guide rather than mandate web search. When the user's query and context already contain sufficient information, the agent answers directly instead of forcing unnecessary searches.
 - **`web_search` always pinned in ReAct** — The `web_search` tool is now always included in ReAct tool selection, regardless of whether a specialist domain is detected, ensuring it cannot be dropped by the tool selector.
