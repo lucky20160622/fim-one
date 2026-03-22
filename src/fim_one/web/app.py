@@ -32,7 +32,10 @@ import json
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
+
+from fim_one import __version__
 
 from .exceptions import AppError
 from .api.admin import SETTING_MAINTENANCE_MODE, get_setting, router as admin_router
@@ -179,7 +182,12 @@ def create_app() -> FastAPI:
         file=sys.stderr,
     )
 
-    app = FastAPI(title="FIM One API", lifespan=lifespan)
+    app = FastAPI(
+        title="FIM One API",
+        description="AI-Powered Connector Hub — programmatic access to agents, conversations, knowledge bases, and more.",
+        version=__version__,
+        lifespan=lifespan,
+    )
 
     # -- X-Powered-By header ------------------------------------------------
     @app.middleware("http")
@@ -356,6 +364,68 @@ def create_app() -> FastAPI:
     app.include_router(notifications_router)
     app.include_router(user_settings_router)
     app.include_router(version_router)
+
+    # ---------------------------------------------------------------------------
+    # OpenAPI: hide all routes, whitelist public API endpoints
+    # ---------------------------------------------------------------------------
+    _PUBLIC_API = {
+        ("POST", "/api/react"),
+        ("POST", "/api/dag"),
+        ("POST", "/api/chat/inject"),
+        ("GET", "/api/conversations"),
+        ("POST", "/api/conversations"),
+        ("GET", "/api/conversations/{conversation_id}"),
+        ("PATCH", "/api/conversations/{conversation_id}"),
+        ("DELETE", "/api/conversations/{conversation_id}"),
+        ("GET", "/api/agents"),
+        ("GET", "/api/agents/{agent_id}"),
+        ("GET", "/api/knowledge-bases"),
+        ("POST", "/api/knowledge-bases/{kb_id}/retrieve"),
+        ("GET", "/api/me/api-keys"),
+        ("POST", "/api/me/api-keys"),
+        ("DELETE", "/api/me/api-keys/{key_id}"),
+        ("PATCH", "/api/me/api-keys/{key_id}/active"),
+    }
+
+    for route in app.routes:
+        if not hasattr(route, "include_in_schema"):
+            continue
+        route.include_in_schema = False
+        if hasattr(route, "methods") and hasattr(route, "path"):
+            for method in route.methods:
+                if (method, route.path) in _PUBLIC_API:
+                    route.include_in_schema = True
+                    break
+
+    # ---------------------------------------------------------------------------
+    # OpenAPI: custom schema with security scheme and server placeholder
+    # ---------------------------------------------------------------------------
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+        # Add security scheme
+        schema.setdefault("components", {})["securitySchemes"] = {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "description": "API Key (fim_xxx) or JWT token",
+            }
+        }
+        schema["security"] = [{"BearerAuth": []}]
+        # Add server placeholder
+        schema["servers"] = [
+            {"url": "https://your-domain.com", "description": "Your FIM One instance"}
+        ]
+        app.openapi_schema = schema
+        return schema
+
+    app.openapi = custom_openapi  # type: ignore[method-assign]
 
     # NOTE: /uploads is intentionally NOT mounted as a public StaticFiles route.
     # File downloads are served through the authenticated API endpoint at
