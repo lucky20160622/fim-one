@@ -9,6 +9,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ## [Unreleased]
 
+### Changed
+
+- **Domain detection decoupled into independent middleware** — Domain classification (legal, medical, financial, etc.) is now a standalone module (`domain.py`) that runs independently inside each endpoint (ReAct and DAG), rather than being bundled with auto-routing classification. Both endpoints call `classify_domain()` directly, removing the dependency on the auto-router to propagate `domain_hint`.
+- **Domain SOP instructions softened** — Specialist domain instructions now guide rather than mandate web search. When the user's query and context already contain sufficient information, the agent answers directly instead of forcing unnecessary searches.
+- **`web_search` always pinned in ReAct** — The `web_search` tool is now always included in ReAct tool selection, regardless of whether a specialist domain is detected, ensuring it cannot be dropped by the tool selector.
+- **`AUTO_ROUTING` env var removed** — The auto endpoint now always classifies queries; the toggle to disable classification has been removed.
+- **Citation verifier accepts upstream `domain_hint`** — `should_verify_citations()` now accepts a `domain_hint` parameter from the query-level LLM classification, bypassing per-step keyword scanning when domain is already known.
+
 ### Added
 
 - **Per-model Native Function Calling toggle** — New `tool_choice_enabled` setting (ENV global + Admin per-model) controls whether forced `tool_choice` is attempted for structured output extraction. Models that reject forced tool selection (e.g. thinking-mode models) can skip Level 1 and go directly to JSON Mode, eliminating the ~10s penalty per structured call. Configurable in Settings → Models → Advanced.
