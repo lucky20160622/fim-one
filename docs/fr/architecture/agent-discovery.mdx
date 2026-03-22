@@ -1,5 +1,6 @@
 ---
 title: "Découverte d'agents et de ressources"
+icon: "search"
 description: "Comment FIM One découvre et assemble les ressources — l'architecture à double mode de découverte auto-contrainte par agent et découverte auto-globale."
 ---
 
@@ -100,23 +101,23 @@ Les compétences sont globales par conception — ce sont des règles d'entrepri
 
 ### Deux modes d'injection
 
-Les compétences supportent deux stratégies d'injection, contrôlées par `SKILL_TOOL_MODE` (environnement) ou la `model_config_json.skill_tool_mode` de l'agent :
+Les compétences prennent en charge deux stratégies d'injection, contrôlées par `SKILL_TOOL_MODE` (environnement) ou la `model_config_json.skill_tool_mode` de l'Agent :
 
 | Mode | Invite système | Outil | Quand l'utiliser |
 |---|---|---|---|
-| **Progressive** (par défaut) | Nom + descriptions abrégées uniquement | `read_skill(name)` charge le contenu complet à la demande | Nombreuses compétences, ou compétences avec contenu volumineux — économise les jetons de contexte |
+| **Progressive** (par défaut) | Stubs nom + description uniquement | `read_skill(name)` charge le contenu complet à la demande | Nombreuses compétences, ou compétences avec contenu volumineux — économise les tokens de contexte |
 | **Inline** | Contenu complet de la compétence intégré | Aucun | Peu de compétences petites — pas de surcharge d'appel d'outil |
 
-En mode progressif, l'invite système contient des abrégés compacts comme :
+En mode progressif, l'invite système contient des stubs compacts comme :
 
 ```
-## Compétences disponibles
-Appelez read_skill(name) pour charger le contenu complet avant d'exécuter l'une de ces compétences :
-- **Customer Complaint SOP** : Gérer les escalades selon la politique de l'entreprise...
-- **Refund Processing** : Flux de traitement des remboursements étape par étape...
+## Available Skills
+Call read_skill(name) to load full content before executing any of these:
+- **Customer Complaint SOP**: Handle escalations per company policy...
+- **Refund Processing**: Step-by-step refund workflow...
 ```
 
-L'LLM appelle `read_skill("Customer Complaint SOP")` uniquement lorsqu'il a besoin de la procédure complète, maintenant le contexte allégé pendant les tours non liés.
+L'LLM appelle `read_skill("Customer Complaint SOP")` uniquement quand il a besoin de la procédure complète, gardant le contexte allégé pendant les tours non liés.
 
 ## Agent en tant que persona, non conteneur
 

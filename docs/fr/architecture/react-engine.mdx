@@ -1,5 +1,6 @@
 ---
 title: "Moteur ReAct"
+icon: "zap"
 description: "Fonctionnement du moteur ReAct de FIM One — exécution en mode dual, appels LLM structurés et synthèse de réponses en streaming."
 ---
 
@@ -136,18 +137,18 @@ sequenceDiagram
 
 ## Auto-réflexion en cours d'exécution
 
-Les chaînes de raisonnement longues (10+ appels d'outils) risquent une **dérive d'objectif** — l'agent déplace progressivement son attention de l'objectif initial vers un sous-problème local, répète des actions similaires ou entre dans des boucles de retry circulaires. L'auto-réflexion en cours d'exécution est une contre-mesure légère.
+Les chaînes de raisonnement longues (10+ appels d'outils) risquent une **dérive d'objectif** — l'agent perd progressivement de vue l'objectif initial pour se concentrer sur un sous-problème local, répète des actions similaires, ou entre dans des boucles de nouvelles tentatives circulaires. L'auto-réflexion en cours d'exécution est une contre-mesure légère.
 
-Tous les `_SELF_REFLECTION_INTERVAL` itérations d'appels d'outils (par défaut : **6**), l'agent injecte un message utilisateur dans la conversation demandant au LLM de faire une pause et de réfléchir :
+Tous les `_SELF_REFLECTION_INTERVAL` appels d'outils (par défaut : **6**), l'agent injecte un message utilisateur dans la conversation demandant au LLM de faire une pause et de réfléchir :
 
 - Est-il toujours sur la bonne voie vers l'objectif initial ?
 - A-t-il répété des actions similaires ou tourne-t-il en rond ?
 - Quelle est l'étape suivante la plus directe pour terminer ?
 - Devrait-il produire une réponse finale maintenant ?
 
-Le compteur suit **uniquement les appels d'outils réels** — les retries d'analyse JSON, les événements de réflexion et les injections d'interruption ne comptent pas. En mode natif, le message de réflexion est ajouté strictement après tous les messages `tool_result` pour préserver la contrainte d'appairage tool_use/tool_result.
+Le compteur suit **uniquement les appels d'outils réels** — les nouvelles tentatives d'analyse JSON, les événements de réflexion et les injections d'interruption ne comptent pas. En mode natif, le message de réflexion est ajouté strictement après tous les messages `tool_result` pour préserver la contrainte d'appairage tool_use/tool_result.
 
-Cela coûte ~100 tokens par injection (pas d'appel LLM supplémentaire) et n'a aucun effet sur les exécutions courtes (`< 6` appels d'outils). Il complète ContextGuard (qui gère les budgets de tokens) et la vérification par étape (qui valide les résultats individuels) en abordant un mode de défaillance différent : l'agent perdant de vue son objectif sur de nombreuses itérations.
+Cela coûte ~100 jetons par injection (pas d'appel LLM supplémentaire) et n'a aucun effet sur les exécutions courtes (`< 6` appels d'outils). Il complète ContextGuard (qui gère les budgets de jetons) et la vérification par étape (qui valide les résultats individuels) en abordant un mode de défaillance différent : l'agent perdant de vue son objectif sur de nombreuses itérations.
 
 ## Synthèse des réponses (stream_answer)
 

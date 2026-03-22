@@ -148,11 +148,14 @@ class TestConnectorMetaToolProtocol:
         assert "discover" in desc
         assert "execute" in desc
 
-    def test_description_shows_action_counts(self) -> None:
+    def test_description_shows_action_names(self) -> None:
         tool = _make_meta_tool()
         desc = tool.description
-        assert "2 actions" in desc  # salesforce
-        assert "1 actions" in desc  # slack
+        # salesforce actions listed inline
+        assert "get_contacts" in desc
+        assert "create_lead" in desc
+        # slack action listed inline
+        assert "send_message" in desc
 
     def test_parameters_schema_structure(self) -> None:
         tool = _make_meta_tool()

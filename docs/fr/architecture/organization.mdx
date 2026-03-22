@@ -1,5 +1,6 @@
 ---
 title: "Organisations"
+icon: "building"
 description: "Partage de ressources au niveau de l'équipe avec accès basé sur les rôles, révision optionnelle et secours aux identifiants."
 ---
 
@@ -7,7 +8,7 @@ description: "Partage de ressources au niveau de l'équipe avec accès basé sur
 
 Les organisations sont l'unité de collaboration d'équipe de FIM One. Elles permettent aux groupes d'utilisateurs de partager des ressources — Agents, Connecteurs, Bases de connaissances, Serveurs MCP, Workflows et Compétences — dans un périmètre de confiance.
 
-Chaque ressource dans FIM One commence comme **personnelle** (visible uniquement pour son créateur). Lorsque vous publiez une ressource dans une organisation, elle devient **découvrable** par les autres membres de l'organisation via le périmètre organisation du Marché. Les membres parcourent les ressources partagées de l'organisation et s'abonnent à celles dont ils ont besoin.
+Chaque ressource dans FIM One commence comme **personnelle** (visible uniquement pour son créateur). Lorsque vous publiez une ressource dans une organisation, elle devient **découvrable** par les autres membres de l'organisation via le périmètre d'organisation du Marché. Les membres parcourent les ressources partagées de l'organisation et s'abonnent à celles dont ils ont besoin.
 
 ```mermaid
 flowchart TD
@@ -30,19 +31,19 @@ Les organisations et le Marché mondial partagent le même modèle d'accès bas�
 
 ## Création et gestion des organisations
 
-Chaque utilisateur peut créer des organisations **illimitées** et rejoindre un nombre quelconque d'entre elles. Une organisation a trois rôles :
+Chaque utilisateur peut créer des organisations **illimitées** et rejoindre un nombre quelconque d'entre elles. Une organisation dispose de trois rôles :
 
 | Rôle | Permissions |
 |---|---|
 | **Propriétaire** | Contrôle total — gérer les membres, configurer les paramètres, contourner l'examen |
-| **Admin** | Gérer les membres et examiner les ressources publiées |
+| **Administrateur** | Gérer les membres et examiner les ressources publiées |
 | **Membre** | Parcourir et s'abonner aux ressources partagées |
 
 Le propriétaire est toujours l'utilisateur qui a créé l'organisation. La propriété peut être transférée mais non partagée.
 
 ## Publication de ressources
 
-Lorsque vous publiez une ressource dans votre organisation, elle n'apparaît **pas** automatiquement dans l'espace de travail de chaque membre. Au lieu de cela, la ressource devient découvrable dans la portée organisation du Marché, où les membres peuvent la parcourir et s'y abonner.
+Lorsque vous publiez une ressource dans votre organisation, elle n'apparaît **pas** automatiquement dans l'espace de travail de chaque membre. Au lieu de cela, la ressource devient découvrable dans l'étendue organisation du Marché, où les membres peuvent la parcourir et s'y abonner.
 
 Ce modèle basé sur l'abonnement donne à chaque membre le contrôle sur son espace de travail. Une grande organisation peut partager des dizaines de connecteurs, mais un membre individuel ne s'abonne qu'à ceux pertinents pour son travail.
 
@@ -86,11 +87,11 @@ Lorsque l'examen est désactivé pour un type de ressource, les ressources publi
 Les propriétaires d'organisation contournent automatiquement l'examen. Leurs ressources publiées sont toujours immédiatement découvrables.
 </Tip>
 
-Cette flexibilité permet aux organisations de correspondre à leurs besoins de gouvernance. Une petite startup pourrait désactiver tous les drapeaux d'examen pour un partage sans friction, tandis qu'une entreprise axée sur la conformité active l'examen sur les agents et les connecteurs pour maintenir une surveillance.
+Cette flexibilité permet aux organisations d'adapter leurs besoins de gouvernance. Une petite startup pourrait désactiver tous les drapeaux d'examen pour un partage sans friction, tandis qu'une entreprise axée sur la conformité active l'examen sur les Agents et Connecteurs pour maintenir une supervision.
 
-## Secours des Identifiants
+## Mécanisme de secours des identifiants
 
-Les connecteurs et les serveurs MCP nécessitent souvent des identifiants (clés API, mots de passe de base de données, jetons OAuth). FIM One fournit un **mécanisme de secours** afin que les membres n'aient pas à configurer chaque identifiant eux-mêmes.
+Les connecteurs et les serveurs MCP nécessitent souvent des identifiants (clés API, mots de passe de base de données, jetons OAuth). FIM One fournit un **mécanisme de secours** pour que les membres n'aient pas à configurer chaque identifiant eux-mêmes.
 
 ```mermaid
 flowchart TD
@@ -110,13 +111,13 @@ flowchart TD
 
 Il existe deux modes :
 
-- **Secours activé** (`allow_fallback=true`, par défaut) : Les membres qui ne fournissent pas leurs propres identifiants utilisent automatiquement les identifiants par défaut du propriétaire. Cela fonctionne bien pour les clés API partagées en équipe ou les services internes où une seule clé couvre toute l'équipe.
-- **Secours désactivé** (`allow_fallback=false`) : Chaque membre doit configurer ses propres identifiants. Cela est approprié lorsque chaque utilisateur a besoin d'une clé API personnelle (par exemple, les licences SaaS par siège).
+- **Mécanisme de secours activé** (`allow_fallback=true`, par défaut) : Les membres qui ne fournissent pas leurs propres identifiants utilisent automatiquement les identifiants par défaut du propriétaire. Cela fonctionne bien pour les clés API partagées par l'équipe ou les services internes où une seule clé couvre toute l'équipe.
+- **Mécanisme de secours désactivé** (`allow_fallback=false`) : Chaque membre doit configurer ses propres identifiants. Ceci est approprié lorsque chaque utilisateur a besoin d'une clé API personnelle (par exemple, les licences SaaS par siège).
 
 Les ressources qui ne nécessitent pas d'identifiants — comme un connecteur API public en lecture seule ou un Agent sans authentification — fonctionnent immédiatement après l'abonnement. Aucune configuration nécessaire.
 
 <Info>
-Le secours des identifiants s'applique uniquement après qu'un membre s'abonne à la ressource. Le mécanisme de secours détermine la façon dont les identifiants sont résolus à l'exécution, et non si la ressource est accessible.
+Le mécanisme de secours des identifiants s'applique uniquement après qu'un membre s'abonne à la ressource. Le mécanisme de secours détermine comment les identifiants sont résolus à l'exécution, non si la ressource est accessible.
 </Info>
 
 ## Visibilité des ressources
@@ -137,7 +138,7 @@ A resource is available in your workspace if:
 ```
 
 <Warning>
-Publier une ressource dans une organisation ne garantit pas un accès automatique. Les membres doivent s'abonner via la portée org du Marché pour ajouter la ressource à leur espace de travail.
+Publier une ressource dans une organisation n'accorde pas d'accès automatique. Les membres doivent s'abonner via la portée org du Marché pour ajouter la ressource à leur espace de travail.
 </Warning>
 
 ## Scénarios Pratiques
@@ -154,7 +155,7 @@ Publier une ressource dans une organisation ne garantit pas un accès automatiqu
 ### Organisation avec examen strict
 
 1. Une entreprise axée sur la conformité active `review_agents=true` et `review_connectors=true` sur son organisation
-2. Lorsqu'un employé publie un nouvel Agent, il entre dans l'état `pending_review`
+2. Quand un employé publie un nouvel Agent, il entre dans l'état `pending_review`
 3. Un administrateur de l'organisation examine la configuration de l'Agent et l'approuve
 4. L'Agent devient découvrable — les autres membres peuvent maintenant le trouver et s'y abonner
 5. Si l'éditeur modifie ultérieurement l'Agent approuvé, il revient automatiquement à `pending_review` pour une nouvelle approbation
@@ -162,11 +163,11 @@ Publier une ressource dans une organisation ne garantit pas un accès automatiqu
 ### Abonnement sélectif dans une grande organisation
 
 1. Une organisation publie 50+ connecteurs couvrant les API internes, les bases de données et les services tiers
-2. L'équipe données s'abonne uniquement aux connecteurs de bases de données et aux API d'analyse
-3. L'équipe marketing s'abonne uniquement aux connecteurs CRM et plateforme de messagerie
-4. L'espace de travail de chaque membre de l'équipe reste concentré et bien organisé
+2. L'équipe data s'abonne uniquement aux connecteurs de bases de données et aux API d'analyse
+3. L'équipe marketing s'abonne uniquement aux connecteurs CRM et plateforme email
+4. L'espace de travail de chaque membre de l'équipe reste concentré et organisé
 
 ## Voir aussi
 
-- [Architecture du Marché](/concepts/market) — Pour le Marché mondial et sa relation avec les organisations. Les deux utilisent le même modèle d'abonnement, mais le Marché sert de canal de découverte inter-organisations avec examen obligatoire.
-- [Découverte d'agent et de ressource](/architecture/agent-discovery) — Comment les ressources abonnées sont assemblées en ensembles d'outils lors du chat.
+- [Architecture du Marché](/concepts/market) — Pour le Marché global et sa relation avec les organisations. Les deux utilisent le même modèle d'abonnement, mais le Marché sert de canal de découverte inter-organisations avec révision obligatoire.
+- [Découverte d'agents et de ressources](/architecture/agent-discovery) — Comment les ressources abonnées sont assemblées en ensembles d'outils lors du chat.

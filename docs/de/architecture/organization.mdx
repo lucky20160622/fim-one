@@ -1,11 +1,12 @@
 ---
 title: "Organisationen"
+icon: "building"
 description: "Ressourcenteilung auf Teamebene mit rollenbasiertem Zugriff, optionaler Überprüfung und Credential-Fallback."
 ---
 
-## Übersicht
+## Überblick
 
-Organisationen sind FIM One's Einheit für Teamzusammenarbeit. Sie ermöglichen es Benutzergruppen, Ressourcen — Agenten, Konnektoren, Wissensdatenbanken, MCP Server, Workflows und Skills — innerhalb eines vertrauenswürdigen Bereichs zu teilen.
+Organisationen sind FIM One's Einheit für Teamzusammenarbeit. Sie ermöglichen es Benutzergruppen, Ressourcen — Agenten, Konnektoren, Wissensdatenbanken, MCP-Server, Workflows und Skills — innerhalb eines vertrauenswürdigen Bereichs gemeinsam zu nutzen.
 
 Jede Ressource in FIM One beginnt als **persönlich** (nur für ihren Ersteller sichtbar). Wenn Sie eine Ressource in einer Organisation veröffentlichen, wird sie **auffindbar** für andere Organisationsmitglieder über den Marktplatz im Organisationsbereich. Mitglieder durchsuchen die gemeinsamen Ressourcen der Organisation und abonnieren die, die sie benötigen.
 
@@ -26,9 +27,9 @@ flowchart TD
     O -.->|"visible but not subscribed"| M3
 ```
 
-Organisationen und der globale Marktplatz nutzen das gleiche abonnementbasierte Zugriffsmodell. Der Hauptunterschied liegt im Vertrauen: Organisationen stellen ein Team oder Unternehmen dar, in dem sich Mitglieder kennen und vertrauen, daher ist eine Überprüfung optional und die Anmeldedatenverwaltung ist unkompliziert.
+Organisationen und der globale Marktplatz nutzen das gleiche abonnementbasierte Zugangsmodell. Der Hauptunterschied ist Vertrauen: Organisationen stellen ein Team oder Unternehmen dar, in dem sich Mitglieder kennen und vertrauen, daher ist eine Überprüfung optional und die gemeinsame Nutzung von Anmeldedaten ist unkompliziert.
 
-## Organisationen erstellen und verwalten
+## Erstellen und Verwalten von Organisationen
 
 Jeder Benutzer kann **unbegrenzte** Organisationen erstellen und einer beliebigen Anzahl von ihnen beitreten. Eine Organisation hat drei Rollen:
 
@@ -36,15 +37,15 @@ Jeder Benutzer kann **unbegrenzte** Organisationen erstellen und einer beliebige
 |---|---|
 | **Eigentümer** | Vollständige Kontrolle — Mitglieder verwalten, Einstellungen konfigurieren, Überprüfung umgehen |
 | **Admin** | Mitglieder verwalten und veröffentlichte Ressourcen überprüfen |
-| **Mitglied** | Gemeinsame Ressourcen durchsuchen und abonnieren |
+| **Mitglied** | Freigegebene Ressourcen durchsuchen und abonnieren |
 
 Der Eigentümer ist immer der Benutzer, der die Organisation erstellt hat. Die Eigentümerschaft kann übertragen, aber nicht geteilt werden.
 
-## Veröffentlichung von Ressourcen
+## Ressourcen veröffentlichen
 
-Wenn Sie eine Ressource in Ihrer Organisation veröffentlichen, wird sie **nicht** automatisch im Arbeitsbereich jedes Mitglieds angezeigt. Stattdessen wird die Ressource im Organisationsbereich des Market entdeckbar, wo Mitglieder sie durchsuchen und abonnieren können.
+Wenn Sie eine Ressource in Ihrer Organisation veröffentlichen, wird sie **nicht** automatisch im Arbeitsbereich aller Mitglieder angezeigt. Stattdessen wird die Ressource im Organisationsbereich des Markts auffindbar, wo Mitglieder sie durchsuchen und abonnieren können.
 
-Dieses abonnementbasierte Modell gibt jedem Mitglied die Kontrolle über seinen Arbeitsbereich. Eine große Organisation könnte Dutzende von Konnektoren freigeben, aber ein einzelnes Mitglied abonniert nur diejenigen, die für seine Arbeit relevant sind.
+Dieses abonnementbasierte Modell gibt jedem Mitglied Kontrolle über seinen Arbeitsbereich. Eine große Organisation könnte Dutzende von Konnektoren teilen, aber ein einzelnes Mitglied abonniert nur diejenigen, die für seine Arbeit relevant sind.
 
 ```mermaid
 sequenceDiagram
@@ -71,7 +72,7 @@ sequenceDiagram
 
 ### Überprüfungssystem
 
-Überprüfung ist **optional** und wird pro Ressourcentyp konfiguriert. Jede Organisation hat unabhängige Umschalter:
+Die Überprüfung ist **optional** und wird pro Ressourcentyp konfiguriert. Jede Organisation hat unabhängige Umschalter:
 
 - `review_agents`
 - `review_connectors`
@@ -80,13 +81,13 @@ sequenceDiagram
 - `review_workflows`
 - `review_skills`
 
-Wenn die Überprüfung für einen Ressourcentyp deaktiviert ist, sind veröffentlichte Ressourcen sofort für Mitglieder auffindbar — keine Administratoraktion erforderlich. Wenn die Überprüfung aktiviert ist, werden Ressourcen in den Zustand `pending_review` versetzt und erfordern die Genehmigung durch einen Administrator, bevor sie sichtbar werden.
+Wenn die Überprüfung für einen Ressourcentyp deaktiviert ist, sind veröffentlichte Ressourcen sofort für Mitglieder auffindbar — keine Admin-Aktion erforderlich. Wenn die Überprüfung aktiviert ist, treten Ressourcen in einen `pending_review`-Status ein und erfordern eine Admin-Genehmigung, bevor sie sichtbar werden.
 
 <Tip>
 Organisationseigentümer umgehen die Überprüfung automatisch. Ihre veröffentlichten Ressourcen sind immer sofort auffindbar.
 </Tip>
 
-Diese Flexibilität ermöglicht es Organisationen, ihre Governance-Anforderungen zu erfüllen. Ein kleines Startup könnte alle Überprüfungsumschalter deaktivieren, um reibungsloses Teilen zu ermöglichen, während ein compliance-fokussiertes Unternehmen die Überprüfung für Agenten und Konnektoren aktiviert, um die Kontrolle zu behalten.
+Diese Flexibilität ermöglicht es Organisationen, ihre Governance-Anforderungen zu erfüllen. Ein kleines Startup könnte alle Überprüfungs-Umschalter deaktivieren, um reibungsloses Teilen zu ermöglichen, während ein compliance-fokussiertes Unternehmen die Überprüfung für Agenten und Konnektoren aktiviert, um die Kontrolle zu behalten.
 
 ## Credential Fallback
 
@@ -110,20 +111,20 @@ flowchart TD
 
 Es gibt zwei Modi:
 
-- **Fallback aktiviert** (`allow_fallback=true`, Standard): Mitglieder, die ihre eigenen Anmeldedaten nicht bereitstellen, verwenden automatisch die Standardanmeldedaten des Besitzers. Dies funktioniert gut für von Teams gemeinsam genutzte API-Schlüssel oder interne Dienste, bei denen ein einzelner Schlüssel das ganze Team abdeckt.
-- **Fallback deaktiviert** (`allow_fallback=false`): Jedes Mitglied muss seine eigenen Anmeldedaten konfigurieren. Dies ist angemessen, wenn jeder Benutzer einen persönlichen API-Schlüssel benötigt (z. B. pro-Benutzer-SaaS-Lizenzen).
+- **Fallback aktiviert** (`allow_fallback=true`, Standard): Mitglieder, die ihre eigenen Anmeldedaten nicht bereitstellen, verwenden automatisch die Standard-Anmeldedaten des Eigentümers. Dies funktioniert gut für von Teams gemeinsam genutzte API-Schlüssel oder interne Services, bei denen ein einzelner Schlüssel das ganze Team abdeckt.
+- **Fallback deaktiviert** (`allow_fallback=false`): Jedes Mitglied muss seine eigenen Anmeldedaten konfigurieren. Dies ist angemessen, wenn jeder Benutzer einen persönlichen API-Schlüssel benötigt (z. B. für benutzerbasierte SaaS-Lizenzen).
 
-Ressourcen, die keine Anmeldedaten erfordern – wie ein schreibgeschützter öffentlicher API-Konnektor oder ein Agent ohne Authentifizierung – funktionieren unmittelbar nach dem Abonnement. Keine Konfiguration erforderlich.
+Ressourcen, die keine Anmeldedaten erfordern – wie ein schreibgeschützter öffentlicher API-Konnektor oder ein Agent ohne Authentifizierung – funktionieren sofort nach dem Abonnement. Keine Konfiguration erforderlich.
 
 <Info>
-Der Credential Fallback gilt nur nach dem Abonnement eines Mitglieds für die Ressource. Der Fallback-Mechanismus bestimmt, wie Anmeldedaten zur Laufzeit aufgelöst werden, nicht ob die Ressource zugänglich ist.
+Der Credential Fallback gilt nur nach dem Abonnement einer Ressource durch ein Mitglied. Der Fallback-Mechanismus bestimmt, wie Anmeldedaten zur Laufzeit aufgelöst werden, nicht ob die Ressource zugänglich ist.
 </Info>
 
 ## Ressourcensichtbarkeit
 
-Jede Ressource in FIM One hat eine `visibility`, die ihren Zugriffsspielraum bestimmt:
+Jede Ressource in FIM One hat eine `visibility`, die ihren Zugriffsgeltungsbereich bestimmt:
 
-| Sichtbarkeit | Bereich | Wer kann sie entdecken |
+| Sichtbarkeit | Geltungsbereich | Wer kann sie entdecken |
 |---|---|---|
 | `personal` | Nur Eigentümer | Der Benutzer, der sie erstellt hat |
 | `org` | Organisation | Org-Mitglieder können durchsuchen und abonnieren (falls genehmigt) |
@@ -137,36 +138,36 @@ A resource is available in your workspace if:
 ```
 
 <Warning>
-Das Veröffentlichen einer Ressource für eine Organisation gewährt keinen automatischen Zugriff. Mitglieder müssen sich über den Marktplatz im Org-Bereich abonnieren, um die Ressource zu ihrem Arbeitsbereich hinzuzufügen.
+Das Veröffentlichen einer Ressource in einer Organisation gewährt keinen automatischen Zugriff. Mitglieder müssen sich über den Markt im Org-Geltungsbereich anmelden, um die Ressource zu ihrem Arbeitsbereich hinzuzufügen.
 </Warning>
 
 ## Praktische Szenarien
 
-### Ein Datenbank-Connector mit dem Team teilen
+### Team-Datenbankverbindung teilen
 
 1. Alice erstellt einen Connector zur PostgreSQL-Datenbank des Teams
 2. Alice veröffentlicht ihn im Org-Bereich ihres Teams (die Überprüfung ist für Connectors deaktiviert)
-3. Der Connector wird im Org-Bereich des Market erkannt
+3. Der Connector wird im Org-Bereich des Marktes auffindbar
 4. Bob durchsucht die gemeinsamen Ressourcen der Org, findet den Connector und abonniert ihn
-5. Der Connector erscheint in Bobs Workspace und verwendet Alices Datenbank-Anmeldedaten als Fallback
-6. Carol abonniert ebenfalls. Dave (ein externer Auftragnehmer) abonniert und konfiguriert stattdessen seine eigenen schreibgeschützten Anmeldedaten
+5. Der Connector erscheint in Bobs Workspace und verwendet Alices Datenbankzugriffsdaten als Fallback
+6. Carol abonniert ebenfalls. Dave (ein externer Auftragnehmer) abonniert und konfiguriert stattdessen seine eigenen Anmeldedaten mit Lesezugriff
 
 ### Organisation mit strenger Überprüfung
 
-1. Ein compliance-fokussiertes Unternehmen aktiviert `review_agents=true` und `review_connectors=true` in seiner Organisation
+1. Ein compliance-fokussiertes Unternehmen aktiviert `review_agents=true` und `review_connectors=true` in ihrer Organisation
 2. Wenn ein Mitarbeiter einen neuen Agenten veröffentlicht, wechselt dieser in den Zustand `pending_review`
 3. Ein Organisations-Admin überprüft die Agenten-Konfiguration und genehmigt sie
 4. Der Agent wird auffindbar — andere Mitglieder können ihn jetzt finden und abonnieren
-5. Wenn der Herausgeber den genehmigten Agenten später bearbeitet, wird dieser automatisch zur erneuten Genehmigung auf `pending_review` zurückgesetzt
+5. Wenn der Herausgeber den genehmigten Agenten später bearbeitet, wird dieser automatisch zur erneuten Genehmigung in den Zustand `pending_review` zurückgesetzt
 
 ### Selektive Abonnements in einer großen Organisation
 
-1. Eine Organisation veröffentlicht 50+ Konnektoren, die interne APIs, Datenbanken und Dienste von Drittanbietern abdecken
+1. Eine Organisation veröffentlicht 50+ Konnektoren, die interne APIs, Datenbanken und Services von Drittanbietern abdecken
 2. Das Datateam abonniert nur Datenbank-Konnektoren und Analytics-APIs
 3. Das Marketing-Team abonniert nur die CRM- und E-Mail-Plattform-Konnektoren
 4. Der Arbeitsbereich jedes Teammitglieds bleibt fokussiert und übersichtlich
 
 ## Siehe auch
 
-- [Market-Architektur](/concepts/market) — Zur globalen Market und deren Beziehung zu Organisationen. Beide verwenden das gleiche Abonnementmodell, aber der Market dient als organisationsübergreifender Discovery-Kanal mit obligatorischer Überprüfung.
-- [Agent- und Ressourcen-Discovery](/architecture/agent-discovery) — Wie abonnierte Ressourcen während des Chats in Tool-Sets zusammengestellt werden.
+- [Marktarchitektur](/concepts/market) — Für den globalen Markt und seine Beziehung zu Organisationen. Beide verwenden das gleiche Abonnementmodell, aber der Markt dient als organisationsübergreifender Erkennungskanal mit obligatorischer Überprüfung.
+- [Agent- und Ressourcenerkennung](/architecture/agent-discovery) — Wie abonnierte Ressourcen während des Chats in Toolsets zusammengestellt werden.

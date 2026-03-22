@@ -1,5 +1,6 @@
 ---
 title: "ReAct-Engine"
+icon: "zap"
 description: "Wie die ReAct-Engine von FIM One funktioniert — Dual-Mode-Ausführung, strukturierte LLM-Aufrufe und Streaming-Antwort-Synthese."
 ---
 
@@ -136,18 +137,18 @@ sequenceDiagram
 
 ## Mid-loop Selbstreflexion
 
-Lange Reasoning-Ketten (10+ Tool-Aufrufe) bergen das Risiko der **Zielabweichung** — der Agent verschiebt allmählich seinen Fokus vom ursprünglichen Ziel zu einem lokalen Teilproblem, wiederholt ähnliche Aktionen oder gerät in zirkuläre Wiederholungsschleifen. Mid-loop Selbstreflexion ist eine leichtgewichtige Gegenmaßnahme.
+Lange Reasoning-Ketten (10+ Tool-Aufrufe) bergen das Risiko der **Zielabweichung** — der Agent verschiebt allmählich den Fokus vom ursprünglichen Ziel zu einem lokalen Teilproblem, wiederholt ähnliche Aktionen oder gerät in zirkuläre Wiederholungsschleifen. Mid-loop Selbstreflexion ist eine leichtgewichtige Gegenmaßnahme.
 
-Alle `_SELF_REFLECTION_INTERVAL` Tool-Aufruf-Iterationen (Standard: **6**) injiziert der Agent eine Benutzernachricht in die Konversation, die das LLM auffordert, innezuhalten und zu reflektieren:
+Alle `_SELF_REFLECTION_INTERVAL` Tool-Aufruf-Iterationen (Standard: **6**) injiziert der Agent eine Benutzernachricht in die Konversation, die das LLM auffordert innezuhalten und zu reflektieren:
 
 - Ist es noch auf dem richtigen Weg zum ursprünglichen Ziel?
 - Hat es ähnliche Aktionen wiederholt oder läuft im Kreis?
 - Was ist der direkteste nächste Schritt zum Abschluss?
-- Sollte es jetzt eine endgültige Antwort produzieren?
+- Sollte es jetzt eine endgültige Antwort liefern?
 
-Der Zähler verfolgt **nur tatsächliche Tool-Aufrufe** — JSON-Parse-Wiederholungen, Thinking-Events und Interrupt-Injektionen zählen nicht. Im nativen Modus wird die Reflexionsnachricht streng nach allen `tool_result`-Nachrichten angehängt, um die tool_use/tool_result-Paarungsbeschränkung zu bewahren.
+Der Zähler verfolgt **nur tatsächliche Tool-Aufrufe** — JSON-Parse-Wiederholungen, Thinking-Events und Interrupt-Injektionen zählen nicht. Im nativen Modus wird die Reflektionsnachricht streng nach allen `tool_result`-Nachrichten angehängt, um die tool_use/tool_result-Paarungsbeschränkung zu bewahren.
 
-Dies kostet ~100 Token pro Injektion (kein zusätzlicher LLM-Aufruf) und hat keine Auswirkung auf kurze Läufe (`< 6` Tool-Aufrufe). Es ergänzt ContextGuard (das Token-Budgets verwaltet) und die Verifikation pro Schritt (die einzelne Ergebnisse validiert), indem es einen anderen Fehlermodus adressiert: dass der Agent über viele Iterationen hinweg sein Ziel aus den Augen verliert.
+Dies kostet ~100 Token pro Injektion (kein zusätzlicher LLM-Aufruf) und hat keine Auswirkung auf kurze Läufe (`< 6` Tool-Aufrufe). Es ergänzt ContextGuard (das Token-Budgets verwaltet) und schrittweise Verifizierung (die einzelne Ergebnisse validiert), indem es einen anderen Fehlermodus adressiert: dass der Agent über viele Iterationen hinweg sein Ziel aus den Augen verliert.
 
 ## Antwortsynthese (stream_answer)
 

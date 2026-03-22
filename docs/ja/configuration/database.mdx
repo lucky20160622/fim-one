@@ -1,6 +1,7 @@
 ---
 title: "データベース"
-description: "デプロイメント用に適切なデータベースバックエンドを選択して構成します"
+icon: "database"
+description: "デプロイメント用に適切なデータベースバックエンドを選択して構成する"
 ---
 
 FIM One は 2 つのデータベースバックエンドをサポートしています: **SQLite**（デフォルト、ゼロコンフィグ）と **PostgreSQL**（本番環境に推奨）。バックエンドは `DATABASE_URL` 環境変数によって決定されます。
@@ -13,7 +14,7 @@ DATABASE_URL=sqlite+aiosqlite:///./data/fim_one.db
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/fim_one
 ```
 
-テーブルは初回起動時に自動的に作成されます。手動マイグレーションステップは必要ありません。
+テーブルは最初の起動時に自動的に作成されます。手動マイグレーションステップは不要です。
 
 ---
 

@@ -1,11 +1,12 @@
 ---
 title: "OAuth-Anbieter"
-description: "Konfigurieren Sie GitHub, Google, Discord und Feishu für Social Login."
+icon: "key-round"
+description: "Konfigurieren Sie GitHub, Google, Discord und Feishu für soziale Anmeldung."
 ---
 
-FIM One unterstützt Social Login über GitHub, Google, Discord und Feishu (Lark). Jeder Anbieter, dessen Anmeldedaten in der Umgebung vorhanden sind, zeigt automatisch eine Login-Schaltfläche auf der Anmeldeseite an – keine Codeänderungen erforderlich.
+FIM One unterstützt soziale Anmeldung über GitHub, Google, Discord und Feishu (Lark). Jeder Anbieter, dessen Anmeldedaten in der Umgebung vorhanden sind, zeigt automatisch eine Anmeldeschaltfläche auf der Anmeldeseite an – keine Codeänderungen erforderlich.
 
-**Callback-URL-Muster** — registrieren Sie diese genaue URL in der Entwicklerkonsole jedes Anbieters:
+**Callback-URL-Muster** – registrieren Sie diese genaue URL in der Entwicklerkonsole jedes Anbieters:
 
 ```
 {API_BASE_URL}/api/auth/oauth/{provider}/callback
@@ -18,6 +19,8 @@ FIM One unterstützt Social Login über GitHub, Google, Discord und Feishu (Lark
 | Lokale Entwicklung | `http://localhost:8000/api/auth/oauth/github/callback` |
 | Dedizierte API-Subdomain | `https://api.yourdomain.com/api/auth/oauth/github/callback` |
 | Reverse-Proxy (gleiche Domain) | `https://yourdomain.com/api/auth/oauth/github/callback` |
+
+---
 
 ## GitHub
 

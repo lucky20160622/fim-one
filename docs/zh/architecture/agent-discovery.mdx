@@ -1,5 +1,6 @@
 ---
 title: "智能体和资源发现"
+icon: "search"
 description: "FIM One 如何发现和组装资源 — 智能体约束和全局自动发现的双模式架构。"
 ---
 
@@ -102,21 +103,21 @@ flowchart TD
 
 技能支持两种注入策略，由 `SKILL_TOOL_MODE`（环境变量）或智能体的 `model_config_json.skill_tool_mode` 控制：
 
-| 模式 | 系统提示 | 工具 | 何时使用 |
+| 模式 | 系统提示 | 工具 | 使用场景 |
 |---|---|---|---|
-| **渐进式**（默认） | 仅名称 + 描述存根 | `read_skill(name)` 按需加载完整内容 | 许多技能，或内容较大的技能 — 节省上下文令牌 |
-| **内联** | 嵌入完整技能内容 | 无 | 少数小型技能 — 无工具调用开销 |
+| **渐进式**（默认） | 仅名称 + 描述摘要 | `read_skill(name)` 按需加载完整内容 | 技能众多或内容庞大 — 节省上下文令牌 |
+| **内联** | 嵌入完整技能内容 | 无 | 技能少且内容小 — 无工具调用开销 |
 
-在渐进模式下，系统提示包含紧凑的存根，如：
+在渐进式模式下，系统提示包含紧凑的摘要，如：
 
 ```
-## 可用技能
-在执行以下任何操作之前，调用 read_skill(name) 加载完整内容：
-- **客户投诉 SOP**：根据公司政策处理升级...
-- **退款处理**：分步退款工作流...
+## Available Skills
+Call read_skill(name) to load full content before executing any of these:
+- **Customer Complaint SOP**: Handle escalations per company policy...
+- **Refund Processing**: Step-by-step refund workflow...
 ```
 
-LLM 仅在需要完整程序时调用 `read_skill("Customer Complaint SOP")`，在无关的回合中保持上下文精简。
+LLM 仅在需要完整流程时调用 `read_skill("Customer Complaint SOP")`，在无关的轮次中保持上下文精简。
 
 ## 智能体作为角色，而非容器
 

@@ -1,5 +1,6 @@
 ---
-title: "Agent- und Ressourcen-Erkennung"
+title: "Agent- und Ressourcenerkennung"
+icon: "search"
 description: "Wie FIM One Ressourcen erkennt und zusammenstellt — die Dual-Mode-Architektur der Agent-beschränkten und globalen automatischen Erkennung."
 ---
 
@@ -100,23 +101,23 @@ Fähigkeiten sind von Natur aus global — sie sind Unternehmensregeln, keine ag
 
 ### Zwei Injektionsmodi
 
-Fähigkeiten unterstützen zwei Injektionsstrategien, gesteuert durch `SKILL_TOOL_MODE` (Umgebung) oder die `model_config_json.skill_tool_mode` des Agenten:
+Fähigkeiten unterstützen zwei Injektionsstrategien, gesteuert durch `SKILL_TOOL_MODE` (Umgebungsvariable) oder die `model_config_json.skill_tool_mode` des Agenten:
 
 | Modus | Systemaufforderung | Werkzeug | Wann zu verwenden |
 |---|---|---|---|
 | **Progressiv** (Standard) | Name + Beschreibungsstubs nur | `read_skill(name)` lädt vollständigen Inhalt bei Bedarf | Viele Fähigkeiten oder Fähigkeiten mit großem Inhalt — spart Kontexttokens |
-| **Inline** | Vollständiger Fähigkeitsinhalt eingebettet | Keine | Wenige, kleine Fähigkeiten — kein Werkzeugaufruf-Overhead |
+| **Inline** | Vollständiger Fähigkeitsinhalt eingebettet | Keine | Wenige, kleine Fähigkeiten — kein Werkzeugaufrufs-Overhead |
 
 Im progressiven Modus enthält die Systemaufforderung kompakte Stubs wie:
 
 ```
-## Verfügbare Fähigkeiten
-Rufen Sie read_skill(name) auf, um den vollständigen Inhalt vor der Ausführung einer dieser Optionen zu laden:
-- **Customer Complaint SOP**: Eskalationen gemäß Unternehmensrichtlinie bearbeiten...
-- **Refund Processing**: Schritt-für-Schritt-Rückerstattungsworkflow...
+## Available Skills
+Call read_skill(name) to load full content before executing any of these:
+- **Customer Complaint SOP**: Handle escalations per company policy...
+- **Refund Processing**: Step-by-step refund workflow...
 ```
 
-Das LLM ruft `read_skill("Customer Complaint SOP")` nur auf, wenn es das vollständige Verfahren benötigt, um den Kontext während nicht verwandter Durchläufe schlank zu halten.
+Der LLM ruft `read_skill("Customer Complaint SOP")` nur auf, wenn er das vollständige Verfahren benötigt, wodurch der Kontext während nicht verwandter Durchläufe schlank bleibt.
 
 ## Agent als Persona, nicht als Container
 
