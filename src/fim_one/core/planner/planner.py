@@ -43,13 +43,15 @@ Each step must have:
 can start.  Use an empty list for steps that have no prerequisites.
 - "tool_hint": (optional) the name of a tool that would be useful for this \
 step, or null if no specific tool is needed.
-- "model_hint": one of "fast", "reasoning", or null.  Set to "fast" for \
-simple, deterministic steps that require minimal reasoning (e.g. data lookup, \
-format conversion, simple calculation, straightforward retrieval).  Set to \
-"reasoning" for steps that require deep analysis, complex multi-step reasoning, \
-mathematical proofs, or strategic decision-making.  Set to null for normal \
-steps that need a capable model but not extended thinking.  When in doubt, \
-use null — it is always safer to use the default model.
+- "model_hint": one of "fast", "reasoning", or null.  Set to "fast" ONLY for \
+trivially simple, deterministic steps (e.g. format conversion, simple calculation, \
+straightforward data lookup).  Set to "reasoning" for steps that require deep \
+analysis, complex multi-step reasoning, mathematical proofs, strategic \
+decision-making, or domain-expert knowledge (legal, medical, financial analysis). \
+Set to null for normal steps that need a capable model.  When in doubt, use \
+null — it uses the general-purpose model which handles most tasks well.  \
+IMPORTANT: Never set "fast" for steps involving report writing, synthesis, \
+comparison, or any output that requires nuanced judgment.
 
 Rules:
 1. Steps MUST form a valid directed acyclic graph (DAG) -- no circular \
@@ -134,6 +136,7 @@ class DAGPlanner:
         context: str = "",
         tool_names: list[str] | None = None,
         tools: list[dict[str, str]] | None = None,
+        skill_descriptions: list[dict[str, str]] | None = None,
     ) -> ExecutionPlan:
         """Generate an execution plan for the given goal.
 
@@ -146,6 +149,11 @@ class DAGPlanner:
             tools: List of ``{"name": ..., "description": ...}`` dicts
                 describing available tools.  When provided, *tool_names*
                 is ignored.
+            skill_descriptions: Optional list of
+                ``{"name": ..., "description": ...}`` dicts describing
+                available skills (SOPs).  When provided, the planner can
+                suggest ``tool_hint="read_skill"`` for steps that match
+                a skill's domain.
 
         Returns:
             An ``ExecutionPlan`` with validated DAG structure.
@@ -154,7 +162,9 @@ class DAGPlanner:
             ValueError: If the LLM produces an invalid DAG (cycles or
                 dangling dependency references), or unparseable content.
         """
-        messages = self._build_messages(goal, context, tool_names, tools)
+        messages = self._build_messages(
+            goal, context, tool_names, tools, skill_descriptions,
+        )
 
         call_result = await structured_llm_call(
             self._llm,
@@ -188,6 +198,7 @@ class DAGPlanner:
         context: str,
         tool_names: list[str] | None = None,
         tools: list[dict[str, str]] | None = None,
+        skill_descriptions: list[dict[str, str]] | None = None,
     ) -> list[ChatMessage]:
         """Construct the message list for the planning LLM call.
 
@@ -197,6 +208,7 @@ class DAGPlanner:
             tool_names: Deprecated plain list of tool name strings.
             tools: Rich tool descriptors ``{"name": ..., "description": ...}``.
                 Takes priority over *tool_names* when both are provided.
+            skill_descriptions: Optional skill descriptors for auto-discovery.
 
         Returns:
             A list of ``ChatMessage`` objects.
@@ -226,6 +238,24 @@ class DAGPlanner:
         elif tool_names:
             # Legacy fallback: names only
             user_content += f"\n\nAvailable tools: {', '.join(tool_names)}"
+
+        # Inject skill catalogue so the planner can route steps to skills.
+        if skill_descriptions:
+            skill_lines = []
+            for s in skill_descriptions:
+                desc = s.get("description", "")
+                if len(desc) > _PLANNER_DESC_LEN:
+                    desc = desc[: _PLANNER_DESC_LEN - 3] + "..."
+                skill_lines.append(f"- {s['name']}: {desc}")
+            user_content += (
+                "\n\nAvailable skills (specialized procedures the agent can follow):\n"
+                + "\n".join(skill_lines)
+                + "\n\nWhen a step's task clearly matches a skill's domain, set "
+                "tool_hint to \"read_skill\" and mention the skill name in the "
+                "task description (e.g. \"Read and follow the 'legal-advisor' "
+                "skill, then analyse ...\")."
+            )
+
         if context:
             user_content += f"\n\nAdditional context:\n{context}"
 

@@ -62,6 +62,7 @@ class DAGExecutor:
         step_timeout: float = int(os.getenv("DAG_STEP_TIMEOUT", "600")),
         enable_tool_cache: bool = True,
         verify_llm: BaseLLM | None = None,
+        enable_citation_verification: bool | None = None,
     ) -> None:
         self._agent = agent
         self._max_concurrency = max_concurrency
@@ -73,6 +74,12 @@ class DAGExecutor:
         self._enable_tool_cache = enable_tool_cache
         self._cached_tool_registry: ToolRegistry | None = None
         self._verify_llm = verify_llm
+        self._enable_citation_verification = (
+            enable_citation_verification
+            if enable_citation_verification is not None
+            else os.getenv("DAG_CITATION_VERIFICATION", "true").lower()
+            in ("1", "true", "yes")
+        )
         self._usage_lock = asyncio.Lock()
 
     async def execute(
@@ -324,9 +331,13 @@ class DAGExecutor:
     def _resolve_agent(self, step: PlanStep) -> ReActAgent:
         """Select the appropriate agent for a step based on its model_hint.
 
-        If a ``ModelRegistry`` is configured and the step has a ``model_hint``
-        that matches a registered role, a temporary ``ReActAgent`` is created
-        with the corresponding LLM.  Otherwise the default agent is returned.
+        Model selection hierarchy:
+        - ``model_hint="fast"``  → fast/lightweight model (simple lookups)
+        - ``model_hint="reasoning"`` → strongest model (deep analysis)
+        - ``model_hint=None`` (default) → general/capable model via registry,
+          falling back to the constructor-provided agent only when no registry
+          is available.  This ensures steps get a capable model by default
+          rather than the fast model used for DAG infrastructure tasks.
 
         When the resolved LLM exposes a ``context_size``, a model-aware
         ``ContextGuard`` is created with a budget computed from that model's
@@ -346,35 +357,41 @@ class DAGExecutor:
             else self._agent.tools
         )
 
-        if self._model_registry is None or not step.model_hint:
-            # Still need to swap tools if cache is enabled.
+        def _agent_with_llm(llm: BaseLLM) -> ReActAgent:
+            """Build a step agent with the given LLM and shared config."""
+            context_guard = self._build_model_aware_guard(llm)
+            return ReActAgent(
+                llm=llm,
+                tools=tools_to_use,
+                system_prompt=self._agent.system_prompt_override,
+                extra_instructions=self._agent.extra_instructions,
+                max_iterations=self._agent.max_iterations,
+                context_guard=context_guard or self._agent.context_guard,
+            )
+
+        # No registry → fall back to the constructor-provided agent.
+        if self._model_registry is None:
             if self._cached_tool_registry is not None:
-                return ReActAgent(
-                    llm=self._agent._llm,
-                    tools=tools_to_use,
-                    system_prompt=self._agent.system_prompt_override,
-                    extra_instructions=self._agent.extra_instructions,
-                    max_iterations=self._agent.max_iterations,
-                    context_guard=self._agent.context_guard,
-                )
+                return _agent_with_llm(self._agent._llm)
             return self._agent
 
+        # Determine the role to look up.  When model_hint is None we use the
+        # registry's default (general) model so that steps get a capable LLM
+        # instead of the fast model that the executor was constructed with.
+        role = step.model_hint  # "fast", "reasoning", or None
+
         try:
-            llm = self._model_registry.get_by_role(step.model_hint)
+            if role:
+                llm = self._model_registry.get_by_role(role)
+            else:
+                llm = self._model_registry.get_default()
         except KeyError:
             logger.debug(
-                "No model registered for role '%s', using default agent",
-                step.model_hint,
+                "No model registered for role '%s', using constructor agent",
+                role,
             )
             if self._cached_tool_registry is not None:
-                return ReActAgent(
-                    llm=self._agent._llm,
-                    tools=tools_to_use,
-                    system_prompt=self._agent.system_prompt_override,
-                    extra_instructions=self._agent.extra_instructions,
-                    max_iterations=self._agent.max_iterations,
-                    context_guard=self._agent.context_guard,
-                )
+                return _agent_with_llm(self._agent._llm)
             return self._agent
 
         # Compute a model-aware ContextGuard if the resolved LLM exposes
@@ -579,6 +596,72 @@ class DAGExecutor:
                             "Retry after verification failure also failed: %s",
                             retry_exc,
                         )
+            # Citation verification for high-accuracy domains (opt-in via env).
+            if (
+                step.status == "completed"
+                and step.result
+                and self._enable_citation_verification
+            ):
+                from fim_one.core.planner.citation_verifier import (
+                    should_verify_citations,
+                    verify_citations,
+                )
+
+                if should_verify_citations(step.task, step.result.summary):
+                    # Use the registry's default (general) model for verification
+                    # so we don't verify with the same weak model that wrote it.
+                    verify_llm = self._verify_llm or self._agent._llm
+                    if self._model_registry:
+                        try:
+                            verify_llm = self._model_registry.get_default()
+                        except KeyError:
+                            pass
+
+                    cv_result = await verify_citations(
+                        result_text=step.result.summary,
+                        llm=verify_llm,
+                    )
+                    self._notify(step.id, "citation_verification", {
+                        "passed": cv_result.passed,
+                        "citations_found": cv_result.citations_found,
+                        "issues": cv_result.issues,
+                    })
+                    if not cv_result.passed and cv_result.issues:
+                        logger.warning(
+                            "Step '%s' citation issues: %s — retrying",
+                            step.id,
+                            cv_result.issues,
+                        )
+                        issue_text = "\n".join(
+                            f"- {issue}" for issue in cv_result.issues
+                        )
+                        retry_query = (
+                            f"{query}\n\n"
+                            f"[CITATION ACCURACY FEEDBACK] The following "
+                            f"citation issues were found in your output:\n"
+                            f"{issue_text}\n"
+                            f"{cv_result.suggestions}\n\n"
+                            f"Please correct these citations and regenerate "
+                            f"the affected sections.  Double-check all article "
+                            f"numbers and case references against the actual "
+                            f"content you found via search."
+                        )
+                        try:
+                            agent_result = await agent.run(
+                                retry_query, on_iteration=_on_iteration,
+                            )
+                            step.result = StepOutput(summary=agent_result.answer)
+                            if agent_result.usage and step.usage:
+                                step.usage += agent_result.usage
+                            elif agent_result.usage:
+                                step.usage = agent_result.usage
+                        except Exception as retry_exc:
+                            logger.warning(
+                                "Citation retry failed for step '%s': %s",
+                                step.id,
+                                retry_exc,
+                            )
+
         except asyncio.CancelledError:
             raise
         except Exception as exc:
