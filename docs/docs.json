@@ -38,6 +38,7 @@
               {
                 "group": "Configuration",
                 "icon": "gear",
+                "tag": "KEY",
                 "pages": [
                   "configuration/environment-variables",
                   "configuration/database",
@@ -163,6 +164,7 @@
               {
                 "group": "配置",
                 "icon": "gear",
+                "tag": "KEY",
                 "pages": [
                   "zh/configuration/environment-variables",
                   "zh/configuration/database",
@@ -281,6 +283,7 @@
               {
                 "group": "設定",
                 "icon": "gear",
+                "tag": "KEY",
                 "pages": [
                   "ja/configuration/environment-variables",
                   "ja/configuration/database",
@@ -399,6 +402,7 @@
               {
                 "group": "구성",
                 "icon": "gear",
+                "tag": "KEY",
                 "pages": [
                   "ko/configuration/environment-variables",
                   "ko/configuration/database",
@@ -517,6 +521,7 @@
               {
                 "group": "Konfiguration",
                 "icon": "gear",
+                "tag": "KEY",
                 "pages": [
                   "de/configuration/environment-variables",
                   "de/configuration/database",
@@ -635,6 +640,7 @@
               {
                 "group": "Configuration",
                 "icon": "gear",
+                "tag": "KEY",
                 "pages": [
                   "fr/configuration/environment-variables",
                   "fr/configuration/database",
