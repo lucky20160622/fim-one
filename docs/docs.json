@@ -238,6 +238,13 @@
                   "zh/api/overview",
                   "zh/api/authentication"
                 ]
+              },
+              {
+                "group": "接口",
+                "icon": "code",
+                "openapi": {
+                  "source": "openapi.json"
+                }
               }
             ]
           },
