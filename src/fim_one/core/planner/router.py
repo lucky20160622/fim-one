@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 ESCALATION_DOMAINS: list[str] = [
     d.strip()
     for d in os.getenv(
-        "DAG_ESCALATION_DOMAINS",
+        "ESCALATION_DOMAINS",
         "legal,medical,financial,tax,compliance,patent",
     ).split(",")
     if d.strip()
