@@ -767,6 +767,10 @@ async def _resolve_tools(
             build_connector_meta_tool,
             get_connector_tool_mode,
         )
+        from fim_one.core.tool.connector.database.meta_tool import (
+            build_database_meta_tool,
+            get_database_tool_mode,
+        )
         from fim_one.db import create_session
         from fim_one.web.models.connector import Connector as ConnectorModel
         from fim_one.web.models.connector_call_log import ConnectorCallLog
@@ -776,6 +780,7 @@ async def _resolve_tools(
 
         agent_id_for_log = agent_cfg.get("agent_id") if agent_cfg else None
         _connector_tool_mode = get_connector_tool_mode(agent_cfg)
+        _database_tool_mode = get_database_tool_mode(agent_cfg)
 
         async def _log_connector_call(**kwargs: Any) -> None:
             """Persist a connector call log entry in its own DB session."""
@@ -835,14 +840,13 @@ async def _resolve_tools(
 
                 # Collect API connectors for potential progressive mode
                 api_connectors = []
+                # Collect DB connectors for potential progressive mode
+                db_connectors_collected: list[tuple[Any, dict, list]] = []
 
                 for conn in connectors:
                     if conn.type == "database" and conn.db_config:
-                        # Database connector — create tools via DatabaseToolAdapter
+                        # Database connector — decrypt config and build schema
                         from fim_one.core.security.encryption import decrypt_db_config
-                        from fim_one.core.tool.connector.database.adapter import (
-                            DatabaseToolAdapter,
-                        )
 
                         config = decrypt_db_config(conn.db_config)
                         # Build schema_tables list from ORM
@@ -869,16 +873,28 @@ async def _resolve_tools(
                                 "column_count": len(cols),
                                 "columns": cols,
                             })
-                        db_tools = DatabaseToolAdapter.create_tools(
-                            connector_name=conn.name,
-                            connector_id=conn.id,
-                            db_config=config,
-                            schema_tables=schema_tables,
-                            on_call_complete=_log_connector_call,
-                        )
-                        for t in db_tools:
-                            tools.register(t)
-                        db_tool_count += len(db_tools)
+
+                        if _database_tool_mode == "progressive":
+                            # Collect for batch meta-tool creation
+                            db_connectors_collected.append(
+                                (conn, config, schema_tables)
+                            )
+                        else:
+                            # Legacy mode — three tools per DB
+                            from fim_one.core.tool.connector.database.adapter import (
+                                DatabaseToolAdapter,
+                            )
+
+                            db_tools = DatabaseToolAdapter.create_tools(
+                                connector_name=conn.name,
+                                connector_id=conn.id,
+                                db_config=config,
+                                schema_tables=schema_tables,
+                                on_call_complete=_log_connector_call,
+                            )
+                            for t in db_tools:
+                                tools.register(t)
+                            db_tool_count += len(db_tools)
                     else:
                         # API connector — resolve per-user credentials
                         from fim_one.web.models.connector_credential import (
@@ -973,6 +989,23 @@ async def _resolve_tools(
                         db_tool_count,
                         len(connectors),
                     )
+
+                # Progressive mode — build a single DatabaseMetaTool
+                if _database_tool_mode == "progressive" and db_connectors_collected:
+                    db_meta_tool = build_database_meta_tool(
+                        db_connectors_collected,
+                        on_call_complete=_log_connector_call,
+                    )
+                    tools.register(db_meta_tool)
+                    total_tables = sum(
+                        len(st) for _, _, st in db_connectors_collected
+                    )
+                    logger.info(
+                        "Loaded DatabaseMetaTool (progressive): %d databases, "
+                        "%d tables consolidated into 1 tool",
+                        len(db_connectors_collected),
+                        total_tables,
+                    )
         except Exception:
             logger.warning("Failed to load connector tools", exc_info=True)
 
@@ -980,8 +1013,8 @@ async def _resolve_tools(
         # No-agent mode: auto-discover all visible connectors (progressive mode).
         try:
             from fim_one.core.tool.connector import build_connector_meta_tool
-            from fim_one.core.tool.connector.database.adapter import (
-                DatabaseToolAdapter,
+            from fim_one.core.tool.connector.database.meta_tool import (
+                build_database_meta_tool as _ad_build_db_meta,
             )
             from fim_one.core.security.encryption import (
                 decrypt_db_config,
@@ -1025,7 +1058,8 @@ async def _resolve_tools(
                         len(_ad_api_connectors),
                     )
 
-                # Database connectors — create individual tool sets
+                # Database connectors — use progressive mode (single meta-tool)
+                _ad_db_collected: list[tuple[Any, dict, list]] = []
                 for _ad_db_conn in _ad_connectors:
                     if _ad_db_conn.type == "database" and _ad_db_conn.db_config:
                         try:
@@ -1053,20 +1087,25 @@ async def _resolve_tools(
                                     "column_count": len(cols),
                                     "columns": cols,
                                 })
-                            db_tools = DatabaseToolAdapter.create_tools(
-                                connector_name=_ad_db_conn.name,
-                                connector_id=_ad_db_conn.id,
-                                db_config=config,
-                                schema_tables=schema_tables,
+                            _ad_db_collected.append(
+                                (_ad_db_conn, config, schema_tables)
                             )
-                            for dt in db_tools:
-                                tools.register(dt)
                         except Exception:
                             logger.warning(
                                 "Failed to load DB connector tools: %s",
                                 _ad_db_conn.name,
                                 exc_info=True,
                             )
+
+                if _ad_db_collected:
+                    _ad_db_meta = _ad_build_db_meta(
+                        _ad_db_collected,
+                    )
+                    tools.register(_ad_db_meta)
+                    logger.info(
+                        "Auto-discovered %d DB connectors (progressive mode)",
+                        len(_ad_db_collected),
+                    )
         except Exception:
             logger.warning("Failed to auto-discover connectors", exc_info=True)
 
