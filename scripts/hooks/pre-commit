@@ -43,10 +43,13 @@ STAGED_README=$(git diff --cached --name-only --diff-filter=ACM \
 STAGED_WEB_PY=$(git diff --cached --name-only --diff-filter=ACM \
   | grep -E '^src/fim_one/web/.*\.py$' || true)
 
+STAGED_PY=$(git diff --cached --name-only --diff-filter=ACM \
+  | grep -E '^src/fim_one/.*\.py$' || true)
+
 # ---------------------------------------------------------------------------
 # Skip hook if nothing relevant is staged
 # ---------------------------------------------------------------------------
-if [ -z "$STAGED_JSON" ] && [ -z "$STAGED_MDX" ] && [ -z "$STAGED_README" ] && [ -z "$STAGED_WEB_PY" ]; then
+if [ -z "$STAGED_JSON" ] && [ -z "$STAGED_MDX" ] && [ -z "$STAGED_README" ] && [ -z "$STAGED_WEB_PY" ] && [ -z "$STAGED_PY" ]; then
   exit 0
 fi
 
@@ -67,6 +70,28 @@ if [ -n "$STAGED_JSON" ] || [ -n "$STAGED_MDX" ] || [ -n "$STAGED_README" ]; the
   echo "i18n: translating changed files..."
   cd "$ROOT"
   GIT_HOOK=1 uv run scripts/translate.py
+fi
+
+# ---------------------------------------------------------------------------
+# Incremental mypy type check on staged Python files
+# ---------------------------------------------------------------------------
+if [ -n "$STAGED_PY" ]; then
+  echo "mypy: type-checking staged .py files..."
+  cd "$ROOT"
+  # Only check the files being committed — not the entire codebase.
+  # This prevents existing type debt from blocking new commits while
+  # ensuring every new commit is type-safe.
+  # --follow-imports=silent: only report errors in staged files, not their
+  # transitive dependencies. This prevents existing type debt in imported
+  # modules from blocking commits that don't touch those modules.
+  echo "$STAGED_PY" | xargs uv run mypy --follow-imports=silent --no-error-summary 2>&1
+  MYPY_EXIT=$?
+  if [ $MYPY_EXIT -ne 0 ]; then
+    echo ""
+    echo "mypy: type errors found in staged files. Fix them before committing."
+    echo "  Tip: run 'uv run mypy <file>' to see details."
+    exit 1
+  fi
 fi
 
 # ---------------------------------------------------------------------------
