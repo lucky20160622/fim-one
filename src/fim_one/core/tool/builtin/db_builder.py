@@ -676,9 +676,13 @@ class DbRunSampleQueryTool(_DbBuilderBase):
 
         pool = ConnectionPoolManager.get_instance()
         try:
+            from fim_one.core.tool.connector.database.safety import validate_sql
+
+            query = f"SELECT * FROM {table_name} LIMIT {limit}"
+            query = validate_sql(query)  # defense-in-depth
             driver = await pool.get_driver(self.connector_id, config)
             result = await driver.execute_query(
-                f"SELECT * FROM {table_name} LIMIT {limit}",
+                query,
                 timeout_s=30,
                 max_rows=limit,
             )

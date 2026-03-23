@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from fim_one.db import get_session
-from fim_one.web.auth import get_current_admin, hash_password
+from fim_one.web.auth import get_current_admin, hash_password, hash_password_async
 from fim_one.web.models import Agent, AuditLog, Connector, ConnectorCallLog, Conversation, InviteCode, KnowledgeBase, MCPServer as MCPServerModel, Message, ModelConfig, Organization, SystemSetting, User
 from fim_one.web.models.review_log import ReviewLog
 from fim_one.web.schemas.common import ApiResponse, PaginatedResponse
@@ -626,7 +626,7 @@ async def create_user(
 
     user = User(
         username=body.username,
-        password_hash=hash_password(body.password),
+        password_hash=await hash_password_async(body.password),
         email=body.email,
         display_name=body.display_name,
         is_admin=body.is_admin,
@@ -720,7 +720,7 @@ async def reset_password(
     if target_user is None:
         raise AppError("user_not_found", status_code=404)
 
-    target_user.password_hash = hash_password(body.new_password)
+    target_user.password_hash = await hash_password_async(body.new_password)
     target_user.refresh_token = None
     target_user.refresh_token_expires_at = None
     target_user.tokens_invalidated_at = datetime.now(timezone.utc)

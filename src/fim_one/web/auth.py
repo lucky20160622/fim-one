@@ -10,6 +10,8 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import asyncio
+
 import bcrypt
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -99,6 +101,21 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
+
+
+async def hash_password_async(password: str) -> str:
+    """Async wrapper for bcrypt hash — avoids blocking the event loop (~200ms)."""
+    return await asyncio.to_thread(hash_password, password)
+
+
+async def verify_password_async(password: str, hashed: str) -> bool:
+    """Async wrapper for bcrypt verify — avoids blocking the event loop (~200ms)."""
+    return await asyncio.to_thread(verify_password, password, hashed)
+
+
+def hash_refresh_token(token: str) -> str:
+    """Return SHA-256 hex digest of a refresh token for safe DB storage."""
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 # ---------------------------------------------------------------------------

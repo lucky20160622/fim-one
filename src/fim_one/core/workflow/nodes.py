@@ -1215,6 +1215,52 @@ class CodeExecutionExecutor:
                     duration_ms=_ms_since(t0),
                 )
 
+            # ── Security gates ───────────────────────────────────────
+            # Reuse the sandbox's AST validation to block dunder access
+            # and check for dangerous module imports before execution.
+            from fim_one.core.tool.sandbox.local_backend import (
+                _validate_python_ast,
+                _BLOCKED_MODULES,
+            )
+            import ast as _ast
+
+            ast_error = _validate_python_ast(code)
+            if ast_error is not None:
+                return NodeResult(
+                    node_id=node.id,
+                    status=NodeStatus.FAILED,
+                    error=f"Code validation failed: {ast_error}",
+                    duration_ms=_ms_since(t0),
+                )
+
+            # Check for blocked module imports in AST
+            try:
+                tree = _ast.parse(code, mode="exec")
+                for ast_node in _ast.walk(tree):
+                    if isinstance(ast_node, _ast.Import):
+                        for alias in ast_node.names:
+                            top = alias.name.split(".")[0]
+                            if top in _BLOCKED_MODULES:
+                                return NodeResult(
+                                    node_id=node.id,
+                                    status=NodeStatus.FAILED,
+                                    error=f"Import of '{alias.name}' is blocked for security",
+                                    duration_ms=_ms_since(t0),
+                                )
+                    elif isinstance(ast_node, _ast.ImportFrom):
+                        if ast_node.module:
+                            top = ast_node.module.split(".")[0]
+                            if top in _BLOCKED_MODULES:
+                                return NodeResult(
+                                    node_id=node.id,
+                                    status=NodeStatus.FAILED,
+                                    error=f"Import from '{ast_node.module}' is blocked for security",
+                                    duration_ms=_ms_since(t0),
+                                )
+            except SyntaxError:
+                pass  # Let subprocess handle syntax errors with proper tracebacks
+            # ────────────────────────────────────────────────────────
+
             snapshot = await store.snapshot_safe()
 
             # Build a wrapper script that injects variables and captures output

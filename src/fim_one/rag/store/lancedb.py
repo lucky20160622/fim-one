@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,15 @@ import pyarrow as pa
 from fim_one.rag.base import Document
 
 logger = logging.getLogger(__name__)
+
+_SAFE_ID_RE = re.compile(r"^[a-zA-Z0-9_\-]+$")
+
+
+def _validate_id(value: str, name: str = "id") -> str:
+    """Validate that an ID contains only safe characters to prevent filter injection."""
+    if not _SAFE_ID_RE.match(value):
+        raise ValueError(f"Invalid {name}: contains unsafe characters")
+    return value
 
 _TABLE_NAME = "chunks"
 
@@ -177,7 +187,7 @@ class LanceDBVectorStore:
         try:
             existing = (
                 table.search()
-                .where(f"document_id = '{document_id}'")
+                .where(f"document_id = '{_validate_id(document_id, 'document_id')}'")
                 .select(["content_hash"])
                 .limit(100_000)
                 .to_list()
@@ -317,7 +327,7 @@ class LanceDBVectorStore:
         try:
             results = (
                 table.search(query_vector)
-                .where(f"user_id = '{user_id}' AND kb_id = '{kb_id}'")
+                .where(f"user_id = '{_validate_id(user_id, 'user_id')}' AND kb_id = '{_validate_id(kb_id, 'kb_id')}'")
                 .limit(top_k)
                 .to_list()
             )
@@ -389,7 +399,7 @@ class LanceDBVectorStore:
         try:
             results = (
                 table.search(query_text, query_type="fts")
-                .where(f"user_id = '{user_id}' AND kb_id = '{kb_id}'")
+                .where(f"user_id = '{_validate_id(user_id, 'user_id')}' AND kb_id = '{_validate_id(kb_id, 'kb_id')}'")
                 .limit(top_k)
                 .to_list()
             )
@@ -627,7 +637,7 @@ class LanceDBVectorStore:
         try:
             rows = (
                 table.search()
-                .where(f"id = '{chunk_id}'")
+                .where(f"id = '{_validate_id(chunk_id, 'chunk_id')}'")
                 .select(["id", "text", "content_hash", "metadata_json", "document_id"])
                 .limit(1)
                 .to_list()
@@ -699,7 +709,7 @@ class LanceDBVectorStore:
             # Verify chunk exists first
             rows = (
                 table.search()
-                .where(f"id = '{chunk_id}'")
+                .where(f"id = '{_validate_id(chunk_id, 'chunk_id')}'")
                 .select(["id"])
                 .limit(1)
                 .to_list()

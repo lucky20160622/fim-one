@@ -36,7 +36,10 @@ from fim_one.web.auth import (
     decode_token,
     get_current_user,
     hash_password,
+    hash_password_async,
+    hash_refresh_token,
     verify_password,
+    verify_password_async,
 )
 from fim_one.web.models import LoginHistory, User
 from fim_one.web.models.agent import Agent
@@ -321,7 +324,7 @@ async def register(
 
     # First registered user automatically becomes admin
     user = User(
-        password_hash=hash_password(body.password),
+        password_hash=await hash_password_async(body.password),
         email=body.email,
         is_admin=is_first_user_check,
         privacy_accepted_at=datetime.now(UTC) if body.privacy_accepted else None,
@@ -336,7 +339,7 @@ async def register(
     access = create_access_token(user.id, user.email)
     refresh = create_refresh_token(user.id, user.email)
 
-    user.refresh_token = refresh
+    user.refresh_token = hash_refresh_token(refresh)
     user.refresh_token_expires_at = datetime.now(UTC) + timedelta(
         days=REFRESH_TOKEN_EXPIRE_DAYS
     )
@@ -364,7 +367,7 @@ async def login(
         await _record_login(db, request, None, success=False, failure_reason="user_not_found", email=body.email)
         raise AppError("invalid_credentials", status_code=401)
 
-    if user.password_hash is None or not verify_password(body.password, user.password_hash):
+    if user.password_hash is None or not await verify_password_async(body.password, user.password_hash):
         await _record_login(db, request, user, success=False, failure_reason="wrong_password")
         raise AppError("invalid_credentials", status_code=401)
 
@@ -381,7 +384,7 @@ async def login(
     access = create_access_token(user.id, user.email)
     refresh = create_refresh_token(user.id, user.email)
 
-    user.refresh_token = refresh
+    user.refresh_token = hash_refresh_token(refresh)
     user.refresh_token_expires_at = datetime.now(UTC) + timedelta(
         days=REFRESH_TOKEN_EXPIRE_DAYS
     )
@@ -504,7 +507,7 @@ async def login_with_code(
     access = create_access_token(user.id, user.email)
     refresh = create_refresh_token(user.id, user.email)
 
-    user.refresh_token = refresh
+    user.refresh_token = hash_refresh_token(refresh)
     user.refresh_token_expires_at = datetime.now(UTC) + timedelta(
         days=REFRESH_TOKEN_EXPIRE_DAYS
     )
@@ -544,7 +547,7 @@ async def refresh_token(
     if not user.is_active:
         raise AppError("account_disabled", status_code=403)
 
-    if user.refresh_token != body.refresh_token:
+    if user.refresh_token != hash_refresh_token(body.refresh_token):
         raise AppError("refresh_token_mismatch", status_code=401)
 
     if (
@@ -557,7 +560,7 @@ async def refresh_token(
     access = create_access_token(user.id, user.email)
     refresh = create_refresh_token(user.id, user.email)
 
-    user.refresh_token = refresh
+    user.refresh_token = hash_refresh_token(refresh)
     user.refresh_token_expires_at = datetime.now(UTC) + timedelta(
         days=REFRESH_TOKEN_EXPIRE_DAYS
     )
@@ -1067,9 +1070,9 @@ async def change_password(
     user = result.scalar_one()
     if user.password_hash is None:
         raise AppError("oauth_password_change")
-    if not verify_password(body.current_password, user.password_hash):
+    if not await verify_password_async(body.current_password, user.password_hash):
         raise AppError("current_password_incorrect")
-    user.password_hash = hash_password(body.new_password)
+    user.password_hash = await hash_password_async(body.new_password)
     await db.commit()
     return ApiResponse(data={"message": "Password changed successfully"})
 
@@ -1085,7 +1088,7 @@ async def set_password(
     user = result.scalar_one()
     if user.password_hash is not None:
         raise AppError("password_already_set")
-    user.password_hash = hash_password(body.new_password)
+    user.password_hash = await hash_password_async(body.new_password)
     await db.commit()
 
     # Reload with oauth_bindings for response serialization
@@ -1185,7 +1188,7 @@ async def reset_password(
     # Set new password
     result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one()
-    user.password_hash = hash_password(body.new_password)
+    user.password_hash = await hash_password_async(body.new_password)
     await db.commit()
 
     return ApiResponse(data={"message": "Password reset successfully"})
@@ -1325,7 +1328,7 @@ async def forgot_password(
         raise AppError("verification_code_expired")
 
     # Set new password
-    user.password_hash = hash_password(body.new_password)
+    user.password_hash = await hash_password_async(body.new_password)
     # Clear the reset token so it can't be reused
     verif.reset_token = None
     await db.commit()
@@ -1411,7 +1414,7 @@ async def setup(
         raise AppError("system_already_initialized", status_code=403)
 
     user = User(
-        password_hash=hash_password(body.password),
+        password_hash=await hash_password_async(body.password),
         email=body.email,
         is_admin=True,
     )
@@ -1421,7 +1424,7 @@ async def setup(
     access = create_access_token(user.id, user.email)
     refresh = create_refresh_token(user.id, user.email)
 
-    user.refresh_token = refresh
+    user.refresh_token = hash_refresh_token(refresh)
     user.refresh_token_expires_at = datetime.now(UTC) + timedelta(
         days=REFRESH_TOKEN_EXPIRE_DAYS
     )
@@ -1692,7 +1695,7 @@ async def disable_2fa(
     if not user.totp_enabled:
         raise AppError("2fa_not_enabled")
 
-    if user.password_hash is None or not verify_password(body.password, user.password_hash):
+    if user.password_hash is None or not await verify_password_async(body.password, user.password_hash):
         raise AppError("current_password_incorrect")
 
     user.totp_secret = None
@@ -1716,7 +1719,7 @@ async def regenerate_backup_codes(
     if not user.totp_enabled:
         raise AppError("2fa_not_enabled")
 
-    if user.password_hash is None or not verify_password(body.password, user.password_hash):
+    if user.password_hash is None or not await verify_password_async(body.password, user.password_hash):
         raise AppError("current_password_incorrect")
 
     plain_codes = _generate_backup_codes(10)
@@ -1775,7 +1778,7 @@ async def verify_2fa_login(
     access = create_access_token(user.id, user.email)
     refresh = create_refresh_token(user.id, user.email)
 
-    user.refresh_token = refresh
+    user.refresh_token = hash_refresh_token(refresh)
     user.refresh_token_expires_at = datetime.now(UTC) + timedelta(
         days=REFRESH_TOKEN_EXPIRE_DAYS
     )
@@ -1814,7 +1817,7 @@ async def request_email_change(
     result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one()
 
-    if user.password_hash is None or not verify_password(body.password, user.password_hash):
+    if user.password_hash is None or not await verify_password_async(body.password, user.password_hash):
         raise AppError("current_password_incorrect")
 
     # Check new_email not already taken

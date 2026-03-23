@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from fim_one.core.security.encryption import EncryptedString
 from fim_one.db.base import Base, TimestampMixin, UUIDPKMixin
 
 if TYPE_CHECKING:
@@ -58,7 +59,7 @@ class User(UUIDPKMixin, TimestampMixin, Base):
     default_reasoning: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
     # Two-factor authentication
-    totp_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    totp_secret: Mapped[str | None] = mapped_column(EncryptedString, nullable=True)
     totp_enabled: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False, server_default=sa.text("FALSE")
     )
