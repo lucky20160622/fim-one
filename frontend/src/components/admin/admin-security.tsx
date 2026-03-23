@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useTranslations, useLocale } from "next-intl"
+import { useTranslations } from "next-intl"
 import { Plus, Loader2, MoreHorizontal, Power, Trash2 } from "lucide-react"
+import { useDateFormatter } from "@/hooks/use-date-formatter"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -97,7 +98,7 @@ export function AdminSecurity() {
   const t = useTranslations("admin.security")
   const tc = useTranslations("common")
   const tError = useTranslations("errors")
-  const locale = useLocale()
+  const { formatDateTimeFull } = useDateFormatter()
 
   // --- Login history state ---
   const [historyLoading, setHistoryLoading] = useState(true)
@@ -333,14 +334,7 @@ export function AdminSecurity() {
                   {history.map((entry) => (
                     <tr key={entry.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap tabular-nums">
-                        {new Date(entry.created_at).toLocaleString(locale, {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })}
+                        {formatDateTimeFull(entry.created_at)}
                       </td>
                       <td className="px-4 py-2.5 font-medium text-foreground">
                         {entry.username || entry.email || "\u2014"}

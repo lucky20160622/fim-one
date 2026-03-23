@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useTranslations, useLocale } from "next-intl"
+import { useTranslations } from "next-intl"
+import { useDateFormatter } from "@/hooks/use-date-formatter"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import {
@@ -54,7 +55,7 @@ export function AdminEval() {
   const t = useTranslations("admin.evaluations")
   const tc = useTranslations("common")
   const tError = useTranslations("errors")
-  const locale = useLocale()
+  const { formatDate } = useDateFormatter()
 
   const [view, setView] = useState<SubView>("datasets")
   const [stats, setStats] = useState<AdminEvalStats | null>(null)
@@ -270,10 +271,10 @@ export function AdminEval() {
                       <td className="px-4 py-3 text-muted-foreground">{ds.username || ds.email || "--"}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{ds.case_count}</td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
-                        {ds.last_run_at ? new Date(ds.last_run_at).toLocaleDateString(locale) : t("neverRun")}
+                        {formatDate(ds.last_run_at, t("neverRun"))}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
-                        {new Date(ds.created_at).toLocaleDateString(locale)}
+                        {formatDate(ds.created_at)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <DropdownMenu>
@@ -375,7 +376,7 @@ export function AdminEval() {
                         {formatTokens(run.tokens_used ?? 0)}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
-                        {new Date(run.created_at).toLocaleDateString(locale)}
+                        {formatDate(run.created_at)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <DropdownMenu>

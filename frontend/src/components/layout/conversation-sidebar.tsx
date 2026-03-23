@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useDateFormatter } from "@/hooks/use-date-formatter"
 import { useConversation } from "@/contexts/conversation-context"
 import { ChatSearchDialog } from "@/components/layout/chat-search-dialog"
 import type { ConversationResponse } from "@/types/conversation"
@@ -37,12 +38,20 @@ interface ConversationSidebarProps {
 function groupByDate(
   conversations: ConversationResponse[],
   labels: { starred: string; today: string; yesterday: string; previous7Days: string; older: string },
+  timezone?: string,
 ) {
   const starred = conversations.filter((c) => c.starred)
   const unstarred = conversations.filter((c) => !c.starred)
 
+  // Calculate "today midnight" in the user's timezone
   const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  let today: Date
+  if (timezone) {
+    const localDateStr = now.toLocaleDateString("en-CA", { timeZone: timezone }) // YYYY-MM-DD
+    today = new Date(localDateStr + "T00:00:00")
+  } else {
+    today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  }
   const yesterday = new Date(today.getTime() - 86400000)
   const weekAgo = new Date(today.getTime() - 7 * 86400000)
 
@@ -80,6 +89,7 @@ export function ConversationSidebar({ collapsed, hideHeader }: ConversationSideb
   const isNewChat = pathname === "/new"
   const t = useTranslations("layout")
   const tc = useTranslations("common")
+  const { timezone } = useDateFormatter()
   const {
     conversations,
     activeId,
@@ -167,7 +177,7 @@ export function ConversationSidebar({ collapsed, hideHeader }: ConversationSideb
     yesterday: tc("yesterday"),
     previous7Days: t("previous7Days"),
     older: tc("older"),
-  })
+  }, timezone)
 
   return (
     <div className="flex flex-col h-full">

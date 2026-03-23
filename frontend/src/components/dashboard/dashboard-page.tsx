@@ -31,13 +31,14 @@ import { useDateFormatter } from "@/hooks/use-date-formatter"
 const TICK_STYLE = { fill: "currentColor", fontSize: 11 } as const
 
 // ---- Helper: today formatted string ----
-function formatToday(locale: string): string {
+function formatToday(locale: string, timezone?: string): string {
   try {
     return new Date().toLocaleDateString(locale, {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
+      timeZone: timezone,
     })
   } catch {
     return new Date().toLocaleDateString()
@@ -145,7 +146,7 @@ function AgentIcon({ icon, name }: { icon: string | null; name: string }) {
 export function DashboardPage() {
   const t = useTranslations("dashboard")
   const locale = useLocale()
-  const { formatRelativeTime, formatDateLabel } = useDateFormatter()
+  const { formatRelativeTime, formatDateLabel, timezone } = useDateFormatter()
   const { user, isLoading: authLoading } = useAuth()
   const { conversations } = useConversation()
   const router = useRouter()
@@ -214,7 +215,7 @@ export function DashboardPage() {
   if (authLoading || !user) return null
 
   const displayName = user.display_name ?? user.username ?? user.email ?? "User"
-  const todayStr = formatToday(locale)
+  const todayStr = formatToday(locale, timezone)
 
   // Prepare activity chart data
   const activityData =

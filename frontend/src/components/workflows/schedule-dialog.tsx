@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useDateFormatter } from "@/hooks/use-date-formatter"
 import { workflowApi } from "@/lib/api"
 import type { WorkflowScheduleResponse } from "@/types/workflow"
 
@@ -78,6 +79,7 @@ export function ScheduleDialog({
 }: ScheduleDialogProps) {
   const t = useTranslations("workflows")
   const tc = useTranslations("common")
+  const { formatDateTime } = useDateFormatter()
 
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -384,7 +386,7 @@ export function ScheduleDialog({
                   {t("scheduleNextRun")}:
                 </span>
                 <span className="text-foreground">
-                  {new Date(nextRunAt).toLocaleString()}
+                  {formatDateTime(nextRunAt)}
                 </span>
               </div>
             )}

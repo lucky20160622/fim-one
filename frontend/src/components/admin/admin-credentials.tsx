@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { useTranslations, useLocale } from "next-intl"
+import { useTranslations } from "next-intl"
 import { toast } from "sonner"
 import {
   Loader2,
@@ -11,6 +11,7 @@ import {
   Server,
   Users,
 } from "lucide-react"
+import { useDateFormatter } from "@/hooks/use-date-formatter"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -30,7 +31,7 @@ export function AdminCredentials() {
   const t = useTranslations("admin.credentials")
   const tc = useTranslations("common")
   const tError = useTranslations("errors")
-  const locale = useLocale()
+  const { formatDate } = useDateFormatter()
 
   // --- State ---
   const [credentials, setCredentials] = useState<AdminCredential[]>([])
@@ -196,7 +197,7 @@ export function AdminCredentials() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
-                    {cred.updated_at ? new Date(cred.updated_at).toLocaleDateString(locale) : "--"}
+                    {formatDate(cred.updated_at, "--")}
                   </td>
                 </tr>
               ))}

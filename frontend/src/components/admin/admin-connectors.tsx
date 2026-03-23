@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useTranslations, useLocale } from "next-intl"
+import { useTranslations } from "next-intl"
 import { Activity, ArrowUpRight, CheckCircle, Clock, Plug } from "lucide-react"
+import { useDateFormatter } from "@/hooks/use-date-formatter"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { adminApi } from "@/lib/api"
@@ -68,18 +69,9 @@ function SkeletonCard() {
   )
 }
 
-function formatDate(dateStr: string, locale?: string): string {
-  try {
-    const d = new Date(dateStr)
-    return d.toLocaleDateString(locale, { month: "short", day: "numeric" })
-  } catch {
-    return dateStr
-  }
-}
-
 export function AdminConnectors() {
   const t = useTranslations("admin.connectors")
-  const locale = useLocale()
+  const { formatDateLabel } = useDateFormatter()
   const [stats, setStats] = useState<ConnectorStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -100,7 +92,7 @@ export function AdminConnectors() {
   }
 
   const recentDays = stats
-    ? stats.recent_days.map((d) => ({ ...d, label: formatDate(d.date, locale) }))
+    ? stats.recent_days.map((d) => ({ ...d, label: formatDateLabel(d.date) }))
     : []
 
   const topConnectors = stats

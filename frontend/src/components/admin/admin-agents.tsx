@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { useTranslations, useLocale } from "next-intl"
+import { useTranslations } from "next-intl"
 import { Loader2, MoreHorizontal, Search, Info, Trash2, Power } from "lucide-react"
+import { useDateFormatter } from "@/hooks/use-date-formatter"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -71,7 +72,7 @@ export function AdminAgents() {
   const tb = useTranslations("admin.resourcesBatch")
   const tc = useTranslations("common")
   const tError = useTranslations("errors")
-  const locale = useLocale()
+  const { formatDate } = useDateFormatter()
 
   // ---- Agent state ----
   const [agents, setAgents] = useState<AdminAgentInfo[]>([])
@@ -269,7 +270,7 @@ export function AdminAgents() {
                     {agent.enable_planning ? t("yes") : t("no")}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
-                    {new Date(agent.created_at).toLocaleDateString(locale)}
+                    {formatDate(agent.created_at)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <DropdownMenu>

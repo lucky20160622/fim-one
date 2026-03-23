@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { useTranslations, useLocale } from "next-intl"
+import { useTranslations } from "next-intl"
 import { MoreHorizontal, Search, Loader2, Eye, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { formatTokens } from "@/lib/utils"
@@ -33,6 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useDateFormatter } from "@/hooks/use-date-formatter"
 import { adminApi } from "@/lib/api"
 import { getErrorMessage } from "@/lib/error-utils"
 import type { AdminConversation, AdminMessage } from "@/types/admin"
@@ -50,7 +51,7 @@ export function AdminConversations() {
   const t = useTranslations("admin.conversations")
   const tc = useTranslations("common")
   const tError = useTranslations("errors")
-  const locale = useLocale()
+  const { formatDate, formatDateTime } = useDateFormatter()
   const [conversations, setConversations] = useState<AdminConversation[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -182,7 +183,7 @@ export function AdminConversations() {
                   <td className="px-4 py-3 text-right tabular-nums">{formatTokens(conv.total_tokens)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{conv.message_count}</td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
-                    {new Date(conv.created_at).toLocaleDateString(locale)}
+                    {formatDate(conv.created_at)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <DropdownMenu>
@@ -273,7 +274,7 @@ export function AdminConversations() {
                         {getRoleBadgeLabel(msg.role)}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {new Date(msg.created_at).toLocaleString(locale)}
+                        {formatDateTime(msg.created_at)}
                       </span>
                     </div>
                     <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-sm whitespace-pre-wrap break-words">

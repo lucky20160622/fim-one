@@ -12,6 +12,7 @@ import {
   Clock,
 } from "lucide-react"
 import { cn, fmtDuration } from "@/lib/utils"
+import { useDateFormatter } from "@/hooks/use-date-formatter"
 import type { StepNodeData } from "./types"
 
 const statusConfig = {
@@ -46,13 +47,14 @@ const statusConfig = {
 } as const
 
 /** Format a unix timestamp (seconds) into HH:MM:SS. */
-function fmtTime(ts: number): string {
+function fmtTime(ts: number, timezone?: string): string {
   const d = new Date(ts * 1000)
   return d.toLocaleTimeString("en-US", {
     hour12: false,
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
+    timeZone: timezone,
   })
 }
 
@@ -124,6 +126,7 @@ function StepNodeComponent({ data }: NodeProps) {
   const nodeData = data as unknown as StepNodeData
   const config = statusConfig[nodeData.status]
   const { Icon } = config
+  const { timezone } = useDateFormatter()
 
   const showStartTime = nodeData.started_at != null
   const showCompletedDuration =
@@ -176,7 +179,7 @@ function StepNodeComponent({ data }: NodeProps) {
           {showStartTime && (
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
               <Clock className="h-2.5 w-2.5 shrink-0" />
-              <span className="tabular-nums">{fmtTime(nodeData.started_at!)}</span>
+              <span className="tabular-nums">{fmtTime(nodeData.started_at!, timezone)}</span>
             </div>
           )}
         </div>

@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useTranslations, useLocale } from "next-intl"
+import { useTranslations } from "next-intl"
 import { Users, MessageSquare, Zap, Bot, Database, BookOpen, FileText, Hash, Plug, Package, AlertCircle } from "lucide-react"
+import { useDateFormatter } from "@/hooks/use-date-formatter"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { apiFetch } from "@/lib/api"
@@ -104,18 +105,9 @@ function SkeletonCard() {
   )
 }
 
-function formatDate(dateStr: string, locale?: string): string {
-  try {
-    const d = new Date(dateStr)
-    return d.toLocaleDateString(locale, { month: "short", day: "numeric" })
-  } catch {
-    return dateStr
-  }
-}
-
 export function AdminOverview() {
   const t = useTranslations("admin.overview")
-  const locale = useLocale()
+  const { formatDateLabel } = useDateFormatter()
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -146,7 +138,7 @@ export function AdminOverview() {
   const topAgents = stats ? stats.top_agents.slice(0, 5) : []
 
   const recentDays = stats
-    ? stats.recent_days.map((d) => ({ ...d, label: formatDate(d.date, locale) }))
+    ? stats.recent_days.map((d) => ({ ...d, label: formatDateLabel(d.date) }))
     : []
 
   return (
