@@ -32,6 +32,9 @@ def _send_email(to: str, subject: str, body_html: str) -> None:
     msg["From"] = f"{from_name} <{from_addr}>" if from_name else from_addr
     msg["To"] = to
     msg["Subject"] = subject
+    reply_to = os.getenv("SMTP_REPLY_TO")
+    if reply_to:
+        msg["Reply-To"] = reply_to
     msg.attach(MIMEText(body_html, "html", "utf-8"))
 
     if ssl_mode == "ssl":

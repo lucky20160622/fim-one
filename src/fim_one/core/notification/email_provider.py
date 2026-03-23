@@ -79,6 +79,9 @@ class EmailNotificationProvider(NotificationProvider):
         msg["From"] = f"{from_name} <{from_addr}>" if from_name else from_addr
         msg["To"] = to
         msg["Subject"] = subject
+        reply_to = os.getenv("SMTP_REPLY_TO")
+        if reply_to:
+            msg["Reply-To"] = reply_to
         # Send as HTML so providers that support rich formatting get it.
         msg.attach(MIMEText(body, "html", "utf-8"))
 

@@ -32,6 +32,7 @@ SETTING_NOTIFICATION_CONFIG = "admin_notification_config"
 
 # Default notification config
 _DEFAULT_CONFIG = {
+    "enabled": False,
     "new_user_registration": True,
     "quota_hit": True,
     "quota_threshold_percent": 80,
@@ -40,6 +41,7 @@ _DEFAULT_CONFIG = {
     "schedule_failure": True,
     "login_anomaly": True,
     "login_anomaly_threshold": 10,
+    "smtp_configured": False,
     "channels": [],
 }
 
@@ -50,6 +52,7 @@ _DEFAULT_CONFIG = {
 
 
 class NotificationConfig(BaseModel):
+    enabled: bool = False  # Master switch
     new_user_registration: bool = True
     quota_hit: bool = True
     quota_threshold_percent: int = 80
@@ -58,6 +61,7 @@ class NotificationConfig(BaseModel):
     schedule_failure: bool = True
     login_anomaly: bool = True
     login_anomaly_threshold: int = 10
+    smtp_configured: bool = False  # Runtime-computed, not persisted
     channels: list[str] = Field(default_factory=list)
 
 
@@ -94,10 +98,16 @@ async def get_notification_config(
     if raw:
         try:
             data = json.loads(raw)
-            return NotificationConfig(**data)
+            config = NotificationConfig(**data)
         except (json.JSONDecodeError, TypeError):
-            pass
-    return NotificationConfig(**_DEFAULT_CONFIG)
+            config = NotificationConfig(**_DEFAULT_CONFIG)
+    else:
+        config = NotificationConfig(**_DEFAULT_CONFIG)
+
+    # Always compute SMTP status at runtime — never trust DB value
+    from fim_one.web.email import _smtp_configured
+    config.smtp_configured = _smtp_configured()
+    return config
 
 
 @router.put("/notifications/config", response_model=NotificationConfig)
@@ -107,7 +117,9 @@ async def update_notification_config(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> NotificationConfig:
     """Update system-wide notification config. Stored in SystemSetting as JSON."""
-    config_json = json.dumps(body.model_dump())
+    data = body.model_dump()
+    data.pop("smtp_configured", None)  # Runtime-only, don't persist
+    config_json = json.dumps(data)
     await set_setting(db, SETTING_NOTIFICATION_CONFIG, config_json)
 
     await write_audit(
@@ -117,6 +129,9 @@ async def update_notification_config(
         detail="Updated notification config",
     )
 
+    # Return with runtime SMTP status
+    from fim_one.web.email import _smtp_configured
+    body.smtp_configured = _smtp_configured()
     return body
 
 

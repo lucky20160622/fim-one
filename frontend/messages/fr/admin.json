@@ -973,7 +973,11 @@
     "comingSoonTitle": "Déclencheurs d'événements à venir",
     "comingSoonBody": "Le système de livraison des notifications (Email, Slack, Lark, WeCom) est prêt. Les déclencheurs basés sur les événements — alertes automatiques pour les défaillances de flux de travail, les pannes de connecteur, les limites de quota et les anomalies de connexion — sont en cours de développement. En attendant, les notifications peuvent être envoyées manuellement via l'API ou utilisées comme outil intégré dans les flux de travail et les conversations d'agent.",
     "typeNewUserRegistration": "Nouvel utilisateur",
-    "newUserToggle": "Enregistrement d'un nouvel utilisateur"
+    "newUserToggle": "Inscription d'un nouvel utilisateur",
+    "masterToggle": "Notifications par e-mail",
+    "masterToggleDesc": "Envoyer des alertes par e-mail à tous les utilisateurs administrateurs lorsque des événements système se produisent.",
+    "smtpNotConfigured": "SMTP non configuré",
+    "smtpNotConfiguredBody": "Les notifications par e-mail d'administrateur nécessitent la configuration de SMTP. Définissez SMTP_HOST, SMTP_USER et SMTP_PASS dans vos variables d'environnement, puis redémarrez le serveur pour activer cette fonctionnalité."
   },
   "placeholders": {
     "traces": {

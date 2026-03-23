@@ -27,6 +27,7 @@ SETTING_NOTIFICATION_CONFIG = "admin_notification_config"
 async def _load_notification_config() -> dict:
     """Load notification config from DB, returning defaults if not set."""
     defaults = {
+        "enabled": False,
         "new_user_registration": True,
         "quota_hit": True,
         "connector_failure": True,
@@ -141,6 +142,9 @@ async def notify_admins(
 
     try:
         config = await _load_notification_config()
+        if not config.get("enabled", False):
+            logger.debug("Admin notifications master switch is off, skipping")
+            return
         if not config.get(event_type, False):
             logger.debug("Admin notification '%s' is disabled, skipping", event_type)
             return

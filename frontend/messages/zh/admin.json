@@ -973,7 +973,11 @@
     "comingSoonTitle": "事件触发器即将推出",
     "comingSoonBody": "通知投递系统（电子邮件、Slack、Lark、WeCom）已准备就绪。基于事件的触发器——用于工作流失败、连接器中断、配额限制和登录异常的自动警报——正在开发中。同时，可以通过 API 手动发送通知，或在工作流和智能体对话中用作内置工具。",
     "typeNewUserRegistration": "新用户",
-    "newUserToggle": "新用户注册"
+    "newUserToggle": "新用户注册",
+    "masterToggle": "电子邮件通知",
+    "masterToggleDesc": "当系统事件发生时，向所有管理员用户发送电子邮件警报。",
+    "smtpNotConfigured": "SMTP 未配置",
+    "smtpNotConfiguredBody": "管理员电子邮件通知需要配置 SMTP。在环境变量中设置 SMTP_HOST、SMTP_USER 和 SMTP_PASS，然后重启服务器以启用此功能。"
   },
   "placeholders": {
     "traces": {

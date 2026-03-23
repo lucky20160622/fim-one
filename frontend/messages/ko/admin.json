@@ -973,7 +973,11 @@
     "comingSoonTitle": "이벤트 트리거 곧 출시 예정",
     "comingSoonBody": "알림 전달 시스템(이메일, Slack, Lark, WeCom)이 준비되었습니다. 워크플로우 실패, 커넥터 중단, 할당량 제한, 로그인 이상에 대한 자동 알림을 제공하는 이벤트 기반 트리거는 개발 중입니다. 그동안 API를 통해 수동으로 알림을 보내거나 워크플로우 및 에이전트 대화에서 기본 제공 도구로 사용할 수 있습니다.",
     "typeNewUserRegistration": "새 사용자",
-    "newUserToggle": "새 사용자 등록"
+    "newUserToggle": "새 사용자 등록",
+    "masterToggle": "이메일 알림",
+    "masterToggleDesc": "시스템 이벤트가 발생할 때 모든 관리자 사용자에게 이메일 알림을 보냅니다.",
+    "smtpNotConfigured": "SMTP 구성되지 않음",
+    "smtpNotConfiguredBody": "관리자 이메일 알림을 사용하려면 SMTP를 구성해야 합니다. 환경 변수에서 SMTP_HOST, SMTP_USER 및 SMTP_PASS를 설정한 후 서버를 다시 시작하여 이 기능을 활성화하세요."
   },
   "placeholders": {
     "traces": {

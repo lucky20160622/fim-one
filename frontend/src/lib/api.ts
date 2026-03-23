@@ -1413,8 +1413,8 @@ export interface AdminScheduleStats {
   active: number; total: number; next_run_at: string | null; failed_24h: number
 }
 export interface AdminNotificationConfig {
-  new_user_registration: boolean; quota_hit: boolean; connector_failure: boolean
-  schedule_failure: boolean; login_anomaly: boolean
+  enabled: boolean; new_user_registration: boolean; quota_hit: boolean; connector_failure: boolean
+  schedule_failure: boolean; login_anomaly: boolean; smtp_configured: boolean
 }
 export interface AdminNotificationEvent {
   id: string; type: string; description: string; user: string | null

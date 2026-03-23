@@ -14,6 +14,9 @@ import {
   Calendar,
   Shield,
   UserPlus,
+  Mail,
+  MailX,
+  Info,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -148,7 +151,7 @@ export function AdminNotifications() {
           size="sm"
           className="gap-1.5"
           onClick={handleSendTest}
-          disabled={isMutating}
+          disabled={isMutating || !config?.smtp_configured}
         >
           {isMutating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           {t("sendTest")}
@@ -244,47 +247,103 @@ export function AdminNotifications() {
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : config ? (
-            <div className="rounded-md border border-border p-4 space-y-6">
-              <div>
-                <h3 className="text-sm font-semibold">{t("configTitle")}</h3>
-                <p className="text-xs text-muted-foreground">{t("configSubtitle")}</p>
+            <div className="space-y-4">
+              {/* SMTP warning banner -- shown when SMTP is not configured */}
+              {!config.smtp_configured && (
+                <div className="rounded-md border border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 flex items-start gap-3">
+                  <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200">{t("smtpNotConfigured")}</p>
+                    <p className="text-sm text-amber-700 dark:text-amber-300 mt-0.5">{t("smtpNotConfiguredBody")}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Master switch */}
+              <div className="rounded-md border border-border p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {config.enabled && config.smtp_configured ? (
+                      <Mail className="h-4 w-4 text-primary" />
+                    ) : (
+                      <MailX className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <div>
+                      <Label className="cursor-pointer text-sm font-semibold">{t("masterToggle")}</Label>
+                      <p className="text-xs text-muted-foreground">{t("masterToggleDesc")}</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={config.enabled}
+                    disabled={!config.smtp_configured}
+                    onCheckedChange={() => handleConfigToggle("enabled")}
+                  />
+                </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <UserPlus className="h-4 w-4 text-blue-600" />
-                    <Label className="cursor-pointer">{t("newUserToggle")}</Label>
-                  </div>
-                  <Switch checked={config.new_user_registration} onCheckedChange={() => handleConfigToggle("new_user_registration")} />
+              {/* Sub-toggles */}
+              <div className="rounded-md border border-border p-4 space-y-6">
+                <div>
+                  <h3 className="text-sm font-semibold">{t("configTitle")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("configSubtitle")}</p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                    <Label className="cursor-pointer">{t("quotaHitToggle")}</Label>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <UserPlus className="h-4 w-4 text-blue-600" />
+                      <Label className="cursor-pointer">{t("newUserToggle")}</Label>
+                    </div>
+                    <Switch
+                      checked={config.new_user_registration}
+                      disabled={!config.smtp_configured || !config.enabled}
+                      onCheckedChange={() => handleConfigToggle("new_user_registration")}
+                    />
                   </div>
-                  <Switch checked={config.quota_hit} onCheckedChange={() => handleConfigToggle("quota_hit")} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Plug className="h-4 w-4 text-red-600" />
-                    <Label className="cursor-pointer">{t("connectorFailToggle")}</Label>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                      <Label className="cursor-pointer">{t("quotaHitToggle")}</Label>
+                    </div>
+                    <Switch
+                      checked={config.quota_hit}
+                      disabled={!config.smtp_configured || !config.enabled}
+                      onCheckedChange={() => handleConfigToggle("quota_hit")}
+                    />
                   </div>
-                  <Switch checked={config.connector_failure} onCheckedChange={() => handleConfigToggle("connector_failure")} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-red-600" />
-                    <Label className="cursor-pointer">{t("scheduleFailToggle")}</Label>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Plug className="h-4 w-4 text-red-600" />
+                      <Label className="cursor-pointer">{t("connectorFailToggle")}</Label>
+                    </div>
+                    <Switch
+                      checked={config.connector_failure}
+                      disabled={!config.smtp_configured || !config.enabled}
+                      onCheckedChange={() => handleConfigToggle("connector_failure")}
+                    />
                   </div>
-                  <Switch checked={config.schedule_failure} onCheckedChange={() => handleConfigToggle("schedule_failure")} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Shield className="h-4 w-4 text-orange-600" />
-                    <Label className="cursor-pointer">{t("loginAnomalyToggle")}</Label>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-4 w-4 text-red-600" />
+                      <Label className="cursor-pointer">{t("scheduleFailToggle")}</Label>
+                    </div>
+                    <Switch
+                      checked={config.schedule_failure}
+                      disabled={!config.smtp_configured || !config.enabled}
+                      onCheckedChange={() => handleConfigToggle("schedule_failure")}
+                    />
                   </div>
-                  <Switch checked={config.login_anomaly} onCheckedChange={() => handleConfigToggle("login_anomaly")} />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Shield className="h-4 w-4 text-orange-600" />
+                      <Label className="cursor-pointer">{t("loginAnomalyToggle")}</Label>
+                    </div>
+                    <Switch
+                      checked={config.login_anomaly}
+                      disabled={!config.smtp_configured || !config.enabled}
+                      onCheckedChange={() => handleConfigToggle("login_anomaly")}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
