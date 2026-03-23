@@ -52,28 +52,28 @@ Die beiden Modi unterscheiden sich im **Umfang**, nicht in der Art. Beide erzeug
 |---|---|---|
 | Konnektoren (API) | `resolve_visibility()` — alle für Benutzer sichtbar | `ConnectorMetaTool` (progressiv) |
 | Konnektoren (DB) | `resolve_visibility()` — alle für Benutzer sichtbar | `DatabaseMetaTool` (progressiv) |
-| Knowledge Bases | Alle zugänglichen KBs | `kb_retrieve` |
-| Skills | `resolve_visibility()` — alle aktiv | `read_skill` (progressive Stubs) |
+| Wissensdatenbanken | Alle zugänglichen KBs | `kb_retrieve` |
+| Fähigkeiten | `resolve_visibility()` — alle aktiv | `read_skill` (progressive Stubs) |
 | MCP-Server | `resolve_visibility()` — alle für Benutzer sichtbar | `MCPServerMetaTool` (progressiv) |
 | Agenten | `resolve_visibility()` — alle aktiv, nicht-Builder | `call_agent` (Katalog) |
-| Integrierte Tools | `discover_builtin_tools()` — vollständiger Satz | Kein Kategoriefilter angewendet |
+| Integrierte Tools | `discover_builtin_tools()` — vollständiger Satz | Keine Kategoriefilterung angewendet |
 
-**Agent-Constrained-Modus (Agent ausgewählt):**
+**Agent-beschränkter Modus (Agent ausgewählt):**
 
 | Ressource | Erkennung | Tool-Form |
 |---|---|---|
 | Konnektoren | Nur `agent.connector_ids` | `ConnectorMetaTool` oder Legacy pro Aktion |
-| Knowledge Bases | Nur `agent.kb_ids` | `GroundedRetrieveTool` / `KBRetrieveTool` |
-| Skills | Global — **nicht durch Agent eingeschränkt** | `read_skill` |
-| MCP-Server | Benutzer-scoped — **nicht durch Agent eingeschränkt** | `MCPServerMetaTool` (progressiv) |
+| Wissensdatenbanken | Nur `agent.kb_ids` | `GroundedRetrieveTool` / `KBRetrieveTool` |
+| Fähigkeiten | Global — **nicht durch Agent beschränkt** | `read_skill` |
+| MCP-Server | Benutzer-scoped — **nicht durch Agent beschränkt** | `MCPServerMetaTool` (progressiv) |
 | Agenten | Global — `call_agent` immer verfügbar | `call_agent` |
 | Integrierte Tools | `agent.tool_categories` Filter | Teilmenge nach Kategorie |
 
-Die Schlüsselasymmetrie: Konnektoren und Knowledge Bases sind durch den Agent scoped, aber Skills, MCP-Server und CallAgent sind immer global. Dies spiegelt die Designabsicht wider — Skills sind organisatorische Regeln (alle folgen denselben SOPs), während Konnektoren und KBs Fähigkeitsbindungen sind (verschiedene Agenten verbinden sich mit verschiedenen Systemen).
+Die Schlüsselasymmetrie: Konnektoren und Wissensdatenbanken werden durch den Agent begrenzt, aber Fähigkeiten, MCP-Server und CallAgent sind immer global. Dies spiegelt die Designabsicht wider — Fähigkeiten sind organisatorische Regeln (alle folgen denselben SOPs), während Konnektoren und KBs Funktionsbindungen sind (verschiedene Agenten verbinden sich mit verschiedenen Systemen).
 
 ## Alles ist ein Werkzeug
 
-Auf der LLM-Ebene konvergieren alle Ressourcentypen in eine flache Liste von aufrufbaren Werkzeugen. Das LLM hat kein strukturelles Bewusstsein dafür, ob es einen Connector, einen MCP-Server oder eine Wissensdatenbank aufruft. Es sieht eine `ToolRegistry` — eine Menge von Funktionen mit Namen, Beschreibungen und Parameterschemas.
+Auf der LLM-Ebene konvergieren alle Ressourcentypen in eine flache Liste aufrufbarer Werkzeuge. Das LLM hat kein strukturelles Bewusstsein dafür, ob es einen Connector, einen MCP-Server oder eine Knowledge Base aufruft. Es sieht eine `ToolRegistry` — eine Menge von Funktionen mit Namen, Beschreibungen und Parameterschemas.
 
 | Ressourcentyp | Wird auf LLM-Ebene zu | Werkzeugnamen-Muster |
 |---|---|---|
@@ -83,14 +83,14 @@ Auf der LLM-Ebene konvergieren alle Ressourcentypen in eine flache Liste von auf
 | Datenbank-Connector (Legacy) | 3 Werkzeuge pro Datenbank | `{db}__list_tables`, `{db}__describe_table`, `{db}__query` |
 | MCP-Server (progressiv) | Einzelnes Meta-Werkzeug | `mcp` |
 | MCP-Server (Legacy) | N Werkzeuge pro Server | `{server}__{tool}` |
-| Wissensdatenbank | Abrufen-Werkzeug | `kb_retrieve` oder `grounded_retrieve` |
+| Knowledge Base | Abruf-Werkzeug | `kb_retrieve` oder `grounded_retrieve` |
 | Skill (progressiv) | Lese-Werkzeug + System-Prompt-Stubs | `read_skill` |
-| Skill (inline) | Nur System-Prompt-Text | _(kein Werkzeug)_ |
-| Agent selbst | Nicht als Werkzeug sichtbar | _(Anweisungen + Werkzeugzusammensetzung)_ |
+| Skill (Inline) | Nur System-Prompt-Text | _(kein Werkzeug)_ |
+| Agent selbst | Nicht als Werkzeug sichtbar | _(Anweisungen + Werkzeug-Zusammenstellung)_ |
 
-Die Schlüsselerkenntnis: **Ein Agent ist kein Werkzeug — er ist die Entität, die Werkzeuge nutzt.** Der Agent trägt seine Anweisungen zum System-Prompt bei und bestimmt, welche Werkzeuge verfügbar sind. Aber aus der Perspektive des LLM gibt es kein „Agent"-Konzept — nur einen System-Prompt und eine Menge von aufrufbaren Funktionen.
+Die Schlüsselerkenntnis: **Ein Agent ist kein Werkzeug — er ist die Entität, die Werkzeuge nutzt.** Der Agent trägt seine Anweisungen zum System-Prompt bei und bestimmt, welche Werkzeuge verfügbar sind. Aber aus der Perspektive des LLM gibt es kein „Agent"-Konzept — nur einen System-Prompt und eine Menge aufrufbarer Funktionen.
 
-Diese Einheitlichkeit ist das, was das System erweiterbar macht. Das Hinzufügen eines neuen Ressourcentyps bedeutet, das `Tool`-Protokoll zu implementieren (`name`, `description`, `parameters_schema`, `run()`). Die Ausführungs-Engines, das Kontextmanagement und die LLM-Interaktionsschicht bleiben unverändert.
+Diese Einheitlichkeit ist das, was das System erweiterbar macht. Das Hinzufügen eines neuen Ressourcentyps bedeutet, das `Tool`-Protokoll (`name`, `description`, `parameters_schema`, `run()`) zu implementieren. Die Ausführungs-Engines, das Kontext-Management und die LLM-Interaktionsschicht bleiben unverändert.
 
 ## Fähigkeiten als globale SOPs
 
@@ -104,7 +104,7 @@ Fähigkeiten sind von Natur aus global — sie sind Unternehmensregeln, keine ag
 
 ### Zwei Injektionsmodi
 
-Fähigkeiten unterstützen zwei Injektionsmodi -- **progressiv** (Standard) und **inline** -- gesteuert durch `SKILL_TOOL_MODE` oder die `model_config_json.skill_tool_mode` des Agenten. Im progressiven Modus erscheinen nur kompakte Stubs im System-Prompt; das LLM ruft `read_skill(name)` bei Bedarf auf, um den vollständigen Inhalt zu laden. Dies ist Teil von FIM One's umfassenderer [Progressive Disclosure](/architecture/progressive-disclosure)-Architektur, die den Kontextverbrauch über alle Ressourcentypen hinweg minimiert.
+Fähigkeiten unterstützen zwei Injektionsmodi -- **progressiv** (Standard) und **inline** -- gesteuert durch `SKILL_TOOL_MODE` oder die `model_config_json.skill_tool_mode` des Agenten. Im progressiven Modus erscheinen nur kompakte Stubs in der Systemaufforderung; das LLM ruft `read_skill(name)` bei Bedarf auf, um den vollständigen Inhalt zu laden. Dies ist Teil von FIM One's umfassenderer [Progressive Disclosure](/architecture/progressive-disclosure) Architektur, die den Kontextverbrauch über alle Ressourcentypen hinweg minimiert.
 
 ## Agent als Persona, nicht als Container
 
