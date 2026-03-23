@@ -1350,12 +1350,19 @@ async def _resolve_tools(
     return tools
 
 
-async def _connect_pending_mcp_servers(tools: ToolRegistry) -> Any:
+async def _connect_pending_mcp_servers(
+    tools: ToolRegistry,
+    agent_cfg: dict[str, Any] | None = None,
+) -> Any:
     """Connect to pending MCP servers and register their tools.
 
     Must be called from inside the SSE generator so that the anyio cancel
     scope created by stdio_client is entered and exited in the same coroutine.
     Returns the MCPClient (caller must call disconnect_all() in finally).
+
+    When ``MCP_TOOL_MODE=progressive`` (the default), all MCP tools are
+    consolidated into a single :class:`MCPServerMetaTool` with ``discover``
+    and ``call`` subcommands instead of registering each tool individually.
     """
     import json as _json_mod
     pending = getattr(tools, "_pending_mcp_servers", None)
@@ -1368,6 +1375,14 @@ async def _connect_pending_mcp_servers(tools: ToolRegistry) -> Any:
 
     _mcp_client = _MCPClient()
     _loaded = 0
+
+    # Determine MCP tool mode (progressive vs legacy)
+    from fim_one.core.mcp import get_mcp_tool_mode, build_mcp_meta_tool
+
+    _mcp_tool_mode = get_mcp_tool_mode(agent_cfg)
+    # Collect adapters per server for progressive mode
+    _servers_adapters: dict[str, list] = {}
+
     for _srv in pending:
         try:
             # Resolve per-user credentials vs server-level env/headers
@@ -1439,8 +1454,14 @@ async def _connect_pending_mcp_servers(tools: ToolRegistry) -> Any:
                 )
             else:
                 continue
-            for _t in _mcp_tools:
-                tools.register(_t)
+
+            if _mcp_tool_mode == "progressive":
+                # Collect adapters per server for batch meta-tool creation
+                _servers_adapters[_srv.name] = list(_mcp_tools)
+            else:
+                # Legacy mode — register each tool individually
+                for _t in _mcp_tools:
+                    tools.register(_t)
             _loaded += len(_mcp_tools)
         except Exception:
             logger.warning(
@@ -1448,11 +1469,24 @@ async def _connect_pending_mcp_servers(tools: ToolRegistry) -> Any:
                 _srv.name,
                 exc_info=True,
             )
-    logger.info(
-        "Loaded %d tools from %d user MCP servers",
-        _loaded,
-        len(pending),
-    )
+
+    # Progressive mode — build a single MCPServerMetaTool
+    if _mcp_tool_mode == "progressive" and _servers_adapters:
+        meta_tool = build_mcp_meta_tool(_servers_adapters)
+        tools.register(meta_tool)
+        total_tools = sum(len(adapters) for adapters in _servers_adapters.values())
+        logger.info(
+            "Loaded MCPServerMetaTool (progressive): %d servers, "
+            "%d tools consolidated into 1 tool",
+            len(_servers_adapters),
+            total_tools,
+        )
+    else:
+        logger.info(
+            "Loaded %d tools from %d user MCP servers",
+            _loaded,
+            len(pending),
+        )
     return _mcp_client
 
 
@@ -1964,7 +1998,7 @@ async def react_endpoint(
         yield _emit(sse_events, "step", {"type": "thinking", "status": "start", "iteration": 1})
 
         # -- MCP connection (must happen inside generator for anyio cancel scope) --
-        user_mcp_client = await _connect_pending_mcp_servers(tools)
+        user_mcp_client = await _connect_pending_mcp_servers(tools, agent_cfg)
 
         # -- Optional persistence setup ------------------------------------
         db_session = None
@@ -2600,7 +2634,7 @@ async def dag_endpoint(
         sse_events: list[dict[str, Any]] = []
 
         # -- MCP connection (must happen inside generator for anyio cancel scope) --
-        dag_user_mcp_client = await _connect_pending_mcp_servers(tools)
+        dag_user_mcp_client = await _connect_pending_mcp_servers(tools, agent_cfg)
 
         # -- Optional persistence setup ------------------------------------
         db_session = None
