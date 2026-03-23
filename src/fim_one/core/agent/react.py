@@ -138,6 +138,8 @@ but substantive. Do NOT use python_exec just to print/format results — write \
 the summary directly in the "answer" field instead.
 - Do NOT generate charts, plots, or images (e.g. matplotlib) unless the user \
 explicitly asks for visualisation. Prefer text tables and formatted output.
+- If you need a tool that is not listed above, use request_tools to load it \
+(when available). The request_tools description lists all unloaded tools.
 - LANGUAGE: By default, respond in the same language as the user's query. \
 However, if an Agent Directive specifies different language behaviour \
 (e.g. a translation agent), follow the Agent Directive instead.
@@ -165,6 +167,8 @@ respond with a concise summary of the key findings and results you gathered. \
 Do NOT write the full polished answer — a separate synthesis step handles that. \
 Focus on facts, data points, and conclusions. Do NOT use python_exec just to \
 print/format results — write the summary directly in your response instead.
+- If you need a tool that is not currently available, use request_tools to load \
+it (when available). The request_tools description lists all unloaded tools.
 - LANGUAGE: By default, respond in the same language as the user's query. \
 However, if an Agent Directive specifies different language behaviour \
 (e.g. a translation agent), follow the Agent Directive instead.
@@ -361,6 +365,25 @@ class ReActAgent:
             effective_tools = await self._select_relevant_tools(
                 query, on_iteration,
             )
+
+            # Register the request_tools meta-tool when tool selection
+            # actually filtered the set (effective_tools is a strict subset
+            # of self._tools).  This lets the LLM dynamically load tools
+            # that weren't included in the initial selection.
+            if effective_tools is not self._tools:
+                from fim_one.core.tool.builtin.request_tools import (
+                    RequestToolsTool,
+                )
+
+                request_tools_tool = RequestToolsTool(
+                    all_tools=self._tools,
+                    active_tools=effective_tools,
+                )
+                effective_tools.register(request_tools_tool)
+                # Also register in self._tools so _execute_tool_call /
+                # _execute_native_tool_calls can find it during lookup.
+                if "request_tools" not in self._tools:
+                    self._tools.register(request_tools_tool)
 
         if self._native_mode_active:
             return await self._run_native(
@@ -786,6 +809,23 @@ class ReActAgent:
             )
             messages.append(ChatMessage(role="user", content=obs_content))
 
+            # --- Dynamic tool reload (request_tools) ---
+            # When request_tools successfully loads new tools into the
+            # effective registry, rebuild the system prompt so the LLM
+            # sees updated tool descriptions on the next iteration.
+            if (
+                action.tool_name == "request_tools"
+                and not step.error
+            ):
+                messages[0] = ChatMessage(
+                    role="system",
+                    content=self._build_system_prompt(tools=tools),
+                )
+                logger.info(
+                    "Rebuilt system prompt after request_tools "
+                    "(now %d tools)", len(tools),
+                )
+
             # --- Mid-loop self-reflection ---
             # Every N tool calls, inject a lightweight goal-check prompt to
             # prevent drift in long reasoning chains.
@@ -943,6 +983,19 @@ class ReActAgent:
                 )
                 messages.extend(tool_results)
                 tool_call_count += 1
+
+                # --- Dynamic tool reload (request_tools) ---
+                # If request_tools was among the tool calls and succeeded,
+                # rebuild the tools payload so the LLM can see the newly
+                # loaded tools on the next iteration.
+                if any(tc.name == "request_tools" for tc in assistant_msg.tool_calls):
+                    tools_payload = self._build_tools_payload(tools=effective_tools)
+                    tool_choice = "auto" if tools_payload else None
+                    logger.info(
+                        "Rebuilt tools payload after request_tools "
+                        "(now %d tools)",
+                        len(effective_tools) if effective_tools else 0,
+                    )
 
                 # Now safe to drain -- tool_use/tool_result pairing is intact.
                 injected_msgs = (await interrupt_queue.drain()) if interrupt_queue is not None else []
