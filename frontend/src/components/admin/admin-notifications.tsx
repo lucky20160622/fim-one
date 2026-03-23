@@ -13,7 +13,7 @@ import {
   Plug,
   Calendar,
   Shield,
-  Info,
+  UserPlus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -122,6 +122,7 @@ export function AdminNotifications() {
   const getEventTypeBadge = (type: string) => {
     const label = t(`type${type.charAt(0).toUpperCase() + type.slice(1).replace(/_([a-z])/g, (_, c) => c.toUpperCase())}` as Parameters<typeof t>[0])
     const colors: Record<string, string> = {
+      new_user_registration: "border-blue-500/40 text-blue-600 dark:text-blue-400",
       quota_hit: "border-yellow-500/40 text-yellow-600 dark:text-yellow-400",
       connector_failure: "border-red-500/40 text-red-600 dark:text-red-400",
       schedule_failure: "border-red-500/40 text-red-600 dark:text-red-400",
@@ -176,15 +177,6 @@ export function AdminNotifications() {
           <Settings2 className="h-3.5 w-3.5" />
           {t("configTab")}
         </button>
-      </div>
-
-      {/* ===================== COMING SOON BANNER ===================== */}
-      <div className="rounded-md border border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 flex items-start gap-3">
-        <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-        <div>
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">{t("comingSoonTitle")}</p>
-          <p className="text-sm text-amber-700 dark:text-amber-300 mt-0.5">{t("comingSoonBody")}</p>
-        </div>
       </div>
 
       {/* ===================== EVENTS ===================== */}
@@ -259,6 +251,13 @@ export function AdminNotifications() {
               </div>
 
               <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <UserPlus className="h-4 w-4 text-blue-600" />
+                    <Label className="cursor-pointer">{t("newUserToggle")}</Label>
+                  </div>
+                  <Switch checked={config.new_user_registration} onCheckedChange={() => handleConfigToggle("new_user_registration")} />
+                </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <AlertTriangle className="h-4 w-4 text-yellow-600" />

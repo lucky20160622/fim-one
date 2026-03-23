@@ -32,12 +32,13 @@ SETTING_NOTIFICATION_CONFIG = "admin_notification_config"
 
 # Default notification config
 _DEFAULT_CONFIG = {
-    "quota_threshold_enabled": True,
+    "new_user_registration": True,
+    "quota_hit": True,
     "quota_threshold_percent": 80,
-    "connector_failure_enabled": True,
+    "connector_failure": True,
     "connector_failure_threshold": 5,
-    "schedule_failure_enabled": True,
-    "login_anomaly_enabled": True,
+    "schedule_failure": True,
+    "login_anomaly": True,
     "login_anomaly_threshold": 10,
     "channels": [],
 }
@@ -49,12 +50,13 @@ _DEFAULT_CONFIG = {
 
 
 class NotificationConfig(BaseModel):
-    quota_threshold_enabled: bool = True
+    new_user_registration: bool = True
+    quota_hit: bool = True
     quota_threshold_percent: int = 80
-    connector_failure_enabled: bool = True
+    connector_failure: bool = True
     connector_failure_threshold: int = 5
-    schedule_failure_enabled: bool = True
-    login_anomaly_enabled: bool = True
+    schedule_failure: bool = True
+    login_anomaly: bool = True
     login_anomaly_threshold: int = 10
     channels: list[str] = Field(default_factory=list)
 
@@ -74,7 +76,7 @@ class SystemEventsResponse(BaseModel):
 
 class TestNotificationResponse(BaseModel):
     success: bool = True
-    message: str = "Test notification sent successfully (mock)"
+    message: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -260,14 +262,59 @@ async def test_notification(
     current_user: User = Depends(get_current_admin),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> TestNotificationResponse:
-    """Send test notification (mock — delivery infra is v0.9)."""
+    """Send a real test notification to all admins."""
+    import asyncio
+    import os
+
+    from fim_one.web.email import _smtp_configured
+
+    if not _smtp_configured():
+        return TestNotificationResponse(
+            success=False,
+            message="SMTP is not configured. Please set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.",
+        )
+
+    from fim_one.web.admin_notify import _build_admin_email_html, _get_admin_emails
+    from fim_one.web.email import _send_email
+
+    admin_emails = await _get_admin_emails()
+    if not admin_emails:
+        return TestNotificationResponse(
+            success=False,
+            message="No active admin users found.",
+        )
+
+    app_name = os.getenv("APP_NAME", "FIM One")
+    subject = f"[{app_name}] Test Notification"
+    body_html = _build_admin_email_html(
+        "Test Notification",
+        [
+            f"Triggered by: {current_user.email}",
+            "This is a test notification to verify your admin email alert configuration is working correctly.",
+        ],
+    )
+
+    errors = []
+    for email in admin_emails:
+        try:
+            await asyncio.to_thread(_send_email, email, subject, body_html)
+        except Exception as e:
+            errors.append(f"{email}: {e}")
+
     await write_audit(
         db,
         current_user,
         "notifications.test",
-        detail="Sent test notification (mock)",
+        detail=f"Test notification sent to {len(admin_emails)} admin(s)"
+        + (f", {len(errors)} failed" if errors else ""),
     )
+
+    if errors:
+        return TestNotificationResponse(
+            success=False,
+            message=f"Sent to {len(admin_emails) - len(errors)} admin(s), {len(errors)} failed: {'; '.join(errors)}",
+        )
     return TestNotificationResponse(
         success=True,
-        message="Test notification sent successfully (mock — delivery infrastructure coming in v0.9)",
+        message=f"Test notification sent to {len(admin_emails)} admin(s): {', '.join(admin_emails)}",
     )

@@ -971,7 +971,9 @@
     "previous": "前へ",
     "pageOf": "ページ {page} / {pages}",
     "comingSoonTitle": "イベントトリガー近日公開予定",
-    "comingSoonBody": "通知配信システム（Email、Slack、Lark、WeCom）は準備完了です。イベントベースのトリガー（ワークフロー失敗、コネクタ障害、クォータ制限、ログイン異常の自動アラート）は開発中です。その間、API経由で手動で通知を送信したり、ワークフローとエージェント会話の組み込みツールとして使用できます。"
+    "comingSoonBody": "通知配信システム（Email、Slack、Lark、WeCom）は準備完了です。イベントベースのトリガー（ワークフロー失敗、コネクタ障害、クォータ制限、ログイン異常の自動アラート）は開発中です。その間、API経由で手動で通知を送信したり、ワークフローとエージェント会話の組み込みツールとして使用できます。",
+    "typeNewUserRegistration": "新規ユーザー",
+    "newUserToggle": "新規ユーザー登録"
   },
   "placeholders": {
     "traces": {

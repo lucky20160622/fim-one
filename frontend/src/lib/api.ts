@@ -1413,7 +1413,7 @@ export interface AdminScheduleStats {
   active: number; total: number; next_run_at: string | null; failed_24h: number
 }
 export interface AdminNotificationConfig {
-  quota_hit: boolean; connector_failure: boolean
+  new_user_registration: boolean; quota_hit: boolean; connector_failure: boolean
   schedule_failure: boolean; login_anomaly: boolean
 }
 export interface AdminNotificationEvent {

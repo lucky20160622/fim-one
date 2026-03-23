@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import secrets
 import shutil
@@ -13,6 +14,7 @@ from fastapi import APIRouter, Depends, File, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import delete, func, select, update
 
+from fim_one.web.admin_notify import notify_admins
 from fim_one.web.email import _smtp_configured, send_verification_email
 from fim_one.web.exceptions import AppError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -344,6 +346,19 @@ async def register(
         days=REFRESH_TOKEN_EXPIRE_DAYS
     )
     await db.commit()
+
+    # Notify admins of new registration (fire-and-forget, skip for first user)
+    if not is_first_user_check:
+        asyncio.create_task(
+            notify_admins(
+                "new_user_registration",
+                "New User Registered",
+                [
+                    f"Email: {body.email}",
+                    f"Time: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
+                ],
+            )
+        )
 
     # Reload with oauth_bindings for response serialization
     result = await db.execute(
