@@ -400,6 +400,7 @@ async def _resolve_workflow(
 
     Handles recursive sub-workflow and agent references with cycle detection.
     """
+    from fim_one.web.models.agent import Agent
     from fim_one.web.models.connector import Connector
     from fim_one.web.models.knowledge_base import KnowledgeBase
     from fim_one.web.models.mcp_server import MCPServer
@@ -442,9 +443,24 @@ async def _resolve_workflow(
             ref_id = ref_id.strip()
 
             if resource_type == "agent":
-                # Recursively resolve agent deps
-                agent_manifest = await _resolve_agent(ref_id, db)
-                manifest.merge(agent_manifest)
+                # Add the agent itself as a content dep, then recursively
+                # resolve its own deps (KBs, connectors, MCP servers, skills).
+                agent = await _fetch_by_id(Agent, ref_id, db)
+                if agent is not None:
+                    manifest.content_deps.append(
+                        ContentDep(
+                            resource_type="agent",
+                            resource_id=agent.id,
+                            resource_name=agent.name,
+                        )
+                    )
+                    agent_manifest = await _resolve_agent(ref_id, db)
+                    manifest.merge(agent_manifest)
+                else:
+                    logger.warning(
+                        "Workflow %s references agent %s which was not found",
+                        workflow_id, ref_id,
+                    )
 
             elif resource_type == "connector":
                 connector = await _fetch_by_id(Connector, ref_id, db)
@@ -458,6 +474,11 @@ async def _resolve_workflow(
                             allow_fallback=getattr(connector, "allow_fallback", False),
                         )
                     )
+                else:
+                    logger.warning(
+                        "Workflow %s references connector %s which was not found",
+                        workflow_id, ref_id,
+                    )
 
             elif resource_type == "knowledge_base":
                 kb = await _fetch_by_id(KnowledgeBase, ref_id, db)
@@ -468,6 +489,11 @@ async def _resolve_workflow(
                             resource_id=kb.id,
                             resource_name=kb.name,
                         )
+                    )
+                else:
+                    logger.warning(
+                        "Workflow %s references knowledge_base %s which was not found",
+                        workflow_id, ref_id,
                     )
 
             elif resource_type == "mcp_server":
@@ -482,13 +508,33 @@ async def _resolve_workflow(
                             allow_fallback=getattr(server, "allow_fallback", False),
                         )
                     )
+                else:
+                    logger.warning(
+                        "Workflow %s references mcp_server %s which was not found",
+                        workflow_id, ref_id,
+                    )
 
             elif resource_type == "workflow":
-                # Recursively resolve sub-workflow deps
-                sub_manifest = await _resolve_workflow(
-                    ref_id, db, _visited_workflows=_visited_workflows
-                )
-                manifest.merge(sub_manifest)
+                # Add the sub-workflow itself as a content dep so it gets
+                # auto-subscribed, then recursively resolve its own deps.
+                sub_wf = await _fetch_by_id(Workflow, ref_id, db)
+                if sub_wf is not None:
+                    manifest.content_deps.append(
+                        ContentDep(
+                            resource_type="workflow",
+                            resource_id=sub_wf.id,
+                            resource_name=sub_wf.name,
+                        )
+                    )
+                    sub_manifest = await _resolve_workflow(
+                        ref_id, db, _visited_workflows=_visited_workflows
+                    )
+                    manifest.merge(sub_manifest)
+                else:
+                    logger.warning(
+                        "Workflow %s references sub-workflow %s which was not found",
+                        workflow_id, ref_id,
+                    )
 
     return manifest
 
