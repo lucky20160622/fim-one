@@ -97,11 +97,11 @@ Pour les lecteurs non familiers avec la terminologie utilisée dans ce document 
 
 ## Limite architecturale : FIM One ne réplique pas la logique de flux de travail
 
-Les processus métier complexes (chaînes d'approbation, transferts, rejets, escalade, cosignature, contresignature) sont la **responsabilité du système cible**. Ces systèmes ont passé des années à construire cette logique -- les ERP, les systèmes OA, les systèmes de gestion de contrats ont tous des machines d'état matures.
+Les processus métier complexes (chaînes d'approbation, transferts, rejets, escalades, cosignature, contresignature) sont la **responsabilité du système cible**. Ces systèmes ont passé des années à construire cette logique -- les ERP, les systèmes OA, les systèmes de gestion de contrats ont tous des machines d'état matures.
 
-Du point de vue du Connecteur :
+Du point de vue du connecteur :
 
-| Opération | Ce que fait le Connecteur |
+| Opération | Ce que fait le connecteur |
 |-----------|------------------------|
 | Transfert | Appeler une API, passer la personne cible |
 | Rejet | Appeler une API, passer la raison du rejet |
@@ -110,9 +110,30 @@ Du point de vue du Connecteur :
 
 Chaque opération de flux de travail complexe se réduit à une requête HTTP avec des paramètres. FIM One appelle l'API ; le système cible gère la machine d'état.
 
-C'est une **limite architecturale délibérée**, pas une lacune de capacité. Dupliquer la logique de flux de travail qui existe déjà dans les systèmes cibles entraînerait :
+C'est une **limite architecturale délibérée**, pas une lacune en matière de capacités. Dupliquer la logique de flux de travail qui existe déjà dans les systèmes cibles entraînerait :
 1. Une charge de maintenance (deux machines d'état à maintenir synchronisées)
 2. Des modes de défaillance supplémentaires (et si elles ne concordaient pas ?)
-3. Aucune valeur supplémentaire (le système cible le fait déjà correctement)
+3. Aucune valeur ajoutée (le système cible le fait déjà correctement)
 
 Le modèle de connecteur est simple par conception : **une opération = un appel API**.
+
+## Où FIM One s'inscrit dans la pile IA
+
+### Le Modèle en Couches
+
+Un modèle mental utile (crédit [Phil Schmid](https://www.philschmid.de/)) mappe les systèmes d'IA à une pile à quatre couches analogue au matériel informatique :
+
+| Couche | Analogie | Composant FIM One |
+|-------|---------|-------------------|
+| **Modèle** | CPU | ModelRegistry -- tout LLM compatible OpenAI |
+| **Contexte** | RAM | ContextGuard + Memory (Window / Summary / DB) |
+| **Harnais** | Système d'exploitation | ReAct Agent + DAG Planner + Hooks + ToolRegistry |
+| **Application** | App | Portal, Copilot, Hub API |
+
+FIM One opère au **niveau du harnais** -- il ne concurrence pas les modèles ; il les rend productifs en fournissant les bons outils, contraintes et boucles de rétroaction. Le modèle fournit l'intelligence ; le harnais fournit la gouvernance, la concurrence et la fiabilité.
+
+### Trois ères de l'ingénierie de l'IA
+
+La discipline a évolué à travers des phases distinctes : **l'ingénierie des invites** s'est concentrée sur la formulation de meilleures instructions pour obtenir le comportement correct d'un modèle fixe. **L'ingénierie contextuelle** a déplacé l'attention vers l'assemblage des bonnes informations -- récupération de documents, injection de résultats d'outils, gestion de la mémoire -- afin que le modèle dispose des éléments nécessaires pour raisonner correctement. **L'ingénierie d'harnachement** va plus loin : concevoir l'environnement d'exécution complet autour du modèle, y compris les garde-fous déterministes, l'orchestration des outils, les boucles de rétroaction et les contrôles de coûts.
+
+L'architecture de FIM One incarne les principes de l'ingénierie d'harnachement. Les intergiciels de hook injectent des contraintes déterministes (limites de débit, filtres de contenu, journalisation d'audit) sans toucher aux invites du modèle. ContextGuard gère ce qui entre dans la fenêtre de contexte et quand. La sélection dynamique d'outils (méta-outils à divulgation progressive) maintient la surface des outils traitable à mesure que le nombre de connecteurs augmente. Le mécanisme d'auto-réflexion de la boucle ReAct et le cycle de re-planification du planificateur DAG fournissent des retours structurés qui améliorent la qualité de l'exécution sans nécessiter un modèle plus capable.

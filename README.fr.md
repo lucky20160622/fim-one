@@ -119,10 +119,11 @@ cd frontend && pnpm install && cd ..
 - **Connecteurs de base de données** — PostgreSQL, MySQL, Oracle, SQL Server, plus les bases de données héritées chinoises (DM, KingbaseES, GBase, Highgo). Introspection de schéma et annotation alimentée par l'IA.
 - **Trois façons de construire** — Importez une spécification OpenAPI, utilisez le générateur de chat IA ou connectez directement les serveurs MCP.
 
-#### Planification & Exécution
-- **Planification DAG dynamique** — L'LLM décompose les objectifs en graphes de dépendances à l'exécution. Aucun workflow codé en dur.
-- **Exécution concurrente** — Les étapes indépendantes s'exécutent en parallèle via asyncio ; replanification automatique jusqu'à 3 tours.
+#### Planification et exécution
+- **Planification DAG dynamique** — Le LLM décompose les objectifs en graphes de dépendances à l'exécution. Aucun workflow codé en dur.
+- **Exécution concurrente** — Les étapes indépendantes s'exécutent en parallèle via asyncio ; re-planification automatique jusqu'à 3 rounds.
 - **Agent ReAct** — Boucle structurée de raisonnement et d'action avec récupération automatique des erreurs.
+- **Harnais d'agent** — Environnement d'exécution de qualité production avec middleware Hook pour les garde-fous déterministes, ContextGuard pour la gestion du contexte, méta-outils à divulgation progressive et boucles d'auto-réflexion.
 - **Routage automatique** — Classe les requêtes et les achemine vers le mode optimal (ReAct ou DAG). Configurable via `AUTO_ROUTING`.
 - **Réflexion étendue** — Chaîne de pensée pour OpenAI o-series, Gemini 2.5+, Claude.
 

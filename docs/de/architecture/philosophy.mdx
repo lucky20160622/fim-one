@@ -97,22 +97,43 @@ Für Leser, die mit der in diesem Dokument verwendeten Terminologie nicht vertra
 
 ## Architektur-Grenze: FIM One repliziert keine Workflow-Logik
 
-Komplexe Geschäftsprozesse (Genehmigungsketten, Übertragungen, Ablehnungen, Eskalationen, Mitzeichnung, Gegenzeichnung) sind die **Verantwortung des Zielsystems**. Diese Systeme haben Jahre damit verbracht, diese Logik zu entwickeln -- ERP-, OA- und Vertragsmanagementsysteme verfügen alle über ausgefeilte State Machines.
+Komplexe Geschäftsprozesse (Genehmigungsketten, Transfers, Ablehnungen, Eskalationen, Mitzeichnung, Gegenzeichnung) sind die **Verantwortung des Zielsystems**. Diese Systeme haben Jahre damit verbracht, diese Logik zu entwickeln -- ERP-, OA- und Vertragsmanagementsysteme verfügen alle über ausgefeilte State Machines.
 
 Aus der Perspektive des Konnektors:
 
-| Operation | Was der Konnektor tut |
+| Operation | Was der Konnektor macht |
 |-----------|------------------------|
-| Übertragung | Eine API aufrufen, Zielperson übergeben |
+| Transfer | Eine API aufrufen, Zielperson übergeben |
 | Ablehnung | Eine API aufrufen, Ablehnungsgrund übergeben |
 | Eskalation | Eine API aufrufen, Eskalationspersonenliste übergeben |
 | Mitzeichnung | Eine API aufrufen, Mitzeichnerliste übergeben |
 
-Jede komplexe Workflow-Operation reduziert sich auf eine HTTP-Anfrage mit Parametern. FIM One ruft die API auf; das Zielsystem verwaltet die State Machine.
+Jede komplexe Workflow-Operation wird zu einer HTTP-Anfrage mit Parametern. FIM One ruft die API auf; das Zielsystem verwaltet die State Machine.
 
 Dies ist eine **bewusste architektonische Grenze**, keine Funktionslücke. Die Duplizierung von Workflow-Logik, die bereits in Zielsystemen vorhanden ist, würde:
-1. Wartungsaufwand erzeugen (zwei State Machines, die synchron gehalten werden müssen)
-2. Fehlermöglichkeiten hinzufügen (was wenn sie sich widersprechen?)
-3. Keinen zusätzlichen Wert bieten (das Zielsystem macht das bereits korrekt)
+1. Wartungsaufwand verursachen (zwei State Machines, die synchron gehalten werden müssen)
+2. Fehlermöglichkeiten hinzufügen (was ist, wenn sie sich widersprechen?)
+3. Keinen zusätzlichen Wert bieten (das Zielsystem macht dies bereits korrekt)
 
-Das Konnektor-Muster ist absichtlich einfach: **eine Operation = ein API-Aufruf**.
+Das Konnektor-Muster ist absichtlich einfach gestaltet: **eine Operation = ein API-Aufruf**.
+
+## Wo FIM One im KI-Stack sitzt
+
+### Das Schichtenmodell
+
+Ein nützliches mentales Modell (Dank an [Phil Schmid](https://www.philschmid.de/)) ordnet KI-Systeme einem vierschichtigen Stack analog zur Computerhardware zu:
+
+| Schicht | Analogie | FIM One Komponente |
+|-------|---------|-------------------|
+| **Modell** | CPU | ModelRegistry -- jedes OpenAI-kompatible LLM |
+| **Kontext** | RAM | ContextGuard + Memory (Window / Summary / DB) |
+| **Harness** | Betriebssystem | ReAct Agent + DAG Planner + Hooks + ToolRegistry |
+| **Anwendung** | App | Portal, Copilot, Hub API |
+
+FIM One operiert auf der **Harness-Schicht** -- es konkurriert nicht mit Modellen; es macht sie produktiv, indem es die richtigen Tools, Einschränkungen und Feedback-Schleifen bereitstellt. Das Modell liefert Intelligenz; der Harness liefert Governance, Concurrency und Zuverlässigkeit.
+
+### Drei Ären der KI-Entwicklung
+
+Die Disziplin hat sich durch verschiedene Phasen entwickelt: **Prompt Engineering** konzentrierte sich auf die Formulierung besserer Anweisungen, um korrektes Verhalten von einem festen Modell zu erreichen. **Context Engineering** verlagerte die Aufmerksamkeit auf die Zusammenstellung der richtigen Informationen – das Abrufen von Dokumenten, das Einfügen von Tool-Ergebnissen, die Verwaltung des Speichers – damit das Modell über das verfügt, was es zum guten Denken braucht. **Harness Engineering** geht weiter: Es gestaltet die gesamte Ausführungsumgebung um das Modell herum, einschließlich deterministischer Schutzvorrichtungen, Tool-Orchestrierung, Feedback-Schleifen und Kostenkontrolle.
+
+Die Architektur von FIM One verkörpert die Prinzipien des Harness Engineering. Hook-Middleware injiziert deterministische Einschränkungen (Rate Limits, Content Filter, Audit-Logging), ohne die Modell-Prompts zu verändern. ContextGuard verwaltet, was in das Kontextfenster gelangt und wann. Die dynamische Tool-Auswahl (Progressive-Disclosure-Meta-Tools) hält die Tool-Oberfläche handhabbar, wenn die Anzahl der Konnektoren wächst. Der ReAct-Loop mit seinem Selbstreflexionsmechanismus und der DAG-Planer mit seinem Neuplanungs-Zyklus bieten strukturiertes Feedback, das die Ausführungsqualität verbessert, ohne ein leistungsfähigeres Modell zu benötigen.

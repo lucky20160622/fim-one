@@ -116,3 +116,24 @@ This is a **deliberate architectural boundary**, not a capability gap. Duplicati
 3. Provide zero additional value (the target system already does this correctly)
 
 The connector pattern is simple by design: **one operation = one API call**.
+
+## Where FIM One Sits in the AI Stack
+
+### The Layered Model
+
+A useful mental model (credit [Phil Schmid](https://www.philschmid.de/)) maps AI systems to a four-layer stack analogous to computing hardware:
+
+| Layer | Analogy | FIM One Component |
+|-------|---------|-------------------|
+| **Model** | CPU | ModelRegistry -- any OpenAI-compatible LLM |
+| **Context** | RAM | ContextGuard + Memory (Window / Summary / DB) |
+| **Harness** | Operating System | ReAct Agent + DAG Planner + Hooks + ToolRegistry |
+| **Application** | App | Portal, Copilot, Hub API |
+
+FIM One operates at the **harness layer** -- it does not compete with models; it makes them productive by providing the right tools, constraints, and feedback loops. The model supplies intelligence; the harness supplies governance, concurrency, and reliability.
+
+### Three Eras of AI Engineering
+
+The discipline has evolved through distinct phases: **Prompt Engineering** focused on crafting better instructions to elicit correct behavior from a fixed model. **Context Engineering** shifted attention to assembling the right information -- retrieving documents, injecting tool results, managing memory -- so the model has what it needs to reason well. **Harness Engineering** goes further: designing the full execution environment around the model, including deterministic guardrails, tool orchestration, feedback loops, and cost controls.
+
+FIM One's architecture embodies harness engineering principles. Hook middleware injects deterministic constraints (rate limits, content filters, audit logging) without touching model prompts. ContextGuard manages what enters the context window and when. Dynamic tool selection (progressive-disclosure meta-tools) keeps the tool surface tractable as connector count grows. The ReAct loop's self-reflection mechanism and the DAG planner's re-plan cycle provide structured feedback that improves execution quality without requiring a more capable model.

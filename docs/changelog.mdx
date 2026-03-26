@@ -26,6 +26,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **Resource Fork Phase 1 (MCP Server + Skill)** — `POST /api/mcp-servers/{id}/fork` and `POST /api/skills/{id}/fork` endpoints create user-owned deep copies with `visibility=personal` and `forked_from` lineage tracking. Encrypted env/headers are skipped on MCP Server fork; publish status is skipped on Skill fork. Alembic migration adds `forked_from` column to both tables. 41 tests.
 - **Workflow Connection Dep Auto-Subscribe** — `DependencyAnalyzer._resolve_workflow` now recursively resolves sub-workflow dependencies with cycle detection (visited set). Agent and sub-workflow nodes correctly added as content deps in dependency manifests. Missing resources handled gracefully (log warning, no failure). 19 tests.
 - **Prebuilt Solution Templates (Market Seed Content)** — 8 vertical solution templates bootstrapped idempotently on first-user registration: Financial Audit, Contract Review, Data Reporting, IT Helpdesk, HR Onboarding, Sales Assistant, Content Writer, Meeting Summary. Each bundles an Agent + Skill with Chinese SOPs. Published to Market org (`visibility=org`, `publish_status=approved`) for immediate marketplace availability. 4 tests.
+- **ReAct cycle detection** — Deterministic detection of repeated identical tool calls. Injects a warning after 3 consecutive calls with the same arguments, preventing agents from looping on failing tools. Configurable via `REACT_CYCLE_DETECTION_THRESHOLD`.
+- **ReAct completion checklist** — One-time verification prompt before accepting final answers when tools were used, reducing premature or incomplete responses. Toggleable per agent instance.
 
 ### Changed
 

@@ -123,6 +123,7 @@ cd frontend && pnpm install && cd ..
 - **Dynamic DAG planning** — LLM decomposes goals into dependency graphs at runtime. No hard-coded workflows.
 - **Concurrent execution** — Independent steps run in parallel via asyncio; auto re-plan up to 3 rounds.
 - **ReAct agent** — Structured reasoning-and-acting loop with automatic error recovery.
+- **Agent harness** — Production-grade execution environment with Hook middleware for deterministic guardrails, ContextGuard for context management, progressive-disclosure meta-tools, and self-reflection loops.
 - **Auto-routing** — Classifies queries and routes to optimal mode (ReAct or DAG). Configurable via `AUTO_ROUTING`.
 - **Extended thinking** — Chain-of-thought for OpenAI o-series, Gemini 2.5+, Claude.
 
