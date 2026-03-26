@@ -70,9 +70,16 @@ class AgentResponse(BaseModel):
     reviewed_by: str | None = None
     reviewed_at: str | None = None
     review_note: str | None = None
+    forked_from: str | None = None
     source: str | None = None
     created_at: str
     updated_at: str | None
+
+
+class AgentForkRequest(BaseModel):
+    """Optional overrides when forking (cloning) an agent."""
+
+    name: str | None = None  # Custom name; defaults to "{original} (Fork)"
 
 
 class AICreateAgentRequest(BaseModel):

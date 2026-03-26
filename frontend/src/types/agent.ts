@@ -26,6 +26,7 @@ export interface AgentResponse {
   org_id?: string | null
   is_builder?: boolean
   compact_instructions?: string | null
+  forked_from: string | null
   publish_status: string | null
   reviewed_by: string | null
   reviewed_at: string | null

@@ -47,7 +47,7 @@ class WorkflowResponse(BaseModel):
     name: str
     icon: str | None
     description: str | None
-    blueprint: dict[str, Any]
+    blueprint: dict[str, Any] | None
     input_schema: dict[str, Any] | None
     output_schema: dict[str, Any] | None
     status: str
@@ -70,6 +70,7 @@ class WorkflowResponse(BaseModel):
     last_run_at: str | None = None
     success_rate: float | None = None
     source: str | None = None
+    forked_from: str | None = None
     created_at: str
     updated_at: str | None
 
@@ -298,6 +299,12 @@ class WorkflowEnvVarsUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 # Duplicate / Templates
 # ---------------------------------------------------------------------------
+
+
+class WorkflowForkRequest(BaseModel):
+    """Optional overrides when forking (cloning) a workflow."""
+
+    name: str | None = None  # Custom name; defaults to "{original} (Fork)"
 
 
 class WorkflowFromTemplateRequest(BaseModel):

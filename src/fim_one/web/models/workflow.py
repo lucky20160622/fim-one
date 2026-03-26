@@ -51,6 +51,9 @@ class Workflow(UUIDPKMixin, TimestampMixin, Base):
     )
     review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Fork lineage — ID of the source workflow this was forked from
+    forked_from: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
     # Per-workflow run retention (NULL = use global default)
     run_retention_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

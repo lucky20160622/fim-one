@@ -538,6 +538,12 @@ export const agentApi = {
     apiFetch<ApiResponse<AgentResponse>>(`/api/agent-templates/${templateId}/create`, {
       method: "POST",
     }).then((r) => r.data),
+
+  forkAgent: (id: string, name?: string) =>
+    apiFetch<ApiResponse<AgentResponse>>(`/api/agents/${id}/fork`, {
+      method: "POST",
+      body: JSON.stringify(name ? { name } : {}),
+    }).then((r) => r.data),
 }
 
 // --- File API ---
@@ -1094,6 +1100,12 @@ export const workflowApi = {
   duplicate: (id: string) =>
     apiFetch<ApiResponse<WorkflowResponse>>(`/api/workflows/${id}/duplicate`, {
       method: "POST",
+    }).then((r) => r.data),
+
+  fork: (id: string, name?: string) =>
+    apiFetch<ApiResponse<WorkflowResponse>>(`/api/workflows/${id}/fork`, {
+      method: "POST",
+      body: JSON.stringify(name ? { name } : {}),
     }).then((r) => r.data),
 
   getVariables: (id: string) =>
