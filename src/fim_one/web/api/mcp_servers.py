@@ -46,20 +46,32 @@ def _mask_dict(d: dict[str, str] | None) -> dict[str, str] | None:
 
 
 def _to_response(srv: MCPServer, *, is_owner: bool = True, my_has_credentials: bool = False) -> MCPServerResponse:
-    # Mask sensitive fields for non-owners
-    env = srv.env if is_owner else _mask_dict(srv.env)
-    headers = srv.headers if is_owner else _mask_dict(srv.headers)
+    # Non-owners: mask sensitive fields, strip internal content (command/args/url)
+    if is_owner:
+        env = srv.env
+        headers = srv.headers
+        command = srv.command
+        args = srv.args
+        url = srv.url
+        working_dir = srv.working_dir
+    else:
+        env = _mask_dict(srv.env)
+        headers = _mask_dict(srv.headers)
+        command = None
+        args = None
+        url = None
+        working_dir = None
     return MCPServerResponse(
         id=srv.id,
         user_id=srv.user_id or "",
         name=srv.name,
         description=srv.description,
         transport=srv.transport,
-        command=srv.command,
-        args=srv.args,
+        command=command,
+        args=args,
         env=env,
-        url=srv.url,
-        working_dir=srv.working_dir,
+        url=url,
+        working_dir=working_dir,
         headers=headers,
         is_active=srv.is_active,
         tool_count=srv.tool_count,
@@ -258,7 +270,8 @@ async def get_mcp_server(
         )
     )
     my_has_credentials = cred_result.scalar_one_or_none() is not None
-    return ApiResponse(data=_to_response(server, my_has_credentials=my_has_credentials).model_dump())
+    _is_owner = server.user_id == current_user.id
+    return ApiResponse(data=_to_response(server, is_owner=_is_owner, my_has_credentials=my_has_credentials).model_dump())
 
 
 @router.put("/{server_id}", response_model=ApiResponse)
@@ -521,9 +534,11 @@ async def fork_mcp_server(
 
     Copies all configuration fields but NOT encrypted env/headers, org_id, or
     publish_status.  The forked server is set to personal/active ownership.
+    Only the owner of the source server can fork it.
     """
-    # Fetch the source server — must be visible to the user (own / org / global)
     source = await _get_accessible_server(server_id, current_user.id, db)
+    if source.user_id != current_user.id:
+        raise AppError("fork_denied", status_code=403, detail="Only the owner can fork this resource")
 
     fork_name = (body.name if body and body.name else f"{source.name} (Fork)")[:200]
 

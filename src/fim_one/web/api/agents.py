@@ -18,22 +18,31 @@ from fim_one.web.models.connector import Connector
 from fim_one.web.models.knowledge_base import KnowledgeBase
 from fim_one.web.models.mcp_server import MCPServer
 from fim_one.web.models.resource_subscription import ResourceSubscription
-from fim_one.web.schemas.agent import AgentCreate, AgentResponse, AgentUpdate
+from fim_one.web.schemas.agent import AgentCreate, AgentForkRequest, AgentResponse, AgentUpdate
 from fim_one.web.schemas.common import ApiResponse, PaginatedResponse, PublishRequest
 from fim_one.web.visibility import build_visibility_filter
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
 
-def _agent_to_response(agent: Agent) -> AgentResponse:
+def _agent_to_response(agent: Agent, *, is_owner: bool = True) -> AgentResponse:
+    # Non-owners: strip internal content (instructions, model config are IP)
+    if is_owner:
+        instructions = agent.instructions
+        compact_instructions = agent.compact_instructions
+        model_config_json = agent.model_config_json
+    else:
+        instructions = None
+        compact_instructions = None
+        model_config_json = None
     return AgentResponse(
         id=agent.id,
         user_id=agent.user_id or "",
         name=agent.name,
         icon=agent.icon,
         description=agent.description,
-        instructions=agent.instructions,
-        model_config_json=agent.model_config_json,
+        instructions=instructions,
+        model_config_json=model_config_json,
         tool_categories=agent.tool_categories,
         suggested_prompts=agent.suggested_prompts,
         kb_ids=agent.kb_ids,
@@ -48,7 +57,7 @@ def _agent_to_response(agent: Agent) -> AgentResponse:
         ),
         is_active=agent.is_active,
         is_builder=agent.is_builder,
-        compact_instructions=agent.compact_instructions,
+        compact_instructions=compact_instructions,
         visibility=getattr(agent, "visibility", "personal"),
         org_id=getattr(agent, "org_id", None),
         publish_status=getattr(agent, "publish_status", None),
@@ -57,6 +66,7 @@ def _agent_to_response(agent: Agent) -> AgentResponse:
             agent.reviewed_at.isoformat() if agent.reviewed_at else None
         ),
         review_note=getattr(agent, "review_note", None),
+        forked_from=getattr(agent, "forked_from", None),
         created_at=agent.created_at.isoformat() if agent.created_at else "",
         updated_at=agent.updated_at.isoformat() if agent.updated_at else None,
     )
@@ -216,8 +226,9 @@ async def list_agents(
     subscribed_agent_ids_set = set(subscribed_agent_ids)
     items = []
     for a in agents:
-        resp = _agent_to_response(a)
-        if a.user_id == current_user.id:
+        _is_owner = a.user_id == current_user.id
+        resp = _agent_to_response(a, is_owner=_is_owner)
+        if _is_owner:
             resp.source = "own"
         elif a.id in subscribed_agent_ids_set:
             sub_org_id = sub_org_map.get(a.id)
@@ -242,7 +253,8 @@ async def get_agent(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
     agent = await _get_accessible_agent(agent_id, current_user.id, db)
-    return ApiResponse(data=_agent_to_response(agent).model_dump())
+    _is_owner = agent.user_id == current_user.id
+    return ApiResponse(data=_agent_to_response(agent, is_owner=_is_owner).model_dump())
 
 
 @router.put("/{agent_id}", response_model=ApiResponse)
@@ -451,3 +463,62 @@ async def unpublish_agent(
     await db.commit()
     await db.refresh(agent)
     return ApiResponse(data=_agent_to_response(agent).model_dump())
+
+
+# ---------------------------------------------------------------------------
+# Fork (clone)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{agent_id}/fork", response_model=ApiResponse)
+async def fork_agent(
+    agent_id: str,
+    body: AgentForkRequest | None = None,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Clone an existing agent for the current user.
+
+    Copies all configuration fields but NOT org_id, publish_status, or
+    is_builder.  The forked agent is set to personal/active ownership.
+    Only the owner of the source agent can fork it.
+    """
+    source = await _get_accessible_agent(agent_id, current_user.id, db)
+    if source.user_id != current_user.id:
+        raise AppError("fork_denied", status_code=403, detail="Only the owner can fork this resource")
+
+    fork_name = (body.name if body and body.name else f"{source.name} (Fork)")[:200]
+
+    forked = Agent(
+        user_id=current_user.id,
+        name=fork_name,
+        description=source.description,
+        icon=source.icon,
+        instructions=source.instructions,
+        execution_mode=source.execution_mode,
+        model_config_json=source.model_config_json,
+        tool_categories=source.tool_categories,
+        suggested_prompts=source.suggested_prompts,
+        connector_ids=source.connector_ids,
+        kb_ids=source.kb_ids,
+        mcp_server_ids=source.mcp_server_ids,
+        skill_ids=source.skill_ids,
+        compact_instructions=source.compact_instructions,
+        grounding_config=source.grounding_config,
+        sandbox_config=source.sandbox_config,
+        is_active=True,
+        is_builder=False,
+        forked_from=source.id,
+        visibility="personal",
+        org_id=None,
+        publish_status=None,
+        status="draft",
+    )
+    db.add(forked)
+    await db.commit()
+
+    result = await db.execute(
+        select(Agent).where(Agent.id == forked.id)
+    )
+    forked = result.scalar_one()
+    return ApiResponse(data=_agent_to_response(forked).model_dump())

@@ -147,5 +147,8 @@
   "builtInTools": "内置工具",
   "builtInToolsHint": "选择此智能体可以使用的内置工具类别。",
   "mcpServers": "MCP 服务器",
-  "mcpServersDescription": "选择此智能体可以访问的 MCP 服务器。"
+  "mcpServersDescription": "选择此智能体可以访问的 MCP 服务器。",
+  "forkAgent": "复制",
+  "forkSuccess": "已复制为 \"{name}\"",
+  "forkFailed": "复制智能体失败"
 }

@@ -190,7 +190,7 @@
   "mcpTemplateTitle": "MCP 서버 템플릿",
   "mcpTemplateDescription": "미리 구축된 MCP 서버를 선택하여 구성 및 설치하세요",
   "mcpSelectHint": "서버를 클릭하여 선택하세요",
-  "forkMcpServer": "포크",
-  "forkSuccess": "\"{name}\"으로 포크되었습니다",
-  "forkFailed": "MCP 서버 포크에 실패했습니다"
+  "forkMcpServer": "복제",
+  "forkSuccess": "\"{name}\"으로 복제되었습니다",
+  "forkFailed": "MCP 서버 복제에 실패했습니다"
 }

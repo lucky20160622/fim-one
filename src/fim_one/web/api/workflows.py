@@ -47,6 +47,7 @@ from fim_one.web.schemas.workflow import (
     WorkflowEnvVarsUpdate,
     WorkflowExportData,
     WorkflowExportFile,
+    WorkflowForkRequest,
     WorkflowFromTemplateRequest,
     WorkflowImportFileRequest,
     WorkflowImportResponse,
@@ -166,16 +167,27 @@ def _sse(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
-def _workflow_to_response(wf: Workflow) -> WorkflowResponse:
+def _workflow_to_response(wf: Workflow, *, is_owner: bool = True) -> WorkflowResponse:
+    # Non-owners: strip internal content (blueprint, schemas, webhook are IP)
+    if is_owner:
+        blueprint = wf.blueprint or {"nodes": [], "edges": [], "viewport": {}}
+        input_schema = wf.input_schema
+        output_schema = wf.output_schema
+        webhook_url = getattr(wf, "webhook_url", None)
+    else:
+        blueprint = None
+        input_schema = None
+        output_schema = None
+        webhook_url = None
     return WorkflowResponse(
         id=wf.id,
         user_id=wf.user_id,
         name=wf.name,
         icon=wf.icon,
         description=wf.description,
-        blueprint=wf.blueprint or {"nodes": [], "edges": [], "viewport": {}},
-        input_schema=wf.input_schema,
-        output_schema=wf.output_schema,
+        blueprint=blueprint,
+        input_schema=input_schema,
+        output_schema=output_schema,
         status=wf.status,
         is_active=wf.is_active,
         visibility=getattr(wf, "visibility", "personal"),
@@ -192,12 +204,13 @@ def _workflow_to_response(wf: Workflow) -> WorkflowResponse:
             else None
         ),
         review_note=getattr(wf, "review_note", None),
-        webhook_url=getattr(wf, "webhook_url", None),
+        webhook_url=webhook_url,
         schedule_cron=getattr(wf, "schedule_cron", None),
         schedule_enabled=getattr(wf, "schedule_enabled", False),
         schedule_inputs=getattr(wf, "schedule_inputs", None),
         schedule_timezone=getattr(wf, "schedule_timezone", "UTC") or "UTC",
         has_api_key=bool(getattr(wf, "api_key", None)),
+        forked_from=getattr(wf, "forked_from", None),
         created_at=wf.created_at.isoformat() if wf.created_at else "",
         updated_at=wf.updated_at.isoformat() if wf.updated_at else None,
     )
@@ -425,12 +438,13 @@ async def list_workflows(
     subscribed_workflow_ids_set = set(subscribed_workflow_ids)
     items = []
     for w in workflows:
-        resp = _workflow_to_response(w)
+        _is_owner = w.user_id == current_user.id
+        resp = _workflow_to_response(w, is_owner=_is_owner)
         stats = run_stats.get(w.id, {})
         resp.total_runs = stats.get("total_runs", 0)
         resp.last_run_at = stats.get("last_run_at")
         resp.success_rate = stats.get("success_rate")
-        if w.user_id == current_user.id:
+        if _is_owner:
             resp.source = "own"
         elif w.id in subscribed_workflow_ids_set:
             sub_org_id = sub_org_map.get(w.id)
@@ -852,7 +866,8 @@ async def get_workflow(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
     wf = await _get_accessible_workflow(workflow_id, current_user.id, db)
-    return ApiResponse(data=_workflow_to_response(wf).model_dump())
+    _is_owner = wf.user_id == current_user.id
+    return ApiResponse(data=_workflow_to_response(wf, is_owner=_is_owner).model_dump())
 
 
 @router.put("/{workflow_id}", response_model=ApiResponse)
@@ -941,8 +956,10 @@ async def duplicate_workflow(
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
-    """Create a copy of an existing workflow."""
+    """Create a copy of an existing workflow. Only the owner can duplicate."""
     wf = await _get_accessible_workflow(workflow_id, current_user.id, db)
+    if wf.user_id != current_user.id:
+        raise AppError("fork_denied", status_code=403, detail="Only the owner can duplicate this resource")
     copy = Workflow(
         user_id=current_user.id,
         name=f"{wf.name} (Copy)",
@@ -958,6 +975,55 @@ async def duplicate_workflow(
     result = await db.execute(select(Workflow).where(Workflow.id == copy.id))
     copy = result.scalar_one()
     return ApiResponse(data=_workflow_to_response(copy).model_dump())
+
+
+# ---------------------------------------------------------------------------
+# Fork (clone for any user who can see the workflow)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{workflow_id}/fork", response_model=ApiResponse)
+async def fork_workflow(
+    workflow_id: str,
+    body: WorkflowForkRequest | None = None,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ApiResponse:
+    """Fork an existing workflow for the current user.
+
+    Copies blueprint, schemas, and description but NOT cron schedule,
+    API key, env vars, or run history.  The forked workflow is set to
+    personal/draft ownership.
+    Only the owner of the source workflow can fork it.
+    """
+    import copy as _copy
+
+    source = await _get_accessible_workflow(workflow_id, current_user.id, db)
+    if source.user_id != current_user.id:
+        raise AppError("fork_denied", status_code=403, detail="Only the owner can fork this resource")
+
+    fork_name = (body.name if body and body.name else f"{source.name} (Fork)")[:200]
+
+    forked = Workflow(
+        user_id=current_user.id,
+        name=fork_name,
+        icon=source.icon,
+        description=source.description,
+        blueprint=_copy.deepcopy(source.blueprint),
+        input_schema=_copy.deepcopy(source.input_schema) if source.input_schema else None,
+        output_schema=_copy.deepcopy(source.output_schema) if source.output_schema else None,
+        status="draft",
+        is_active=False,
+        visibility="personal",
+        org_id=None,
+        publish_status=None,
+        forked_from=source.id,
+    )
+    db.add(forked)
+    await db.commit()
+    result = await db.execute(select(Workflow).where(Workflow.id == forked.id))
+    forked = result.scalar_one()
+    return ApiResponse(data=_workflow_to_response(forked).model_dump())
 
 
 @router.delete("/{workflow_id}", response_model=ApiResponse)
@@ -2879,8 +2945,11 @@ async def export_workflow(
     """Export a workflow as a downloadable JSON file.
 
     Returns a ``fim_workflow_v1`` envelope stripped of user/org metadata.
+    Only the owner of the workflow can export it.
     """
     wf = await _get_accessible_workflow(workflow_id, current_user.id, db)
+    if wf.user_id != current_user.id:
+        raise AppError("export_denied", status_code=403, detail="Only the owner can export this resource")
     export_data = WorkflowExportData(
         name=wf.name,
         icon=wf.icon,

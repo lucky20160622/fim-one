@@ -218,6 +218,17 @@ function WorkflowsPageInner() {
     }
   }
 
+  const handleFork = async (id: string) => {
+    try {
+      const forked = await workflowApi.fork(id)
+      setWorkflows((prev) => [forked, ...prev])
+      toast.success(t("forkSuccess", { name: forked.name }))
+      router.push(`/workflows/${forked.id}`)
+    } catch {
+      toast.error(t("forkFailed"))
+    }
+  }
+
   const handleImport = () => {
     fileInputRef.current?.click()
   }
@@ -367,6 +378,7 @@ function WorkflowsPageInner() {
                   onDelete={handleDelete}
                   onExport={handleExport}
                   onDuplicate={handleDuplicate}
+                  onFork={handleFork}
                   onPublish={handlePublish}
                   onUnpublish={handleUnpublish}
                   onUninstall={handleUninstall}

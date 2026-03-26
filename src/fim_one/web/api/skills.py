@@ -28,14 +28,21 @@ router = APIRouter(prefix="/api/skills", tags=["skills"])
 # ---------------------------------------------------------------------------
 
 
-def _skill_to_response(skill: Skill) -> SkillResponse:
+def _skill_to_response(skill: Skill, *, is_owner: bool = True) -> SkillResponse:
+    # Non-owners: strip internal content (SOP content and script are IP)
+    if is_owner:
+        content = skill.content
+        script = skill.script
+    else:
+        content = None
+        script = None
     return SkillResponse(
         id=skill.id,
         user_id=skill.user_id,
         name=skill.name,
         description=skill.description,
-        content=skill.content,
-        script=skill.script,
+        content=content,
+        script=script,
         script_type=skill.script_type,
         forked_from=getattr(skill, "forked_from", None),
         visibility=getattr(skill, "visibility", "personal"),
@@ -163,8 +170,9 @@ async def list_skills(
     subscribed_skill_ids_set = set(subscribed_skill_ids)
     items = []
     for s in skills:
-        resp = _skill_to_response(s)
-        if s.user_id == current_user.id:
+        _is_owner = s.user_id == current_user.id
+        resp = _skill_to_response(s, is_owner=_is_owner)
+        if _is_owner:
             resp.source = "own"
         elif s.id in subscribed_skill_ids_set:
             sub_org_id = sub_org_map.get(s.id)
@@ -189,7 +197,8 @@ async def get_skill(
     db: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> ApiResponse:
     skill = await _get_accessible_skill(skill_id, current_user.id, db)
-    return ApiResponse(data=_skill_to_response(skill).model_dump())
+    _is_owner = skill.user_id == current_user.id
+    return ApiResponse(data=_skill_to_response(skill, is_owner=_is_owner).model_dump())
 
 
 @router.put("/{skill_id}", response_model=ApiResponse)
@@ -250,9 +259,11 @@ async def fork_skill(
 
     Copies all content fields but NOT org_id or publish_status.
     The forked skill is set to personal/draft ownership.
+    Only the owner of the source skill can fork it.
     """
-    # Fetch the source skill — must be visible to the user (own / org / global)
     source = await _get_accessible_skill(skill_id, current_user.id, db)
+    if source.user_id != current_user.id:
+        raise AppError("fork_denied", status_code=403, detail="Only the owner can fork this resource")
 
     fork_name = (body.name if body and body.name else f"{source.name} (Fork)")[:200]
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useTranslations } from "next-intl"
-import { Bot, Building2, Clock, MoreHorizontal, PackageMinus, Pencil, Trash2, Globe, GlobeLock, MessageSquare, RotateCw, ShoppingBag, XCircle } from "lucide-react"
+import { Bot, Building2, Clock, Copy, MoreHorizontal, PackageMinus, Pencil, Trash2, Globe, GlobeLock, MessageSquare, RotateCw, ShoppingBag, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,6 +27,7 @@ interface AgentCardProps {
   onDelete: (id: string) => void
   onPublish: (id: string) => void
   onUnpublish: (id: string) => void
+  onFork?: (id: string) => void
   onUninstall?: (id: string) => void
   onResubmit?: (id: string) => void
 }
@@ -37,6 +38,7 @@ export function AgentCard({
   onDelete,
   onPublish,
   onUnpublish,
+  onFork,
   onUninstall,
   onResubmit,
 }: AgentCardProps) {
@@ -87,6 +89,12 @@ export function AgentCard({
                   {tc("edit")}
                 </Link>
               </DropdownMenuItem>
+              {onFork && (
+                <DropdownMenuItem onClick={() => onFork(agent.id)}>
+                  <Copy className="h-4 w-4" />
+                  {t("forkAgent")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => isOrgResource ? onUnpublish(agent.id) : onPublish(agent.id)}>
                 {isOrgResource ? <GlobeLock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
                 {isOrgResource ? tc("unpublish") : tc("publish")}
@@ -104,7 +112,7 @@ export function AgentCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : !isOwner && isSubscribed && onUninstall ? (
+        ) : isSubscribed && onUninstall ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

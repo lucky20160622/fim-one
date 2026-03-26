@@ -147,5 +147,8 @@
   "builtInTools": "Outils intégrés",
   "builtInToolsHint": "Sélectionnez les catégories d'outils intégrés que cet agent peut utiliser.",
   "mcpServers": "Serveurs MCP",
-  "mcpServersDescription": "Sélectionnez les serveurs MCP auxquels cet agent peut accéder."
+  "mcpServersDescription": "Sélectionnez les serveurs MCP auxquels cet agent peut accéder.",
+  "forkAgent": "Dupliquer",
+  "forkSuccess": "Dupliqué en tant que « {name} »",
+  "forkFailed": "Échec de la duplication de l'agent"
 }

@@ -105,6 +105,17 @@ function AgentsPageInner() {
     }
   }
 
+  const handleFork = async (id: string) => {
+    try {
+      const forked = await agentApi.forkAgent(id)
+      setAgents((prev) => [forked, ...prev])
+      toast.success(t("forkSuccess", { name: forked.name }))
+      router.push(`/agents/${forked.id}`)
+    } catch {
+      toast.error(t("forkFailed"))
+    }
+  }
+
   const handleUninstall = (id: string) => setPendingUninstallId(id)
 
   const confirmUninstall = async () => {
@@ -276,6 +287,7 @@ function AgentsPageInner() {
                   onDelete={handleDelete}
                   onPublish={handlePublish}
                   onUnpublish={handleUnpublish}
+                  onFork={handleFork}
                   onUninstall={handleUninstall}
                   onResubmit={handleResubmit}
                 />

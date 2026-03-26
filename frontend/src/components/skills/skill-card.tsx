@@ -117,7 +117,7 @@ export function SkillCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : (isSubscribed && onUninstall) || onFork ? (
+        ) : isSubscribed && onUninstall ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -129,21 +129,10 @@ export function SkillCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {onFork && (
-                <DropdownMenuItem onClick={() => onFork(skill.id)}>
-                  <Copy className="h-4 w-4" />
-                  {t("forkSkill")}
-                </DropdownMenuItem>
-              )}
-              {isSubscribed && onUninstall && (
-                <>
-                  {onFork && <DropdownMenuSeparator />}
-                  <DropdownMenuItem variant="destructive" onClick={() => onUninstall(skill.id)}>
-                    <PackageMinus className="h-4 w-4" />
-                    {tc("uninstall")}
-                  </DropdownMenuItem>
-                </>
-              )}
+              <DropdownMenuItem variant="destructive" onClick={() => onUninstall(skill.id)}>
+                <PackageMinus className="h-4 w-4" />
+                {tc("uninstall")}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}

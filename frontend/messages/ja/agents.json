@@ -147,5 +147,8 @@
   "builtInTools": "組み込みツール",
   "builtInToolsHint": "このエージェントが使用できる組み込みツールカテゴリを選択します。",
   "mcpServers": "MCP サーバー",
-  "mcpServersDescription": "このエージェントがアクセスできる MCP サーバーを選択します。"
+  "mcpServersDescription": "このエージェントがアクセスできる MCP サーバーを選択します。",
+  "forkAgent": "複製",
+  "forkSuccess": "\"{name}\" として複製されました",
+  "forkFailed": "エージェントの複製に失敗しました"
 }

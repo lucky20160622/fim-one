@@ -190,7 +190,7 @@
   "mcpTemplateTitle": "MCP-Server-Vorlagen",
   "mcpTemplateDescription": "Wählen Sie einen vorgefertigten MCP-Server zum Konfigurieren und Installieren",
   "mcpSelectHint": "Klicken Sie auf einen Server, um ihn auszuwählen",
-  "forkMcpServer": "Verzweigen",
-  "forkSuccess": "Verzweigt als \"{name}\"",
-  "forkFailed": "Fehler beim Verzweigen des MCP-Servers"
+  "forkMcpServer": "Duplizieren",
+  "forkSuccess": "Dupliziert als \"{name}\"",
+  "forkFailed": "Fehler beim Duplizieren des MCP-Servers"
 }

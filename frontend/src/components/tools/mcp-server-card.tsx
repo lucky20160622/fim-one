@@ -279,7 +279,7 @@ export function MCPServerCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : (isSubscribed && onUninstall) || onFork || isOrgResource ? (
+        ) : (isSubscribed && onUninstall) || isOrgResource ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -297,15 +297,9 @@ export function MCPServerCard({
                   {t("configureMyKeys")}
                 </DropdownMenuItem>
               )}
-              {onFork && (
-                <DropdownMenuItem onClick={() => onFork(server.id)}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  {t("forkMcpServer")}
-                </DropdownMenuItem>
-              )}
               {isSubscribed && onUninstall && (
                 <>
-                  {(onFork || isSubscribed || isOrgResource) && <DropdownMenuSeparator />}
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem variant="destructive" onClick={() => onUninstall(server.id)}>
                     <PackageMinus className="mr-2 h-4 w-4" />
                     {tc("uninstall")}

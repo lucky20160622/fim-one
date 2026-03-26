@@ -751,5 +751,8 @@
   "statusChanged": "워크플로우 상태가 업데이트되었습니다",
   "runPanelStatusCompleted": "완료됨",
   "runPanelStatusFailed": "실패",
-  "runPanelStatusRunning": "실행 중"
+  "runPanelStatusRunning": "실행 중",
+  "forkWorkflow": "복제",
+  "forkSuccess": "\"{name}\"으로 복제되었습니다",
+  "forkFailed": "워크플로우 복제에 실패했습니다"
 }

@@ -24,6 +24,10 @@
   "agentUnpublished": "Agent unpublished",
   "agentUnpublishFailed": "Failed to unpublish agent",
 
+  "forkAgent": "Duplicate",
+  "forkSuccess": "Duplicated as \"{name}\"",
+  "forkFailed": "Failed to duplicate agent",
+
   "noDescription": "No description",
   "startChat": "Start Chat",
   "backToAgents": "Back to Agents",

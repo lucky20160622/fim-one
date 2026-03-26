@@ -107,9 +107,9 @@
   "resubmit": "Resubmit for Review",
   "resubmitSuccess": "Resubmitted for review",
   "resubmitError": "Failed to resubmit",
-  "forkMcpServer": "Fork",
-  "forkSuccess": "Forked as \"{name}\"",
-  "forkFailed": "Failed to fork MCP server",
+  "forkMcpServer": "Duplicate",
+  "forkSuccess": "Duplicated as \"{name}\"",
+  "forkFailed": "Failed to duplicate MCP server",
   "orgBadge": "Organization",
   "mcpHub": {
     "categories": {

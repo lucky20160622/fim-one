@@ -101,7 +101,7 @@
   "templateCategory_ai": "AI",
   "fromTemplate": "テンプレートから",
   "aliasStillInContent": "{alias} はまだ上記のコンテンツで参照されています — 手動で更新することをお勧めします。",
-  "forkSkill": "フォーク",
-  "forkSuccess": "\"{name}\" としてフォークしました",
-  "forkFailed": "スキルのフォークに失敗しました"
+  "forkSkill": "複製",
+  "forkSuccess": "\"{name}\" として複製されました",
+  "forkFailed": "スキルの複製に失敗しました"
 }

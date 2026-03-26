@@ -224,13 +224,13 @@
 
   "exportConnector": "Export",
   "importConnector": "Import",
-  "forkConnector": "Fork",
+  "forkConnector": "Duplicate",
   "exportSuccess": "Connector exported",
   "importSuccess": "Connector imported successfully",
-  "forkSuccess": "Forked as \"{name}\"",
+  "forkSuccess": "Duplicated as \"{name}\"",
   "exportFailed": "Failed to export connector",
   "importFailed": "Failed to import connector",
-  "forkFailed": "Failed to fork connector",
+  "forkFailed": "Failed to duplicate connector",
   "importFileInvalid": "Invalid JSON file",
 
   "templateGalleryTitle": "Create from Template",

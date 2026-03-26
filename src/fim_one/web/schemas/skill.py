@@ -38,7 +38,7 @@ class SkillResponse(BaseModel):
     user_id: str | None
     name: str
     description: str | None
-    content: str
+    content: str | None
     script: str | None
     script_type: str | None
     forked_from: str | None = None

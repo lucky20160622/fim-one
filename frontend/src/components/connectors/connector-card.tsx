@@ -136,7 +136,7 @@ export function ConnectorCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : (!isOwner && isSubscribed && onUninstall) || onFork ? (
+        ) : !isOwner && isSubscribed && onUninstall ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -148,21 +148,10 @@ export function ConnectorCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {onFork && (
-                <DropdownMenuItem onClick={() => onFork(connector.id)}>
-                  <Copy className="h-4 w-4" />
-                  {t("forkConnector")}
-                </DropdownMenuItem>
-              )}
-              {!isOwner && isSubscribed && onUninstall && (
-                <>
-                  {onFork && <DropdownMenuSeparator />}
-                  <DropdownMenuItem variant="destructive" onClick={() => onUninstall(connector.id)}>
-                    <PackageMinus className="h-4 w-4" />
-                    {tc("uninstall")}
-                  </DropdownMenuItem>
-                </>
-              )}
+              <DropdownMenuItem variant="destructive" onClick={() => onUninstall(connector.id)}>
+                <PackageMinus className="h-4 w-4" />
+                {tc("uninstall")}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}

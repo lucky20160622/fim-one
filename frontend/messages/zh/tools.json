@@ -190,7 +190,7 @@
   "mcpTemplateTitle": "MCP 服务器模板",
   "mcpTemplateDescription": "选择预构建的 MCP 服务器进行配置和安装",
   "mcpSelectHint": "点击服务器以选择它",
-  "forkMcpServer": "分叉",
-  "forkSuccess": "已分叉为 \"{name}\"",
-  "forkFailed": "MCP 服务器分叉失败"
+  "forkMcpServer": "复制",
+  "forkSuccess": "已复制为 \"{name}\"",
+  "forkFailed": "复制 MCP 服务器失败"
 }

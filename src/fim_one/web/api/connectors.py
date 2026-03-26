@@ -158,7 +158,20 @@ async def _has_default_credential(connector_id: str, db: AsyncSession) -> bool:
 def _connector_to_response(
     connector: Connector,
     has_default_credentials: bool = False,
+    *,
+    is_owner: bool = True,
 ) -> ConnectorResponse:
+    # Non-owners: strip internal content (actions, auth_config, base_url, db_config)
+    if is_owner:
+        actions = [_action_to_response(a) for a in (connector.actions or [])]
+        auth_config = _strip_sensitive_auth_config(connector.auth_type, connector.auth_config)
+        base_url = connector.base_url
+        db_config = _mask_db_config(connector.db_config)
+    else:
+        actions = []
+        auth_config = None
+        base_url = None
+        db_config = None
     return ConnectorResponse(
         id=connector.id,
         user_id=connector.user_id,
@@ -166,10 +179,10 @@ def _connector_to_response(
         description=connector.description,
         icon=connector.icon,
         type=connector.type,
-        base_url=connector.base_url,
+        base_url=base_url,
         auth_type=connector.auth_type,
-        auth_config=_strip_sensitive_auth_config(connector.auth_type, connector.auth_config),
-        db_config=_mask_db_config(connector.db_config),
+        auth_config=auth_config,
+        db_config=db_config,
         is_official=connector.is_official,
         forked_from=connector.forked_from,
         version=connector.version,
@@ -186,7 +199,7 @@ def _connector_to_response(
             else None
         ),
         review_note=getattr(connector, "review_note", None),
-        actions=[_action_to_response(a) for a in (connector.actions or [])],
+        actions=actions,
         created_at=connector.created_at.isoformat() if connector.created_at else "",
         updated_at=connector.updated_at.isoformat() if connector.updated_at else None,
     )
@@ -332,8 +345,9 @@ async def list_connectors(
     subscribed_connector_ids_set = set(subscribed_connector_ids)
     items = []
     for c in connectors:
-        resp = _connector_to_response(c)
-        if c.user_id == current_user.id:
+        _is_owner = c.user_id == current_user.id
+        resp = _connector_to_response(c, is_owner=_is_owner)
+        if _is_owner:
             resp.source = "own"
         elif c.id in subscribed_connector_ids_set:
             sub_org_id = sub_org_map.get(c.id)
@@ -385,7 +399,8 @@ async def get_connector(
     if connector is None:
         raise AppError("connector_not_found", status_code=404)
     has_creds = await _has_default_credential(connector_id, db)
-    return ApiResponse(data=_connector_to_response(connector, has_default_credentials=has_creds).model_dump())
+    _is_owner = connector.user_id == current_user.id
+    return ApiResponse(data=_connector_to_response(connector, has_default_credentials=has_creds, is_owner=_is_owner).model_dump())
 
 
 @router.put("/{connector_id}", response_model=ApiResponse)
@@ -498,9 +513,11 @@ async def fork_connector(
 
     Copies all configuration fields but NOT credentials, org_id, or
     publish_status.  The forked connector is set to personal/draft ownership.
+    Only the owner of the source connector can fork it.
     """
-    # Fetch the source connector — must be visible to the user (own / org / global)
     source = await _get_visible_connector(connector_id, current_user.id, db)
+    if source.user_id != current_user.id:
+        raise AppError("fork_denied", status_code=403, detail="Only the owner can fork this resource")
 
     fork_name = (body.name if body and body.name else f"{source.name} (Copy)")[:200]
 
@@ -979,10 +996,13 @@ async def export_connector(
 
     Sensitive data (credentials, user_id, org_id) is stripped. The exported
     JSON can be shared and re-imported into any FIM One instance.
+    Only the owner of the connector can export it.
     """
     from datetime import UTC, datetime
 
     connector = await _get_visible_connector(connector_id, current_user.id, db)
+    if connector.user_id != current_user.id:
+        raise AppError("export_denied", status_code=403, detail="Only the owner can export this resource")
 
     actions_data = [
         ActionExportData(

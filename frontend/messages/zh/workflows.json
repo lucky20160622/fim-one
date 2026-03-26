@@ -751,5 +751,8 @@
   "statusChanged": "工作流状态已更新",
   "runPanelStatusCompleted": "已完成",
   "runPanelStatusFailed": "失败",
-  "runPanelStatusRunning": "运行中"
+  "runPanelStatusRunning": "运行中",
+  "forkWorkflow": "复制",
+  "forkSuccess": "已复制为 \"{name}\"",
+  "forkFailed": "复制工作流失败"
 }
