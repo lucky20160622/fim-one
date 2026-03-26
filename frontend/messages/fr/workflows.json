@@ -751,8 +751,5 @@
   "statusChanged": "Statut du flux de travail mis à jour",
   "runPanelStatusCompleted": "Terminé",
   "runPanelStatusFailed": "Échoué",
-  "runPanelStatusRunning": "En cours d'exécution",
-  "forkWorkflow": "Dupliquer",
-  "forkSuccess": "Dupliqué en tant que \"{name}\"",
-  "forkFailed": "Échec de la duplication du flux de travail"
+  "runPanelStatusRunning": "En cours d'exécution"
 }

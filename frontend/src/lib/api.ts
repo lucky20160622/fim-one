@@ -1098,14 +1098,8 @@ export const workflowApi = {
     }).then((r) => r.data),
 
   duplicate: (id: string) =>
-    apiFetch<ApiResponse<WorkflowResponse>>(`/api/workflows/${id}/duplicate`, {
-      method: "POST",
-    }).then((r) => r.data),
-
-  fork: (id: string, name?: string) =>
     apiFetch<ApiResponse<WorkflowResponse>>(`/api/workflows/${id}/fork`, {
       method: "POST",
-      body: JSON.stringify(name ? { name } : {}),
     }).then((r) => r.data),
 
   getVariables: (id: string) =>

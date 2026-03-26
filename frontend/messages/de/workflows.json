@@ -751,8 +751,5 @@
   "statusChanged": "Workflow-Status aktualisiert",
   "runPanelStatusCompleted": "Abgeschlossen",
   "runPanelStatusFailed": "Fehlgeschlagen",
-  "runPanelStatusRunning": "Wird ausgeführt",
-  "forkWorkflow": "Duplizieren",
-  "forkSuccess": "Dupliziert als \"{name}\"",
-  "forkFailed": "Fehler beim Duplizieren des Workflows"
+  "runPanelStatusRunning": "Wird ausgeführt"
 }

@@ -147,9 +147,6 @@
   "workflowDuplicated": "Workflow duplicated",
   "workflowDuplicateFailed": "Failed to duplicate workflow",
   "workflowExportFailed": "Failed to export workflow",
-  "forkWorkflow": "Duplicate",
-  "forkSuccess": "Duplicated as \"{name}\"",
-  "forkFailed": "Failed to duplicate workflow",
 
   "unsavedChangesTitle": "Unsaved changes",
   "unsavedChangesDescription": "You have unsaved changes. Leaving this page will discard them.",

@@ -950,35 +950,8 @@ async def update_workflow(
     return ApiResponse(data=data)
 
 
-@router.post("/{workflow_id}/duplicate", response_model=ApiResponse)
-async def duplicate_workflow(
-    workflow_id: str,
-    current_user: User = Depends(get_current_user),  # noqa: B008
-    db: AsyncSession = Depends(get_session),  # noqa: B008
-) -> ApiResponse:
-    """Create a copy of an existing workflow. Only the owner can duplicate."""
-    wf = await _get_accessible_workflow(workflow_id, current_user.id, db)
-    if wf.user_id != current_user.id:
-        raise AppError("fork_denied", status_code=403, detail="Only the owner can duplicate this resource")
-    copy = Workflow(
-        user_id=current_user.id,
-        name=f"{wf.name} (Copy)",
-        icon=wf.icon,
-        description=wf.description,
-        blueprint=wf.blueprint,
-        input_schema=wf.input_schema,
-        output_schema=wf.output_schema,
-        status="draft",
-    )
-    db.add(copy)
-    await db.commit()
-    result = await db.execute(select(Workflow).where(Workflow.id == copy.id))
-    copy = result.scalar_one()
-    return ApiResponse(data=_workflow_to_response(copy).model_dump())
-
-
 # ---------------------------------------------------------------------------
-# Fork (clone for any user who can see the workflow)
+# Duplicate (fork with forked_from tracking)
 # ---------------------------------------------------------------------------
 
 
@@ -1002,7 +975,7 @@ async def fork_workflow(
     if source.user_id != current_user.id:
         raise AppError("fork_denied", status_code=403, detail="Only the owner can fork this resource")
 
-    fork_name = (body.name if body and body.name else f"{source.name} (Fork)")[:200]
+    fork_name = (body.name if body and body.name else f"{source.name} (Copy)")[:200]
 
     forked = Workflow(
         user_id=current_user.id,

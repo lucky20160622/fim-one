@@ -751,8 +751,5 @@
   "statusChanged": "ワークフローステータスが更新されました",
   "runPanelStatusCompleted": "完了",
   "runPanelStatusFailed": "失敗",
-  "runPanelStatusRunning": "実行中",
-  "forkWorkflow": "複製",
-  "forkSuccess": "\"{name}\" として複製されました",
-  "forkFailed": "ワークフローの複製に失敗しました"
+  "runPanelStatusRunning": "実行中"
 }

@@ -9,7 +9,6 @@ import {
   Copy,
   Download,
   GitBranch,
-  GitFork,
   Globe,
   GlobeLock,
   MoreHorizontal,
@@ -46,7 +45,6 @@ interface WorkflowCardProps {
   onDelete: (id: string) => void
   onExport: (id: string) => void
   onDuplicate: (id: string) => void
-  onFork?: (id: string) => void
   onPublish: (id: string) => void
   onUnpublish: (id: string) => void
   onUninstall?: (id: string) => void
@@ -59,7 +57,6 @@ export function WorkflowCard({
   onDelete,
   onExport,
   onDuplicate,
-  onFork,
   onPublish,
   onUnpublish,
   onUninstall,
@@ -122,12 +119,6 @@ export function WorkflowCard({
                 <Copy className="h-4 w-4" />
                 {t("editorDuplicate")}
               </DropdownMenuItem>
-              {onFork && (
-                <DropdownMenuItem onClick={() => onFork(workflow.id)}>
-                  <GitFork className="h-4 w-4" />
-                  {t("forkWorkflow")}
-                </DropdownMenuItem>
-              )}
               <DropdownMenuItem onClick={() => isPublished ? onUnpublish(workflow.id) : onPublish(workflow.id)}>
                 {isPublished ? <GlobeLock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
                 {isPublished ? tc("unpublish") : tc("publish")}
