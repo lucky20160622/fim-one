@@ -12,6 +12,7 @@ __fim_license__ = "FIM-SAL-1.1"
 __fim_origin__ = "https://github.com/fim-ai/fim-one"
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -53,6 +54,27 @@ _SELF_REFLECTION_INTERVAL = int(os.getenv("REACT_SELF_REFLECTION_INTERVAL", "6")
 
 # Max chars per tool observation in synthesis prompt to prevent context overflow.
 _TOOL_OBS_TRUNCATION = int(os.getenv("REACT_TOOL_OBS_TRUNCATION", "8000"))
+
+# Cycle detection: when the same (tool_name, args_hash) pair appears this many
+# times, inject a deterministic warning message.
+_CYCLE_DETECTION_THRESHOLD = int(os.getenv("REACT_CYCLE_DETECTION_THRESHOLD", "3"))
+
+_CYCLE_WARNING_TEMPLATE = (
+    "\u26a0 You have called `{tool_name}` with identical arguments "
+    "{count} times and received the same result. "
+    "Please try a different approach or tool."
+)
+
+# Completion checklist: one-time verification prompt injected before accepting
+# a final answer when the agent has used at least one tool.
+_COMPLETION_CHECK_PROMPT = (
+    "Before finalizing your answer, verify:\n"
+    "1. Does your answer fully address the original question?\n"
+    "2. Did you verify key facts from tool results?\n"
+    "3. Are there any contradictions in the information gathered?\n"
+    "If everything checks out, proceed with your final answer. "
+    "If not, continue investigating."
+)
 
 _SELF_REFLECTION_PROMPT = (
     "[Self-check] You have completed {iteration} tool-call iterations. "
@@ -238,6 +260,7 @@ class ReActAgent:
         agent_directive: str | None = None,
         pinned_tools: list[str] | None = None,
         max_turn_tokens: int = int(os.getenv("REACT_MAX_TURN_TOKENS", "0")),
+        completion_check: bool = True,
     ) -> None:
         self._llm = llm
         self._fast_llm = fast_llm
@@ -254,6 +277,7 @@ class ReActAgent:
         self._hook_registry = hook_registry
         self._workspace = workspace
         self._max_turn_tokens = max_turn_tokens
+        self._completion_check = completion_check
 
         # Auto-register workspace tools when a workspace is provided.
         if workspace is not None:
@@ -327,6 +351,54 @@ class ReActAgent:
         for tool in workspace_tools:
             if tool.name not in self._tools:
                 self._tools.register(tool)
+
+    @staticmethod
+    def _compute_args_hash(args: dict[str, Any] | None) -> str:
+        """Compute a stable hash of tool arguments for cycle detection.
+
+        Args:
+            args: The tool arguments dict.
+
+        Returns:
+            An MD5 hex digest of the JSON-serialised arguments.
+        """
+        serialised = json.dumps(args or {}, sort_keys=True, ensure_ascii=False)
+        return hashlib.md5(serialised.encode()).hexdigest()
+
+    def _check_cycle(
+        self,
+        tool_name: str,
+        tool_args: dict[str, Any] | None,
+        cycle_tracker: dict[tuple[str, str], int],
+    ) -> str | None:
+        """Check for repeated identical tool calls and return a warning if needed.
+
+        Increments the count for ``(tool_name, args_hash)`` and returns a
+        warning message when the count reaches ``_CYCLE_DETECTION_THRESHOLD``.
+
+        Args:
+            tool_name: The name of the tool being called.
+            tool_args: The arguments passed to the tool.
+            cycle_tracker: Mutable dict tracking call counts per
+                ``(tool_name, args_hash)`` pair.
+
+        Returns:
+            A warning message string if the threshold is reached, else ``None``.
+        """
+        args_hash = self._compute_args_hash(tool_args)
+        key = (tool_name, args_hash)
+        cycle_tracker[key] = cycle_tracker.get(key, 0) + 1
+        count = cycle_tracker[key]
+        if count >= _CYCLE_DETECTION_THRESHOLD:
+            warning = _CYCLE_WARNING_TEMPLATE.format(
+                tool_name=tool_name, count=count,
+            )
+            logger.warning(
+                "Cycle detected: %s called %d times with identical args",
+                tool_name, count,
+            )
+            return warning
+        return None
 
     # ------------------------------------------------------------------
     # Public API
@@ -655,6 +727,8 @@ class ReActAgent:
         steps: list[StepResult] = []
         response_format = self._json_response_format()
         tool_call_count = 0  # Track actual tool-call iterations for self-reflection
+        cycle_tracker: dict[tuple[str, str], int] = {}  # (tool_name, args_hash) -> count
+        completion_check_done = False  # One-shot flag for completion checklist
 
         for iteration in range(1, self._max_iterations + 1):
             logger.debug("ReAct iteration %d", iteration)
@@ -774,6 +848,27 @@ class ReActAgent:
                     )
                     continue
 
+                # --- Completion checklist ---
+                # When the agent used tools and hasn't been verified yet,
+                # inject a one-time verification prompt and let the LLM
+                # re-evaluate before accepting the final answer.
+                if (
+                    self._completion_check
+                    and tool_call_count > 0
+                    and not completion_check_done
+                    and iteration < self._max_iterations
+                ):
+                    completion_check_done = True
+                    messages.append(
+                        ChatMessage(role="user", content=_COMPLETION_CHECK_PROMPT),
+                    )
+                    logger.info(
+                        "Injected completion checklist at iteration %d "
+                        "(tool_call_count=%d)",
+                        iteration, tool_call_count,
+                    )
+                    continue
+
                 steps.append(StepResult(action=action))
                 if on_iteration is not None:
                     on_iteration(iteration, action, None, None, None)
@@ -809,6 +904,15 @@ class ReActAgent:
                 else f"Observation: {observation}"
             )
             messages.append(ChatMessage(role="user", content=obs_content))
+
+            # --- Cycle detection ---
+            # Track identical (tool_name, args) calls and inject a warning
+            # when the threshold is reached.
+            cycle_warning = self._check_cycle(
+                action.tool_name or "", action.tool_args, cycle_tracker,
+            )
+            if cycle_warning is not None:
+                messages.append(ChatMessage(role="user", content=cycle_warning))
 
             # --- Dynamic tool reload (request_tools) ---
             # When request_tools successfully loads new tools into the
@@ -910,6 +1014,8 @@ class ReActAgent:
 
         steps: list[StepResult] = []
         tool_call_count = 0  # Track actual tool-call iterations for self-reflection
+        cycle_tracker: dict[tuple[str, str], int] = {}  # (tool_name, args_hash) -> count
+        completion_check_done = False  # One-shot flag for completion checklist
 
         # Build OpenAI-format tool definitions using the effective (possibly
         # filtered) tool set for context efficiency.
@@ -985,6 +1091,17 @@ class ReActAgent:
                 messages.extend(tool_results)
                 tool_call_count += 1
 
+                # --- Cycle detection ---
+                # Check each tool call in this batch for repetition.
+                for tc in assistant_msg.tool_calls:
+                    cycle_warning = self._check_cycle(
+                        tc.name, dict(tc.arguments), cycle_tracker,
+                    )
+                    if cycle_warning is not None:
+                        messages.append(
+                            ChatMessage(role="user", content=cycle_warning),
+                        )
+
                 # --- Dynamic tool reload (request_tools) ---
                 # If request_tools was among the tool calls and succeeded,
                 # rebuild the tools payload so the LLM can see the newly
@@ -1027,6 +1144,27 @@ class ReActAgent:
                 injected_msgs, messages, iteration, on_iteration,
             )
             if injected_msgs and iteration < self._max_iterations:
+                continue
+
+            # --- Completion checklist ---
+            # When the agent used tools and hasn't been verified yet,
+            # inject a one-time verification prompt and let the LLM
+            # re-evaluate before accepting the final answer.
+            if (
+                self._completion_check
+                and tool_call_count > 0
+                and not completion_check_done
+                and iteration < self._max_iterations
+            ):
+                completion_check_done = True
+                messages.append(
+                    ChatMessage(role="user", content=_COMPLETION_CHECK_PROMPT),
+                )
+                logger.info(
+                    "Injected completion checklist at iteration %d "
+                    "(tool_call_count=%d)",
+                    iteration, tool_call_count,
+                )
                 continue
 
             raw_answer = assistant_msg.content

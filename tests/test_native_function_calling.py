@@ -287,7 +287,10 @@ class TestNativeSingleToolCall:
         )
         registry = ToolRegistry()
         registry.register(EchoTool())
-        agent = ReActAgent(llm=llm, tools=registry, use_native_tools=True)
+        agent = ReActAgent(
+            llm=llm, tools=registry, use_native_tools=True,
+            completion_check=False,
+        )
 
         result = await agent.run("echo test")
 
@@ -341,7 +344,10 @@ class TestNativeParallelToolCalls:
         )
         registry = ToolRegistry()
         registry.register(EchoTool())
-        agent = ReActAgent(llm=llm, tools=registry, use_native_tools=True)
+        agent = ReActAgent(
+            llm=llm, tools=registry, use_native_tools=True,
+            completion_check=False,
+        )
 
         result = await agent.run("do two things")
 
@@ -549,7 +555,10 @@ class TestNativeOnIterationCallback:
         )
         registry = ToolRegistry()
         registry.register(EchoTool())
-        agent = ReActAgent(llm=llm, tools=registry, use_native_tools=True)
+        agent = ReActAgent(
+            llm=llm, tools=registry, use_native_tools=True,
+            completion_check=False,
+        )
 
         callbacks: list[tuple] = []
 
@@ -591,7 +600,10 @@ class TestNativeOnIterationCallback:
         )
         registry = ToolRegistry()
         registry.register(EchoTool())
-        agent = ReActAgent(llm=llm, tools=registry, use_native_tools=True)
+        agent = ReActAgent(
+            llm=llm, tools=registry, use_native_tools=True,
+            completion_check=False,
+        )
 
         callbacks: list[tuple] = []
 
@@ -670,7 +682,10 @@ class TestNativeMultiStepToolCalls:
         registry = ToolRegistry()
         registry.register(EchoTool())
         registry.register(AddTool())
-        agent = ReActAgent(llm=llm, tools=registry, use_native_tools=True)
+        agent = ReActAgent(
+            llm=llm, tools=registry, use_native_tools=True,
+            completion_check=False,
+        )
 
         result = await agent.run("multi-step")
 
@@ -700,7 +715,10 @@ class TestNativeAssistantMessageWithContent:
         )
         registry = ToolRegistry()
         registry.register(EchoTool())
-        agent = ReActAgent(llm=llm, tools=registry, use_native_tools=True)
+        agent = ReActAgent(
+            llm=llm, tools=registry, use_native_tools=True,
+            completion_check=False,
+        )
 
         result = await agent.run("test")
 
@@ -747,7 +765,7 @@ class TestBackwardCompatibility:
         )
         registry = ToolRegistry()
         registry.register(EchoTool())
-        agent = ReActAgent(llm=llm, tools=registry)
+        agent = ReActAgent(llm=llm, tools=registry, completion_check=False)
 
         result = await agent.run("echo test")
 

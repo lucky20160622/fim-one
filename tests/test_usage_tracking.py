@@ -244,7 +244,7 @@ class TestReActAgentUsage:
                 _final_answer_result("pong", _make_usage(200, 80)),
             ]
         )
-        agent = ReActAgent(llm=llm, tools=registry)
+        agent = ReActAgent(llm=llm, tools=registry, completion_check=False)
         result = await agent.run("echo test")
 
         assert result.answer == "pong"
@@ -266,7 +266,7 @@ class TestReActAgentUsage:
                 _final_answer_result("done", _make_usage(70, 30)),
             ]
         )
-        agent = ReActAgent(llm=llm, tools=registry)
+        agent = ReActAgent(llm=llm, tools=registry, completion_check=False)
         result = await agent.run("multi-step")
 
         assert result.usage is not None

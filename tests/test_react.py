@@ -89,7 +89,7 @@ class TestReActAgentRun:
         )
         registry = ToolRegistry()
         registry.register(EchoTool())
-        agent = ReActAgent(llm=llm, tools=registry)
+        agent = ReActAgent(llm=llm, tools=registry, completion_check=False)
 
         result = await agent.run("echo test")
 
@@ -114,7 +114,7 @@ class TestReActAgentRun:
         )
         registry = ToolRegistry()
         registry.register(EchoTool())
-        agent = ReActAgent(llm=llm, tools=registry)
+        agent = ReActAgent(llm=llm, tools=registry, completion_check=False)
 
         result = await agent.run("multi-step")
 
