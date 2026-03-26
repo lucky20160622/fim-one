@@ -119,6 +119,39 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
 
     await init_db()
 
+    # Bootstrap: ensure prebuilt solution templates exist in the Market org.
+    # On first-ever startup (no users yet), the Market org won't exist and we
+    # skip — templates will be created during first-admin registration instead.
+    # On subsequent startups (existing DB), this ensures any newly added
+    # templates are seeded without requiring a fresh registration.
+    try:
+        from sqlalchemy import select
+
+        from fim_one.db import create_session
+        from fim_one.web.models.organization import Organization
+        from fim_one.web.platform import MARKET_ORG_ID
+        from fim_one.web.solution_seeds import ensure_solution_templates
+
+        async with create_session() as session:
+            result = await session.execute(
+                select(Organization).where(Organization.id == MARKET_ORG_ID)
+            )
+            market_org = result.scalar_one_or_none()
+            if market_org is not None:
+                await ensure_solution_templates(
+                    session,
+                    market_org_id=MARKET_ORG_ID,
+                    owner_id=market_org.owner_id,
+                )
+                await session.commit()
+                logger.info("Solution templates bootstrap complete")
+            else:
+                logger.info(
+                    "Market org not found — skipping solution template bootstrap"
+                )
+    except Exception:
+        logger.warning("Solution template bootstrap failed", exc_info=True)
+
     # Start the workflow scheduler daemon
     scheduler = WorkflowScheduler()
     scheduler_task = asyncio.create_task(scheduler.run())
