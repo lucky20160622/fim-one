@@ -189,5 +189,8 @@
   "urlRequired": "L'URL du serveur est requise pour ce transport",
   "mcpTemplateTitle": "Modèles de serveur MCP",
   "mcpTemplateDescription": "Choisissez un serveur MCP pré-construit à configurer et installer",
-  "mcpSelectHint": "Cliquez sur un serveur pour le sélectionner"
+  "mcpSelectHint": "Cliquez sur un serveur pour le sélectionner",
+  "forkMcpServer": "Dupliquer",
+  "forkSuccess": "Dupliqué en tant que \"{name}\"",
+  "forkFailed": "Échec de la duplication du serveur MCP"
 }

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useTranslations } from "next-intl"
 import {
-  Building2, Clock, MoreHorizontal, PackageMinus, Pencil, Trash2, Terminal, Globe, GlobeLock, FlaskConical,
+  Building2, Clock, Copy, MoreHorizontal, PackageMinus, Pencil, Trash2, Terminal, Globe, GlobeLock, FlaskConical,
   Loader2, CheckCircle2, XCircle, Key, AlertTriangle, RotateCw, Power, ShoppingBag,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -51,6 +51,7 @@ interface MCPServerCardProps {
   onPublish?: (id: string) => void
   onUnpublish?: (id: string) => void
   onResubmit?: (id: string) => void
+  onFork?: (id: string) => void
   onUninstall?: (id: string) => void
   onCredentialsSaved?: (serverId: string, hasCredentials: boolean) => void
 }
@@ -66,6 +67,7 @@ export function MCPServerCard({
   onUnpublish,
   onUninstall,
   onResubmit,
+  onFork,
   onCredentialsSaved,
 }: MCPServerCardProps) {
   const t = useTranslations("tools")
@@ -240,6 +242,12 @@ export function MCPServerCard({
                 }
                 {t("testConnection")}
               </DropdownMenuItem>
+              {onFork && (
+                <DropdownMenuItem onClick={() => onFork(server.id)}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  {t("forkMcpServer")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => onToggleActive(!server.is_active)}>
                 <Power className="mr-2 h-4 w-4" />
                 {server.is_active ? tc("disable") : tc("enable")}
@@ -271,7 +279,7 @@ export function MCPServerCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : isSubscribed && onUninstall ? (
+        ) : (isSubscribed && onUninstall) || onFork || isOrgResource ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -283,33 +291,27 @@ export function MCPServerCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleOpenMyKeys}>
-                <Key className="mr-2 h-4 w-4" />
-                {t("configureMyKeys")}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={() => onUninstall(server.id)}>
-                <PackageMinus className="mr-2 h-4 w-4" />
-                {tc("uninstall")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : isOrgResource ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="shrink-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 transition-opacity"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleOpenMyKeys}>
-                <Key className="mr-2 h-4 w-4" />
-                {t("configureMyKeys")}
-              </DropdownMenuItem>
+              {(isSubscribed || isOrgResource) && (
+                <DropdownMenuItem onClick={handleOpenMyKeys}>
+                  <Key className="mr-2 h-4 w-4" />
+                  {t("configureMyKeys")}
+                </DropdownMenuItem>
+              )}
+              {onFork && (
+                <DropdownMenuItem onClick={() => onFork(server.id)}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  {t("forkMcpServer")}
+                </DropdownMenuItem>
+              )}
+              {isSubscribed && onUninstall && (
+                <>
+                  {(onFork || isSubscribed || isOrgResource) && <DropdownMenuSeparator />}
+                  <DropdownMenuItem variant="destructive" onClick={() => onUninstall(server.id)}>
+                    <PackageMinus className="mr-2 h-4 w-4" />
+                    {tc("uninstall")}
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}

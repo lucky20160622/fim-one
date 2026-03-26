@@ -5,6 +5,7 @@ import {
   BookOpen,
   Building2,
   Clock,
+  Copy,
   Globe,
   GlobeLock,
   MoreHorizontal,
@@ -41,6 +42,7 @@ interface SkillCardProps {
   onDelete: (id: string) => void
   onPublish: (id: string) => void
   onUnpublish: (id: string) => void
+  onFork?: (id: string) => void
   onUninstall?: (id: string) => void
   onResubmit?: (id: string) => void
 }
@@ -52,6 +54,7 @@ export function SkillCard({
   onDelete,
   onPublish,
   onUnpublish,
+  onFork,
   onUninstall,
   onResubmit,
 }: SkillCardProps) {
@@ -91,6 +94,12 @@ export function SkillCard({
                 <Pencil className="h-4 w-4" />
                 {tc("edit")}
               </DropdownMenuItem>
+              {onFork && (
+                <DropdownMenuItem onClick={() => onFork(skill.id)}>
+                  <Copy className="h-4 w-4" />
+                  {t("forkSkill")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => isPublished ? onUnpublish(skill.id) : onPublish(skill.id)}>
                 {isPublished ? <GlobeLock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
                 {isPublished ? tc("unpublish") : tc("publish")}
@@ -108,7 +117,7 @@ export function SkillCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : isSubscribed && onUninstall ? (
+        ) : (isSubscribed && onUninstall) || onFork ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -120,10 +129,21 @@ export function SkillCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem variant="destructive" onClick={() => onUninstall(skill.id)}>
-                <PackageMinus className="h-4 w-4" />
-                {tc("uninstall")}
-              </DropdownMenuItem>
+              {onFork && (
+                <DropdownMenuItem onClick={() => onFork(skill.id)}>
+                  <Copy className="h-4 w-4" />
+                  {t("forkSkill")}
+                </DropdownMenuItem>
+              )}
+              {isSubscribed && onUninstall && (
+                <>
+                  {onFork && <DropdownMenuSeparator />}
+                  <DropdownMenuItem variant="destructive" onClick={() => onUninstall(skill.id)}>
+                    <PackageMinus className="h-4 w-4" />
+                    {tc("uninstall")}
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}

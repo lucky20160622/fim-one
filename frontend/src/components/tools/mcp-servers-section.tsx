@@ -169,6 +169,18 @@ export function MCPServersSection({ onReady, currentUserId, scope = "all", searc
     }
   }
 
+  const handleFork = async (id: string) => {
+    try {
+      const forked = await mcpServerApi.forkMCPServer(id)
+      setServers((prev) => [forked, ...prev])
+      toast.success(t("forkSuccess", { name: forked.name }))
+      // Open the edit dialog for the forked server
+      handleEdit(forked)
+    } catch {
+      toast.error(t("forkFailed"))
+    }
+  }
+
   const confirmPublish = async () => {
     if (!pendingPublishId || !publishOrgId) return
     const id = pendingPublishId
@@ -269,6 +281,7 @@ export function MCPServersSection({ onReady, currentUserId, scope = "all", searc
                 onUnpublish={(id) => handleUnpublish(id)}
                 onUninstall={handleUninstall}
                 onResubmit={(id) => handleResubmit(id)}
+                onFork={handleFork}
                 onCredentialsSaved={(serverId, hasCredentials) => {
                   setServers((prev) => prev.map((s) => s.id === serverId ? { ...s, my_has_credentials: hasCredentials } : s))
                 }}

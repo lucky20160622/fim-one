@@ -100,5 +100,8 @@
   "templateCategory_code": "Code",
   "templateCategory_ai": "KI",
   "fromTemplate": "Aus Vorlage",
-  "aliasStillInContent": "{alias} wird immer noch im obigen Inhalt referenziert — Sie möchten es möglicherweise manuell aktualisieren."
+  "aliasStillInContent": "{alias} wird immer noch im obigen Inhalt referenziert — Sie möchten es möglicherweise manuell aktualisieren.",
+  "forkSkill": "Verzweigen",
+  "forkSuccess": "Verzweigt als \"{name}\"",
+  "forkFailed": "Fehler beim Verzweigen der Fähigkeit"
 }

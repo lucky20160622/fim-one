@@ -16,6 +16,9 @@
   "skillCreateFailed": "Failed to create skill",
   "skillSaved": "Skill saved",
   "skillSaveFailed": "Failed to save skill",
+  "forkSkill": "Fork",
+  "forkSuccess": "Forked as \"{name}\"",
+  "forkFailed": "Failed to fork skill",
 
   "publishDialogTitle": "Publish skill?",
   "publishDialogDescription": "Once published, this skill will be available to organization members.",

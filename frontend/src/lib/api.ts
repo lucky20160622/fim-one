@@ -1260,6 +1260,12 @@ export const skillApi = {
     apiFetch<ApiResponse<SkillResponse>>(`/api/skill-templates/${templateId}/create`, {
       method: "POST",
     }).then((r) => r.data),
+
+  forkSkill: (id: string, name?: string) =>
+    apiFetch<ApiResponse<SkillResponse>>(`/api/skills/${id}/fork`, {
+      method: "POST",
+      body: JSON.stringify(name ? { name } : {}),
+    }).then((r) => r.data),
 }
 
 // --- Chat API ---
@@ -2020,6 +2026,12 @@ export const mcpServerApi = {
   unpublish: (id: string) =>
     apiFetch<ApiResponse<MCPServerResponse>>(`/api/mcp-servers/${id}/unpublish`, {
       method: "POST",
+    }).then((r) => r.data),
+
+  forkMCPServer: (id: string, name?: string) =>
+    apiFetch<ApiResponse<MCPServerResponse>>(`/api/mcp-servers/${id}/fork`, {
+      method: "POST",
+      body: JSON.stringify(name ? { name } : {}),
     }).then((r) => r.data),
 }
 

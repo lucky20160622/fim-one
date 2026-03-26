@@ -189,5 +189,8 @@
   "urlRequired": "このトランスポートにはサーバーURLが必要です",
   "mcpTemplateTitle": "MCPサーバーテンプレート",
   "mcpTemplateDescription": "事前構築されたMCPサーバーを選択して構成およびインストールします",
-  "mcpSelectHint": "サーバーをクリックして選択します"
+  "mcpSelectHint": "サーバーをクリックして選択します",
+  "forkMcpServer": "フォーク",
+  "forkSuccess": "\"{name}\" としてフォークしました",
+  "forkFailed": "MCP サーバーのフォークに失敗しました"
 }

@@ -100,5 +100,8 @@
   "templateCategory_code": "Code",
   "templateCategory_ai": "IA",
   "fromTemplate": "À partir d'un modèle",
-  "aliasStillInContent": "{alias} est toujours référencé dans le contenu ci-dessus — vous voudrez peut-être le mettre à jour manuellement."
+  "aliasStillInContent": "{alias} est toujours référencé dans le contenu ci-dessus — vous voudrez peut-être le mettre à jour manuellement.",
+  "forkSkill": "Dupliquer",
+  "forkSuccess": "Dupliqué en tant que \"{name}\"",
+  "forkFailed": "Échec de la duplication de la compétence"
 }

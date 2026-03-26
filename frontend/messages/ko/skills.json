@@ -100,5 +100,8 @@
   "templateCategory_code": "코드",
   "templateCategory_ai": "AI",
   "fromTemplate": "템플릿에서",
-  "aliasStillInContent": "{alias}은(는) 위의 콘텐츠에서 여전히 참조되고 있습니다 — 수동으로 업데이트하는 것이 좋습니다."
+  "aliasStillInContent": "{alias}은(는) 위의 콘텐츠에서 여전히 참조되고 있습니다 — 수동으로 업데이트하는 것이 좋습니다.",
+  "forkSkill": "포크",
+  "forkSuccess": "\"{name}\"으로 포크되었습니다",
+  "forkFailed": "스킬 포크에 실패했습니다"
 }

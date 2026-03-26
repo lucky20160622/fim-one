@@ -111,6 +111,17 @@ function SkillsPageInner() {
     }
   }
 
+  const handleFork = async (id: string) => {
+    try {
+      const forked = await skillApi.forkSkill(id)
+      setSkills((prev) => [forked, ...prev])
+      toast.success(t("forkSuccess", { name: forked.name }))
+      router.push(`/skills/${forked.id}`)
+    } catch {
+      toast.error(t("forkFailed"))
+    }
+  }
+
   const handleUninstall = (id: string) => setPendingUninstallId(id)
 
   const confirmUninstall = async () => {
@@ -314,6 +325,7 @@ function SkillsPageInner() {
                   onDelete={handleDelete}
                   onPublish={handlePublish}
                   onUnpublish={handleUnpublish}
+                  onFork={handleFork}
                   onUninstall={handleUninstall}
                   onResubmit={handleResubmit}
                 />

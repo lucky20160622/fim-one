@@ -100,5 +100,8 @@
   "templateCategory_code": "代码",
   "templateCategory_ai": "AI",
   "fromTemplate": "从模板",
-  "aliasStillInContent": "{alias} 仍在上面的内容中被引用 — 您可能需要手动更新它。"
+  "aliasStillInContent": "{alias} 仍在上面的内容中被引用 — 您可能需要手动更新它。",
+  "forkSkill": "复制",
+  "forkSuccess": "已复制为 \"{name}\"",
+  "forkFailed": "复制技能失败"
 }
