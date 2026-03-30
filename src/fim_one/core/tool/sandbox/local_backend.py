@@ -17,6 +17,7 @@ import importlib.machinery
 import io
 import logging
 import os
+import signal
 import sys
 import threading
 import traceback
@@ -216,6 +217,27 @@ class _BlockedImportFinder(importlib.abc.MetaPathFinder):
 
 
 # -----------------------------------------------------------------------
+# Process-group cleanup helper
+# -----------------------------------------------------------------------
+
+
+def _kill_proc_tree(proc: asyncio.subprocess.Process) -> None:
+    """Kill a subprocess and its entire process group (best-effort).
+
+    Requires the subprocess to have been started with
+    ``start_new_session=True`` so it leads its own process group.
+    Falls back to ``proc.kill()`` if ``killpg`` fails.
+    """
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+
+
+# -----------------------------------------------------------------------
 # LocalBackend
 # -----------------------------------------------------------------------
 
@@ -278,17 +300,18 @@ class LocalBackend:
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(sandbox_dir),
                 env=env,
+                start_new_session=True,
             )
             try:
                 stdout_bytes, stderr_bytes = await asyncio.wait_for(
                     proc.communicate(), timeout=timeout
                 )
             except TimeoutError:
+                _kill_proc_tree(proc)
                 try:
-                    proc.kill()
-                except ProcessLookupError:
+                    await asyncio.wait_for(proc.wait(), timeout=5)
+                except TimeoutError:
                     pass
-                await proc.wait()
                 return SandboxResult(
                     stdout="",
                     stderr="",
@@ -414,17 +437,18 @@ class LocalBackend:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(exec_dir),
+                start_new_session=True,
             )
             try:
                 stdout_bytes, stderr_bytes = await asyncio.wait_for(
                     proc.communicate(), timeout=timeout
                 )
             except TimeoutError:
+                _kill_proc_tree(proc)
                 try:
-                    proc.kill()
-                except ProcessLookupError:
+                    await asyncio.wait_for(proc.wait(), timeout=5)
+                except TimeoutError:
                     pass
-                await proc.wait()
                 return SandboxResult(
                     stdout="", stderr="", exit_code=124, timed_out=True
                 )
