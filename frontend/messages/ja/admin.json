@@ -379,7 +379,9 @@
     "temperatureReasoningHint": "推論が有効な場合、一部のプロバイダー（例：Anthropic）は temperature = 1.0 を要求します — 自動的に適用されます。",
     "importClearExisting": "インポート前に既存のデータをすべてクリア",
     "importClearExistingDesc": "既存のすべてのプロバイダー、モデル、グループを削除してからファイルからインポートします。この操作は取り消せません。",
-    "importDeleted": "削除済み: {providers} プロバイダー、{models} モデル、{groups} グループ"
+    "importDeleted": "削除済み: {providers} プロバイダー、{models} モデル、{groups} グループ",
+    "supportsVision": "ビジョンサポート",
+    "supportsVisionDesc": "このモデルが画像/ビジョン入力をサポートしている場合は有効にしてください。有効にすると、ユーザーはこのモデルを使用する会話で画像を送信できます。"
   },
   "tools": {
     "title": "組み込みツール",

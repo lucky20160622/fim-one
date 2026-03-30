@@ -283,6 +283,18 @@ Größenlimits für Dateien, die durch Werkzeugausführung erstellt werden (Code
 
 ---
 
+## Dokumentverarbeitung (Optional)
+
+Steuert, wie hochgeladene PDF-/DOCX-Dateien für die LLM-Verarbeitung verarbeitet werden. Vision-fähige Modelle (GPT-4o, Claude 3/4, Gemini) können PDF-Seiten als gerenderte Bilder für höhere Genauigkeit empfangen.
+
+| Variable | Erforderlich | Standard | Beschreibung |
+|---|---|---|---|
+| `DOCUMENT_PROCESSING_MODE` | Nein | `auto` | `auto` (Vision, falls Modell unterstützt), `vision` (Seiten immer rendern), `text` (nur Text extrahieren) |
+| `DOCUMENT_VISION_DPI` | Nein | `150` | DPI für PDF-Seitenrendering. Höher = bessere Qualität, mehr Token |
+| `DOCUMENT_VISION_MAX_PAGES` | Nein | `20` | Maximale Anzahl von Seiten, die pro PDF als Bilder gerendert werden |
+
+> **Hinweis**: Die Vision-Unterstützung pro Modell wird über den `supports_vision`-Schalter in Admin → Models konfiguriert. Wenn nicht explizit festgelegt, erkennt das System die Vision-Fähigkeit automatisch anhand des Modellnamens.
+
 ## Bildgenerierung (Optional)
 
 | Variable | Erforderlich | Standard | Beschreibung |

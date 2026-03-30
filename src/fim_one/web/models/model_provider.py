@@ -60,6 +60,9 @@ class ModelProviderModel(UUIDPKMixin, TimestampMixin, Base):
     tool_choice_enabled: Mapped[bool] = mapped_column(
         Boolean, server_default="TRUE", default=True
     )
+    supports_vision: Mapped[bool] = mapped_column(
+        Boolean, server_default="FALSE", default=False
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean, server_default="TRUE", default=True
     )

@@ -285,6 +285,18 @@ LiteLLM 从 `LLM_BASE_URL` 自动检测提供商，并将其映射到正确的 A
 
 ---
 
+## 文档处理（可选）
+
+控制上传的 PDF/DOCX 文件如何被处理以供 LLM 使用。具有视觉能力的模型（GPT-4o、Claude 3/4、Gemini）可以接收渲染后的 PDF 页面作为图像，以获得更高的保真度。
+
+| 变量 | 必需 | 默认值 | 描述 |
+|---|---|---|---|
+| `DOCUMENT_PROCESSING_MODE` | 否 | `auto` | `auto`（如果模型支持则使用视觉），`vision`（始终渲染页面），`text`（始终仅提取文本） |
+| `DOCUMENT_VISION_DPI` | 否 | `150` | PDF 页面渲染的 DPI。更高 = 更好的质量，更多 token |
+| `DOCUMENT_VISION_MAX_PAGES` | 否 | `20` | 每个 PDF 渲染为图像的最大页数 |
+
+> **注意**：每个模型的视觉支持通过管理员 → 模型中的 `supports_vision` 开关进行配置。未明确设置时，系统会从模型名称自动检测视觉能力。
+
 ## 图像生成（可选）
 
 | 变量 | 必需 | 默认值 | 描述 |

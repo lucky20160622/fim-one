@@ -12,6 +12,7 @@ export interface ModelConfigResponse {
   is_default: boolean
   is_active: boolean
   json_mode_enabled: boolean
+  supports_vision: boolean
   created_at: string
   updated_at: string | null
   // api_key is never returned from the backend
@@ -30,6 +31,7 @@ export interface ModelConfigCreate {
   context_size?: number | null
   is_default?: boolean
   json_mode_enabled?: boolean
+  supports_vision?: boolean
 }
 
-export type ModelConfigUpdate = Partial<ModelConfigCreate & { is_active: boolean; json_mode_enabled: boolean }>
+export type ModelConfigUpdate = Partial<ModelConfigCreate & { is_active: boolean; json_mode_enabled: boolean; supports_vision: boolean }>

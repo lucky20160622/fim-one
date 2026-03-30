@@ -31,6 +31,7 @@ def _config_to_response(cfg: ModelConfig) -> ModelConfigResponse:
         is_default=cfg.is_default,
         is_active=cfg.is_active,
         json_mode_enabled=getattr(cfg, "json_mode_enabled", True),
+        supports_vision=getattr(cfg, "supports_vision", False),
         created_at=cfg.created_at.isoformat() if cfg.created_at else "",
         updated_at=cfg.updated_at.isoformat() if cfg.updated_at else None,
     )

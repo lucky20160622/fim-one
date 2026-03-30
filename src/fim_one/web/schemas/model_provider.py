@@ -37,6 +37,7 @@ class ProviderModelResponse(BaseModel):
     context_size: int | None
     json_mode_enabled: bool
     tool_choice_enabled: bool
+    supports_vision: bool
     is_active: bool
     created_at: str
     updated_at: str | None
@@ -72,6 +73,7 @@ class ProviderModelCreate(BaseModel):
     context_size: int | None = None
     json_mode_enabled: bool = True
     tool_choice_enabled: bool = True
+    supports_vision: bool = False
 
 
 class ProviderModelUpdate(BaseModel):
@@ -82,6 +84,7 @@ class ProviderModelUpdate(BaseModel):
     context_size: int | None = None
     json_mode_enabled: bool | None = None
     tool_choice_enabled: bool | None = None
+    supports_vision: bool | None = None
     is_active: bool | None = None
 
 
@@ -98,6 +101,7 @@ class ProviderModelFullResponse(BaseModel):
     context_size: int | None
     json_mode_enabled: bool
     tool_choice_enabled: bool
+    supports_vision: bool
     is_active: bool
     created_at: str
     updated_at: str | None
@@ -205,6 +209,7 @@ class ModelExportData(BaseModel):
     context_size: int | None = None
     json_mode_enabled: bool = True
     tool_choice_enabled: bool = True
+    supports_vision: bool = False
     is_active: bool = True
 
 

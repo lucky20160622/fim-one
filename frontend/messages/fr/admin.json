@@ -379,7 +379,9 @@
     "temperatureReasoningHint": "Lorsque le raisonnement est activé, certains fournisseurs (par exemple Anthropic) exigent temperature = 1.0 — appliqué automatiquement.",
     "importClearExisting": "Effacer toutes les données existantes avant l'importation",
     "importClearExistingDesc": "Supprimer tous les fournisseurs, modèles et groupes existants, puis importer à partir du fichier. Cette action ne peut pas être annulée.",
-    "importDeleted": "Supprimés : {providers} fournisseurs, {models} modèles, {groups} groupes"
+    "importDeleted": "Supprimés : {providers} fournisseurs, {models} modèles, {groups} groupes",
+    "supportsVision": "Support de la vision",
+    "supportsVisionDesc": "Activez cette option si ce modèle prend en charge les entrées d'image/vision. Lorsqu'elle est activée, les utilisateurs peuvent envoyer des images dans les conversations qui utilisent ce modèle."
   },
   "tools": {
     "title": "Outils intégrés",

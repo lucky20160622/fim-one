@@ -281,6 +281,18 @@ Limites de taille pour les fichiers produits par l'exécution d'outils (exécuti
 
 ---
 
+## Traitement des documents (Optionnel)
+
+Contrôle le traitement des fichiers PDF/DOCX téléchargés pour la consommation par LLM. Les modèles compatibles avec la vision (GPT-4o, Claude 3/4, Gemini) peuvent recevoir les pages PDF sous forme d'images rendues pour une meilleure fidélité.
+
+| Variable | Requis | Par défaut | Description |
+|---|---|---|---|
+| `DOCUMENT_PROCESSING_MODE` | Non | `auto` | `auto` (vision si le modèle la supporte), `vision` (toujours rendre les pages), `text` (toujours extraire le texte uniquement) |
+| `DOCUMENT_VISION_DPI` | Non | `150` | DPI pour le rendu des pages PDF. Plus élevé = meilleure qualité, plus de tokens |
+| `DOCUMENT_VISION_MAX_PAGES` | Non | `20` | Nombre maximum de pages à rendre sous forme d'images par PDF |
+
+> **Remarque** : Le support de la vision par modèle est configuré via le bouton `supports_vision` dans Admin → Models. Lorsqu'il n'est pas explicitement défini, le système détecte automatiquement la capacité de vision à partir du nom du modèle.
+
 ## Génération d'images (Optionnel)
 
 | Variable | Requis | Par défaut | Description |

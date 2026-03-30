@@ -379,7 +379,9 @@
     "temperatureReasoningHint": "Wenn Reasoning aktiviert ist, erfordern einige Anbieter (z. B. Anthropic) temperature = 1.0 — wird automatisch angewendet.",
     "importClearExisting": "Alle vorhandenen Daten vor dem Import löschen",
     "importClearExistingDesc": "Löschen Sie alle vorhandenen Anbieter, Modelle und Gruppen und importieren Sie dann aus der Datei. Dies kann nicht rückgängig gemacht werden.",
-    "importDeleted": "Gelöscht: {providers} Anbieter, {models} Modelle, {groups} Gruppen"
+    "importDeleted": "Gelöscht: {providers} Anbieter, {models} Modelle, {groups} Gruppen",
+    "supportsVision": "Vision-Unterstützung",
+    "supportsVisionDesc": "Aktivieren Sie diese Option, wenn das Modell Bild-/Vision-Eingaben unterstützt. Wenn aktiviert, können Benutzer Bilder in Gesprächen senden, die dieses Modell verwenden."
   },
   "tools": {
     "title": "Integrierte Tools",

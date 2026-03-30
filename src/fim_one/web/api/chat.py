@@ -1713,6 +1713,74 @@ async def _load_image_data_urls(
     return results
 
 
+async def _load_document_vision_urls(
+    image_ids: str,
+    user_id: str | None,
+    model_name: str | None,
+    doc_mode: str | None,
+    model_supports_vision: bool = False,
+) -> list[str]:
+    """Load rendered PDF page images for vision-capable models.
+
+    Scans the file IDs in *image_ids* for PDF documents and, when the active
+    model supports vision, returns their pages as base64 data URLs.
+
+    Args:
+        image_ids: Comma-separated file IDs from the chat request.
+        user_id: Current user ID for file lookup.
+        model_name: The active model identifier (for auto-detection fallback).
+        doc_mode: Explicit document processing mode (``"vision"`` / ``"text"``
+            / ``None`` for auto).
+        model_supports_vision: Whether the DB model config has vision enabled.
+
+    Returns:
+        List of base64 PNG data URLs for rendered PDF pages.
+    """
+    if not user_id or not image_ids:
+        return []
+
+    from fim_one.core.document.processor import (
+        _get_doc_processing_mode,
+        is_vision_model,
+    )
+    from fim_one.web.api.files import UPLOAD_ROOT, _load_index
+
+    # Determine effective mode
+    effective_mode = doc_mode or _get_doc_processing_mode()
+
+    # Determine if vision is available
+    vision_available = model_supports_vision
+    if not vision_available and model_name:
+        vision_available = is_vision_model(model_name)
+
+    if effective_mode == "text" or (effective_mode == "auto" and not vision_available):
+        return []
+
+    index = _load_index(user_id)
+    all_page_urls: list[str] = []
+
+    for fid in image_ids.split(","):
+        fid = fid.strip()
+        if not fid:
+            continue
+        meta = index.get(fid)
+        if not meta:
+            continue
+        suffix = Path(str(meta["filename"])).suffix.lower()
+        if suffix != ".pdf":
+            continue
+        file_path = UPLOAD_ROOT / f"user_{user_id}" / str(meta["stored_name"])
+        if not file_path.exists():
+            continue
+
+        from fim_one.core.document import DocumentProcessor
+
+        page_urls = await DocumentProcessor.get_or_create_cached_pages(file_path)
+        all_page_urls.extend(page_urls)
+
+    return all_page_urls
+
+
 # ---------------------------------------------------------------------------
 # SSE ticket endpoint — issue a short-lived one-time token for SSE auth
 # ---------------------------------------------------------------------------
@@ -1745,6 +1813,7 @@ class ChatStreamRequest(BaseModel):
     token: str | None = None
     image_ids: str | None = None
     user_metadata: str | None = None
+    doc_mode: str | None = None  # "vision" | "text" | None (auto)
 
 
 class InjectMessageRequest(BaseModel):
@@ -1871,6 +1940,7 @@ async def react_endpoint(
     token = body.token
     image_ids = body.image_ids
     user_metadata_str = body.user_metadata
+    doc_mode = body.doc_mode
 
     # Sensitive word check — block before starting the agent
     from fim_one.db import create_session as _create_sw_session
@@ -2003,6 +2073,16 @@ async def react_endpoint(
     image_data: list[tuple[str, str, str]] = []
     if image_ids:
         image_data = await _load_image_data_urls(image_ids, current_user_id)
+
+    # Load document vision pages (PDF rendered as images for vision models)
+    doc_vision_urls: list[str] = []
+    if image_ids:
+        doc_vision_urls = await _load_document_vision_urls(
+            image_ids=image_ids,
+            user_id=current_user_id,
+            model_name=getattr(llm, "model_id", None),
+            doc_mode=doc_mode,
+        )
 
     async def generate() -> AsyncGenerator[str, None]:  # noqa: C901
         t0 = time.time()
@@ -2248,6 +2328,9 @@ async def react_endpoint(
             )
 
             image_urls = [url for _, _, url in image_data] if image_data else None
+            # Append document vision page images (rendered PDF pages)
+            if doc_vision_urls:
+                image_urls = (image_urls or []) + doc_vision_urls
 
             async def _run() -> Any:
                 try:
@@ -2565,6 +2648,7 @@ async def dag_endpoint(
     token = body.token
     image_ids = body.image_ids
     dag_user_metadata_str = body.user_metadata
+    dag_doc_mode = body.doc_mode
 
     # -- Pre-stream resolution ----------------------------------------------
     current_user_id, user_system_instructions, preferred_language, user_timezone = await _resolve_user(token)
@@ -2641,6 +2725,16 @@ async def dag_endpoint(
     if image_ids:
         dag_image_data = await _load_image_data_urls(image_ids, current_user_id)
 
+    # Load document vision pages (PDF rendered as images for vision models)
+    dag_doc_vision_urls: list[str] = []
+    if image_ids:
+        dag_doc_vision_urls = await _load_document_vision_urls(
+            image_ids=image_ids,
+            user_id=current_user_id,
+            model_name=getattr(llm, "model_id", None),
+            doc_mode=dag_doc_mode,
+        )
+
     async def generate() -> AsyncGenerator[str, None]:  # noqa: C901
         t0 = time.time()
         sse_events: list[dict[str, Any]] = []
@@ -2711,11 +2805,16 @@ async def dag_endpoint(
         # When images are attached, annotate the query so the text-only
         # planner is aware of them.
         enriched_query = q
-        if dag_image_data:
-            img_names = ", ".join(fname for _, fname, _ in dag_image_data)
-            enriched_query = (
-                f"{q}\n\n[Attached images: {img_names}]"
-            )
+        if dag_image_data or dag_doc_vision_urls:
+            annotations: list[str] = []
+            if dag_image_data:
+                img_names = ", ".join(fname for _, fname, _ in dag_image_data)
+                annotations.append(f"Attached images: {img_names}")
+            if dag_doc_vision_urls:
+                annotations.append(
+                    f"Document vision: {len(dag_doc_vision_urls)} PDF page(s) rendered for visual analysis"
+                )
+            enriched_query = f"{q}\n\n[{'; '.join(annotations)}]"
         dag_memory = None
         if conversation_id:
             try:

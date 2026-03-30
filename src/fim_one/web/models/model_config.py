@@ -32,5 +32,6 @@ class ModelConfig(UUIDPKMixin, TimestampMixin, Base):
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     json_mode_enabled: Mapped[bool] = mapped_column(Boolean, server_default="TRUE", default=True)
+    supports_vision: Mapped[bool] = mapped_column(Boolean, server_default="FALSE", default=False)
 
     user: Mapped[User | None] = relationship(back_populates="model_configs", lazy="raise")

@@ -20,6 +20,7 @@ class ModelConfigCreate(BaseModel):
     is_default: bool = False
     role: Literal["general", "fast"] | None = None
     json_mode_enabled: bool = True
+    supports_vision: bool = False
 
 
 class ModelConfigUpdate(BaseModel):
@@ -36,6 +37,7 @@ class ModelConfigUpdate(BaseModel):
     is_active: bool | None = None
     role: str | None = None
     json_mode_enabled: bool | None = None
+    supports_vision: bool | None = None
 
 
 class ModelConfigResponse(BaseModel):
@@ -52,6 +54,7 @@ class ModelConfigResponse(BaseModel):
     is_default: bool
     is_active: bool
     json_mode_enabled: bool
+    supports_vision: bool
     created_at: str
     updated_at: str | None
     # NEVER expose api_key in responses

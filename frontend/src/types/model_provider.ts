@@ -30,6 +30,7 @@ export interface ModelProviderModelResponse {
   context_size: number | null
   json_mode_enabled: boolean
   tool_choice_enabled: boolean
+  supports_vision: boolean
   is_active: boolean
   created_at: string
   updated_at: string | null
@@ -43,10 +44,11 @@ export interface ModelProviderModelCreate {
   context_size?: number
   json_mode_enabled?: boolean
   tool_choice_enabled?: boolean
+  supports_vision?: boolean
 }
 
 export type ModelProviderModelUpdate = Partial<
-  ModelProviderModelCreate & { is_active: boolean }
+  ModelProviderModelCreate & { is_active: boolean; supports_vision: boolean }
 >
 
 // Model Group (Profile)

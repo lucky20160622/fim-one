@@ -72,55 +72,13 @@ def _extract_content(file_path: Path) -> str | None:
 
     Returns the extracted text, a fallback message if optional
     dependencies are missing, or *None* for unsupported types.
+
+    Delegates to :func:`fim_one.core.document.processor._extract_text_sync`
+    as the single source of truth for extraction logic.
     """
-    suffix = file_path.suffix.lower()
+    from fim_one.core.document.processor import _extract_text_sync
 
-    # Images have no extractable text content
-    if _is_image(suffix):
-        return None
-
-    # Plain text family
-    if suffix in {".txt", ".md", ".py", ".js", ".html", ".htm"}:
-        return file_path.read_text(encoding="utf-8", errors="replace")
-
-    # JSON — parse and pretty-print
-    if suffix == ".json":
-        try:
-            data = json.loads(file_path.read_text(encoding="utf-8", errors="replace"))
-            return json.dumps(data, indent=2, ensure_ascii=False)
-        except json.JSONDecodeError:
-            return file_path.read_text(encoding="utf-8", errors="replace")
-
-    # CSV — raw text
-    if suffix == ".csv":
-        return file_path.read_text(encoding="utf-8", errors="replace")
-
-    # PDF — requires pdfplumber (optional)
-    if suffix == ".pdf":
-        try:
-            import pdfplumber
-        except ImportError:
-            return "[PDF content extraction requires pdfplumber]"
-        pages_text: list[str] = []
-        with pdfplumber.open(file_path) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                if text:
-                    pages_text.append(text)
-        return "\n".join(pages_text) if pages_text else None
-
-    # Office documents (DOCX, XLSX, XLS, PPTX) — requires markitdown
-    if suffix in {".docx", ".xlsx", ".xls", ".pptx"}:
-        try:
-            from markitdown import MarkItDown
-        except ImportError:
-            return f"[{suffix.upper().lstrip('.')} content extraction requires markitdown]"
-        converter = MarkItDown()
-        result = converter.convert(str(file_path))
-        content = result.text_content or ""
-        return content if content.strip() else None
-
-    return None
+    return _extract_text_sync(file_path)
 
 
 def _user_dir(user_id: str) -> Path:

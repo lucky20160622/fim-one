@@ -463,6 +463,7 @@ function ModelFormDialog({ open, onOpenChange, providerId, model, onSuccess }: M
   const [contextSize, setContextSize] = useState("")
   const [jsonModeEnabled, setJsonModeEnabled] = useState(true)
   const [toolChoiceEnabled, setToolChoiceEnabled] = useState(true)
+  const [supportsVision, setSupportsVision] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
@@ -478,6 +479,7 @@ function ModelFormDialog({ open, onOpenChange, providerId, model, onSuccess }: M
         setContextSize(model.context_size ? (model.context_size / 1000).toString() : "")
         setJsonModeEnabled(model.json_mode_enabled)
         setToolChoiceEnabled(model.tool_choice_enabled)
+        setSupportsVision(model.supports_vision)
       } else {
         setDisplayName("")
         setModelName("")
@@ -486,6 +488,7 @@ function ModelFormDialog({ open, onOpenChange, providerId, model, onSuccess }: M
         setContextSize("")
         setJsonModeEnabled(true)
         setToolChoiceEnabled(true)
+        setSupportsVision(false)
       }
       setShowAdvanced(false)
       setShowCloseConfirm(false)
@@ -523,6 +526,7 @@ function ModelFormDialog({ open, onOpenChange, providerId, model, onSuccess }: M
         context_size: contextSize ? parseInt(contextSize) * 1000 : undefined,
         json_mode_enabled: jsonModeEnabled,
         tool_choice_enabled: toolChoiceEnabled,
+        supports_vision: supportsVision,
       }
       if (isEdit && model) {
         await adminApi.updateProviderModel(model.id, body)
@@ -702,6 +706,29 @@ function ModelFormDialog({ open, onOpenChange, providerId, model, onSuccess }: M
                         id="tool-choice"
                         checked={toolChoiceEnabled}
                         onCheckedChange={setToolChoiceEnabled}
+                      />
+                    </div>
+                    {/* Vision Support toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Label htmlFor="supports-vision" className="text-sm font-medium">
+                          {t("supportsVision")}
+                        </Label>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs">
+                              <p className="text-xs">{t("supportsVisionDesc")}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <Switch
+                        id="supports-vision"
+                        checked={supportsVision}
+                        onCheckedChange={setSupportsVision}
                       />
                     </div>
                     {/* JSON Mode toggle */}

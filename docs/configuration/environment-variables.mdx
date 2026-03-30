@@ -287,6 +287,20 @@ Size limits for files produced by tool execution (code execution, template rende
 
 ---
 
+## Document Processing (Optional)
+
+Controls how uploaded PDF/DOCX files are processed for LLM consumption. Vision-capable models (GPT-4o, Claude 3/4, Gemini) can receive PDF pages as rendered images for higher fidelity.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DOCUMENT_PROCESSING_MODE` | No | `auto` | `auto` (vision if model supports it), `vision` (always render pages), `text` (always extract text only) |
+| `DOCUMENT_VISION_DPI` | No | `150` | DPI for PDF page rendering. Higher = better quality, more tokens |
+| `DOCUMENT_VISION_MAX_PAGES` | No | `20` | Maximum pages to render as images per PDF |
+
+> **Note**: Per-model vision support is configured via the `supports_vision` toggle in Admin → Models. When not explicitly set, the system auto-detects vision capability from the model name.
+
+---
+
 ## Image Generation (Optional)
 
 | Variable | Required | Default | Description |

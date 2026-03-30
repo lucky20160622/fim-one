@@ -942,6 +942,17 @@
               }
             ],
             "title": "User Metadata"
+          },
+          "doc_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Mode"
           }
         },
         "type": "object",

@@ -1853,6 +1853,7 @@ class AdminModelCreate(BaseModel):
     role: str | None = None
     is_active: bool = True
     json_mode_enabled: bool = True
+    supports_vision: bool = False
 
 
 class AdminModelUpdate(BaseModel):
@@ -1868,6 +1869,7 @@ class AdminModelUpdate(BaseModel):
     role: str | None = None
     is_active: bool | None = None
     json_mode_enabled: bool | None = None
+    supports_vision: bool | None = None
 
 
 class AdminToggleActiveModelRequest(BaseModel):
@@ -1911,6 +1913,7 @@ def _model_config_to_response(cfg: ModelConfig) -> ModelConfigResponse:
         is_default=cfg.is_default,
         is_active=cfg.is_active,
         json_mode_enabled=getattr(cfg, "json_mode_enabled", True),
+        supports_vision=getattr(cfg, "supports_vision", False),
         created_at=cfg.created_at.isoformat() if cfg.created_at else "",
         updated_at=cfg.updated_at.isoformat() if cfg.updated_at else None,
     )
@@ -2005,6 +2008,7 @@ async def admin_create_model(
         role=body.role,
         is_active=body.is_active,
         json_mode_enabled=body.json_mode_enabled,
+        supports_vision=body.supports_vision,
     )
     db.add(cfg)
     await db.commit()
@@ -2297,6 +2301,7 @@ def _provider_model_to_response(m: ModelProviderModel) -> ProviderModelResponse:
         context_size=m.context_size,
         json_mode_enabled=m.json_mode_enabled,
         tool_choice_enabled=m.tool_choice_enabled,
+        supports_vision=getattr(m, "supports_vision", False),
         is_active=m.is_active,
         created_at=m.created_at.isoformat() if m.created_at else "",
         updated_at=m.updated_at.isoformat() if m.updated_at else None,
@@ -2517,6 +2522,7 @@ async def admin_create_provider_model(
         context_size=body.context_size,
         json_mode_enabled=body.json_mode_enabled,
         tool_choice_enabled=body.tool_choice_enabled,
+        supports_vision=getattr(body, "supports_vision", False),
     )
     db.add(model)
     await db.commit()
@@ -2542,6 +2548,7 @@ async def admin_create_provider_model(
         context_size=model.context_size,
         json_mode_enabled=model.json_mode_enabled,
         tool_choice_enabled=model.tool_choice_enabled,
+        supports_vision=getattr(model, "supports_vision", False),
         is_active=model.is_active,
         created_at=model.created_at.isoformat() if model.created_at else "",
         updated_at=model.updated_at.isoformat() if model.updated_at else None,
@@ -2594,6 +2601,7 @@ async def admin_update_provider_model(
         context_size=model.context_size,
         json_mode_enabled=model.json_mode_enabled,
         tool_choice_enabled=model.tool_choice_enabled,
+        supports_vision=getattr(model, "supports_vision", False),
         is_active=model.is_active,
         created_at=model.created_at.isoformat() if model.created_at else "",
         updated_at=model.updated_at.isoformat() if model.updated_at else None,
@@ -2925,6 +2933,7 @@ async def admin_export_model_config(
                 context_size=m.context_size,
                 json_mode_enabled=m.json_mode_enabled,
                 tool_choice_enabled=m.tool_choice_enabled,
+                supports_vision=getattr(m, "supports_vision", False),
                 is_active=m.is_active,
             )
             for m in (p.models or [])
@@ -3072,6 +3081,7 @@ async def admin_import_model_config(
                     context_size=model_data.context_size,
                     json_mode_enabled=model_data.json_mode_enabled,
                     tool_choice_enabled=model_data.tool_choice_enabled,
+                    supports_vision=model_data.supports_vision,
                     is_active=model_data.is_active,
                 )
                 db.add(model)
