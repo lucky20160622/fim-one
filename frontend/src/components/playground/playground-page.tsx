@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef, useEffect, useMemo, Fragment } from "react"
+import { useState, useCallback, useRef, useEffect, useMemo, memo, Fragment } from "react"
 import { useTranslations } from "next-intl"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { Textarea } from "@/components/ui/textarea"
@@ -509,7 +509,7 @@ function ImageThumbnail({ fileId, filename }: { fileId: string; filename: string
 }
 
 /** Renders a single history turn (user message + execution steps) using the same hooks as live mode. */
-function HistoryTurn({ userContent, userMetadata, assistantMetadata, sseMessages, hideDagGraph }: {
+const HistoryTurn = memo(function HistoryTurn({ userContent, userMetadata, assistantMetadata, sseMessages, hideDagGraph }: {
   userContent: string | null
   userMetadata?: Record<string, unknown> | null
   assistantMetadata?: Record<string, unknown> | null
@@ -596,7 +596,7 @@ function HistoryTurn({ userContent, userMetadata, assistantMetadata, sseMessages
       )}
     </>
   )
-}
+})
 
 /** Subtle divider shown when the backend compacted (summarized) older conversation context. */
 function CompactDivider({ originalCount, keptCount }: { originalCount: number; keptCount: number }) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { ApiError } from "@/lib/api"
 
 export interface SSEMessage {
@@ -20,11 +20,46 @@ export function useSSE() {
   const [isError, setIsError] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
 
+  // rAF batching: buffer incoming messages, flush once per animation frame
+  const pendingMessagesRef = useRef<SSEMessage[]>([])
+  const rafIdRef = useRef<number | null>(null)
+
+  const flushPending = useCallback(() => {
+    rafIdRef.current = null
+    if (pendingMessagesRef.current.length === 0) return
+    const batch = pendingMessagesRef.current
+    pendingMessagesRef.current = []
+    setMessages((prev) => [...prev, ...batch])
+  }, [])
+
+  const scheduleFlush = useCallback(() => {
+    if (rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(flushPending)
+    }
+  }, [flushPending])
+
+  // Cancel any pending rAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current)
+        rafIdRef.current = null
+      }
+    }
+  }, [])
+
   const start = useCallback((url: string, options?: StartOptions) => {
     // Abort any existing stream
     if (abortRef.current) {
       abortRef.current.abort()
       abortRef.current = null
+    }
+
+    // Clear any buffered messages from a previous stream
+    pendingMessagesRef.current = []
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current)
+      rafIdRef.current = null
     }
 
     setMessages([])
@@ -86,11 +121,20 @@ export function useSSE() {
         const dispatch = (eventType: string, rawData: string) => {
           try {
             const data: unknown = JSON.parse(rawData)
-            setMessages((prev) => [...prev, { event: eventType, data, timestamp: Date.now() }])
+            pendingMessagesRef.current.push({ event: eventType, data, timestamp: Date.now() })
+
             if (eventType === "end") {
+              // Flush immediately on stream end so consumers see the final state
+              if (rafIdRef.current !== null) {
+                cancelAnimationFrame(rafIdRef.current)
+                rafIdRef.current = null
+              }
+              flushPending()
               controller.abort()
               abortRef.current = null
               setIsRunning(false)
+            } else {
+              scheduleFlush()
             }
           } catch {
             // Ignore unparseable keepalives
@@ -121,7 +165,21 @@ export function useSSE() {
           }
         }
       } catch (err: unknown) {
-        if ((err as { name?: string })?.name === "AbortError") return
+        if ((err as { name?: string })?.name === "AbortError") {
+          // Flush any buffered messages so partial results are visible after abort
+          if (rafIdRef.current !== null) {
+            cancelAnimationFrame(rafIdRef.current)
+            rafIdRef.current = null
+          }
+          flushPending()
+          return
+        }
+        // Flush buffered messages before signaling error
+        if (rafIdRef.current !== null) {
+          cancelAnimationFrame(rafIdRef.current)
+          rafIdRef.current = null
+        }
+        flushPending()
         setIsError(true)
         options?.onError?.(err instanceof Error ? err : new Error("Stream error"))
       } finally {
@@ -131,21 +189,33 @@ export function useSSE() {
         }
       }
     })()
-  }, [])
+  }, [flushPending, scheduleFlush])
 
   const abort = useCallback(() => {
     if (abortRef.current) {
       abortRef.current.abort()
       abortRef.current = null
     }
+    // Flush buffered messages so partial results are visible
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current)
+      rafIdRef.current = null
+    }
+    flushPending()
     setIsRunning(false)
     // Messages are intentionally kept so the user can see partial results
-  }, [])
+  }, [flushPending])
 
   const reset = useCallback(() => {
     if (abortRef.current) {
       abortRef.current.abort()
       abortRef.current = null
+    }
+    // Discard any buffered messages — reset clears everything
+    pendingMessagesRef.current = []
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current)
+      rafIdRef.current = null
     }
     setMessages([])
     setIsRunning(false)

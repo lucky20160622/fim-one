@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { useTranslations } from "next-intl"
 import { Bot, Clock, RefreshCw, BarChart3, CheckCircle2, Target } from "lucide-react"
 import { MarkdownContent } from "@/lib/markdown"
@@ -36,7 +37,7 @@ export function HistoryMessages({ messages }: HistoryMessagesProps) {
   )
 }
 
-function UserMessage({ content, metadata, avatar, userId, displayName }: { content: string | null; metadata?: Record<string, unknown> | null; avatar?: string | null; userId?: string; displayName?: string | null }) {
+const UserMessage = React.memo(function UserMessage({ content, metadata, avatar, userId, displayName }: { content: string | null; metadata?: Record<string, unknown> | null; avatar?: string | null; userId?: string; displayName?: string | null }) {
   const fallback = (displayName || "U").charAt(0).toUpperCase()
 
   // Detect clip metadata
@@ -71,9 +72,9 @@ function UserMessage({ content, metadata, avatar, userId, displayName }: { conte
       </div>
     </div>
   )
-}
+})
 
-function AssistantMessage({
+const AssistantMessage = React.memo(function AssistantMessage({
   content,
   metadata,
 }: {
@@ -142,4 +143,4 @@ function AssistantMessage({
       </div>
     </div>
   )
-}
+})
