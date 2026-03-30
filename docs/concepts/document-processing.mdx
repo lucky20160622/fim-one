@@ -1,0 +1,170 @@
+---
+title: "Intelligent Document Processing"
+icon: "file-magnifying-glass"
+description: "How FIM One processes uploaded documents for AI understanding, with automatic vision support for PDFs, Office files, and images."
+---
+
+FIM One automatically processes uploaded documents so that AI agents can understand their content. When a model supports vision, documents are processed with full visual fidelity — PDF pages are rendered as images, and embedded images in Office documents are extracted with positional references. When vision is unavailable, the system falls back to text extraction.
+
+<Info>
+Vision mode is automatic by default. If the model you've configured has vision support enabled, uploaded documents will use the richest processing pipeline available for that format.
+</Info>
+
+## Format Support Matrix
+
+Each document format has a dedicated processing pipeline. The behavior changes depending on whether the model supports vision.
+
+| Format | Text Extraction | Vision Mode (`supports_vision=ON`) | Fallback (`supports_vision=OFF`) |
+|--------|----------------|--------------------------------------|-----------------------------------|
+| **PDF** | pdfplumber (page-by-page text) | PyMuPDF renders each page as a PNG image, sent as vision content | Text extraction only; agent reads via `read_uploaded_file` tool |
+| **DOCX / DOC** | markitdown (Markdown conversion) | Embedded images extracted with `[Figure N]` positional markers via python-docx | Text extraction only; images lost |
+| **PPTX / PPT** | markitdown (text from each slide) | Embedded images extracted with `[Figure N]` markers and slide separators via python-pptx | Text extraction only; slide visuals lost |
+| **XLSX / XLS** | markitdown (table structure preserved) | Same as text mode (tables do not benefit from vision) | Same |
+| **Images** (JPG, PNG, GIF, WebP) | N/A | Sent as `image_url` vision content blocks | Annotated as `[Attached image: filename]` — model is aware but cannot see the content |
+| **Text files** (TXT, MD, PY, JS, HTML, CSV, JSON) | Direct read / parse | N/A (text is text) | Same |
+
+<Tip>
+**For maximum visual fidelity**, export DOCX or PPTX files to PDF before uploading. PDF vision mode renders the full page layout — text, images, charts, and formatting — all in one image.
+</Tip>
+
+## How It Works
+
+When a user uploads a document to a conversation, FIM One runs a processing pipeline based on the file type and model capabilities:
+
+<Steps>
+  <Step title="File Type Detection">
+    The system identifies the document format by file extension and MIME type, then selects the appropriate extraction pipeline.
+  </Step>
+  <Step title="Text Extraction">
+    Regardless of vision support, the system always extracts text content. PDF uses pdfplumber for page-by-page text. Office formats use markitdown for Markdown conversion. Text files are read directly.
+  </Step>
+  <Step title="Vision Processing (if supported)">
+    When the model has `supports_vision=true` and the document is a supported type:
+    - **PDF**: Each page is rendered as a PNG image at the configured DPI
+    - **DOCX / PPTX**: Embedded images are extracted from the document XML with `[Figure N]` positional markers
+    - **Images**: Passed through directly as vision content blocks
+  </Step>
+  <Step title="Content Assembly">
+    The extracted text and vision content are assembled into the message format expected by the model. Text and images are interleaved so the model can correlate visual and textual information.
+  </Step>
+</Steps>
+
+## Vision Mode Configuration
+
+There are three ways to control how documents are processed, listed from most specific to most general.
+
+### 1. Per-Model Toggle
+
+Navigate to **Admin > Models > Edit > Advanced** and toggle the **Vision Support** checkbox. This is the primary control — it tells the system whether a specific model can accept image content.
+
+### 2. Global Environment Variable
+
+Set `DOCUMENT_PROCESSING_MODE` in your environment to override the default behavior system-wide:
+
+```bash
+# Use vision when the model supports it (default)
+DOCUMENT_PROCESSING_MODE=auto
+
+# Always attempt vision processing, regardless of model config
+DOCUMENT_PROCESSING_MODE=vision
+
+# Never use vision — text extraction only
+DOCUMENT_PROCESSING_MODE=text
+```
+
+### 3. Per-Request Parameter
+
+Pass the `doc_mode` parameter in the chat API to control processing for a single request:
+
+```json
+{
+  "message": "Analyze this financial report",
+  "doc_mode": "vision",
+  "attachments": [...]
+}
+```
+
+<Note>
+The `auto` mode (default) uses vision when the model has `supports_vision=true` **and** the document is a type that benefits from vision processing. This is the recommended setting for most deployments.
+</Note>
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DOCUMENT_PROCESSING_MODE` | `auto` | Processing strategy: `auto` (use vision when available), `vision` (always render), `text` (never render) |
+| `DOCUMENT_VISION_DPI` | `150` | PDF rendering resolution in dots per inch. Higher values produce better quality but consume more tokens |
+| `DOCUMENT_VISION_MAX_PAGES` | `20` | Maximum number of PDF pages to render as images. Pages beyond this limit fall back to text extraction |
+
+## Token Cost Considerations
+
+Vision content consumes significantly more tokens than plain text. Understanding the cost tradeoffs helps you configure the system appropriately.
+
+**Rough estimates:**
+
+| Scenario | Approximate Token Cost |
+|----------|----------------------|
+| One PDF page at 150 DPI | 1,000 -- 2,000 tokens |
+| 10-page PDF in vision mode | 10,000 -- 20,000 tokens |
+| Same 10-page PDF as text only | 2,000 -- 5,000 tokens |
+| One embedded DOCX image | 500 -- 1,500 tokens |
+
+<Warning>
+For large documents, vision mode can increase costs by 4--10x compared to text-only processing. Use `DOCUMENT_VISION_MAX_PAGES` to cap the number of pages rendered as images, and consider using `text` mode for cost-sensitive workflows.
+</Warning>
+
+### Cost Optimization Tips
+
+- **Set `DOCUMENT_VISION_MAX_PAGES`** to a reasonable limit (e.g., 10) for general use
+- **Lower `DOCUMENT_VISION_DPI`** from 150 to 100 if image quality is acceptable — this reduces token consumption by roughly 40%
+- **Use `text` mode** for documents where layout does not matter (e.g., plain-text reports, spreadsheets)
+- **Use `vision` mode selectively** for documents where visual layout is critical (e.g., invoices, forms, diagrams)
+
+## Design Decisions and Limitations
+
+### Why Not LibreOffice for Full-Page Rendering?
+
+LibreOffice can produce pixel-perfect page renders of DOCX and PPTX files, but it adds approximately 4 GB to the Docker image. Instead, FIM One extracts embedded images directly from the document XML using python-docx and python-pptx — both are already transitive dependencies of markitdown, so this adds zero additional installation overhead.
+
+**The tradeoff:** We get the actual embedded images at full quality but lose page layout context. The `[Figure N]` positional markers help the LLM correlate text and images, but the spatial relationship is approximate rather than exact.
+
+### What Gets Lost Without LibreOffice?
+
+| Lost Element | Impact |
+|-------------|--------|
+| Text formatting (bold, italic, font sizes) | LLM receives plain text only |
+| Image-text spatial positioning | `[Figure N]` markers approximate but do not show exact placement |
+| Charts generated by Office (not embedded as images) | XML-defined charts are not extracted |
+| Page headers and footers in DOCX | Partially preserved by markitdown |
+
+### PDF Vision vs. DOCX/PPTX Vision
+
+The quality of vision processing varies by format:
+
+- **PDF** — Full page rendering. Layout, text, images, charts, and formatting are all visible in the rendered image. This is the highest-fidelity path.
+- **DOCX / PPTX** — Text content plus extracted embedded images. Good for most business documents, but page layout and formatting are not preserved.
+
+**Recommendation:** For documents where visual layout matters (forms, invoices, slide decks with complex graphics), export to PDF before uploading.
+
+### Automatic Fallback
+
+If a model is configured with vision support but actually rejects image content at runtime, the system automatically retries the request without document images. User-uploaded images (e.g., screenshots attached by the user) are preserved in the retry — only document-derived images are stripped.
+
+<Info>
+This fallback mechanism prevents task failures caused by misconfigured vision settings. If you see a model consistently falling back, check its vision support configuration in **Admin > Models**.
+</Info>
+
+## Best Practices
+
+### For Administrators
+
+- **Enable vision selectively.** Only enable `supports_vision` on models that genuinely support image input. Misconfiguration wastes tokens on the fallback retry cycle.
+- **Start with `auto` mode.** The default behavior is correct for most deployments — vision is used when beneficial and available.
+- **Monitor token usage.** After enabling vision, watch the token consumption dashboard. If costs spike unexpectedly, adjust `DOCUMENT_VISION_MAX_PAGES` or `DOCUMENT_VISION_DPI`.
+
+### For End Users
+
+- **PDF gives the best results.** When visual fidelity matters, export your Office documents to PDF before uploading.
+- **Spreadsheets are fine as-is.** XLSX files are extracted as structured tables — vision adds no benefit.
+- **Large PDFs may be truncated.** If your document exceeds the `DOCUMENT_VISION_MAX_PAGES` limit, only the first N pages will be rendered as images. The remaining pages are still available as extracted text.
+- **Image quality matters.** For standalone image uploads, use high-resolution originals when possible. Compressed or low-resolution images reduce the model's ability to extract details.

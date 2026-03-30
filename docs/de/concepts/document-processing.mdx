@@ -1,0 +1,170 @@
+---
+title: "Intelligente Dokumentverarbeitung"
+icon: "file-magnifying-glass"
+description: "Wie FIM One hochgeladene Dokumente für das KI-Verständnis verarbeitet, mit automatischer Vision-Unterstützung für PDFs, Office-Dateien und Bilder."
+---
+
+FIM One verarbeitet hochgeladene Dokumente automatisch, damit KI-Agenten ihren Inhalt verstehen können. Wenn ein Modell Vision unterstützt, werden Dokumente mit vollständiger visueller Wiedergabetreue verarbeitet — PDF-Seiten werden als Bilder gerendert, und eingebettete Bilder in Office-Dokumenten werden mit Positionsreferenzen extrahiert. Wenn Vision nicht verfügbar ist, greift das System auf Textextraktion zurück.
+
+<Info>
+Vision-Modus ist standardmäßig aktiviert. Wenn das konfigurierte Modell Vision-Unterstützung aktiviert hat, werden hochgeladene Dokumente mit der reichhaltigsten verfügbaren Verarbeitungs-Pipeline für dieses Format verarbeitet.
+</Info>
+
+## Format-Unterstützungsmatrix
+
+Jedes Dokumentformat hat eine dedizierte Verarbeitungspipeline. Das Verhalten ändert sich je nachdem, ob das Modell Vision unterstützt.
+
+| Format | Textextraktion | Vision-Modus (`supports_vision=ON`) | Fallback (`supports_vision=OFF`) |
+|--------|----------------|--------------------------------------|-----------------------------------|
+| **PDF** | pdfplumber (seitenweise Text) | PyMuPDF rendert jede Seite als PNG-Bild, das als Vision-Inhalt gesendet wird | Nur Textextraktion; Agent liest über `read_uploaded_file`-Tool |
+| **DOCX / DOC** | markitdown (Markdown-Konvertierung) | Eingebettete Bilder mit `[Figure N]`-Positionsmarkierungen über python-docx extrahiert | Nur Textextraktion; Bilder gehen verloren |
+| **PPTX / PPT** | markitdown (Text aus jeder Folie) | Eingebettete Bilder mit `[Figure N]`-Markierungen und Folientriennzeichen über python-pptx extrahiert | Nur Textextraktion; Folienvisualisierungen gehen verloren |
+| **XLSX / XLS** | markitdown (Tabellenstruktur erhalten) | Gleich wie Textmodus (Tabellen profitieren nicht von Vision) | Gleich |
+| **Bilder** (JPG, PNG, GIF, WebP) | N/A | Als `image_url`-Vision-Inhaltsblöcke gesendet | Annotiert als `[Attached image: filename]` — Modell ist sich bewusst, kann aber den Inhalt nicht sehen |
+| **Textdateien** (TXT, MD, PY, JS, HTML, CSV, JSON) | Direktes Lesen / Parsen | N/A (Text ist Text) | Gleich |
+
+<Tip>
+**Für maximale visuelle Qualität** exportieren Sie DOCX- oder PPTX-Dateien vor dem Hochladen zu PDF. Der PDF-Vision-Modus rendert das vollständige Seitenlayout — Text, Bilder, Diagramme und Formatierung — alles in einem Bild.
+</Tip>
+
+## Funktionsweise
+
+Wenn ein Benutzer ein Dokument in ein Gespräch hochlädt, führt FIM One eine Verarbeitungspipeline basierend auf dem Dateityp und den Modellfähigkeiten aus:
+
+<Steps>
+  <Step title="Dateityp-Erkennung">
+    Das System identifiziert das Dokumentformat anhand der Dateierweiterung und des MIME-Typs und wählt dann die entsprechende Extraktions-Pipeline aus.
+  </Step>
+  <Step title="Textextraktion">
+    Unabhängig von der Vision-Unterstützung extrahiert das System immer Textinhalte. PDF verwendet pdfplumber für seitenweise Text. Office-Formate verwenden markitdown für die Markdown-Konvertierung. Textdateien werden direkt gelesen.
+  </Step>
+  <Step title="Vision-Verarbeitung (falls unterstützt)">
+    Wenn das Modell `supports_vision=true` hat und das Dokument ein unterstützter Typ ist:
+    - **PDF**: Jede Seite wird als PNG-Bild mit der konfigurierten DPI gerendert
+    - **DOCX / PPTX**: Eingebettete Bilder werden aus dem Dokument-XML mit `[Figure N]` Positionsmarkierungen extrahiert
+    - **Bilder**: Werden direkt als Vision-Inhaltsblöcke weitergeleitet
+  </Step>
+  <Step title="Inhaltsassemblierung">
+    Der extrahierte Text und die Vision-Inhalte werden in das vom Modell erwartete Nachrichtenformat assembliert. Text und Bilder werden verschachtelt, damit das Modell visuelle und textliche Informationen korrelieren kann.
+  </Step>
+</Steps>
+
+## Vision-Modus-Konfiguration
+
+Es gibt drei Möglichkeiten, um zu steuern, wie Dokumente verarbeitet werden, aufgelistet von der spezifischsten bis zur allgemeinsten.
+
+### 1. Pro-Modell-Umschalter
+
+Navigieren Sie zu **Admin > Models > Edit > Advanced** und aktivieren Sie das Kontrollkästchen **Vision Support**. Dies ist die primäre Kontrolle — sie teilt dem System mit, ob ein bestimmtes Modell Bildinhalte akzeptieren kann.
+
+### 2. Globale Umgebungsvariable
+
+Setzen Sie `DOCUMENT_PROCESSING_MODE` in Ihrer Umgebung, um das Standardverhalten systemweit zu überschreiben:
+
+```bash
+# Use vision when the model supports it (default)
+DOCUMENT_PROCESSING_MODE=auto
+
+# Always attempt vision processing, regardless of model config
+DOCUMENT_PROCESSING_MODE=vision
+
+# Never use vision — text extraction only
+DOCUMENT_PROCESSING_MODE=text
+```
+
+### 3. Parameter pro Anfrage
+
+Übergeben Sie den Parameter `doc_mode` in der Chat-API, um die Verarbeitung für eine einzelne Anfrage zu steuern:
+
+```json
+{
+  "message": "Analyze this financial report",
+  "doc_mode": "vision",
+  "attachments": [...]
+}
+```
+
+<Note>
+Der Modus `auto` (Standard) verwendet Vision, wenn das Modell `supports_vision=true` hat **und** das Dokument ein Typ ist, der von der Vision-Verarbeitung profitiert. Dies ist die empfohlene Einstellung für die meisten Bereitstellungen.
+</Note>
+
+## Umgebungsvariablen
+
+| Variable | Standard | Beschreibung |
+|----------|---------|-------------|
+| `DOCUMENT_PROCESSING_MODE` | `auto` | Verarbeitungsstrategie: `auto` (Vision verwenden, wenn verfügbar), `vision` (immer rendern), `text` (nie rendern) |
+| `DOCUMENT_VISION_DPI` | `150` | PDF-Rendering-Auflösung in Punkten pro Zoll. Höhere Werte erzeugen bessere Qualität, verbrauchen aber mehr Token |
+| `DOCUMENT_VISION_MAX_PAGES` | `20` | Maximale Anzahl von PDF-Seiten, die als Bilder gerendert werden. Seiten über diesem Limit fallen auf Textextraktion zurück |
+
+## Token-Kostenüberlegungen
+
+Visueller Inhalt verbraucht deutlich mehr Token als reiner Text. Das Verständnis der Kostenabwägungen hilft Ihnen, das System angemessen zu konfigurieren.
+
+**Ungefähre Schätzungen:**
+
+| Szenario | Ungefähre Token-Kosten |
+|----------|----------------------|
+| Eine PDF-Seite bei 150 DPI | 1.000 -- 2.000 Token |
+| 10-seitige PDF im Vision-Modus | 10.000 -- 20.000 Token |
+| Dieselbe 10-seitige PDF nur als Text | 2.000 -- 5.000 Token |
+| Ein eingebettetes DOCX-Bild | 500 -- 1.500 Token |
+
+<Warning>
+Bei großen Dokumenten kann der Vision-Modus die Kosten um das 4- bis 10-fache im Vergleich zur reinen Textverarbeitung erhöhen. Verwenden Sie `DOCUMENT_VISION_MAX_PAGES`, um die Anzahl der als Bilder gerenderten Seiten zu begrenzen, und erwägen Sie die Verwendung des `text`-Modus für kostensensitive Workflows.
+</Warning>
+
+### Tipps zur Kostenoptimierung
+
+- **Setzen Sie `DOCUMENT_VISION_MAX_PAGES`** auf einen angemessenen Grenzwert (z. B. 10) für die allgemeine Nutzung
+- **Reduzieren Sie `DOCUMENT_VISION_DPI`** von 150 auf 100, wenn die Bildqualität akzeptabel ist — dies reduziert den Token-Verbrauch um etwa 40%
+- **Verwenden Sie den `text`-Modus** für Dokumente, bei denen das Layout nicht wichtig ist (z. B. reine Textberichte, Tabellenkalkulationen)
+- **Verwenden Sie den `vision`-Modus selektiv** für Dokumente, bei denen das visuelle Layout kritisch ist (z. B. Rechnungen, Formulare, Diagramme)
+
+## Designentscheidungen und Einschränkungen
+
+### Warum nicht LibreOffice für vollständiges Seiten-Rendering?
+
+LibreOffice kann pixel-perfekte Seiten-Renderings von DOCX- und PPTX-Dateien erstellen, fügt aber etwa 4 GB zum Docker-Image hinzu. Stattdessen extrahiert FIM One eingebettete Bilder direkt aus der Dokument-XML mit python-docx und python-pptx — beide sind bereits transitive Abhängigkeiten von markitdown, daher entsteht kein zusätzlicher Installationsaufwand.
+
+**Der Kompromiss:** Wir erhalten die tatsächlich eingebetteten Bilder in voller Qualität, verlieren aber den Kontext des Seitenlayouts. Die `[Figure N]` Positionsmarker helfen dem LLM, Text und Bilder zu korrelieren, aber die räumliche Beziehung ist ungefähr statt exakt.
+
+### Was geht ohne LibreOffice verloren?
+
+| Verlorenes Element | Auswirkung |
+|-------------|--------|
+| Textformatierung (fett, kursiv, Schriftgrößen) | LLM erhält nur Klartext |
+| Räumliche Positionierung von Bild und Text | `[Figure N]`-Marker approximieren, zeigen aber keine genaue Platzierung |
+| Von Office generierte Diagramme (nicht als Bilder eingebettet) | XML-definierte Diagramme werden nicht extrahiert |
+| Seitenkopf- und -fußzeilen in DOCX | Teilweise von markitdown beibehalten |
+
+### PDF Vision vs. DOCX/PPTX Vision
+
+Die Qualität der Bildverarbeitung variiert je nach Format:
+
+- **PDF** — Vollständiges Seiten-Rendering. Layout, Text, Bilder, Diagramme und Formatierung sind alle im gerenderten Bild sichtbar. Dies ist der Weg mit der höchsten Wiedergabetreue.
+- **DOCX / PPTX** — Textinhalt plus extrahierte eingebettete Bilder. Gut für die meisten Geschäftsdokumente, aber Seitenlayout und Formatierung bleiben nicht erhalten.
+
+**Empfehlung:** Für Dokumente, bei denen das visuelle Layout wichtig ist (Formulare, Rechnungen, Foliendecks mit komplexen Grafiken), exportieren Sie vor dem Hochladen als PDF.
+
+### Automatisches Fallback
+
+Wenn ein Modell mit Unterstützung für Bildverarbeitung konfiguriert ist, aber zur Laufzeit Bildinhalte ablehnt, versucht das System die Anfrage automatisch erneut ohne Dokumentbilder. Von Benutzern hochgeladene Bilder (z. B. vom Benutzer angehängte Screenshots) bleiben bei der Wiederholung erhalten — nur aus Dokumenten abgeleitete Bilder werden entfernt.
+
+<Info>
+Dieser Fallback-Mechanismus verhindert Aufgabenfehler, die durch falsch konfigurierte Bildverarbeitungseinstellungen verursacht werden. Wenn Sie sehen, dass ein Modell konsistent zurückfällt, überprüfen Sie seine Bildverarbeitungsunterstützungskonfiguration unter **Admin > Modelle**.
+</Info>
+
+## Best Practices
+
+### Für Administratoren
+
+- **Vision selektiv aktivieren.** Aktivieren Sie `supports_vision` nur auf Modellen, die echte Bildunterstützung bieten. Fehlkonfiguration verschwendet Token im Fallback-Wiederholungszyklus.
+- **Mit `auto`-Modus starten.** Das Standardverhalten ist für die meisten Bereitstellungen korrekt — Vision wird verwendet, wenn es vorteilhaft und verfügbar ist.
+- **Token-Nutzung überwachen.** Nach der Aktivierung von Vision überwachen Sie das Token-Verbrauchsdashboard. Wenn die Kosten unerwartet ansteigen, passen Sie `DOCUMENT_VISION_MAX_PAGES` oder `DOCUMENT_VISION_DPI` an.
+
+### Für Endbenutzer
+
+- **PDF liefert die besten Ergebnisse.** Wenn visuelle Treue wichtig ist, exportieren Sie Ihre Office-Dokumente vor dem Hochladen als PDF.
+- **Tabellenkalkulationen funktionieren auch so.** XLSX-Dateien werden als strukturierte Tabellen extrahiert — Vision bietet keinen zusätzlichen Nutzen.
+- **Große PDFs können gekürzt werden.** Wenn Ihr Dokument das `DOCUMENT_VISION_MAX_PAGES`-Limit überschreitet, werden nur die ersten N Seiten als Bilder dargestellt. Die verbleibenden Seiten sind weiterhin als extrahierter Text verfügbar.
+- **Bildqualität ist wichtig.** Verwenden Sie für eigenständige Bild-Uploads wenn möglich hochauflösende Originale. Komprimierte oder niedrig aufgelöste Bilder verringern die Fähigkeit des Modells, Details zu extrahieren.

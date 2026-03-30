@@ -1,0 +1,170 @@
+---
+title: "Traitement Intelligent des Documents"
+icon: "file-magnifying-glass"
+description: "Comment FIM One traite les documents téléchargés pour la compréhension par l'IA, avec support de vision automatique pour les PDF, fichiers Office et images."
+---
+
+FIM One traite automatiquement les documents téléchargés afin que les agents IA puissent comprendre leur contenu. Lorsqu'un modèle supporte la vision, les documents sont traités avec une fidélité visuelle complète — les pages PDF sont rendues sous forme d'images, et les images intégrées dans les documents Office sont extraites avec des références positionnelles. Lorsque la vision n'est pas disponible, le système bascule vers l'extraction de texte.
+
+<Info>
+Le mode vision est automatique par défaut. Si le modèle que vous avez configuré a le support de la vision activé, les documents téléchargés utiliseront le pipeline de traitement le plus riche disponible pour ce format.
+</Info>
+
+## Matrice de support des formats
+
+Chaque format de document dispose d'un pipeline de traitement dédié. Le comportement change selon que le modèle supporte la vision.
+
+| Format | Extraction de texte | Mode Vision (`supports_vision=ON`) | Fallback (`supports_vision=OFF`) |
+|--------|----------------|--------------------------------------|-----------------------------------|
+| **PDF** | pdfplumber (texte page par page) | PyMuPDF rend chaque page en image PNG, envoyée comme contenu de vision | Extraction de texte uniquement ; l'agent lit via l'outil `read_uploaded_file` |
+| **DOCX / DOC** | markitdown (conversion Markdown) | Images intégrées extraites avec marqueurs positionnels `[Figure N]` via python-docx | Extraction de texte uniquement ; images perdues |
+| **PPTX / PPT** | markitdown (texte de chaque diapositive) | Images intégrées extraites avec marqueurs `[Figure N]` et séparateurs de diapositives via python-pptx | Extraction de texte uniquement ; visuels de diapositives perdus |
+| **XLSX / XLS** | markitdown (structure de tableau préservée) | Identique au mode texte (les tableaux ne bénéficient pas de la vision) | Identique |
+| **Images** (JPG, PNG, GIF, WebP) | N/A | Envoyées comme blocs de contenu de vision `image_url` | Annotées comme `[Attached image: filename]` — le modèle est conscient mais ne peut pas voir le contenu |
+| **Fichiers texte** (TXT, MD, PY, JS, HTML, CSV, JSON) | Lecture / analyse directe | N/A (le texte est du texte) | Identique |
+
+<Tip>
+**Pour une fidélité visuelle maximale**, exportez les fichiers DOCX ou PPTX en PDF avant de les télécharger. Le mode vision PDF rend la mise en page complète de la page — texte, images, graphiques et formatage — tout en une seule image.
+</Tip>
+
+## Comment ça fonctionne
+
+Quand un utilisateur télécharge un document dans une conversation, FIM One exécute un pipeline de traitement basé sur le type de fichier et les capacités du modèle :
+
+<Steps>
+  <Step title="Détection du type de fichier">
+    Le système identifie le format du document par extension de fichier et type MIME, puis sélectionne le pipeline d'extraction approprié.
+  </Step>
+  <Step title="Extraction de texte">
+    Indépendamment du support de la vision, le système extrait toujours le contenu textuel. PDF utilise pdfplumber pour l'extraction page par page. Les formats Office utilisent markitdown pour la conversion Markdown. Les fichiers texte sont lus directement.
+  </Step>
+  <Step title="Traitement de la vision (si supporté)">
+    Quand le modèle a `supports_vision=true` et que le document est d'un type supporté :
+    - **PDF** : Chaque page est rendue en image PNG à la résolution DPI configurée
+    - **DOCX / PPTX** : Les images intégrées sont extraites du XML du document avec des marqueurs de position `[Figure N]`
+    - **Images** : Transmises directement comme blocs de contenu de vision
+  </Step>
+  <Step title="Assemblage du contenu">
+    Le texte extrait et le contenu de vision sont assemblés dans le format de message attendu par le modèle. Le texte et les images sont entrelacés pour que le modèle puisse corréler les informations visuelles et textuelles.
+  </Step>
+</Steps>
+
+## Configuration du Mode Vision
+
+Il existe trois façons de contrôler le traitement des documents, énumérées de la plus spécifique à la plus générale.
+
+### 1. Basculement par modèle
+
+Accédez à **Admin > Models > Edit > Advanced** et basculez la case à cocher **Vision Support**. C'est le contrôle principal — il indique au système si un modèle spécifique peut accepter du contenu image.
+
+### 2. Variable d'environnement global
+
+Définissez `DOCUMENT_PROCESSING_MODE` dans votre environnement pour remplacer le comportement par défaut au niveau du système :
+
+```bash
+# Use vision when the model supports it (default)
+DOCUMENT_PROCESSING_MODE=auto
+
+# Always attempt vision processing, regardless of model config
+DOCUMENT_PROCESSING_MODE=vision
+
+# Never use vision — text extraction only
+DOCUMENT_PROCESSING_MODE=text
+```
+
+### 3. Paramètre par Requête
+
+Passez le paramètre `doc_mode` dans l'API de chat pour contrôler le traitement pour une seule requête :
+
+```json
+{
+  "message": "Analyze this financial report",
+  "doc_mode": "vision",
+  "attachments": [...]
+}
+```
+
+<Note>
+Le mode `auto` (par défaut) utilise la vision lorsque le modèle a `supports_vision=true` **et** que le document est un type qui bénéficie du traitement par vision. C'est le paramètre recommandé pour la plupart des déploiements.
+</Note>
+
+## Variables d'environnement
+
+| Variable | Par défaut | Description |
+|----------|---------|-------------|
+| `DOCUMENT_PROCESSING_MODE` | `auto` | Stratégie de traitement : `auto` (utiliser la vision si disponible), `vision` (toujours afficher), `text` (ne jamais afficher) |
+| `DOCUMENT_VISION_DPI` | `150` | Résolution du rendu PDF en points par pouce. Les valeurs plus élevées produisent une meilleure qualité mais consomment plus de jetons |
+| `DOCUMENT_VISION_MAX_PAGES` | `20` | Nombre maximum de pages PDF à afficher sous forme d'images. Les pages au-delà de cette limite reviennent à l'extraction de texte |
+
+## Considérations sur le coût des jetons
+
+Le contenu visuel consomme beaucoup plus de jetons que le texte brut. Comprendre les compromis de coûts vous aide à configurer le système de manière appropriée.
+
+**Estimations approximatives :**
+
+| Scénario | Coût approximatif en jetons |
+|----------|----------------------|
+| Une page PDF à 150 DPI | 1 000 -- 2 000 jetons |
+| PDF de 10 pages en mode vision | 10 000 -- 20 000 jetons |
+| Même PDF de 10 pages en texte uniquement | 2 000 -- 5 000 jetons |
+| Une image DOCX intégrée | 500 -- 1 500 jetons |
+
+<Warning>
+Pour les documents volumineux, le mode vision peut augmenter les coûts de 4 à 10 fois par rapport au traitement en texte uniquement. Utilisez `DOCUMENT_VISION_MAX_PAGES` pour limiter le nombre de pages rendues sous forme d'images, et envisagez d'utiliser le mode `text` pour les workflows sensibles aux coûts.
+</Warning>
+
+### Conseils d'optimisation des coûts
+
+- **Définissez `DOCUMENT_VISION_MAX_PAGES`** à une limite raisonnable (par exemple, 10) pour un usage général
+- **Réduisez `DOCUMENT_VISION_DPI`** de 150 à 100 si la qualité d'image est acceptable — cela réduit la consommation de jetons d'environ 40%
+- **Utilisez le mode `text`** pour les documents où la mise en page n'a pas d'importance (par exemple, rapports en texte brut, feuilles de calcul)
+- **Utilisez le mode `vision`** de manière sélective pour les documents où la mise en page visuelle est critique (par exemple, factures, formulaires, diagrammes)
+
+## Décisions de conception et limitations
+
+### Pourquoi pas LibreOffice pour le rendu pleine page ?
+
+LibreOffice peut produire des rendus de page pixel-parfaits des fichiers DOCX et PPTX, mais cela ajoute environ 4 GB à l'image Docker. À la place, FIM One extrait les images intégrées directement du XML du document en utilisant python-docx et python-pptx — les deux sont déjà des dépendances transitives de markitdown, donc cela n'ajoute aucun surcoût d'installation supplémentaire.
+
+**Le compromis :** Nous obtenons les images intégrées réelles en qualité complète mais perdons le contexte de mise en page. Les marqueurs positionnels `[Figure N]` aident le LLM à corréler le texte et les images, mais la relation spatiale est approximative plutôt qu'exacte.
+
+### Qu'est-ce qui est perdu sans LibreOffice ?
+
+| Élément perdu | Impact |
+|-------------|--------|
+| Formatage du texte (gras, italique, tailles de police) | Le LLM reçoit uniquement du texte brut |
+| Positionnement spatial image-texte | Les marqueurs `[Figure N]` se rapprochent mais ne montrent pas le placement exact |
+| Graphiques générés par Office (non intégrés en tant qu'images) | Les graphiques définis en XML ne sont pas extraits |
+| En-têtes et pieds de page dans DOCX | Partiellement préservés par markitdown |
+
+### Vision PDF vs. Vision DOCX/PPTX
+
+La qualité du traitement de la vision varie selon le format :
+
+- **PDF** — Rendu de page complète. La mise en page, le texte, les images, les graphiques et la mise en forme sont tous visibles dans l'image rendue. C'est le chemin avec la plus haute fidélité.
+- **DOCX / PPTX** — Contenu textuel plus images intégrées extraites. Bon pour la plupart des documents professionnels, mais la mise en page et la mise en forme ne sont pas conservées.
+
+**Recommandation :** Pour les documents où la mise en page visuelle est importante (formulaires, factures, présentations avec des graphiques complexes), exportez en PDF avant de télécharger.
+
+### Secours Automatique
+
+Si un modèle est configuré avec support de la vision mais rejette réellement le contenu d'image à l'exécution, le système réessaie automatiquement la demande sans images de document. Les images téléchargées par l'utilisateur (par exemple, les captures d'écran jointes par l'utilisateur) sont conservées lors de la nouvelle tentative — seules les images dérivées de documents sont supprimées.
+
+<Info>
+Ce mécanisme de secours empêche les défaillances de tâches causées par des paramètres de vision mal configurés. Si vous voyez un modèle revenir régulièrement au secours, vérifiez sa configuration de support de vision dans **Admin > Models**.
+</Info>
+
+## Meilleures pratiques
+
+### Pour les administrateurs
+
+- **Activez la vision de manière sélective.** N'activez `supports_vision` que sur les modèles qui prennent réellement en charge l'entrée d'image. Une mauvaise configuration gaspille des jetons dans le cycle de nouvelle tentative de secours.
+- **Commencez par le mode `auto`.** Le comportement par défaut est correct pour la plupart des déploiements — la vision est utilisée quand elle est bénéfique et disponible.
+- **Surveillez l'utilisation des jetons.** Après avoir activé la vision, observez le tableau de bord de consommation des jetons. Si les coûts augmentent de manière inattendue, ajustez `DOCUMENT_VISION_MAX_PAGES` ou `DOCUMENT_VISION_DPI`.
+
+### Pour les utilisateurs finaux
+
+- **Le PDF donne les meilleurs résultats.** Lorsque la fidélité visuelle est importante, exportez vos documents Office en PDF avant de les télécharger.
+- **Les feuilles de calcul conviennent telles quelles.** Les fichiers XLSX sont extraits sous forme de tableaux structurés — la vision n'ajoute aucun avantage.
+- **Les grands PDF peuvent être tronqués.** Si votre document dépasse la limite `DOCUMENT_VISION_MAX_PAGES`, seules les N premières pages seront rendues sous forme d'images. Les pages restantes sont toujours disponibles sous forme de texte extrait.
+- **La qualité de l'image est importante.** Pour les téléchargements d'images autonomes, utilisez des originaux haute résolution si possible. Les images compressées ou basse résolution réduisent la capacité du modèle à extraire les détails.

@@ -62,7 +62,8 @@
                   "concepts/ai-builder",
                   "concepts/artifacts",
                   "concepts/market",
-                  "concepts/eval-center"
+                  "concepts/eval-center",
+                  "concepts/document-processing"
                 ]
               },
               {
@@ -196,7 +197,8 @@
                   "zh/concepts/ai-builder",
                   "zh/concepts/artifacts",
                   "zh/concepts/market",
-                  "zh/concepts/eval-center"
+                  "zh/concepts/eval-center",
+                  "zh/concepts/document-processing"
                 ]
               },
               {
@@ -323,7 +325,8 @@
                   "ja/concepts/ai-builder",
                   "ja/concepts/artifacts",
                   "ja/concepts/market",
-                  "ja/concepts/eval-center"
+                  "ja/concepts/eval-center",
+                  "ja/concepts/document-processing"
                 ]
               },
               {
@@ -450,7 +453,8 @@
                   "ko/concepts/ai-builder",
                   "ko/concepts/artifacts",
                   "ko/concepts/market",
-                  "ko/concepts/eval-center"
+                  "ko/concepts/eval-center",
+                  "ko/concepts/document-processing"
                 ]
               },
               {
@@ -577,7 +581,8 @@
                   "de/concepts/ai-builder",
                   "de/concepts/artifacts",
                   "de/concepts/market",
-                  "de/concepts/eval-center"
+                  "de/concepts/eval-center",
+                  "de/concepts/document-processing"
                 ]
               },
               {
@@ -704,7 +709,8 @@
                   "fr/concepts/ai-builder",
                   "fr/concepts/artifacts",
                   "fr/concepts/market",
-                  "fr/concepts/eval-center"
+                  "fr/concepts/eval-center",
+                  "fr/concepts/document-processing"
                 ]
               },
               {
