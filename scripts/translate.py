@@ -682,6 +682,31 @@ def _validate_mdx_section(en: str, translated: str) -> list[str]:
     return issues
 
 
+# CJK character detection — catches LLM returning English verbatim for CJK locales
+_CJK_PATTERN = _re.compile(r'[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]')
+
+def _check_untranslated(text: str, locale: str) -> bool:
+    """Return True if the text appears untranslated for the given locale.
+
+    For CJK locales (zh, ja, ko), checks whether the non-code prose contains
+    any target-script characters.  If zero CJK characters are found, the LLM
+    likely echoed the English source back unchanged — a common failure mode
+    when sections are dense with technical terms.
+    """
+    if locale not in ('zh', 'ja', 'ko'):
+        return False
+    # Strip code blocks and inline code before checking
+    stripped = _re.sub(r'```[\s\S]*?```', '', text)
+    stripped = _re.sub(r'`[^`]+`', '', stripped)
+    # Strip markdown table alignment rows (e.g. |---|---|)
+    stripped = _re.sub(r'^\|[-:\s|]+\|$', '', stripped, flags=_re.MULTILINE)
+    # If there is meaningful prose left, it should contain CJK characters
+    prose = stripped.strip()
+    if not prose:
+        return False  # section is all code — nothing to translate
+    return not _CJK_PATTERN.search(prose)
+
+
 # ---------------------------------------------------------------------------
 # Section-based translation (shared by MDX + README)
 # Sections within a file are translated concurrently.
@@ -737,7 +762,17 @@ def _translate_sections(
 
             for attempt in range(max_attempts):
                 try:
-                    translated = llm_chat(config, system_prompt, content_to_translate)
+                    # On retry after untranslated detection, prepend a stronger hint
+                    prompt_for_attempt = content_to_translate
+                    if attempt > 0 and locale in ('zh', 'ja', 'ko'):
+                        prompt_for_attempt = (
+                            f"CRITICAL: You MUST translate ALL natural-language text into {locale}. "
+                            "Technical terms like MCP, JSON-RPC, SSE, API, CLI can stay in English, "
+                            "but descriptions, labels, bullet text, and connecting phrases MUST be "
+                            f"translated into {locale}. Do NOT return the English text unchanged.\n\n"
+                            + content_to_translate
+                        )
+                    translated = llm_chat(config, system_prompt, prompt_for_attempt)
                     # Restore code blocks from placeholders
                     if code_blocks:
                         translated = _restore_code_blocks(translated, code_blocks)
@@ -748,6 +783,14 @@ def _translate_sections(
                     trailing = section[len(orig_stripped):]
                     if trailing and not translated.endswith(trailing):
                         translated = translated.rstrip() + trailing
+                    # Check if the LLM returned the English source untranslated
+                    # (common with CJK locales on technical-term-dense sections)
+                    if _check_untranslated(translated, locale):
+                        if attempt < max_attempts - 1:
+                            tprint(f"  [{locale}] {src_path.name}: section {idx} returned untranslated (attempt {attempt + 1}/{max_attempts}) — retrying")
+                            continue
+                        tprint(f"  [{locale}] {src_path.name}: WARNING section {idx} returned untranslated after {max_attempts} attempts — using EN fallback")
+                        return idx, None
                     # Validate structural integrity if validator provided
                     if validate_fn:
                         issues = validate_fn(section, translated)
