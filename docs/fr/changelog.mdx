@@ -22,13 +22,17 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/). Les versions cor
 ### Modifications
 
 - **Réponses de chat plus rapides** — Le flux SSE se ferme maintenant immédiatement après la fin de l'agent ; la génération de titre et les suggestions de suivi s'exécutent en arrière-plan au lieu de bloquer la réponse.
-- **Compaction de contexte plus intelligente** — La compaction de conversation utilise un format structuré à 9 sections qui préserve mieux les informations clés (demande originale, erreurs, tâches en attente) sur les longues sessions.
-- **Réduction des boucles d'agent** — Des instructions anti-boucle ajoutées aux prompts d'agent ; le seuil de détection de cycle abaissé pour détecter plus tôt les appels d'outil identiques répétés.
-- **Démarrage des requêtes plus rapide** — Les recherches de configuration LLM et la classification de domaine s'exécutent maintenant en parallèle, réduisant la surcharge par requête de 400-1100ms.
+- **Compaction de contexte plus intelligente** — La compaction de conversation utilise un format structuré à 9 sections qui préserve mieux les informations clés (demande originale, erreurs, tâches en attente) sur de longues sessions.
+- **Réduction des boucles d'agent** — Des instructions anti-boucle ajoutées aux invites d'agent ; le seuil de détection de cycle abaissé pour détecter plus tôt les appels d'outil identiques répétés.
+- **Démarrage de requête plus rapide** — Les recherches de configuration LLM et la classification de domaine s'exécutent maintenant en parallèle, réduisant la surcharge par requête de 400-1100ms.
 - **Meilleure gestion des outils vides** — Les outils qui ne retournent aucune sortie produisent maintenant un message descriptif au lieu d'un simple « (no output) », évitant les tentatives inutiles.
 - **Nettoyage automatique des anciens résultats d'outil** — Les résultats d'outil plus anciens que les 6 plus récents sont automatiquement effacés avant la compaction de contexte, gardant les conversations légères.
-- **Budget agrégé des résultats d'outil** — Le total des tokens de résultats d'outil est limité à 40K par session ; les nouveaux résultats sont tronqués lorsque le budget est dépassé, évitant l'encombrement du contexte dû aux grandes réponses API.
-- **Récupération automatique du débordement de contexte** — Lorsque le LLM rejette une requête en raison d'un débordement de longueur de contexte, l'agent compacte automatiquement à 50% et réessaie, au lieu de bloquer toute la conversation.
+- **Budget agrégé des résultats d'outil** — Le total des tokens de résultats d'outil est plafonné à 40K par session ; les nouveaux résultats sont tronqués quand le budget est dépassé, évitant l'encombrement du contexte par les grandes réponses API.
+- **Récupération automatique du débordement de contexte** — Quand le LLM rejette une requête en raison d'un débordement de longueur de contexte, l'agent compacte automatiquement à 50% et réessaie, au lieu de bloquer toute la conversation.
+- **Sélection d'outil basée sur les mots-clés** — Quand une requête correspond clairement à un outil spécifique par son nom ou ses mots-clés de description, l'agent ignore l'appel de sélection d'outil basé sur le LLM, économisant 200-500ms.
+- **Mise en pool des connexions LLM** — Tous les appels API LLM partagent maintenant un seul pool de connexions avec des paramètres keepalive optimisés, réduisant la surcharge de connexion sur toute la session.
+- **Vérification de complétion plus intelligente** — L'étape de vérification post-réponse est ignorée pour les réponses longues et détaillées (>200 tokens), éliminant un aller-retour LLM inutile.
+- **Basculement de modèle en cas de panne du fournisseur** — Quand le modèle principal n'est pas disponible (limité en débit, surchargé ou hors ligne), l'agent réessaie automatiquement avec le modèle rapide au lieu d'échouer.
 
 ### Corrections
 

@@ -1,6 +1,6 @@
-# Phase 0 + Phase 1 Manual Test Guide
+# CC Insights Integration — Manual Test Guide
 
-> CC Insights Integration — Agent Infrastructure Improvements
+> Agent Infrastructure Improvements (Phase 0 ~ Phase 2)
 > Implemented 2026-04-01
 
 ---
@@ -182,6 +182,89 @@
 
 ---
 
+## Phase 2: Speed Improvements
+
+### I.10 Keyword Tool Selection
+
+**File**: `src/fim_one/core/agent/react.py`
+
+**How to test**:
+1. Start server with `DEBUG` logging and register 12+ tools on an agent
+2. Send a query that obviously matches a specific tool (e.g., "search the web for Python tutorials" when `web_search` is registered)
+3. Check logs for: `Tool selection (keyword shortcut): 1/N tools selected: ['web_search'] — LLM call skipped`
+4. Send an ambiguous query (e.g., "help me") — should fall back to LLM selection
+
+**What to look for**:
+- Obvious matches skip the LLM call (faster first response)
+- Ambiguous queries still use LLM selection (no wrong tool chosen)
+- Pinned tools (`read_skill`, etc.) are always included regardless of keyword match
+
+---
+
+### I.11 Connection Pooling
+
+**File**: `src/fim_one/core/model/openai_compatible.py`
+
+**Automated tests**: `uv run pytest tests/test_model.py::TestSharedHttpClient -v` (7 tests)
+
+**How to test manually**:
+1. Start `./start.sh api` and send several chat messages
+2. All LLM calls should work identically — pooling is transparent
+3. Check that shutdown is clean (no "unclosed client" warnings in logs)
+
+**What to look for**:
+- No behavioral change — just faster connections
+- Clean shutdown without warnings
+- Pool settings: 100 max connections, 20 keepalive, 30s expiry
+
+---
+
+### I.12 Completion Check Lightweighting
+
+**File**: `src/fim_one/core/agent/react.py`
+
+**Env var**: `REACT_COMPLETION_CHECK_SKIP_CHARS` (default: 800)
+
+**How to test manually**:
+1. Ask the agent a complex question that triggers tool calls and produces a long answer (>800 chars)
+2. Check logs for: `Skipped completion check — answer length (N chars) exceeds threshold`
+3. Ask a simple question that produces a short answer (<800 chars) — completion check should still run
+4. To force the skip, set `REACT_COMPLETION_CHECK_SKIP_CHARS=10`
+
+**What to look for**:
+- Long answers skip the check (faster finalization)
+- Short answers still get verified
+- Answer quality is not degraded
+
+---
+
+### I.13 Model Fallback
+
+**Files**: `src/fim_one/core/model/fallback.py` (new), `src/fim_one/web/api/chat.py`
+
+**Automated tests**: `uv run pytest tests/test_fallback.py -v` (34 tests)
+
+**How to test manually**:
+1. Configure a primary model pointing to a non-existent endpoint (to simulate downtime)
+2. Ensure a fast model is configured
+3. Send a chat message — should fall back to fast model with a warning in logs:
+   `Primary model unavailable, falling back to {fast_model}`
+4. Configure an invalid API key on primary — should NOT fall back (auth errors are not availability errors)
+
+**What to look for**:
+- Availability errors (429/503/529/connection) trigger fallback
+- Auth errors (401/403) do NOT trigger fallback
+- Context overflow (400 + context_length) does NOT trigger fallback (handled by I.9)
+- When both models fail, error propagates normally
+
+**Fallback trigger conditions** (covered by unit tests):
+- HTTP 429 (rate limited)
+- HTTP 503 (service unavailable)
+- HTTP 529 (overloaded)
+- Connection errors / timeouts
+
+---
+
 ## Quick Reference
 
 ```bash
@@ -191,9 +274,15 @@ uv run pytest tests/ -x -q
 # Run Phase 1 tests only
 uv run pytest tests/test_microcompact.py tests/test_retry.py -v
 
-# Type check changed files
-uv run mypy src/fim_one/core/memory/microcompact.py src/fim_one/core/agent/react.py src/fim_one/core/model/retry.py
+# Run Phase 2 tests only
+uv run pytest tests/test_model.py::TestSharedHttpClient tests/test_fallback.py -v
 
-# Test with low tool budget (to observe truncation)
+# Type check all changed files
+uv run mypy src/fim_one/core/memory/microcompact.py src/fim_one/core/agent/react.py src/fim_one/core/model/retry.py src/fim_one/core/model/fallback.py src/fim_one/core/model/openai_compatible.py
+
+# Test with low tool budget (to observe I.8 truncation)
 REACT_TOOL_RESULT_BUDGET=100 ./start.sh api
+
+# Test with low completion check threshold (to observe I.12 skip)
+REACT_COMPLETION_CHECK_SKIP_CHARS=10 ./start.sh api
 ```

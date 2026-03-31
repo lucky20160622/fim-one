@@ -29,6 +29,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **Automatic old tool result cleanup** — Tool results older than the 6 most recent are automatically cleared before context compaction, keeping conversations lean.
 - **Tool result aggregate budget** — Total tool result tokens are capped at 40K per session; new results are truncated when the budget is exceeded, preventing context bloat from large API responses.
 - **Context overflow auto-recovery** — When the LLM rejects a request due to context length overflow, the agent automatically compacts to 50% and retries, instead of crashing the entire conversation.
+- **Keyword-based tool selection** — When a query obviously matches a specific tool by name or description keywords, the agent skips the LLM-based tool selection call, saving 200-500ms.
+- **LLM connection pooling** — All LLM API calls now share a single connection pool with optimized keepalive settings, reducing connection overhead across the entire session.
+- **Smarter completion check** — The post-answer verification step is skipped for long detailed answers (>200 tokens), eliminating an unnecessary LLM round-trip.
+- **Model fallback on provider outage** — When the primary model is unavailable (rate limited, overloaded, or down), the agent automatically retries with the fast model instead of failing.
 
 ### Fixed
 

@@ -22,13 +22,17 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/). Versionen ents
 ### Geändert
 
 - **Schnellere Chat-Antwort-Fertigstellung** — SSE-Stream schließt sich sofort nach Abschluss des Agenten; Titelerzeugung und Folgeverbesserungsvorschläge laufen im Hintergrund statt die Antwort zu blockieren.
-- **Intelligentere Kontext-Komprimierung** — Gesprächskomprimierung verwendet ein strukturiertes 9-Abschnitt-Format, das Schlüsselinformationen (ursprüngliche Anfrage, Fehler, ausstehende Aufgaben) über lange Sitzungen hinweg besser bewahrt.
-- **Reduzierte Agent-Schleifen** — Anti-Loop-Anweisungen zu Agent-Prompts hinzugefügt; Zyklus-Erkennungsschwelle gesenkt, sodass wiederholte identische Tool-Aufrufe früher erkannt werden.
+- **Intelligentere Kontext-Komprimierung** — Konversationskomprimierung verwendet ein strukturiertes 9-Abschnitt-Format, das Schlüsselinformationen (ursprüngliche Anfrage, Fehler, ausstehende Aufgaben) über lange Sitzungen hinweg besser bewahrt.
+- **Reduzierte Agent-Schleifen** — Anti-Loop-Anweisungen zu Agent-Prompts hinzugefügt; Zyklenerkennung-Schwellenwert gesenkt, sodass wiederholte identische Tool-Aufrufe früher erkannt werden.
 - **Schnellerer Request-Start** — LLM-Konfigurationssuchen und Domain-Klassifizierung laufen jetzt gleichzeitig ab und reduzieren den Pro-Request-Overhead um 400-1100ms.
-- **Bessere Behandlung leerer Tools** — Tools, die keine Ausgabe zurückgeben, erzeugen jetzt eine aussagekräftige Nachricht statt bloßem „(keine Ausgabe)", was unnötige Wiederholungen verhindert.
-- **Automatische Bereinigung alter Tool-Ergebnisse** — Tool-Ergebnisse älter als die 6 neuesten werden automatisch vor der Kontext-Komprimierung gelöscht, um Gespräche schlank zu halten.
+- **Bessere Handhabung leerer Tools** — Tools, die keine Ausgabe zurückgeben, erzeugen jetzt eine aussagekräftige Meldung statt bloßem „(keine Ausgabe)", was unnötige Wiederholungen verhindert.
+- **Automatische Bereinigung alter Tool-Ergebnisse** — Tool-Ergebnisse älter als die 6 neuesten werden automatisch vor der Kontext-Komprimierung gelöscht, um Konversationen schlank zu halten.
 - **Tool-Ergebnis-Aggregat-Budget** — Gesamte Tool-Ergebnis-Token sind auf 40K pro Sitzung begrenzt; neue Ergebnisse werden gekürzt, wenn das Budget überschritten wird, um Kontext-Überfluss durch große API-Antworten zu verhindern.
-- **Kontext-Überlauf-Automatische-Wiederherstellung** — Wenn das LLM eine Anfrage aufgrund von Kontext-Längensüberschreitung ablehnt, komprimiert der Agent automatisch auf 50% und versucht es erneut, statt das gesamte Gespräch zum Absturz zu bringen.
+- **Kontext-Überfluss-Automatische-Wiederherstellung** — Wenn das LLM eine Anfrage aufgrund von Kontext-Längenspeicherung ablehnt, komprimiert der Agent automatisch auf 50% und versucht es erneut, statt die gesamte Konversation zum Absturz zu bringen.
+- **Schlüsselwort-basierte Tool-Auswahl** — Wenn eine Abfrage offensichtlich einem bestimmten Tool nach Name oder Beschreibungs-Schlüsselwörtern entspricht, überspringt der Agent den LLM-basierten Tool-Auswahlaufruf und spart 200-500ms.
+- **LLM-Verbindungs-Pooling** — Alle LLM-API-Aufrufe teilen sich jetzt einen einzigen Verbindungs-Pool mit optimierten Keepalive-Einstellungen, was den Verbindungs-Overhead über die gesamte Sitzung hinweg reduziert.
+- **Intelligentere Fertigstellungsprüfung** — Der Verifizierungsschritt nach der Antwort wird für lange detaillierte Antworten (>200 Token) übersprungen, um eine unnötige LLM-Runde zu vermeiden.
+- **Modell-Fallback bei Provider-Ausfall** — Wenn das primäre Modell nicht verfügbar ist (Rate-Limited, überlastet oder ausgefallen), versucht der Agent automatisch mit dem schnellen Modell erneut, statt zu fehlschlagen.
 
 ### Behoben
 
