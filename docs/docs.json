@@ -114,7 +114,8 @@
                 "tag": "INSIGHT",
                 "pages": [
                   "strategy/competitive-landscape",
-                  "strategy/orthogonality-strategy"
+                  "strategy/orthogonality-strategy",
+                  "strategy/integration-paradigms"
                 ]
               }
             ]
@@ -249,7 +250,8 @@
                 "tag": "INSIGHT",
                 "pages": [
                   "zh/strategy/competitive-landscape",
-                  "zh/strategy/orthogonality-strategy"
+                  "zh/strategy/orthogonality-strategy",
+                  "zh/strategy/integration-paradigms"
                 ]
               }
             ]
@@ -377,7 +379,8 @@
                 "tag": "INSIGHT",
                 "pages": [
                   "ja/strategy/competitive-landscape",
-                  "ja/strategy/orthogonality-strategy"
+                  "ja/strategy/orthogonality-strategy",
+                  "ja/strategy/integration-paradigms"
                 ]
               }
             ]
@@ -505,7 +508,8 @@
                 "tag": "INSIGHT",
                 "pages": [
                   "ko/strategy/competitive-landscape",
-                  "ko/strategy/orthogonality-strategy"
+                  "ko/strategy/orthogonality-strategy",
+                  "ko/strategy/integration-paradigms"
                 ]
               }
             ]
@@ -633,7 +637,8 @@
                 "tag": "INSIGHT",
                 "pages": [
                   "de/strategy/competitive-landscape",
-                  "de/strategy/orthogonality-strategy"
+                  "de/strategy/orthogonality-strategy",
+                  "de/strategy/integration-paradigms"
                 ]
               }
             ]
@@ -761,7 +766,8 @@
                 "tag": "INSIGHT",
                 "pages": [
                   "fr/strategy/competitive-landscape",
-                  "fr/strategy/orthogonality-strategy"
+                  "fr/strategy/orthogonality-strategy",
+                  "fr/strategy/integration-paradigms"
                 ]
               }
             ]
