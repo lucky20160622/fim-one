@@ -19,6 +19,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 - **Pre-built sandbox image** — `Dockerfile.sandbox` with common data-science packages (pdfplumber, Pillow, pandas, etc.) so AI code execution works out of the box in `--network=none` containers.
 - **Resource Fork completion** — All five resource types now support fork: Agent, Connector, Workflow, MCP Server, and Skill. KB fork removed (inherently user-local).
 
+### Changed
+
+- **Faster chat response completion** — SSE stream now closes immediately after the agent finishes; title generation and follow-up suggestions run in the background instead of blocking the response.
+- **Smarter context compaction** — Conversation compaction uses a structured 9-section format that better preserves key information (original request, errors, pending tasks) across long sessions.
+- **Reduced agent looping** — Anti-loop instructions added to agent prompts; cycle detection threshold lowered so repeated identical tool calls are caught earlier.
+- **Faster request startup** — LLM configuration lookups and domain classification now run concurrently, reducing per-request overhead by 400-1100ms.
+- **Better empty tool handling** — Tools that return no output now produce a descriptive message instead of bare "(no output)", preventing wasteful retries.
+
 ### Fixed
 
 - **Agent hallucination on unreadable files** — When the AI agent could not read a file (e.g., image-based PDF), it previously read other unrelated files and presented their content as the target file's. A file integrity guardrail in the system prompt now prevents this.

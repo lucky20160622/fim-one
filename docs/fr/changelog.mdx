@@ -19,6 +19,14 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/). Les versions cor
 - **Image sandbox pré-construite** — `Dockerfile.sandbox` avec des packages courants de data-science (pdfplumber, Pillow, pandas, etc.) pour que l'exécution de code IA fonctionne immédiatement dans les conteneurs `--network=none`.
 - **Complétion de fork de ressource** — Les cinq types de ressources supportent maintenant le fork : Agent, Connecteur, Workflow, Serveur MCP et Compétence. Fork KB supprimé (inhérent à l'utilisateur local).
 
+### Modifications
+
+- **Complétude plus rapide des réponses de chat** — Le flux SSE se ferme maintenant immédiatement après que l'agent termine ; la génération de titre et les suggestions de suivi s'exécutent en arrière-plan au lieu de bloquer la réponse.
+- **Compaction de contexte plus intelligente** — La compaction de conversation utilise un format structuré à 9 sections qui préserve mieux les informations clés (demande originale, erreurs, tâches en attente) sur les longues sessions.
+- **Réduction des boucles d'agent** — Des instructions anti-boucle ajoutées aux invites d'agent ; le seuil de détection de cycle abaissé pour que les appels d'outil identiques répétés soient détectés plus tôt.
+- **Démarrage de requête plus rapide** — Les recherches de configuration LLM et la classification de domaine s'exécutent maintenant en parallèle, réduisant la surcharge par requête de 400-1100ms.
+- **Meilleure gestion des outils vides** — Les outils qui ne retournent aucune sortie produisent maintenant un message descriptif au lieu d'un simple « (no output) », prévenant les tentatives inutiles.
+
 ### Corrections
 
 - **Hallucination d'agent sur les fichiers illisibles** — Lorsque l'agent IA ne pouvait pas lire un fichier (par exemple, un PDF basé sur des images), il lisait auparavant d'autres fichiers non liés et présentait leur contenu comme celui du fichier cible. Une barrière d'intégrité des fichiers dans l'invite système empêche désormais cela.

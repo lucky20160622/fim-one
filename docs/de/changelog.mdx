@@ -19,6 +19,14 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/). Versionen ents
 - **Vorgefertigtes Sandbox-Image** — `Dockerfile.sandbox` mit gängigen Data-Science-Paketen (pdfplumber, Pillow, pandas, etc.), sodass die KI-Code-Ausführung in `--network=none` Containern sofort funktioniert.
 - **Resource-Fork-Vervollständigung** — Alle fünf Ressourcentypen unterstützen jetzt Fork: Agent, Connector, Workflow, MCP Server und Skill. KB-Fork entfernt (inhärent benutzerlokal).
 
+### Geändert
+
+- **Schnellere Chat-Antwortfertigstellung** — SSE-Stream schließt sich sofort nach Abschluss des Agenten; Titelerzeugung und Folgeverbesserungsvorschläge laufen im Hintergrund statt die Antwort zu blockieren.
+- **Intelligentere Kontext-Komprimierung** — Konversationskomprimierung verwendet ein strukturiertes 9-Abschnitt-Format, das Schlüsselinformationen (ursprüngliche Anfrage, Fehler, ausstehende Aufgaben) über lange Sitzungen hinweg besser bewahrt.
+- **Reduzierte Agent-Schleifen** — Anti-Loop-Anweisungen zu Agent-Prompts hinzugefügt; Zyklus-Erkennungsschwelle gesenkt, sodass wiederholte identische Tool-Aufrufe früher erkannt werden.
+- **Schnellerer Request-Start** — LLM-Konfigurationsabfragen und Domain-Klassifizierung laufen jetzt gleichzeitig ab und reduzieren den Pro-Request-Overhead um 400-1100ms.
+- **Bessere Behandlung leerer Tools** — Tools, die keine Ausgabe zurückgeben, erzeugen jetzt eine aussagekräftige Nachricht statt bloßem "(no output)", was unnötige Wiederholungen verhindert.
+
 ### Behoben
 
 - **Agent-Halluzinationen bei unlesbaren Dateien** — Wenn der KI-Agent eine Datei nicht lesen konnte (z. B. bildbasiertes PDF), las er zuvor andere nicht verwandte Dateien und präsentierte deren Inhalt als Inhalt der Zieldatei. Eine Dateiintegritäts-Schutzmaßnahme in der System-Eingabeaufforderung verhindert dies nun.
