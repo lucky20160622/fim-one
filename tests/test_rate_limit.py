@@ -92,9 +92,10 @@ class TestTokenBucketRateLimiter:
         limiter = TokenBucketRateLimiter(
             RateLimitConfig(requests_per_minute=1000, tokens_per_minute=100_000)
         )
-        # Drain the request bucket entirely.
-        async with limiter._lock:
-            limiter._request_tokens = 0.0
+        # Drain the default (shared) bucket entirely.
+        bucket, lock = await limiter._get_bucket("__shared__")
+        async with lock:
+            bucket.request_tokens = 0.0
 
         # Next acquire should need to wait.
         sleep_called = False
@@ -176,11 +177,12 @@ class TestReportUsage:
         )
         await limiter.acquire(estimated_tokens=100)
         # Same actual as estimated — should be a no-op.
-        before = limiter._token_tokens
+        bucket, _ = await limiter._get_bucket("__shared__")
+        before = bucket.token_tokens
         await limiter.report_usage(actual_tokens=100, estimated_tokens=100)
         # Bucket value might differ slightly due to refill but the diff call
         # should not have changed it beyond refill.
-        after = limiter._token_tokens
+        after = bucket.token_tokens
         # The difference should be tiny (only natural refill).
         assert abs(after - before) < 1.0
 
@@ -218,8 +220,9 @@ class TestConcurrency:
             RateLimitConfig(requests_per_minute=60, tokens_per_minute=100_000)
         )
         # Manually drain the bucket to leave exactly 2 request tokens.
-        async with limiter._lock:
-            limiter._request_tokens = 2.0
+        bucket, lock = await limiter._get_bucket("__shared__")
+        async with lock:
+            bucket.request_tokens = 2.0
 
         acquired_times: list[float] = []
 
@@ -271,7 +274,8 @@ class TestBucketRefill:
         )
         # Wait to allow natural refill beyond capacity — should be capped.
         await asyncio.sleep(0.1)
-        async with limiter._lock:
-            limiter._refill()
-            assert limiter._request_tokens <= 60.0
-            assert limiter._token_tokens <= 1000.0
+        bucket, lock = await limiter._get_bucket("__shared__")
+        async with lock:
+            limiter._refill(bucket)
+            assert bucket.request_tokens <= 60.0
+            assert bucket.token_tokens <= 1000.0
