@@ -127,7 +127,7 @@ class TestMarkItDownToolRun:
 
         fake_markitdown.return_value = "# Converted\n\nBody text."
         result = await MarkItDownTool().run(uri="/tmp/report.pdf")
-        assert result == "# Converted\n\nBody text."
+        assert result.content == "# Converted\n\nBody text."
 
     async def test_run_empty_content_returns_warning(
         self, fake_markitdown: type
@@ -200,7 +200,7 @@ class TestMarkItDownToolFileIdResolution:
 
         mock_load.assert_called_once_with("u1")
         mock_udir.assert_called_once_with("u1")
-        assert result == "# Resolved File\n\nBody."
+        assert result.content == "# Resolved File\n\nBody."
 
     async def test_file_id_not_found_in_index(
         self, fake_markitdown: type
@@ -300,7 +300,7 @@ class TestMarkItDownToolFileIdResolution:
             )
 
         # Should have used the resolved path, not the uri
-        assert result == "# From file_id"
+        assert result.content == "# From file_id"
 
     async def test_file_id_resolution_exception_returns_error(
         self, fake_markitdown: type
