@@ -7,6 +7,7 @@ from typing import Any, AsyncIterator
 import pytest
 
 from fim_one.core.memory.context_guard import ContextGuard, _COMPACT_PROMPTS
+from fim_one.core.memory.work_card import WorkCard
 from fim_one.core.model import BaseLLM, ChatMessage, LLMResult, StreamChunk
 
 
@@ -230,6 +231,144 @@ class TestBudgetOverride:
         # With explicit low budget, should compact.
         result2 = await guard.check_and_compact(msgs, budget=50)
         assert len(result2) < 10
+
+
+class _ScriptedLLM(BaseLLM):
+    """LLM mock that replays a scripted list of canned responses."""
+
+    def __init__(self, responses: list[str]) -> None:
+        self._responses = list(responses)
+        self.call_count = 0
+
+    async def chat(
+        self,
+        messages: list[ChatMessage],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        response_format: dict[str, Any] | None = None,
+        reasoning_effort: Any = None,
+    ) -> LLMResult:
+        idx = min(self.call_count, len(self._responses) - 1)
+        self.call_count += 1
+        return LLMResult(
+            message=ChatMessage(
+                role="assistant", content=self._responses[idx],
+            ),
+        )
+
+    async def stream_chat(
+        self,
+        messages: list[ChatMessage],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> AsyncIterator[StreamChunk]:
+        yield StreamChunk(delta_content="", finish_reason="stop")
+
+    @property
+    def abilities(self) -> dict[str, bool]:
+        return {"tool_call": False, "json_mode": False}
+
+
+class TestWorkCardPersistence:
+    """I.15 — ContextGuard persists and merges WorkCards across compactions."""
+
+    async def test_last_work_card_populated_after_react_iteration_compact(
+        self,
+    ) -> None:
+        canned = """\
+## 1. Primary Request
+Build feature X.
+
+## 7. Pending Tasks
+- task-alpha
+- task-beta
+
+## 4. Errors
+- initial-error
+"""
+        llm = _ScriptedLLM(responses=[canned])
+        guard = ContextGuard(compact_llm=llm, default_budget=400)
+        msgs = _make_messages(10)
+
+        assert guard._last_work_card is None
+        await guard.check_and_compact(msgs, hint="react_iteration")
+
+        card = guard._last_work_card
+        assert card is not None
+        assert card.primary_request == "Build feature X."
+        assert card.pending_tasks == ["task-alpha", "task-beta"]
+        assert card.errors == ["initial-error"]
+
+    async def test_successive_compacts_merge_work_cards(self) -> None:
+        first = """\
+## 1. Primary Request
+Build feature X.
+
+## 7. Pending Tasks
+- task-alpha
+- task-beta
+
+## 4. Errors
+- err-one
+"""
+        second = """\
+## 1. Primary Request
+Build feature X (revised).
+
+## 7. Pending Tasks
+- task-beta
+- task-gamma
+
+## 4. Errors
+- err-two
+"""
+        llm = _ScriptedLLM(responses=[first, second])
+        guard = ContextGuard(compact_llm=llm, default_budget=400)
+
+        await guard.check_and_compact(
+            _make_messages(10), hint="react_iteration",
+        )
+        result = await guard.check_and_compact(
+            _make_messages(10), hint="react_iteration",
+        )
+
+        assert llm.call_count == 2
+        merged = guard._last_work_card
+        assert merged is not None
+        # Newer primary request wins.
+        assert merged.primary_request == "Build feature X (revised)."
+        # Pending tasks union (dedup preserving order).
+        assert merged.pending_tasks == [
+            "task-alpha", "task-beta", "task-gamma",
+        ]
+        # Errors accumulate across rounds.
+        assert "err-one" in merged.errors
+        assert "err-two" in merged.errors
+
+        # The emitted summary system message reflects the merged card.
+        summaries = [
+            m
+            for m in result
+            if m.role == "system"
+            and "[Conversation summary]" in (m.content or "")
+        ]
+        assert len(summaries) == 1
+        summary_content = summaries[0].content or ""
+        assert "task-alpha" in summary_content
+        assert "task-gamma" in summary_content
+
+    async def test_non_react_hint_does_not_populate_work_card(self) -> None:
+        llm = _ScriptedLLM(responses=["plain summary"])
+        guard = ContextGuard(compact_llm=llm, default_budget=400)
+
+        await guard.check_and_compact(_make_messages(10), hint="general")
+
+        assert guard._last_work_card is None
 
 
 class TestSystemMessagesPreserved:

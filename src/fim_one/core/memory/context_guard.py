@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from fim_one.core.model.types import ChatMessage
 
 from .compact import CompactUtils
+from .work_card import WorkCard
 
 if TYPE_CHECKING:
     from fim_one.core.model import BaseLLM
@@ -154,6 +155,11 @@ class ContextGuard:
         self.max_message_chars = max_message_chars
         self._usage_tracker = usage_tracker
         self._custom_compact_prompt = custom_compact_prompt
+        #: Most recent structured compact summary.  Populated after a
+        #: successful ``react_iteration`` compact so subsequent rounds
+        #: can merge rather than re-summarise from scratch.  See I.15
+        #: (CC Insights Phase 3 — Structured Compact Work Card).
+        self._last_work_card: WorkCard | None = None
 
     async def check_and_compact(
         self,
@@ -309,6 +315,28 @@ class ContextGuard:
 
         if not summary:
             return CompactUtils.smart_truncate(messages, budget)
+
+        # I.15 — Structured Work Card:
+        # When the react_iteration prompt produced the 9-section
+        # markdown, parse it into a WorkCard and merge with the
+        # previous round's card (if any) so pending tasks, errors,
+        # and key concepts persist across multiple compactions.  The
+        # rendered markdown remains byte-compatible with the prompt's
+        # format, so the emitted system message shape is unchanged.
+        is_structured_hint = (
+            self._custom_compact_prompt is None
+            and hint == "react_iteration"
+        )
+        if is_structured_hint:
+            new_card = WorkCard.from_markdown(summary)
+            if self._last_work_card is not None:
+                merged_card = self._last_work_card.merge(new_card)
+            else:
+                merged_card = new_card
+            self._last_work_card = merged_card
+            rendered = merged_card.to_markdown()
+            if rendered:
+                summary = rendered
 
         compacted = [
             *system_msgs,
