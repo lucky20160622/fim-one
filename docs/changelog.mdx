@@ -10,6 +10,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 
 ## [Unreleased]
 
+### Added
+
+- Conversation recovery: synthetic tool_result rows now persist after an interrupted turn; clients can resume a disconnected SSE stream via `POST /chat/resume` with the last-seen cursor.
+
 ### Fixed
 
 - Thinking/reasoning tokens now persist across multi-turn conversations — Anthropic `signature` field is captured and replayed per API requirements.

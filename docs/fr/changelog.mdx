@@ -10,6 +10,10 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/). Les versions cor
 
 ## [Non publié]
 
+### Ajouté
+
+- Récupération de conversation : les lignes tool_result synthétiques persistent désormais après un tour interrompu ; les clients peuvent reprendre un flux SSE déconnecté via `POST /chat/resume` avec le dernier curseur vu.
+
 ### Corrigé
 
 - Les tokens de réflexion/reasoning persistent désormais dans les conversations multi-tours — le champ `signature` d'Anthropic est capturé et rejoué selon les exigences de l'API.

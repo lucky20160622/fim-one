@@ -10,6 +10,10 @@ description: "FIM One 的所有重要更改。"
 
 ## [未发布]
 
+### 已添加
+
+- 对话恢复：合成 tool_result 行现在在中断的轮次后持久化；客户端可以通过 `POST /chat/resume` 使用最后看到的游标恢复断开连接的 SSE 流。
+
 ### 已修复
 
 - 思考/推理 token 现在在多轮对话中持久化 — Anthropic `signature` 字段已捕获并根据 API 要求重放。

@@ -10,6 +10,10 @@ description: "FIM Oneへの全ての注目すべき変更。"
 
 ## [未リリース]
 
+### 追加
+
+- 会話復旧: 合成 tool_result 行は中断されたターン後も永続化され、クライアントは最後に確認したカーソルを使用して `POST /chat/resume` 経由で切断された SSE ストリームを再開できます。
+
 ### 修正
 
 - 推理 token 现在在多轮对话中保持持久化 — Anthropic `signature` 字段按照 API 要求被捕获并重放。

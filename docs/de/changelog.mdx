@@ -10,6 +10,10 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/). Versionen ents
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- Conversation recovery: Synthetische tool_result Zeilen bleiben jetzt nach einem unterbrochenen Turn bestehen; Clients können einen unterbrochenen SSE-Stream über `POST /chat/resume` mit dem zuletzt gesehenen Cursor fortsetzen.
+
 ### Behoben
 
 - Thinking/reasoning tokens bleiben jetzt über mehrteilige Gespräche hinweg erhalten — Das Anthropic-Feld `signature` wird erfasst und gemäß API-Anforderungen erneut abgespielt.
