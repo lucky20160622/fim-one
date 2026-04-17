@@ -374,10 +374,7 @@ class ReActAgent:
     @property
     def _native_mode_active(self) -> bool:
         """Whether native function-calling mode is currently active."""
-        return (
-            self._use_native_tools
-            and self._tool_llm.abilities.get("tool_call", False)
-        )
+        return self._use_native_tools and self._tool_llm.abilities.get("tool_call", False)
 
     def _register_workspace_tools(self, workspace: AgentWorkspace) -> None:
         """Register the three workspace builtin tools into the tool registry.
@@ -440,11 +437,13 @@ class ReActAgent:
         count = cycle_tracker[key]
         if count >= _CYCLE_DETECTION_THRESHOLD:
             warning = _CYCLE_WARNING_TEMPLATE.format(
-                tool_name=tool_name, count=count,
+                tool_name=tool_name,
+                count=count,
             )
             logger.warning(
                 "Cycle detected: %s called %d times with identical args",
-                tool_name, count,
+                tool_name,
+                count,
             )
             return warning
         return None
@@ -485,7 +484,8 @@ class ReActAgent:
         effective_tools = self._tools
         if len(self._tools) > TOOL_SELECTION_THRESHOLD:
             effective_tools = await self._select_relevant_tools(
-                query, on_iteration,
+                query,
+                on_iteration,
             )
 
             # Register the request_tools meta-tool when tool selection
@@ -501,7 +501,8 @@ class ReActAgent:
                     all_tools=self._tools,
                     active_tools=effective_tools,
                 )
-                effective_tools.register(request_tools_tool)
+                if "request_tools" not in effective_tools:
+                    effective_tools.register(request_tools_tool)
                 # Also register in self._tools so _execute_tool_call /
                 # _execute_native_tool_calls can find it during lookup.
                 if "request_tools" not in self._tools:
@@ -509,13 +510,17 @@ class ReActAgent:
 
         if self._native_mode_active:
             return await self._run_native(
-                query, on_iteration, image_urls=image_urls,
+                query,
+                on_iteration,
+                image_urls=image_urls,
                 interrupt_queue=interrupt_queue,
                 effective_tools=effective_tools,
                 on_thinking_delta=on_thinking_delta,
             )
         return await self._run_json(
-            query, on_iteration, image_urls=image_urls,
+            query,
+            on_iteration,
+            image_urls=image_urls,
             interrupt_queue=interrupt_queue,
             effective_tools=effective_tools,
         )
@@ -581,34 +586,33 @@ class ReActAgent:
             system_parts.append("")
             system_parts.append(f"## Agent Directive\n{self._agent_directive}")
 
-        system_parts.extend([
-            "",
-            "Guidelines:",
-            "- Present key results clearly; use markdown formatting when helpful.",
-            "- LANGUAGE: By default answer in the same language as the original "
-            "question. If the Agent Directive specifies different language "
-            "behaviour (e.g. translation), follow the Agent Directive.",
-            "- FILE DELIVERY: If the agent wrote results to a file (e.g. via file_operations "
-            "or python_exec writing to disk), do NOT repeat the full file content in your "
-            "response. Instead, briefly summarize the key findings/conclusions (2-4 sentences) "
-            "and mention the file name so the user knows where to find the details.",
-            "- MARKDOWN SOURCE: When a tool returns converted or extracted markdown content "
-            "(e.g. from convert_to_markdown), you MUST present the markdown inside a PLAIN "
-            "code fence with NO language tag (use four backticks: ```` followed by a newline, "
-            "then the content, then ```` on its own line). Do NOT add a language identifier "
-            "like 'markdown' after the backticks. NEVER paste raw markdown outside a code "
-            "fence — it will be rendered by the UI and the user cannot copy the source.",
-        ])
+        system_parts.extend(
+            [
+                "",
+                "Guidelines:",
+                "- Present key results clearly; use markdown formatting when helpful.",
+                "- LANGUAGE: By default answer in the same language as the original "
+                "question. If the Agent Directive specifies different language "
+                "behaviour (e.g. translation), follow the Agent Directive.",
+                "- FILE DELIVERY: If the agent wrote results to a file (e.g. via file_operations "
+                "or python_exec writing to disk), do NOT repeat the full file content in your "
+                "response. Instead, briefly summarize the key findings/conclusions (2-4 sentences) "
+                "and mention the file name so the user knows where to find the details.",
+                "- MARKDOWN SOURCE: When a tool returns converted or extracted markdown content "
+                "(e.g. from convert_to_markdown), you MUST present the markdown inside a PLAIN "
+                "code fence with NO language tag (use four backticks: ```` followed by a newline, "
+                "then the content, then ```` on its own line). Do NOT add a language identifier "
+                "like 'markdown' after the backticks. NEVER paste raw markdown outside a code "
+                "fence — it will be rendered by the UI and the user cannot copy the source.",
+            ]
+        )
         if language_directive:
             system_parts.append(f"- {language_directive}")
 
         system_content = "\n".join(system_parts)
 
         tool_context = "\n".join(context_parts) if context_parts else "(no tool calls)"
-        user_content = (
-            f"Question: {query}\n\n"
-            f"Agent execution trace:\n{tool_context}"
-        )
+        user_content = f"Question: {query}\n\nAgent execution trace:\n{tool_context}"
 
         messages = [
             ChatMessage(role="system", content=system_content),
@@ -626,22 +630,123 @@ class ReActAgent:
     # Common English stop-words excluded from keyword matching to reduce
     # false positives.  Keep this set small and focused on function words
     # that carry no domain meaning.
-    _KEYWORD_STOP_WORDS: set[str] = frozenset({  # type: ignore[assignment]
-        "a", "an", "the", "is", "are", "was", "were", "be", "been",
-        "being", "have", "has", "had", "do", "does", "did", "will",
-        "would", "could", "should", "may", "might", "shall", "can",
-        "to", "of", "in", "for", "on", "with", "at", "by", "from",
-        "as", "into", "about", "between", "through", "during", "before",
-        "after", "above", "below", "up", "down", "out", "off", "over",
-        "under", "and", "but", "or", "nor", "not", "so", "yet", "both",
-        "either", "neither", "each", "every", "all", "any", "few",
-        "more", "most", "other", "some", "such", "no", "only", "own",
-        "same", "than", "too", "very", "just", "because", "if", "when",
-        "while", "how", "what", "which", "who", "whom", "this", "that",
-        "these", "those", "i", "me", "my", "we", "our", "you", "your",
-        "he", "him", "his", "she", "her", "it", "its", "they", "them",
-        "their", "use", "using", "used", "get", "set", "make",
-    })
+    _KEYWORD_STOP_WORDS: set[str] = frozenset(
+        {  # type: ignore[assignment]
+            "a",
+            "an",
+            "the",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "shall",
+            "can",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "into",
+            "about",
+            "between",
+            "through",
+            "during",
+            "before",
+            "after",
+            "above",
+            "below",
+            "up",
+            "down",
+            "out",
+            "off",
+            "over",
+            "under",
+            "and",
+            "but",
+            "or",
+            "nor",
+            "not",
+            "so",
+            "yet",
+            "both",
+            "either",
+            "neither",
+            "each",
+            "every",
+            "all",
+            "any",
+            "few",
+            "more",
+            "most",
+            "other",
+            "some",
+            "such",
+            "no",
+            "only",
+            "own",
+            "same",
+            "than",
+            "too",
+            "very",
+            "just",
+            "because",
+            "if",
+            "when",
+            "while",
+            "how",
+            "what",
+            "which",
+            "who",
+            "whom",
+            "this",
+            "that",
+            "these",
+            "those",
+            "i",
+            "me",
+            "my",
+            "we",
+            "our",
+            "you",
+            "your",
+            "he",
+            "him",
+            "his",
+            "she",
+            "her",
+            "it",
+            "its",
+            "they",
+            "them",
+            "their",
+            "use",
+            "using",
+            "used",
+            "get",
+            "set",
+            "make",
+        }
+    )
 
     @staticmethod
     def _tokenize_for_keywords(text: str) -> set[str]:
@@ -651,10 +756,7 @@ class ReActAgent:
         tool names like ``web_search`` yield ``{"web", "search"}``.
         Single-character tokens are discarded.
         """
-        return {
-            tok for tok in re.split(r"[^a-z0-9]+", text.lower())
-            if len(tok) > 1
-        }
+        return {tok for tok in re.split(r"[^a-z0-9]+", text.lower()) if len(tok) > 1}
 
     def _select_by_keywords(
         self,
@@ -715,8 +817,7 @@ class ReActAgent:
 
         if second_score > 0 and top_score <= 2 * second_score:
             logger.debug(
-                "Keyword tool selection: top=%d, second=%d — ambiguous; "
-                "falling back to LLM",
+                "Keyword tool selection: top=%d, second=%d — ambiguous; falling back to LLM",
                 top_score,
                 second_score,
             )
@@ -727,8 +828,7 @@ class ReActAgent:
         selected = selected[:max_tools]
 
         logger.debug(
-            "Keyword tool selection: confident match — %s (score=%d, "
-            "runner-up=%d)",
+            "Keyword tool selection: confident match — %s (score=%d, runner-up=%d)",
             selected,
             top_score,
             second_score,
@@ -811,7 +911,10 @@ class ReActAgent:
             call_result: StructuredCallResult[Any] = await structured_llm_call(
                 selection_llm,
                 [
-                    ChatMessage(role="system", content="You are a tool selection assistant. Respond only with JSON."),
+                    ChatMessage(
+                        role="system",
+                        content="You are a tool selection assistant. Respond only with JSON.",
+                    ),
                     ChatMessage(role="user", content=prompt),
                 ],
                 schema=_TOOL_SELECTION_SCHEMA,
@@ -821,33 +924,26 @@ class ReActAgent:
 
             if call_result.value is None:
                 logger.warning(
-                    "Tool selection: all extraction levels failed; "
-                    "falling back to all tools"
+                    "Tool selection: all extraction levels failed; falling back to all tools"
                 )
                 return self._tools
 
             selected_names: list[str] = call_result.value.get("tools", [])
             if not isinstance(selected_names, list) or not selected_names:
                 logger.warning(
-                    "Tool selection returned empty or invalid list; "
-                    "falling back to all tools"
+                    "Tool selection returned empty or invalid list; falling back to all tools"
                 )
                 return self._tools
 
             # Ensure names are strings and cap at max.
-            selected_names = [
-                str(n) for n in selected_names[:_TOOL_SELECTION_MAX]
-            ]
+            selected_names = [str(n) for n in selected_names[:_TOOL_SELECTION_MAX]]
 
             filtered = self._tools.filter_by_names(selected_names)
 
             # If filtering resulted in zero tools (all names were bogus),
             # fall back to the full set.
             if len(filtered) == 0:
-                logger.warning(
-                    "Tool selection produced 0 valid tools; "
-                    "falling back to all tools"
-                )
+                logger.warning("Tool selection produced 0 valid tools; falling back to all tools")
                 return self._tools
 
             # Pin essential tools that must always be available when their
@@ -955,7 +1051,9 @@ class ReActAgent:
                 if current_usage.total_tokens >= self._max_turn_tokens:
                     logger.warning(
                         "ReAct token budget exhausted: %d >= %d after %d iterations",
-                        current_usage.total_tokens, self._max_turn_tokens, iteration - 1,
+                        current_usage.total_tokens,
+                        self._max_turn_tokens,
+                        iteration - 1,
                     )
                     answer = (
                         f"I've reached the token budget ({self._max_turn_tokens:,} tokens) "
@@ -976,14 +1074,17 @@ class ReActAgent:
                 on_iteration(
                     iteration,
                     Action(type="thinking", reasoning=""),
-                    None, None, None,
+                    None,
+                    None,
+                    None,
                 )
 
             with profiler.phase("compact"):
                 messages = micro_compact(messages)
                 if self._context_guard is not None:
                     messages = await self._context_guard.check_and_compact(
-                        messages, hint="react_iteration",
+                        messages,
+                        hint="react_iteration",
                     )
 
             # Tool-decision iterations use the fast model (when available)
@@ -1004,7 +1105,9 @@ class ReActAgent:
                             iteration,
                         )
                         messages = await self._force_compact(
-                            messages, target_ratio=0.5, hint="react_iteration",
+                            messages,
+                            target_ratio=0.5,
+                            hint="react_iteration",
                         )
                         result = await self._tool_llm.chat(
                             messages,
@@ -1036,8 +1139,7 @@ class ReActAgent:
                 and iteration < self._max_iterations
             ):
                 logger.info(
-                    "JSON parse failed, requesting LLM to re-format "
-                    "(iteration %d)",
+                    "JSON parse failed, requesting LLM to re-format (iteration %d)",
                     iteration,
                 )
                 # Append the raw reply so the LLM sees what it said.
@@ -1073,7 +1175,10 @@ class ReActAgent:
             # so it is safe to insert a user message here.)
             injected_msgs = (await interrupt_queue.drain()) if interrupt_queue is not None else []
             self._emit_and_append_injections(
-                injected_msgs, messages, iteration, on_iteration,
+                injected_msgs,
+                messages,
+                iteration,
+                on_iteration,
             )
 
             # -- Final answer path --
@@ -1082,8 +1187,7 @@ class ReActAgent:
                 # agent sees them instead of ending.
                 if injected_msgs and iteration < self._max_iterations:
                     logger.info(
-                        "Deferring final answer -- %d injected message(s) "
-                        "pending (iteration %d)",
+                        "Deferring final answer -- %d injected message(s) pending (iteration %d)",
                         len(injected_msgs),
                         iteration,
                     )
@@ -1111,7 +1215,9 @@ class ReActAgent:
                     logger.info(
                         "Injected completion checklist at iteration %d "
                         "(tool_call_count=%d, answer_len=%d)",
-                        iteration, tool_call_count, len(final_answer_text),
+                        iteration,
+                        tool_call_count,
+                        len(final_answer_text),
                     )
                     profiler.emit(self._profiler_conversation_id())
                     continue
@@ -1123,9 +1229,9 @@ class ReActAgent:
                 ):
                     completion_check_done = True
                     logger.info(
-                        "Skipped completion check — answer length %d "
-                        "exceeds threshold %d",
-                        len(final_answer_text), _COMPLETION_CHECK_SKIP_CHARS,
+                        "Skipped completion check — answer length %d exceeds threshold %d",
+                        len(final_answer_text),
+                        _COMPLETION_CHECK_SKIP_CHARS,
                     )
 
                 steps.append(StepResult(action=action))
@@ -1161,12 +1267,11 @@ class ReActAgent:
             # Offload large outputs to workspace when available.
             if self._workspace is not None and step.observation and not step.error:
                 observation = self._workspace.maybe_offload(
-                    action.tool_name or "unknown", observation,
+                    action.tool_name or "unknown",
+                    observation,
                 )
             obs_content = (
-                f"Observation: Error: {step.error}"
-                if step.error
-                else f"Observation: {observation}"
+                f"Observation: Error: {step.error}" if step.error else f"Observation: {observation}"
             )
 
             # --- Tool result aggregate budget (I.8) ---
@@ -1181,7 +1286,8 @@ class ReActAgent:
                 estimated_tokens = len(obs_content) // 4
                 logger.warning(
                     "Tool result budget exceeded: %d/%d tokens after truncation",
-                    tool_result_tokens + estimated_tokens, _TOOL_RESULT_BUDGET,
+                    tool_result_tokens + estimated_tokens,
+                    _TOOL_RESULT_BUDGET,
                 )
             tool_result_tokens += estimated_tokens
 
@@ -1191,7 +1297,9 @@ class ReActAgent:
             # Track identical (tool_name, args) calls and inject a warning
             # when the threshold is reached.
             cycle_warning = self._check_cycle(
-                action.tool_name or "", action.tool_args, cycle_tracker,
+                action.tool_name or "",
+                action.tool_args,
+                cycle_tracker,
             )
             if cycle_warning is not None:
                 messages.append(ChatMessage(role="user", content=cycle_warning))
@@ -1200,18 +1308,15 @@ class ReActAgent:
             # When request_tools successfully loads new tools into the
             # effective registry, rebuild the system prompt so the LLM
             # sees updated tool descriptions on the next iteration.
-            if (
-                action.tool_name == "request_tools"
-                and not step.error
-            ):
+            if action.tool_name == "request_tools" and not step.error:
                 with profiler.phase("tool_schema_build"):
                     messages[0] = ChatMessage(
                         role="system",
                         content=self._build_system_prompt(tools=tools),
                     )
                 logger.info(
-                    "Rebuilt system prompt after request_tools "
-                    "(now %d tools)", len(tools),
+                    "Rebuilt system prompt after request_tools (now %d tools)",
+                    len(tools),
                 )
 
             # --- Mid-loop self-reflection ---
@@ -1228,7 +1333,8 @@ class ReActAgent:
                 messages.append(ChatMessage(role="user", content=reflection))
                 logger.info(
                     "Injected self-reflection at tool-call #%d (iteration %d)",
-                    tool_call_count, iteration,
+                    tool_call_count,
+                    iteration,
                 )
 
             if on_iteration is not None:
@@ -1238,12 +1344,12 @@ class ReActAgent:
 
         # Max iterations exceeded -- synthesise a timeout answer.
         logger.warning(
-            "ReAct loop exhausted after %d iterations", self._max_iterations,
+            "ReAct loop exhausted after %d iterations",
+            self._max_iterations,
         )
         answer = (
             f"I was unable to complete the task within {self._max_iterations} "
-            "iterations.  Here is what I gathered so far:\n"
-            + self._summarise_steps(steps)
+            "iterations.  Here is what I gathered so far:\n" + self._summarise_steps(steps)
         )
         await self._save_to_memory(query, answer)
         return AgentResult(
@@ -1279,6 +1385,17 @@ class ReActAgent:
                 building the tools payload (used by two-phase selection).
         """
         usage_tracker = UsageTracker()
+
+        # Thinking-block constraint: only subscribe to thinking deltas when
+        # the underlying tool-decision model actually emits them.  Models
+        # without the capability (most OpenAI, DeepSeek, Gemini, older
+        # Claude) would still stream empty thinking events and waste UI
+        # state on the client.
+        if on_thinking_delta is not None and not self._tool_llm.abilities.get(
+            "thinking",
+            False,
+        ):
+            on_thinking_delta = None
 
         # Measure the one-time pre-loop setup costs (I.16).
         _schema_start = time.perf_counter()
@@ -1334,7 +1451,9 @@ class ReActAgent:
                 if current_usage.total_tokens >= self._max_turn_tokens:
                     logger.warning(
                         "Native ReAct token budget exhausted: %d >= %d after %d iterations",
-                        current_usage.total_tokens, self._max_turn_tokens, iteration - 1,
+                        current_usage.total_tokens,
+                        self._max_turn_tokens,
+                        iteration - 1,
                     )
                     answer = (
                         f"I've reached the token budget ({self._max_turn_tokens:,} tokens) "
@@ -1355,14 +1474,17 @@ class ReActAgent:
                 on_iteration(
                     iteration,
                     Action(type="thinking", reasoning=""),
-                    None, None, None,
+                    None,
+                    None,
+                    None,
                 )
 
             with profiler.phase("compact"):
                 messages = micro_compact(messages)
                 if self._context_guard is not None:
                     messages = await self._context_guard.check_and_compact(
-                        messages, hint="react_iteration",
+                        messages,
+                        hint="react_iteration",
                     )
 
             # Tool-decision iterations use streaming so that reasoning /
@@ -1387,7 +1509,9 @@ class ReActAgent:
                             iteration,
                         )
                         messages = await self._force_compact(
-                            messages, target_ratio=0.5, hint="react_iteration",
+                            messages,
+                            target_ratio=0.5,
+                            hint="react_iteration",
                         )
                         result = await self._stream_tool_decision(
                             messages,
@@ -1430,7 +1554,8 @@ class ReActAgent:
                     estimated_tokens = len(content_str) // 4
                     if tool_result_tokens + estimated_tokens > _TOOL_RESULT_BUDGET:
                         max_chars = max(
-                            0, (_TOOL_RESULT_BUDGET - tool_result_tokens) * 4,
+                            0,
+                            (_TOOL_RESULT_BUDGET - tool_result_tokens) * 4,
                         )
                         truncated = (
                             content_str[:max_chars]
@@ -1441,8 +1566,7 @@ class ReActAgent:
                         tr_msg.content = truncated
                         estimated_tokens = len(truncated) // 4
                         logger.warning(
-                            "Tool result budget exceeded: %d/%d tokens "
-                            "after truncation",
+                            "Tool result budget exceeded: %d/%d tokens after truncation",
                             tool_result_tokens + estimated_tokens,
                             _TOOL_RESULT_BUDGET,
                         )
@@ -1455,7 +1579,9 @@ class ReActAgent:
                 # Check each tool call in this batch for repetition.
                 for tc in assistant_msg.tool_calls:
                     cycle_warning = self._check_cycle(
-                        tc.name, dict(tc.arguments), cycle_tracker,
+                        tc.name,
+                        dict(tc.arguments),
+                        cycle_tracker,
                     )
                     if cycle_warning is not None:
                         messages.append(
@@ -1471,15 +1597,19 @@ class ReActAgent:
                         tools_payload = self._build_tools_payload(tools=effective_tools)
                         tool_choice = "auto" if tools_payload else None
                     logger.info(
-                        "Rebuilt tools payload after request_tools "
-                        "(now %d tools)",
+                        "Rebuilt tools payload after request_tools (now %d tools)",
                         len(effective_tools) if effective_tools else 0,
                     )
 
                 # Now safe to drain -- tool_use/tool_result pairing is intact.
-                injected_msgs = (await interrupt_queue.drain()) if interrupt_queue is not None else []
+                injected_msgs = (
+                    (await interrupt_queue.drain()) if interrupt_queue is not None else []
+                )
                 self._emit_and_append_injections(
-                    injected_msgs, messages, iteration, on_iteration,
+                    injected_msgs,
+                    messages,
+                    iteration,
+                    on_iteration,
                 )
 
                 # --- Mid-loop self-reflection ---
@@ -1494,7 +1624,8 @@ class ReActAgent:
                     messages.append(ChatMessage(role="user", content=reflection))
                     logger.info(
                         "Injected self-reflection at tool-call #%d (iteration %d)",
-                        tool_call_count, iteration,
+                        tool_call_count,
+                        iteration,
                     )
                 profiler.emit(self._profiler_conversation_id())
                 continue
@@ -1503,7 +1634,10 @@ class ReActAgent:
             # Drain before returning so injections are never lost.
             injected_msgs = (await interrupt_queue.drain()) if interrupt_queue is not None else []
             self._emit_and_append_injections(
-                injected_msgs, messages, iteration, on_iteration,
+                injected_msgs,
+                messages,
+                iteration,
+                on_iteration,
             )
             if injected_msgs and iteration < self._max_iterations:
                 profiler.emit(self._profiler_conversation_id())
@@ -1531,7 +1665,9 @@ class ReActAgent:
                 logger.info(
                     "Injected completion checklist at iteration %d "
                     "(tool_call_count=%d, answer_len=%d)",
-                    iteration, tool_call_count, len(native_answer_text),
+                    iteration,
+                    tool_call_count,
+                    len(native_answer_text),
                 )
                 profiler.emit(self._profiler_conversation_id())
                 continue
@@ -1543,9 +1679,9 @@ class ReActAgent:
             ):
                 completion_check_done = True
                 logger.info(
-                    "Skipped completion check — answer length %d "
-                    "exceeds threshold %d",
-                    len(native_answer_text), _COMPLETION_CHECK_SKIP_CHARS,
+                    "Skipped completion check — answer length %d exceeds threshold %d",
+                    len(native_answer_text),
+                    _COMPLETION_CHECK_SKIP_CHARS,
                 )
 
             answer = native_answer_text
@@ -1574,8 +1710,7 @@ class ReActAgent:
         )
         answer = (
             f"I was unable to complete the task within {self._max_iterations} "
-            "iterations.  Here is what I gathered so far:\n"
-            + self._summarise_steps(steps)
+            "iterations.  Here is what I gathered so far:\n" + self._summarise_steps(steps)
         )
         await self._save_to_memory(query, answer)
         return AgentResult(
@@ -1606,6 +1741,7 @@ class ReActAgent:
         final_tool_calls: list[ToolCallRequest] | None = None
         final_usage: dict[str, int] = {}
         first_token_recorded = False
+        thinking_signature: str | None = None
 
         stream = self._tool_llm.stream_chat(
             messages,
@@ -1614,9 +1750,7 @@ class ReActAgent:
         )
         async for chunk in stream:
             # Record first-token latency on the first meaningful delta.
-            if not first_token_recorded and (
-                chunk.delta_content or chunk.delta_reasoning
-            ):
+            if not first_token_recorded and (chunk.delta_content or chunk.delta_reasoning):
                 first_token_recorded = True
                 profiler.add(
                     "llm_first_token",
@@ -1631,6 +1765,8 @@ class ReActAgent:
                 content_parts.append(chunk.delta_content)
                 if on_thinking_delta:
                     on_thinking_delta(chunk.delta_content)
+            if chunk.signature:
+                thinking_signature = chunk.signature
             if chunk.tool_calls:
                 final_tool_calls = chunk.tool_calls
             if chunk.usage:
@@ -1641,9 +1777,8 @@ class ReActAgent:
                 role="assistant",
                 content="".join(content_parts) if content_parts else None,
                 tool_calls=final_tool_calls,
-                reasoning_content=(
-                    "".join(reasoning_parts) if reasoning_parts else None
-                ),
+                reasoning_content=("".join(reasoning_parts) if reasoning_parts else None),
+                signature=thinking_signature,
             ),
             usage=final_usage,
         )
@@ -1669,6 +1804,7 @@ class ReActAgent:
             A list of ``ChatMessage`` objects with role ``"tool"`` to append
             to the conversation.
         """
+
         async def _run_single(tc: ToolCallRequest) -> tuple[StepResult, ChatMessage]:
             from fim_one.core.tool.base import ToolResult
 
@@ -1750,9 +1886,16 @@ class ReActAgent:
                         observation=raw_result.content,
                         content_type=raw_result.content_type,
                         artifacts=[
-                            {"name": a.name, "path": a.path, "mime_type": a.mime_type, "size": a.size}
+                            {
+                                "name": a.name,
+                                "path": a.path,
+                                "mime_type": a.mime_type,
+                                "size": a.size,
+                            }
                             for a in raw_result.artifacts
-                        ] if raw_result.artifacts else None,
+                        ]
+                        if raw_result.artifacts
+                        else None,
                     )
                     # For rich content types, give the LLM a short summary
                     # instead of the full content (which the frontend renders
@@ -1773,7 +1916,8 @@ class ReActAgent:
                     # Offload large ToolResult content to workspace.
                     if self._workspace is not None:
                         llm_content = self._workspace.maybe_offload(
-                            tc.name, llm_content,
+                            tc.name,
+                            llm_content,
                         )
                     msg = ChatMessage(
                         role="tool",
@@ -1788,7 +1932,8 @@ class ReActAgent:
                 )
                 if self._workspace is not None:
                     llm_result = self._workspace.maybe_offload(
-                        tc.name, raw_result,
+                        tc.name,
+                        raw_result,
                     )
                 step = StepResult(action=action, observation=raw_result)
                 msg = ChatMessage(
@@ -1859,32 +2004,40 @@ class ReActAgent:
         # Emit individual SSE inject events for frontend rendering.
         for injected in injected_msgs:
             if on_iteration:
-                on_iteration(iteration, Action(
-                    type="tool_call", reasoning="",
-                    tool_name="__inject__",
-                    tool_args={"content": injected.content, "id": injected.id},
-                ), injected.content, None, None)
+                on_iteration(
+                    iteration,
+                    Action(
+                        type="tool_call",
+                        reasoning="",
+                        tool_name="__inject__",
+                        tool_args={"content": injected.content, "id": injected.id},
+                    ),
+                    injected.content,
+                    None,
+                    None,
+                )
 
         # Append as a SINGLE combined message so the LLM addresses ALL
         # injected messages, not just the last one.
         if len(injected_msgs) == 1:
             combined_content = (
-                f"[USER INTERRUPT]: {injected_msgs[0].content}"
-                "\n\nAcknowledge and adjust if needed."
+                f"[USER INTERRUPT]: {injected_msgs[0].content}\n\nAcknowledge and adjust if needed."
             )
         else:
-            parts = [f"{i+1}. {m.content}" for i, m in enumerate(injected_msgs)]
+            parts = [f"{i + 1}. {m.content}" for i, m in enumerate(injected_msgs)]
             combined_content = (
                 f"[USER INTERRUPT]: The user sent {len(injected_msgs)} "
                 "messages while you were working:\n"
                 + "\n".join(parts)
                 + "\n\nAcknowledge ALL of them and adjust your response if needed."
             )
-        messages.append(ChatMessage(
-            role="user",
-            content=combined_content,
-            pinned=True,
-        ))
+        messages.append(
+            ChatMessage(
+                role="user",
+                content=combined_content,
+                pinned=True,
+            )
+        )
 
     def _get_localized_time(self) -> tuple[datetime, str, int]:
         """Return ``(datetime_obj, formatted_str, year)`` in the user's tz."""
@@ -1904,7 +2057,8 @@ class ReActAgent:
         return utc_now, formatted, utc_now.year
 
     def _build_system_prompt(
-        self, tools: ToolRegistry | None = None,
+        self,
+        tools: ToolRegistry | None = None,
     ) -> str:
         """Build the system prompt, including descriptions of available tools.
 
@@ -1968,14 +2122,11 @@ class ReActAgent:
         handoff = self._workspace.read_latest_handoff()
         if not handoff:
             return prompt
-        return (
-            prompt
-            + "\n\n## Previous Session Context (Handoff Note)\n"
-            + handoff
-        )
+        return prompt + "\n\n## Previous Session Context (Handoff Note)\n" + handoff
 
     def _format_tool_descriptions(
-        self, tools: ToolRegistry | None = None,
+        self,
+        tools: ToolRegistry | None = None,
     ) -> str:
         """Format tool descriptions for inclusion in the system prompt.
 
@@ -1995,14 +2146,12 @@ class ReActAgent:
         lines: list[str] = []
         for tool in tool_list:
             schema_str = json.dumps(tool.parameters_schema, indent=2)
-            lines.append(
-                f"- **{tool.name}**: {tool.description}\n"
-                f"  Parameters: {schema_str}"
-            )
+            lines.append(f"- **{tool.name}**: {tool.description}\n  Parameters: {schema_str}")
         return "\n".join(lines)
 
     def _build_tools_payload(
-        self, tools: ToolRegistry | None = None,
+        self,
+        tools: ToolRegistry | None = None,
     ) -> list[dict[str, Any]] | None:
         """Build OpenAI-format tool definitions for native mode.
 
@@ -2021,14 +2170,16 @@ class ReActAgent:
 
         payload: list[dict[str, Any]] = []
         for tool in tool_list:
-            payload.append({
-                "type": "function",
-                "function": {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": tool.parameters_schema,
-                },
-            })
+            payload.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": tool.parameters_schema,
+                    },
+                }
+            )
         return payload
 
     def _json_response_format(self) -> dict[str, Any] | None:
@@ -2162,7 +2313,9 @@ class ReActAgent:
                     artifacts=[
                         {"name": a.name, "path": a.path, "mime_type": a.mime_type, "size": a.size}
                         for a in raw_result.artifacts
-                    ] if raw_result.artifacts else None,
+                    ]
+                    if raw_result.artifacts
+                    else None,
                 )
             return StepResult(action=action, observation=raw_result)
         except asyncio.CancelledError:
@@ -2226,7 +2379,9 @@ class ReActAgent:
         if self._context_guard is not None:
             target_budget = int(self._context_guard._default_budget * target_ratio)
             return await self._context_guard.check_and_compact(
-                messages, budget=target_budget, hint=hint,
+                messages,
+                budget=target_budget,
+                hint=hint,
             )
 
         # No context guard — use heuristic truncation with a conservative
@@ -2248,9 +2403,7 @@ class ReActAgent:
         for i, step in enumerate(steps, 1):
             if step.action.type == "tool_call":
                 status = "OK" if step.error is None else f"ERROR: {step.error}"
-                lines.append(
-                    f"  Step {i}: called {step.action.tool_name} -> {status}"
-                )
+                lines.append(f"  Step {i}: called {step.action.tool_name} -> {status}")
             else:
                 lines.append(f"  Step {i}: final answer")
         return "\n".join(lines) if lines else "(no steps taken)"

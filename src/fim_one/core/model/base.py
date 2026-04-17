@@ -114,4 +114,5 @@ class BaseLLM(ABC):
             "json_mode": False,
             "vision": False,
             "streaming": False,
+            "thinking": False,
         }

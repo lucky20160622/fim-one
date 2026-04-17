@@ -116,11 +116,13 @@ def _repair_dangling_tool_calls(
             # Append synthetic results AFTER any real results so the
             # original trajectory ordering is preserved.
             for tc_id in missing:
-                repaired.append(ChatMessage(
-                    role="tool",
-                    content=_INTERRUPTED_TOOL_RESULT,
-                    tool_call_id=tc_id,
-                ))
+                repaired.append(
+                    ChatMessage(
+                        role="tool",
+                        content=_INTERRUPTED_TOOL_RESULT,
+                        tool_call_id=tc_id,
+                    )
+                )
 
         # Skip over the already-consumed tool block.
         idx = look
@@ -180,9 +182,7 @@ async def _rebuild_vision_urls(
                 if suffix == ".pdf":
                     # Smart extraction: only embedded images + scanned
                     # page renders (skip full-page PNG for text pages).
-                    raw_images = (
-                        await DocumentProcessor.extract_pdf_images(file_path)
-                    )
+                    raw_images = await DocumentProcessor.extract_pdf_images(file_path)
                     for img_bytes in raw_images:
                         if img_bytes[:2] == b"\xff\xd8":
                             mime = "image/jpeg"
@@ -193,9 +193,7 @@ async def _rebuild_vision_urls(
                         b64 = base64.b64encode(img_bytes).decode("ascii")
                         urls.append(f"data:{mime};base64,{b64}")
                 elif suffix in _DOC_EXTENSIONS:
-                    _, image_bytes_list = (
-                        await DocumentProcessor.extract_with_images(file_path)
-                    )
+                    _, image_bytes_list = await DocumentProcessor.extract_with_images(file_path)
                     for img_bytes in image_bytes_list:
                         if img_bytes[:2] == b"\xff\xd8":
                             mime = "image/jpeg"
@@ -214,7 +212,9 @@ async def _rebuild_vision_urls(
         except Exception:
             logger.warning(
                 "Failed to rebuild vision for file %s (source=%s)",
-                file_id, source, exc_info=True,
+                file_id,
+                source,
+                exc_info=True,
             )
 
     return urls
@@ -283,31 +283,37 @@ class DbMemory(BaseMemory):
                 id_for_msg: dict[int, str] = {}  # id(ChatMessage) → DB row ID
                 for row in rows:
                     content: str | list[dict[str, Any]] = row.content or ""
+                    meta: dict[str, Any] = row.metadata_ if isinstance(row.metadata_, dict) else {}
                     # Reconstruct vision content when a user message had images.
-                    if (
-                        row.role == "user"
-                        and self._user_id
-                        and row.metadata_
-                    ):
-                        meta = (
-                            row.metadata_
-                            if isinstance(row.metadata_, dict)
-                            else {}
-                        )
+                    if row.role == "user" and self._user_id and meta:
                         images_meta = meta.get("images", [])
                         if images_meta:
                             image_urls = await _rebuild_vision_urls(
-                                images_meta, self._user_id,
+                                images_meta,
+                                self._user_id,
                             )
                             if image_urls:
                                 content = ChatMessage.build_vision_content(
-                                    row.content or "", image_urls,
+                                    row.content or "",
+                                    image_urls,
                                 )
                     raw_role = row.role
                     if raw_role not in ("system", "user", "assistant", "tool"):
                         continue
                     role = cast(Literal["system", "user", "assistant", "tool"], raw_role)
                     msg = ChatMessage(role=role, content=content)
+                    # Restore thinking block so Anthropic replay stays
+                    # valid on the next turn.  Stored by chat.py as
+                    # ``metadata_["thinking"] = {"content", "signature"}``.
+                    if role == "assistant":
+                        thinking = meta.get("thinking")
+                        if isinstance(thinking, dict):
+                            reasoning = thinking.get("content")
+                            signature = thinking.get("signature")
+                            if isinstance(reasoning, str) and reasoning:
+                                msg.reasoning_content = reasoning
+                            if isinstance(signature, str) and signature:
+                                msg.signature = signature
                     messages.append(msg)
                     id_for_msg[id(msg)] = str(row.id)
 
@@ -319,11 +325,7 @@ class DbMemory(BaseMemory):
                 id_for_msg.pop(id(popped), None)
 
             # Snapshot all IDs before filtering / compaction.
-            all_ids = {
-                id_for_msg[id(m)]
-                for m in messages
-                if id(m) in id_for_msg
-            }
+            all_ids = {id_for_msg[id(m)] for m in messages if id(m) in id_for_msg}
 
             # Drop empty assistant messages whose content is empty AND
             # which carry no ``tool_calls``.  An empty-content assistant
@@ -332,7 +334,8 @@ class DbMemory(BaseMemory):
             # can validate / heal it.
             pre_filter = len(messages)
             messages = [
-                m for m in messages
+                m
+                for m in messages
                 if not (
                     m.role == "assistant"
                     and not m.tool_calls
@@ -349,25 +352,24 @@ class DbMemory(BaseMemory):
             # (Stop button, SSE disconnect, crash).  Applied on the read
             # path only — DB rows are never mutated.
             messages = _repair_dangling_tool_calls(
-                messages, self._conversation_id,
+                messages,
+                self._conversation_id,
             )
 
             self._original_count = len(messages)
 
             if self._compact_llm is not None:
                 compacted = await CompactUtils.llm_compact(
-                    messages, self._compact_llm, self._max_tokens,
+                    messages,
+                    self._compact_llm,
+                    self._max_tokens,
                     usage_tracker=self._usage_tracker,
                 )
             else:
                 compacted = CompactUtils.smart_truncate(messages, self._max_tokens)
 
             # Track which original messages survived compaction.
-            surviving_ids = {
-                id_for_msg[id(m)]
-                for m in compacted
-                if id(m) in id_for_msg
-            }
+            surviving_ids = {id_for_msg[id(m)] for m in compacted if id(m) in id_for_msg}
             self.compacted_message_ids = sorted(all_ids - surviving_ids)
             if self.compacted_message_ids:
                 logger.info(

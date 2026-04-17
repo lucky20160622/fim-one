@@ -214,7 +214,9 @@ class OpenAICompatibleLLM(BaseLLM):
         self._base_url = base_url
         self._model = model
         self._litellm_model, self._api_base = _resolve_litellm_model(
-            base_url, model, provider,
+            base_url,
+            model,
+            provider,
         )
         self._default_temperature = default_temperature
         self._default_max_tokens = default_max_tokens
@@ -394,6 +396,11 @@ class OpenAICompatibleLLM(BaseLLM):
                 # --- content / reasoning fragments ---
                 delta_content = getattr(delta, "content", None)
                 delta_reasoning = getattr(delta, "reasoning_content", None)
+                # Extract any thinking-block signature that arrived on
+                # this delta (Anthropic streams it once per block).
+                delta_signature = OpenAICompatibleLLM._extract_thinking_signature(
+                    delta,
+                )
 
                 # Re-route <think>...</think> from content to reasoning.
                 if delta_content:
@@ -402,9 +409,7 @@ class OpenAICompatibleLLM(BaseLLM):
                     )
                     delta_content = parsed_content or None
                     if parsed_reasoning:
-                        delta_reasoning = (
-                            (delta_reasoning or "") + parsed_reasoning
-                        ) or None
+                        delta_reasoning = ((delta_reasoning or "") + parsed_reasoning) or None
 
                 # --- tool-call fragments ---
                 if delta.tool_calls:
@@ -428,12 +433,14 @@ class OpenAICompatibleLLM(BaseLLM):
                             if tc_delta.function.arguments:
                                 partial.arguments += tc_delta.function.arguments
 
-                # Emit a chunk for every delta that carries content or reasoning.
-                if delta_content or delta_reasoning:
+                # Emit a chunk for every delta that carries content,
+                # reasoning, or a thinking-block signature.
+                if delta_content or delta_reasoning or delta_signature:
                     yield StreamChunk(
                         delta_content=delta_content,
                         delta_reasoning=delta_reasoning,
                         finish_reason=finish_reason,
+                        signature=delta_signature,
                     )
 
                 # When the stream finishes, flush any accumulated tool calls.
@@ -475,6 +482,12 @@ class OpenAICompatibleLLM(BaseLLM):
         ``structured_llm_call`` uses forced ``tool_choice`` which Anthropic
         rejects when thinking is active, but its own try/except fallback
         handles the 400 gracefully (native_fc → json_mode → plain_text).
+
+        ``thinking`` is True only for models that emit signed
+        extended-thinking blocks — currently the Claude 4.x family.  Other
+        reasoning-capable models (DeepSeek R1, GPT-5.x) surface CoT via
+        ``reasoning_content`` without the Anthropic signature contract,
+        so they don't need the thinking-block replay logic.
         """
         return {
             "tool_call": True,
@@ -482,7 +495,52 @@ class OpenAICompatibleLLM(BaseLLM):
             "json_mode": self._json_mode_enabled,
             "vision": True,
             "streaming": True,
+            "thinking": self._supports_thinking_blocks(),
         }
+
+    def _supports_thinking_blocks(self) -> bool:
+        """Return True when the model emits any reasoning / CoT content.
+
+        The ``thinking`` capability drives two orthogonal behaviours:
+
+        1. Streaming thinking tokens to the UI in real time (the caller
+           wires up ``on_thinking_delta`` only when this flag is set).
+        2. Capturing the signed ``signature`` so replay on subsequent
+           turns stays valid (Anthropic-specific).
+
+        (2) only applies to Claude 4.x, but (1) applies to any model
+        that emits ``reasoning_content`` / ``<think>`` deltas — DeepSeek
+        R1, Anthropic extended-thinking, OpenAI o-series, GPT-5.x with
+        reasoning_effort, Gemini thinking, etc.  So we return True for
+        the broad family: any Anthropic model, any model with a
+        configured reasoning effort, or any known reasoning-first model
+        by name.  Non-reasoning models return False and skip the
+        streaming subscription entirely.
+        """
+        model = (self._model or "").lower()
+        litellm_model = (self._litellm_model or "").lower()
+        # Anthropic always supports extended thinking blocks when enabled.
+        if litellm_model.startswith("anthropic/"):
+            return True
+        # Configured reasoning effort implies the user wants CoT surfaced.
+        if self._reasoning_effort or self._reasoning_budget_tokens:
+            return True
+        # Known reasoning-first model name patterns.
+        reasoning_tags = (
+            "claude-opus-4",
+            "claude-sonnet-4",
+            "claude-haiku-4",
+            "deepseek-r1",
+            "deepseek-reasoner",
+            "qwq",
+            "o1",
+            "o3",
+            "o4",
+            "gpt-5",
+            "gemini-2.0-flash-thinking",
+            "gemini-2.5-flash-thinking",
+        )
+        return any(tag in model for tag in reasoning_tags)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -533,9 +591,7 @@ class OpenAICompatibleLLM(BaseLLM):
 
         # Resolve effective reasoning effort: per-call override > instance default.
         effective_reasoning = (
-            self._reasoning_effort
-            if reasoning_effort is _REASONING_INHERIT
-            else reasoning_effort
+            self._reasoning_effort if reasoning_effort is _REASONING_INHERIT else reasoning_effort
         )
         if effective_reasoning:
             # GPT-5.x /v1/chat/completions rejects reasoning_effort when
@@ -602,10 +658,13 @@ class OpenAICompatibleLLM(BaseLLM):
         #   - DeepSeek R1: reasoning_content
         #   - Anthropic (via LiteLLM): reasoning_content
         #   - Some proxies: reasoning
-        reasoning_content = getattr(msg, "reasoning_content", None) or getattr(msg, "reasoning", None)
+        reasoning_content = getattr(msg, "reasoning_content", None) or getattr(
+            msg, "reasoning", None
+        )
         # Guard against the field being a non-string (e.g. dict from some proxies).
         if reasoning_content and not isinstance(reasoning_content, str):
             reasoning_content = None
+        signature = OpenAICompatibleLLM._extract_thinking_signature(msg)
         # Strip <think>...</think> from content (providers like MiniMax embed
         # CoT this way instead of using an API-level reasoning field).
         content = msg.content
@@ -620,16 +679,63 @@ class OpenAICompatibleLLM(BaseLLM):
             if think_parts:
                 extracted = "\n".join(think_parts)
                 reasoning_content = (
-                    reasoning_content + "\n" + extracted
-                    if reasoning_content
-                    else extracted
+                    reasoning_content + "\n" + extracted if reasoning_content else extracted
                 )
         return ChatMessage(
             role=msg.role,
             content=content,
             tool_calls=tool_calls,
             reasoning_content=reasoning_content,
+            signature=signature,
         )
+
+    @staticmethod
+    def _extract_thinking_signature(source: Any) -> str | None:
+        """Best-effort extraction of the Anthropic thinking-block signature.
+
+        LiteLLM normalises Anthropic's native ``thinking`` content block
+        into a few different shapes depending on version and transport:
+
+        * ``message.thinking_blocks = [{"type": "thinking", "thinking":
+          "...", "signature": "..."}, ...]`` — typical non-streaming shape.
+        * ``message.signature`` / ``message.thinking_signature`` — some
+          proxies flatten the field onto the message root.
+        * ``delta.thinking_blocks[*].signature`` — streaming shape.
+
+        Returns the signature string when found, ``None`` otherwise.  The
+        value is opaque and MUST be echoed unchanged on subsequent turns
+        for the Anthropic API to accept the history.
+        """
+        # Flat attributes — check both likely names.
+        for attr in ("signature", "thinking_signature"):
+            val = getattr(source, attr, None)
+            if isinstance(val, str) and val:
+                return val
+        # Dict-style access (LiteLLM sometimes wraps responses in dicts).
+        if isinstance(source, dict):
+            for key in ("signature", "thinking_signature"):
+                val = source.get(key)
+                if isinstance(val, str) and val:
+                    return val
+            blocks = source.get("thinking_blocks")
+        else:
+            blocks = getattr(source, "thinking_blocks", None)
+        # thinking_blocks is typically a list[dict]; walk it and prefer the
+        # last non-empty signature (most recent thinking block).
+        if isinstance(blocks, list):
+            for block in reversed(blocks):
+                sig: Any = None
+                if isinstance(block, dict):
+                    sig = block.get("signature") or block.get("thinking_signature")
+                else:
+                    sig = getattr(block, "signature", None) or getattr(
+                        block,
+                        "thinking_signature",
+                        None,
+                    )
+                if isinstance(sig, str) and sig:
+                    return sig
+        return None
 
     @staticmethod
     def _flush_tool_calls(
@@ -707,7 +813,7 @@ class _ThinkTagStreamParser:
             if stripped.startswith(self._OPEN):
                 self._state = self.THINKING
                 # Drop everything up to and including <think>
-                self._buf = stripped[len(self._OPEN):]
+                self._buf = stripped[len(self._OPEN) :]
                 # Fall through to THINKING
             else:
                 self._state = self.CONTENT
@@ -720,7 +826,7 @@ class _ThinkTagStreamParser:
             close_idx = self._buf.find(self._CLOSE)
             if close_idx != -1:
                 reasoning = self._buf[:close_idx]
-                after = self._buf[close_idx + len(self._CLOSE):]
+                after = self._buf[close_idx + len(self._CLOSE) :]
                 self._buf = ""
                 self._state = self.CONTENT
                 content = after.lstrip("\n") if after.strip() else ""

@@ -31,6 +31,13 @@ class ChatMessage:
     name: str | None = None
     pinned: bool = False
     reasoning_content: str | None = None
+    # Opaque signature string that Anthropic attaches to extended-thinking
+    # blocks.  When a subsequent turn replays a previous assistant message
+    # that used thinking, the signature MUST be returned unchanged — the
+    # Anthropic API rejects thinking blocks whose signature is missing or
+    # mutated.  Captured from the LiteLLM response and persisted to DB so
+    # multi-turn conversations remain valid.
+    signature: str | None = None
 
     # ------------------------------------------------------------------
     # Vision helpers
@@ -53,10 +60,12 @@ class ChatMessage:
         """
         parts: list[dict[str, Any]] = [{"type": "text", "text": text}]
         for url in image_urls:
-            parts.append({
-                "type": "image_url",
-                "image_url": {"url": url},
-            })
+            parts.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": url},
+                }
+            )
         return parts
 
     def to_openai_dict(self) -> dict[str, Any]:
@@ -84,6 +93,15 @@ class ChatMessage:
                 }
                 for tc in self.tool_calls
             ]
+        # Replay thinking block on subsequent turns so Anthropic models
+        # that emit extended-thinking accept the history.  LiteLLM passes
+        # ``reasoning_content`` + ``signature`` through to the provider;
+        # providers that don't understand the fields ignore them (global
+        # ``litellm.drop_params=True`` handles the rest).
+        if self.reasoning_content:
+            d["reasoning_content"] = self.reasoning_content
+        if self.signature:
+            d["signature"] = self.signature
         return d
 
 
@@ -96,6 +114,11 @@ class StreamChunk:
     finish_reason: str | None = None
     tool_calls: list[ToolCallRequest] | None = None
     usage: dict[str, int] | None = None
+    # Opaque signature emitted by Anthropic extended-thinking blocks.
+    # Streamed once (typically when the thinking block closes) — callers
+    # must forward it onto the reconstructed assistant ChatMessage so
+    # multi-turn replay stays valid.
+    signature: str | None = None
 
 
 @dataclass

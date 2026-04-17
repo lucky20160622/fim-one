@@ -139,6 +139,37 @@ def _emit(sse_events: list[dict[str, Any]], event: str, data: Any) -> str:
     return _sse(event, data)
 
 
+def _extract_final_thinking(
+    messages: list[Any] | None,
+) -> dict[str, str] | None:
+    """Return ``{"content", "signature"}`` from the final assistant thinking.
+
+    Walks ``messages`` in reverse and returns the first assistant
+    ``ChatMessage`` whose ``reasoning_content`` or ``signature`` is
+    populated.  Used by the ReAct/DAG endpoints to persist thinking
+    metadata so subsequent turns can replay it — Anthropic rejects
+    thinking blocks whose ``signature`` is missing or altered.
+
+    Returns:
+        A dict with ``content`` / ``signature`` keys (either may be
+        empty string when only one side is present), or ``None`` when
+        no assistant message carries any thinking data.
+    """
+    if not messages:
+        return None
+    for msg in reversed(messages):
+        if getattr(msg, "role", None) != "assistant":
+            continue
+        reasoning = getattr(msg, "reasoning_content", None)
+        signature = getattr(msg, "signature", None)
+        if reasoning or signature:
+            return {
+                "content": reasoning or "",
+                "signature": signature or "",
+            }
+    return None
+
+
 def _chunk_answer(text: str, target_size: int = 30) -> list[str]:
     """Split answer text into word-boundary chunks for streaming effect.
 
@@ -244,7 +275,8 @@ async def _generate_suggestions(
 
         lang_directive = get_language_directive(preferred_language)
         lang_rule = (
-            f"- {lang_directive}\n" if lang_directive
+            f"- {lang_directive}\n"
+            if lang_directive
             else "- Match the language of the original query (e.g. Chinese query -> Chinese questions).\n"
         )
         system_prompt = (
@@ -257,15 +289,14 @@ async def _generate_suggestions(
             f"{lang_rule}"
             "- Return ONLY a JSON array of strings, no other text."
         )
-        user_content = (
-            f"User query: {query}\n\n"
-            f"Assistant answer (truncated): {truncated_answer}"
-        )
+        user_content = f"User query: {query}\n\nAssistant answer (truncated): {truncated_answer}"
 
-        result = await fast_llm.chat([
-            ChatMessage(role="system", content=system_prompt),
-            ChatMessage(role="user", content=user_content),
-        ])
+        result = await fast_llm.chat(
+            [
+                ChatMessage(role="system", content=system_prompt),
+                ChatMessage(role="user", content=user_content),
+            ]
+        )
 
         raw = str(result.message.content or "").strip()
         if usage_tracker and result.usage:
@@ -306,7 +337,8 @@ async def _generate_title(
     try:
         lang_directive = get_language_directive(preferred_language)
         lang_rule = (
-            f"- {lang_directive}\n" if lang_directive
+            f"- {lang_directive}\n"
+            if lang_directive
             else "- Match the language of the user query.\n"
         )
         system_prompt = (
@@ -319,15 +351,14 @@ async def _generate_title(
             f"{lang_rule}"
             "- Return ONLY the title text, nothing else."
         )
-        user_content = (
-            f"User: {query[:500]}\n\n"
-            f"Assistant: {answer[:500]}"
-        )
+        user_content = f"User: {query[:500]}\n\nAssistant: {answer[:500]}"
 
-        result = await fast_llm.chat([
-            ChatMessage(role="system", content=system_prompt),
-            ChatMessage(role="user", content=user_content),
-        ])
+        result = await fast_llm.chat(
+            [
+                ChatMessage(role="system", content=system_prompt),
+                ChatMessage(role="user", content=user_content),
+            ]
+        )
 
         raw = str(result.message.content or "").strip().strip("\"'")
         if usage_tracker and result.usage:
@@ -386,15 +417,16 @@ async def _classify_deliverables(
             artifact_lines.append(f"[{i}] {name} ({mime}, from {tool})")
 
         truncated_answer = answer[:2000]
-        user_content = (
-            f"Agent answer (truncated):\n{truncated_answer}\n\n"
-            f"Artifacts:\n" + "\n".join(artifact_lines)
+        user_content = f"Agent answer (truncated):\n{truncated_answer}\n\nArtifacts:\n" + "\n".join(
+            artifact_lines
         )
 
-        result = await fast_llm.chat([
-            ChatMessage(role="system", content=system_prompt),
-            ChatMessage(role="user", content=user_content),
-        ])
+        result = await fast_llm.chat(
+            [
+                ChatMessage(role="system", content=system_prompt),
+                ChatMessage(role="user", content=user_content),
+            ]
+        )
 
         raw = str(result.message.content or "").strip()
         if usage_tracker and result.usage:
@@ -473,9 +505,7 @@ async def _resolve_user(
         from fim_one.web.models import User
 
         async with create_session() as session:
-            result = await session.execute(
-                sa_select(User).where(User.id == user_id)
-            )
+            result = await session.execute(sa_select(User).where(User.id == user_id))
             user_maybe = result.scalar_one_or_none()
             if user_maybe is None:
                 raise AppError("user_not_found", status_code=401)
@@ -491,9 +521,7 @@ async def _resolve_user(
                 if iat is None:
                     return None, None, None, None
                 token_issued = (
-                    datetime.fromtimestamp(iat, tz=UTC)
-                    if isinstance(iat, (int, float))
-                    else iat
+                    datetime.fromtimestamp(iat, tz=UTC) if isinstance(iat, (int, float)) else iat
                 )
                 if token_issued <= user.tokens_invalidated_at.replace(tzinfo=UTC):
                     return None, None, None, None
@@ -510,7 +538,8 @@ async def _resolve_user(
 
 
 async def _validate_conversation_ownership(
-    conversation_id: str, user_id: str,
+    conversation_id: str,
+    user_id: str,
 ) -> None:
     """Ensure the conversation belongs to *user_id*.  Raises 404 otherwise."""
     from fim_one.db import create_session
@@ -534,9 +563,7 @@ async def _check_token_quota(user_id: str) -> None:
     from fim_one.web.models import Conversation, User
 
     async with create_session() as session:
-        result = await session.execute(
-            sa_select(User.token_quota).where(User.id == user_id)
-        )
+        result = await session.execute(sa_select(User.token_quota).where(User.id == user_id))
         user_quota = result.scalar_one_or_none()
 
         if user_quota is None:
@@ -546,12 +573,9 @@ async def _check_token_quota(user_id: str) -> None:
         if user_quota and user_quota > 0:
             from sqlalchemy import func as _func
 
-            first_of_month = datetime(
-                date.today().year, date.today().month, 1, tzinfo=timezone.utc
-            )
+            first_of_month = datetime(date.today().year, date.today().month, 1, tzinfo=timezone.utc)
             monthly_result = await session.execute(
-                sa_select(_func.coalesce(_func.sum(Conversation.total_tokens), 0))
-                .where(
+                sa_select(_func.coalesce(_func.sum(Conversation.total_tokens), 0)).where(
                     Conversation.user_id == user_id,
                     Conversation.created_at >= first_of_month,
                 )
@@ -597,6 +621,7 @@ async def _resolve_agent_config(
         stmt = sa_select(Agent).where(Agent.id == resolved_id)
         if user_id:
             from fim_one.web.visibility import resolve_visibility as _agent_vis
+
             _vis_filter, _, _ = await _agent_vis(Agent, user_id, "agent", session)
             stmt = stmt.where(_vis_filter)
         agent_result = await session.execute(stmt)
@@ -694,21 +719,29 @@ async def _resolve_model_supports_vision(
     # Model Group fallback: check the active group's general model
     from fim_one.web.models.model_provider import ModelGroup
 
-    group_stmt = sa_select(ModelGroup).where(
-        ModelGroup.is_active == True  # noqa: E712
-    ).limit(1)
+    group_stmt = (
+        sa_select(ModelGroup)
+        .where(
+            ModelGroup.is_active == True  # noqa: E712
+        )
+        .limit(1)
+    )
     group_result = await db.execute(group_stmt)
     group = group_result.scalar_one_or_none()
     if group is not None and group.general_model:
         return bool(group.general_model.supports_vision)
 
     # System default model: check is_default=True system config
-    default_stmt = sa_select(ModelConfigORM.supports_vision).where(
-        ModelConfigORM.user_id == None,  # noqa: E711
-        ModelConfigORM.category == "llm",
-        ModelConfigORM.is_default == True,  # noqa: E712
-        ModelConfigORM.is_active == True,  # noqa: E712
-    ).limit(1)
+    default_stmt = (
+        sa_select(ModelConfigORM.supports_vision)
+        .where(
+            ModelConfigORM.user_id == None,  # noqa: E711
+            ModelConfigORM.category == "llm",
+            ModelConfigORM.is_default == True,  # noqa: E712
+            ModelConfigORM.is_active == True,  # noqa: E712
+        )
+        .limit(1)
+    )
     default_result = await db.execute(default_stmt)
     val = default_result.scalar_one_or_none()
     if val is not None:
@@ -776,9 +809,13 @@ async def _resolve_vision_llm(
     # Step 2/3 — Walk the active ModelGroup. When a group is active,
     # it is the single source of truth — do NOT fall through to ENV
     # below, because the admin has explicitly curated the pool.
-    group_stmt = sa_select(ModelGroup).where(
-        ModelGroup.is_active == True  # noqa: E712
-    ).limit(1)
+    group_stmt = (
+        sa_select(ModelGroup)
+        .where(
+            ModelGroup.is_active == True  # noqa: E712
+        )
+        .limit(1)
+    )
     group_result = await db.execute(group_stmt)
     group = group_result.scalar_one_or_none()
 
@@ -854,9 +891,7 @@ async def _build_markitdown_vision_deps(
     # Handle FallbackLLM: unwrap to primary if it's OpenAI-compatible
     from fim_one.core.model.fallback import FallbackLLM
 
-    if isinstance(llm, FallbackLLM) and isinstance(
-        llm.primary, OpenAICompatibleLLM
-    ):
+    if isinstance(llm, FallbackLLM) and isinstance(llm.primary, OpenAICompatibleLLM):
         logger.debug(
             "Unwrapping FallbackLLM → primary %s for OCR",
             type(llm.primary).__name__,
@@ -956,11 +991,10 @@ async def _resolve_tools(
         try:
             from fim_one.db import create_session as _kb_cs
             from fim_one.web.models.knowledge_base import KnowledgeBase as _KBModel
+
             async with _kb_cs() as _kb_db:
                 _kb_result = await _kb_db.execute(
-                    sa_select(_KBModel.id, _KBModel.user_id).where(
-                        _KBModel.id.in_(kb_ids)
-                    )
+                    sa_select(_KBModel.id, _KBModel.user_id).where(_KBModel.id.in_(kb_ids))
                 )
                 for row in _kb_result.all():
                     kb_owner_map[row[0]] = row[1]
@@ -970,20 +1004,26 @@ async def _resolve_tools(
         if retrieval_mode == "simple":
             from fim_one.core.tool.builtin.kb_retrieve import KBRetrieveTool
 
-            tools.register(KBRetrieveTool(
-                user_id=user_id, kb_ids=kb_ids, kb_owner_map=kb_owner_map,
-            ))
+            tools.register(
+                KBRetrieveTool(
+                    user_id=user_id,
+                    kb_ids=kb_ids,
+                    kb_owner_map=kb_owner_map,
+                )
+            )
         else:
             from fim_one.core.tool.builtin.grounded_retrieve import GroundedRetrieveTool
 
             grounding_config: dict[str, Any] = (agent_cfg or {}).get("grounding_config") or {}
             confidence_threshold = grounding_config.get("confidence_threshold")
-            tools.register(GroundedRetrieveTool(
-                kb_ids=kb_ids,
-                user_id=user_id,
-                kb_owner_map=kb_owner_map,
-                confidence_threshold=confidence_threshold,
-            ))
+            tools.register(
+                GroundedRetrieveTool(
+                    kb_ids=kb_ids,
+                    user_id=user_id,
+                    kb_owner_map=kb_owner_map,
+                    confidence_threshold=confidence_threshold,
+                )
+            )
     elif user_id:
         # No bound KBs — keep basic kb_retrieve with user scope
         from fim_one.core.tool.builtin.kb_retrieve import KBRetrieveTool
@@ -1048,9 +1088,13 @@ async def _resolve_tools(
                 # connectors are accessible, not just owner-owned ones.
                 from fim_one.web.visibility import resolve_visibility as _conn_resolve
 
-                _conn_user_id = (agent_cfg.get("owner_user_id") or user_id) if agent_cfg else user_id
+                _conn_user_id = (
+                    (agent_cfg.get("owner_user_id") or user_id) if agent_cfg else user_id
+                )
                 if _conn_user_id:
-                    _conn_vis, _, _ = await _conn_resolve(ConnectorModel, _conn_user_id, "connector", session)
+                    _conn_vis, _, _ = await _conn_resolve(
+                        ConnectorModel, _conn_user_id, "connector", session
+                    )
                 else:
                     _conn_vis = ConnectorModel.user_id == user_id
 
@@ -1083,34 +1127,36 @@ async def _resolve_tools(
                         config = decrypt_db_config(conn.db_config)
                         # Build schema_tables list from ORM
                         schema_tables = []
-                        for schema_obj in (conn.database_schemas or []):
+                        for schema_obj in conn.database_schemas or []:
                             if not schema_obj.is_visible:
                                 continue
                             cols = []
-                            for col in (schema_obj.columns or []):
+                            for col in schema_obj.columns or []:
                                 if not col.is_visible:
                                     continue
-                                cols.append({
-                                    "column_name": col.column_name,
-                                    "data_type": col.data_type,
-                                    "is_nullable": col.is_nullable,
-                                    "is_primary_key": col.is_primary_key,
-                                    "display_name": col.display_name,
-                                    "description": col.description,
-                                })
-                            schema_tables.append({
-                                "table_name": schema_obj.table_name,
-                                "display_name": schema_obj.display_name,
-                                "description": schema_obj.description,
-                                "column_count": len(cols),
-                                "columns": cols,
-                            })
+                                cols.append(
+                                    {
+                                        "column_name": col.column_name,
+                                        "data_type": col.data_type,
+                                        "is_nullable": col.is_nullable,
+                                        "is_primary_key": col.is_primary_key,
+                                        "display_name": col.display_name,
+                                        "description": col.description,
+                                    }
+                                )
+                            schema_tables.append(
+                                {
+                                    "table_name": schema_obj.table_name,
+                                    "display_name": schema_obj.display_name,
+                                    "description": schema_obj.description,
+                                    "column_count": len(cols),
+                                    "columns": cols,
+                                }
+                            )
 
                         if _database_tool_mode == "progressive":
                             # Collect for batch meta-tool creation
-                            db_connectors_collected.append(
-                                (conn, config, schema_tables)
-                            )
+                            db_connectors_collected.append((conn, config, schema_tables))
                         else:
                             # Legacy mode — three tools per DB
                             from fim_one.core.tool.connector.database.adapter import (
@@ -1160,14 +1206,16 @@ async def _resolve_tools(
                             )
                             _default_cred_row = _default_cred_result.scalar_one_or_none()
                             if _default_cred_row:
-                                resolved_creds = decrypt_credential(_default_cred_row.credentials_blob)
+                                resolved_creds = decrypt_credential(
+                                    _default_cred_row.credentials_blob
+                                )
 
                         if _connector_tool_mode == "progressive":
                             # Collect for batch meta-tool creation
                             api_connectors.append((conn, resolved_creds))
                         else:
                             # Legacy mode — one tool per action
-                            for action in (conn.actions or []):
+                            for action in conn.actions or []:
                                 adapter = ConnectorToolAdapter(
                                     connector_name=conn.name,
                                     connector_base_url=conn.base_url or "",
@@ -1198,9 +1246,7 @@ async def _resolve_tools(
                         on_call_complete=_log_connector_call,
                     )
                     tools.register(meta_tool)
-                    total_actions = sum(
-                        len(conn.actions or []) for conn, _ in api_connectors
-                    )
+                    total_actions = sum(len(conn.actions or []) for conn, _ in api_connectors)
                     logger.info(
                         "Loaded ConnectorMetaTool (progressive): %d connectors, "
                         "%d actions consolidated into 1 tool",
@@ -1229,9 +1275,7 @@ async def _resolve_tools(
                         on_call_complete=_log_connector_call,
                     )
                     tools.register(db_meta_tool)
-                    total_tables = sum(
-                        len(st) for _, _, st in db_connectors_collected
-                    )
+                    total_tables = sum(len(st) for _, _, st in db_connectors_collected)
                     logger.info(
                         "Loaded DatabaseMetaTool (progressive): %d databases, "
                         "%d tables consolidated into 1 tool",
@@ -1279,9 +1323,7 @@ async def _resolve_tools(
 
             if _ad_connectors:
                 # API connectors — use progressive mode (single meta-tool)
-                _ad_api_connectors = [
-                    c for c in _ad_connectors if c.type != "database"
-                ]
+                _ad_api_connectors = [c for c in _ad_connectors if c.type != "database"]
                 if _ad_api_connectors:
                     meta_tool = build_connector_meta_tool(_ad_api_connectors)
                     tools.register(meta_tool)
@@ -1297,31 +1339,33 @@ async def _resolve_tools(
                         try:
                             config = decrypt_db_config(_ad_db_conn.db_config)
                             schema_tables = []
-                            for schema_obj in (_ad_db_conn.database_schemas or []):
+                            for schema_obj in _ad_db_conn.database_schemas or []:
                                 if not schema_obj.is_visible:
                                     continue
                                 cols = []
-                                for col in (schema_obj.columns or []):
+                                for col in schema_obj.columns or []:
                                     if not col.is_visible:
                                         continue
-                                    cols.append({
-                                        "column_name": col.column_name,
-                                        "data_type": col.data_type,
-                                        "is_nullable": col.is_nullable,
-                                        "is_primary_key": col.is_primary_key,
-                                        "display_name": col.display_name,
-                                        "description": col.description,
-                                    })
-                                schema_tables.append({
-                                    "table_name": schema_obj.table_name,
-                                    "display_name": schema_obj.display_name,
-                                    "description": schema_obj.description,
-                                    "column_count": len(cols),
-                                    "columns": cols,
-                                })
-                            _ad_db_collected.append(
-                                (_ad_db_conn, config, schema_tables)
-                            )
+                                    cols.append(
+                                        {
+                                            "column_name": col.column_name,
+                                            "data_type": col.data_type,
+                                            "is_nullable": col.is_nullable,
+                                            "is_primary_key": col.is_primary_key,
+                                            "display_name": col.display_name,
+                                            "description": col.description,
+                                        }
+                                    )
+                                schema_tables.append(
+                                    {
+                                        "table_name": schema_obj.table_name,
+                                        "display_name": schema_obj.display_name,
+                                        "description": schema_obj.description,
+                                        "column_count": len(cols),
+                                        "columns": cols,
+                                    }
+                                )
+                            _ad_db_collected.append((_ad_db_conn, config, schema_tables))
                         except Exception:
                             logger.warning(
                                 "Failed to load DB connector tools: %s",
@@ -1358,12 +1402,14 @@ async def _resolve_tools(
     if user_id:
         from fim_one.core.tool.builtin.list_uploaded_files import ListUploadedFilesTool
         from fim_one.core.tool.builtin.read_uploaded_file import ReadUploadedFileTool
+
         tools.register(ListUploadedFilesTool(user_id=user_id))
         tools.register(ReadUploadedFileTool(user_id=user_id))
 
     # Inject Connector Builder tools when this is a Builder Agent.
     if agent_cfg and "builder" in (agent_cfg.get("tool_categories") or []):
         import re as _re
+
         _instructions = agent_cfg.get("instructions") or ""
         _m = _re.search(r"connector_id=([a-f0-9-]{36})", _instructions)
         if _m:
@@ -1379,6 +1425,7 @@ async def _resolve_tools(
                 ConnectorTestConnectionTool,
                 ConnectorImportOpenAPITool,
             )
+
             for _BCls in [
                 ConnectorListActionsTool,
                 ConnectorCreateActionTool,
@@ -1391,13 +1438,12 @@ async def _resolve_tools(
                 ConnectorImportOpenAPITool,
             ]:
                 tools.register(_BCls(connector_id=_builder_cid, user_id=user_id or ""))  # type: ignore[abstract]
-            logger.info(
-                "Injected connector builder tools for connector_id=%s", _builder_cid
-            )
+            logger.info("Injected connector builder tools for connector_id=%s", _builder_cid)
 
     # Inject Agent Builder tools when this is an Agent Builder Agent.
     if agent_cfg and "agent_builder" in (agent_cfg.get("tool_categories") or []):
         import re as _re2
+
         _instructions2 = agent_cfg.get("instructions") or ""
         _m2 = _re2.search(r"target_agent_id=([a-f0-9-]{36})", _instructions2)
         if _m2:
@@ -1410,6 +1456,7 @@ async def _resolve_tools(
                 AgentRemoveConnectorTool,
                 AgentSetModelTool,
             )
+
             for _BCls2 in [
                 AgentGetSettingsTool,
                 AgentUpdateSettingsTool,
@@ -1419,13 +1466,12 @@ async def _resolve_tools(
                 AgentSetModelTool,
             ]:
                 tools.register(_BCls2(agent_id=_builder_aid, user_id=user_id or ""))  # type: ignore[abstract]
-            logger.info(
-                "Injected agent builder tools for agent_id=%s", _builder_aid
-            )
+            logger.info("Injected agent builder tools for agent_id=%s", _builder_aid)
 
     # Inject DB Builder tools when this is a DB Builder Agent.
     if agent_cfg and "db_builder" in (agent_cfg.get("tool_categories") or []):
         import re as _re3
+
         _instructions3 = agent_cfg.get("instructions") or ""
         _m3 = _re3.search(r"connector_id=([a-f0-9-]{36})", _instructions3)
         if _m3:
@@ -1442,6 +1488,7 @@ async def _resolve_tools(
                 DbBatchSetVisibilityTool,
                 DbRunSampleQueryTool,
             )
+
             for _BCls3 in [
                 DbGetConnectorSettingsTool,
                 DbUpdateConnectorSettingsTool,
@@ -1463,9 +1510,11 @@ async def _resolve_tools(
         from fim_one.web.api.admin_utils import get_setting as _get_setting
 
         from fim_one.web.api.admin import SETTING_DISABLED_BUILTIN_TOOLS as _SDBT
+
         async with _cs_disabled() as _disabled_db:
             _disabled_raw = await _get_setting(_disabled_db, _SDBT, default="[]")
         import json as _json
+
         _disabled_names = _json.loads(_disabled_raw)
         if isinstance(_disabled_names, list) and _disabled_names:
             tools = tools.exclude_by_name(*_disabled_names)
@@ -1531,9 +1580,7 @@ async def _resolve_tools(
             from fim_one.web.visibility import resolve_visibility as _rv_agents
 
             async with _cs_agents() as _cat_db:
-                _cat_vis, _, _ = await _rv_agents(
-                    AgentModel, user_id, "agent", _cat_db
-                )
+                _cat_vis, _, _ = await _rv_agents(AgentModel, user_id, "agent", _cat_db)
                 _cat_result = await _cat_db.execute(
                     sa_select(AgentModel).where(
                         _cat_vis,
@@ -1565,15 +1612,14 @@ async def _resolve_tools(
                 async def _sub_agent_tool_resolver(
                     sub_cfg: dict[str, Any], conv_id: str | None
                 ) -> Any:
-                    return await _resolve_tools(
-                        sub_cfg, conv_id, user_id=user_id
-                    )
+                    return await _resolve_tools(sub_cfg, conv_id, user_id=user_id)
 
                 async def _sub_agent_llm_resolver(
                     sub_cfg: dict[str, Any],
                 ) -> Any:
                     """Resolve LLM for a sub-agent with full DB-backed 3-tier fallback."""
                     from fim_one.db import create_session as _cs_llm
+
                     async with _cs_llm() as _llm_db:
                         return await _resolve_llm(sub_cfg, _llm_db)
 
@@ -1608,6 +1654,7 @@ async def _connect_pending_mcp_servers(
     and ``call`` subcommands instead of registering each tool individually.
     """
     import json as _json_mod
+
     pending = getattr(tools, "_pending_mcp_servers", None)
     if not pending:
         return None
@@ -1635,7 +1682,9 @@ async def _connect_pending_mcp_servers(
             if _mcp_user_id:
                 try:
                     from fim_one.db import create_session as _cs_cred
-                    from fim_one.web.models.mcp_server_credential import MCPServerCredential as _MCPCred
+                    from fim_one.web.models.mcp_server_credential import (
+                        MCPServerCredential as _MCPCred,
+                    )
                     from sqlalchemy import select as _sa_select
 
                     async with _cs_cred() as _cred_db:
@@ -1650,9 +1699,7 @@ async def _connect_pending_mcp_servers(
                     if _cred and _cred.env_blob:
                         _effective_env = _cred.env_blob
                         _effective_headers = (
-                            _cred.headers_blob
-                            if _cred.headers_blob
-                            else _srv.headers
+                            _cred.headers_blob if _cred.headers_blob else _srv.headers
                         )
                     elif not getattr(_srv, "allow_fallback", True) and _srv.user_id != _mcp_user_id:
                         # allow_fallback=False and non-owner has no credential — skip
@@ -1719,8 +1766,7 @@ async def _connect_pending_mcp_servers(
         tools.register(meta_tool)
         total_tools = sum(len(adapters) for adapters in _servers_adapters.values())
         logger.info(
-            "Loaded MCPServerMetaTool (progressive): %d servers, "
-            "%d tools consolidated into 1 tool",
+            "Loaded MCPServerMetaTool (progressive): %d servers, %d tools consolidated into 1 tool",
             len(_servers_adapters),
             total_tools,
         )
@@ -1741,10 +1787,7 @@ async def _connect_pending_mcp_servers(
 def _get_retrieval_mode(agent_cfg: dict[str, Any] | None) -> str:
     """Resolve retrieval mode: agent grounding_config > RETRIEVAL_MODE env > 'grounding'."""
     grounding_config = (agent_cfg.get("grounding_config") or {}) if agent_cfg else {}
-    return (
-        grounding_config.get("retrieval_mode")
-        or os.environ.get("RETRIEVAL_MODE", "grounding")
-    )
+    return grounding_config.get("retrieval_mode") or os.environ.get("RETRIEVAL_MODE", "grounding")
 
 
 def _kb_system_hint(agent_cfg: dict[str, Any]) -> str:
@@ -1782,7 +1825,8 @@ async def _resolve_skill_stubs(skill_ids: list[str]) -> str:
         async with create_session() as session:
             result = await session.execute(
                 sa_select(Skill.name, Skill.description).where(
-                    Skill.id.in_(skill_ids), Skill.is_active == True  # noqa: E712
+                    Skill.id.in_(skill_ids),
+                    Skill.is_active == True,  # noqa: E712
                 )
             )
             rows = result.all()
@@ -1794,7 +1838,7 @@ async def _resolve_skill_stubs(skill_ids: list[str]) -> str:
         ]
         for name, desc in rows:
             if desc and len(desc) > _SKILL_STUB_DESC_LEN:
-                desc = desc[:_SKILL_STUB_DESC_LEN - 3] + "..."
+                desc = desc[: _SKILL_STUB_DESC_LEN - 3] + "..."
             stub = f"- **{name}**" + (f": {desc}" if desc else "")
             lines.append(stub)
         return "\n".join(lines)
@@ -1817,10 +1861,7 @@ async def _resolve_skill_descriptors(
                     Skill.is_active == True,  # noqa: E712
                 )
             )
-            return [
-                {"name": name, "description": desc or ""}
-                for name, desc in result.all()
-            ]
+            return [{"name": name, "description": desc or ""} for name, desc in result.all()]
     except Exception:
         logger.warning("Failed to resolve skill descriptors", exc_info=True)
         return []
@@ -1834,9 +1875,7 @@ async def _resolve_user_skill_ids(user_id: str) -> list[str]:
 
     try:
         async with create_session() as session:
-            vis_filter, _, _ = await resolve_visibility(
-                Skill, user_id, "skill", session
-            )
+            vis_filter, _, _ = await resolve_visibility(Skill, user_id, "skill", session)
             result = await session.execute(
                 sa_select(Skill.id).where(
                     vis_filter,
@@ -1878,7 +1917,8 @@ async def _resolve_skill_inline(skill_ids: list[str]) -> str:
         async with create_session() as session:
             result = await session.execute(
                 sa_select(Skill).where(
-                    Skill.id.in_(skill_ids), Skill.is_active == True  # noqa: E712
+                    Skill.id.in_(skill_ids),
+                    Skill.is_active == True,  # noqa: E712
                 )
             )
             skills = result.scalars().all()
@@ -1905,7 +1945,8 @@ async def _resolve_skill_inline(skill_ids: list[str]) -> str:
 
 
 async def _load_image_data_urls(
-    image_ids: str, user_id: str | None,
+    image_ids: str,
+    user_id: str | None,
 ) -> list[tuple[str, str, str]]:
     """Load images from disk and return list of ``(file_id, filename, data_url)``.
 
@@ -1945,8 +1986,13 @@ async def _load_image_data_urls(
 
 
 _VISION_ERROR_KEYWORDS = (
-    "image", "vision", "image_url", "content_type",
-    "multimodal", "not supported", "invalid content",
+    "image",
+    "vision",
+    "image_url",
+    "content_type",
+    "multimodal",
+    "not supported",
+    "invalid content",
 )
 
 
@@ -2029,13 +2075,9 @@ async def _load_document_vision_urls(
                     b64 = base64.b64encode(img_bytes).decode("ascii")
                     all_page_urls.append(f"data:{mime};base64,{b64}")
             except ImportError:
-                logger.warning(
-                    "PyMuPDF not installed, cannot extract PDF images"
-                )
+                logger.warning("PyMuPDF not installed, cannot extract PDF images")
             except Exception:
-                logger.warning(
-                    "PDF smart image extraction failed", exc_info=True
-                )
+                logger.warning("PDF smart image extraction failed", exc_info=True)
         else:
             # DOCX/PPTX: extract embedded images
             _, image_bytes_list = await DocumentProcessor.extract_with_images(file_path)
@@ -2068,6 +2110,7 @@ async def issue_sse_ticket(
     field in the JSON body of ``POST /api/react`` or ``POST /api/dag``.
     """
     from fim_one.web.auth import create_sse_ticket
+
     return {"ticket": create_sse_ticket(str(current_user.id))}
 
 
@@ -2227,7 +2270,12 @@ async def react_endpoint(
         )
 
     # -- Pre-stream resolution (before StreamingResponse) -------------------
-    current_user_id, user_system_instructions, preferred_language, user_timezone = await _resolve_user(token)
+    (
+        current_user_id,
+        user_system_instructions,
+        preferred_language,
+        user_timezone,
+    ) = await _resolve_user(token)
     if current_user_id is None:
         raise AppError("authentication_required", status_code=401)
 
@@ -2246,12 +2294,15 @@ async def react_endpoint(
     _parallel_tasks: list[Any] = [_check_token_quota(current_user_id)]
     if conversation_id:
         _parallel_tasks.append(_validate_conversation_ownership(conversation_id, current_user_id))
-    _parallel_tasks.append(_resolve_agent_config(agent_id, conversation_id, user_id=current_user_id))
+    _parallel_tasks.append(
+        _resolve_agent_config(agent_id, conversation_id, user_id=current_user_id)
+    )
     _parallel_results = await asyncio.gather(*_parallel_tasks)
     # _resolve_agent_config is always the last task appended
     agent_cfg = _parallel_results[-1]
 
     from fim_one.db import create_session as _create_session
+
     try:
         async with _create_session() as _llm_db:
             llm, fast_llm, _context_budget, model_supports_vision = await asyncio.gather(
@@ -2276,6 +2327,7 @@ async def react_endpoint(
     # Both are independent: _resolve_tools hits DB/registry, classify_domain
     # calls the fast LLM.  Running concurrently saves ~1 RTT.
     from fim_one.core.planner.domain import classify_domain
+
     tools, _react_domain_hint = await asyncio.gather(
         _resolve_tools(agent_cfg, conversation_id, user_id=current_user_id),
         classify_domain(q, fast_llm),
@@ -2338,14 +2390,14 @@ async def react_endpoint(
         # analysis.  Opus-class reasoning models have significantly higher
         # factual accuracy for domain-specific content.
         from fim_one.web.deps import get_model_registry_with_group
+
         try:
             async with _create_session() as _esc_db:
                 _esc_registry = await get_model_registry_with_group(_esc_db)
             _reasoning_llm = _esc_registry.get_by_role("reasoning")
             if _reasoning_llm is not llm:
                 logger.info(
-                    "Domain escalation: upgrading ReAct model from %s to %s "
-                    "for %s-domain task",
+                    "Domain escalation: upgrading ReAct model from %s to %s for %s-domain task",
                     getattr(llm, "model_id", "unknown"),
                     getattr(_reasoning_llm, "model_id", "unknown"),
                     _react_domain_hint,
@@ -2394,14 +2446,11 @@ async def react_endpoint(
                 continue
             _meta = _attach_index.get(_fid)
             if _meta:
-                unhandled.append(
-                    f"  - {_meta.get('filename', 'unknown')} (file_id: {_fid})"
-                )
+                unhandled.append(f"  - {_meta.get('filename', 'unknown')} (file_id: {_fid})")
         if unhandled:
             q += (
                 "\n\n[Attached files — use these file_ids with "
-                "read_uploaded_file to access content:\n"
-                + "\n".join(unhandled) + "]"
+                "read_uploaded_file to access content:\n" + "\n".join(unhandled) + "]"
             )
 
     async def generate() -> AsyncGenerator[str, None]:  # noqa: C901
@@ -2454,12 +2503,14 @@ async def react_endpoint(
                         if _dmeta:
                             _dname = str(_dmeta.get("filename", ""))
                             if Path(_dname).suffix.lower() in _DOC_EXTS:
-                                all_images.append({
-                                    "file_id": _dfid,
-                                    "filename": _dname,
-                                    "mime_type": str(_dmeta.get("mime_type", "")),
-                                    "source": "document",
-                                })
+                                all_images.append(
+                                    {
+                                        "file_id": _dfid,
+                                        "filename": _dname,
+                                        "mime_type": str(_dmeta.get("mime_type", "")),
+                                        "source": "document",
+                                    }
+                                )
                 if all_images:
                     final_metadata["images"] = all_images
                 if extra_meta:
@@ -2549,11 +2600,13 @@ async def react_endpoint(
                 current_iteration = iteration
                 # Iteration 1 already emitted as the initial event above.
                 if iteration > 1:
-                    _emit_step({
-                        "type": "thinking",
-                        "status": "start",
-                        "iteration": iteration,
-                    })
+                    _emit_step(
+                        {
+                            "type": "thinking",
+                            "status": "start",
+                            "iteration": iteration,
+                        }
+                    )
                 return
 
             # -- Tool call lifecycle --
@@ -2563,24 +2616,28 @@ async def react_endpoint(
                 if is_starting:
                     # Emit thinking done (once per iteration, before first tool)
                     if thinking_done_iter < iteration:
-                        _emit_step({
-                            "type": "thinking",
-                            "status": "done",
-                            "iteration": iteration,
-                            "reasoning": action.reasoning,
-                        })
+                        _emit_step(
+                            {
+                                "type": "thinking",
+                                "status": "done",
+                                "iteration": iteration,
+                                "reasoning": action.reasoning,
+                            }
+                        )
                         thinking_done_iter = iteration
 
                     # Emit iteration start
                     iter_start = time.time()
-                    _emit_step({
-                        "type": "iteration",
-                        "status": "start",
-                        "iteration": iteration,
-                        "tool_name": action.tool_name,
-                        "tool_args": action.tool_args,
-                        "reasoning": action.reasoning,
-                    })
+                    _emit_step(
+                        {
+                            "type": "iteration",
+                            "status": "start",
+                            "iteration": iteration,
+                            "tool_name": action.tool_name,
+                            "tool_args": action.tool_args,
+                            "reasoning": action.reasoning,
+                        }
+                    )
                 else:
                     # Emit iteration done
                     iter_elapsed = round(time.time() - iter_start, 2)
@@ -2599,27 +2656,33 @@ async def react_endpoint(
                         if getattr(step_result, "content_type", None):
                             payload["content_type"] = step_result.content_type
                         if getattr(step_result, "artifacts", None):
-                            payload["artifacts"] = [
-                                {
-                                    "name": a["name"],
-                                    "url": f"/api/conversations/{conversation_id}/artifacts/{a['path'].split('/')[-1].split('_', 1)[0]}",
-                                    "mime_type": a["mime_type"],
-                                    "size": a["size"],
-                                }
-                                for a in step_result.artifacts
-                            ] if conversation_id else step_result.artifacts
+                            payload["artifacts"] = (
+                                [
+                                    {
+                                        "name": a["name"],
+                                        "url": f"/api/conversations/{conversation_id}/artifacts/{a['path'].split('/')[-1].split('_', 1)[0]}",
+                                        "mime_type": a["mime_type"],
+                                        "size": a["size"],
+                                    }
+                                    for a in step_result.artifacts
+                                ]
+                                if conversation_id
+                                else step_result.artifacts
+                            )
                     _emit_step(payload)
                 return
 
             # -- Final answer --
             if action.type == "final_answer":
                 if thinking_done_iter < iteration:
-                    _emit_step({
-                        "type": "thinking",
-                        "status": "done",
-                        "iteration": iteration,
-                        "reasoning": action.reasoning,
-                    })
+                    _emit_step(
+                        {
+                            "type": "thinking",
+                            "status": "done",
+                            "iteration": iteration,
+                            "reasoning": action.reasoning,
+                        }
+                    )
                     thinking_done_iter = iteration
 
                 iter_start = time.time()
@@ -2632,6 +2695,7 @@ async def react_endpoint(
             memory = None
             if conversation_id:
                 from fim_one.core.memory import DbMemory
+
                 memory = DbMemory(
                     conversation_id=conversation_id,
                     max_tokens=_context_budget,
@@ -2648,6 +2712,7 @@ async def react_endpoint(
 
             # Inject fast usage tracker into grounded retrieve tool
             from fim_one.core.tool.builtin.grounded_retrieve import GroundedRetrieveTool
+
             for tool in tools._tools.values():
                 if isinstance(tool, GroundedRetrieveTool):
                     tool.set_usage_tracker(fast_usage_tracker)
@@ -2687,7 +2752,9 @@ async def react_endpoint(
                 nonlocal image_urls
                 try:
                     return await agent.run(
-                        q, on_iteration=on_iteration, image_urls=image_urls,
+                        q,
+                        on_iteration=on_iteration,
+                        image_urls=image_urls,
                         interrupt_queue=interrupt_queue,
                         on_thinking_delta=on_thinking_delta,
                     )
@@ -2697,7 +2764,8 @@ async def react_endpoint(
                     if doc_vision_urls and _is_vision_error(exc):
                         logger.warning(
                             "Vision content rejected by model, retrying without "
-                            "document page images: %s", exc,
+                            "document page images: %s",
+                            exc,
                         )
                         # Keep user-uploaded images, only remove doc pages
                         if image_data and model_supports_vision:
@@ -2705,7 +2773,9 @@ async def react_endpoint(
                         else:
                             image_urls = None
                         return await agent.run(
-                            q, on_iteration=on_iteration, image_urls=image_urls,
+                            q,
+                            on_iteration=on_iteration,
+                            image_urls=image_urls,
                             interrupt_queue=interrupt_queue,
                             on_thinking_delta=on_thinking_delta,
                         )
@@ -2764,11 +2834,14 @@ async def react_endpoint(
             answer_chunks: list[str] = []
             try:
                 async for _token in agent.stream_answer(
-                    q, result, language_directive=lang_directive,
+                    q,
+                    result,
+                    language_directive=lang_directive,
                 ):
                     answer_chunks.append(_token)
                     yield _emit(
-                        sse_events, "answer",
+                        sse_events,
+                        "answer",
                         {"status": "delta", "content": _token},
                     )
                 answer = "".join(answer_chunks)
@@ -2780,7 +2853,8 @@ async def react_endpoint(
                 answer = result.answer
                 for _ans_chunk in _chunk_answer(answer):
                     yield _emit(
-                        sse_events, "answer",
+                        sse_events,
+                        "answer",
                         {"status": "delta", "content": _ans_chunk},
                     )
             yield _emit(sse_events, "answer", {"status": "done"})
@@ -2792,15 +2866,19 @@ async def react_endpoint(
                     step_data = evt["data"]
                     if step_data.get("status") == "done" and step_data.get("artifacts"):
                         for a in step_data["artifacts"]:
-                            all_artifacts_with_context.append({
-                                **a,
-                                "tool_name": step_data.get("tool_name", ""),
-                            })
+                            all_artifacts_with_context.append(
+                                {
+                                    **a,
+                                    "tool_name": step_data.get("tool_name", ""),
+                                }
+                            )
 
             deliverables: list[dict[str, Any]] = []
             if all_artifacts_with_context and fast_llm:
                 deliverables = await _classify_deliverables(
-                    fast_llm, answer, all_artifacts_with_context,
+                    fast_llm,
+                    answer,
+                    all_artifacts_with_context,
                     usage_tracker=fast_usage_tracker,
                 )
 
@@ -2815,8 +2893,7 @@ async def react_endpoint(
             if deliverables:
                 # Strip tool_name from deliverable dicts before sending to client
                 done_payload["deliverables"] = [
-                    {k: v for k, v in d.items() if k != "tool_name"}
-                    for d in deliverables
+                    {k: v for k, v in d.items() if k != "tool_name"} for d in deliverables
                 ]
             if result.usage is not None:
                 done_payload["usage"] = {
@@ -2837,6 +2914,7 @@ async def react_endpoint(
             # message to avoid holding a connection during LLM execution.
             if conversation_id:
                 from fim_one.db import create_session
+
                 db_session = create_session()
 
             # -- Persist assistant message BEFORE yielding done -----------
@@ -2847,32 +2925,35 @@ async def react_endpoint(
                         Message as MessageModel,
                     )
 
+                    react_thinking = _extract_final_thinking(result.messages)
+                    react_metadata: dict[str, Any] = {
+                        **done_payload,
+                        "sse_events": sse_events,
+                        "mode": "react",
+                    }
+                    if react_thinking is not None:
+                        react_metadata["thinking"] = react_thinking
                     assistant_msg = MessageModel(
                         conversation_id=conversation_id,
                         role="assistant",
                         content=answer,
                         message_type="done",
-                        metadata_={**done_payload, "sse_events": sse_events, "mode": "react"},
+                        metadata_=react_metadata,
                     )
                     db_session.add(assistant_msg)
                     if "usage" in done_payload:
-                        stmt = sa_select(Conversation).where(
-                            Conversation.id == conversation_id
-                        )
-                        conv = (
-                            await db_session.execute(stmt)
-                        ).scalar_one_or_none()
+                        stmt = sa_select(Conversation).where(Conversation.id == conversation_id)
+                        conv = (await db_session.execute(stmt)).scalar_one_or_none()
                         if conv:
-                            conv.total_tokens = (
-                                conv.total_tokens or 0
-                            ) + done_payload["usage"].get("total_tokens", 0)
+                            conv.total_tokens = (conv.total_tokens or 0) + done_payload[
+                                "usage"
+                            ].get("total_tokens", 0)
                             if conv.model_name is None and llm.model_id:
                                 conv.model_name = llm.model_id
                     await db_session.commit()
                 except Exception:
                     logger.warning(
-                        "Failed to persist assistant message for "
-                        "conversation %s",
+                        "Failed to persist assistant message for conversation %s",
                         conversation_id,
                         exc_info=True,
                     )
@@ -2906,6 +2987,7 @@ async def react_endpoint(
             async def _react_post_processing() -> None:
                 """Background task for suggestions, title, and fast-LLM token tracking."""
                 from fim_one.db import create_session as _bg_create_session
+
                 _bg_db: AsyncSession | None = None
                 try:
                     _bg_usage_tracker = UsageTracker()
@@ -2919,6 +3001,7 @@ async def react_endpoint(
                                 Conversation,
                                 Message as _MsgModel,
                             )
+
                             async with _bg_create_session() as _cnt_db:
                                 msg_count = (
                                     await _cnt_db.execute(
@@ -2929,7 +3012,9 @@ async def react_endpoint(
                                 ).scalar() or 0
                             if msg_count <= 2:
                                 return await _generate_title(
-                                    _bg_fast_llm, _bg_query, _bg_answer,
+                                    _bg_fast_llm,
+                                    _bg_query,
+                                    _bg_answer,
                                     preferred_language=_bg_preferred_language,
                                     usage_tracker=_bg_usage_tracker,
                                 )
@@ -2939,7 +3024,9 @@ async def react_endpoint(
 
                     suggestions, gen_title = await asyncio.gather(
                         _generate_suggestions(
-                            _bg_fast_llm, _bg_query, _bg_answer,
+                            _bg_fast_llm,
+                            _bg_query,
+                            _bg_answer,
                             preferred_language=_bg_preferred_language,
                             usage_tracker=_bg_usage_tracker,
                         ),
@@ -2953,6 +3040,7 @@ async def react_endpoint(
                     if suggestions:
                         try:
                             from fim_one.web.models import Message as _MsgModel
+
                             # Store suggestions in the most recent assistant message's metadata
                             _last_msg_stmt = (
                                 sa_select(_MsgModel)
@@ -2975,6 +3063,7 @@ async def react_endpoint(
                         try:
                             from sqlalchemy import update as _sa_update
                             from fim_one.web.models import Conversation
+
                             await _bg_db.execute(
                                 _sa_update(Conversation)
                                 .where(Conversation.id == _bg_conversation_id)
@@ -2990,12 +3079,17 @@ async def react_endpoint(
                         try:
                             from sqlalchemy import update as _sa_update, func as _sa_func
                             from fim_one.web.models import Conversation
+
                             await _bg_db.execute(
                                 _sa_update(Conversation)
                                 .where(Conversation.id == _bg_conversation_id)
                                 .values(
-                                    total_tokens=_sa_func.coalesce(Conversation.total_tokens, 0) + bg_fast_summary.total_tokens,
-                                    fast_llm_tokens=_sa_func.coalesce(Conversation.fast_llm_tokens, 0) + bg_fast_summary.total_tokens,
+                                    total_tokens=_sa_func.coalesce(Conversation.total_tokens, 0)
+                                    + bg_fast_summary.total_tokens,
+                                    fast_llm_tokens=_sa_func.coalesce(
+                                        Conversation.fast_llm_tokens, 0
+                                    )
+                                    + bg_fast_summary.total_tokens,
                                 )
                             )
                             await _bg_db.commit()
@@ -3066,7 +3160,12 @@ async def dag_endpoint(
     dag_doc_mode = body.doc_mode
 
     # -- Pre-stream resolution ----------------------------------------------
-    current_user_id, user_system_instructions, preferred_language, user_timezone = await _resolve_user(token)
+    (
+        current_user_id,
+        user_system_instructions,
+        preferred_language,
+        user_timezone,
+    ) = await _resolve_user(token)
     if current_user_id is None:
         raise AppError("authentication_required", status_code=401)
 
@@ -3081,23 +3180,32 @@ async def dag_endpoint(
     # Run independent validations and agent config resolution in parallel
     _parallel_tasks_dag: list[Any] = [_check_token_quota(current_user_id)]
     if conversation_id:
-        _parallel_tasks_dag.append(_validate_conversation_ownership(conversation_id, current_user_id))
-    _parallel_tasks_dag.append(_resolve_agent_config(agent_id, conversation_id, user_id=current_user_id))
+        _parallel_tasks_dag.append(
+            _validate_conversation_ownership(conversation_id, current_user_id)
+        )
+    _parallel_tasks_dag.append(
+        _resolve_agent_config(agent_id, conversation_id, user_id=current_user_id)
+    )
     _parallel_results_dag = await asyncio.gather(*_parallel_tasks_dag)
     # _resolve_agent_config is always the last task appended
     agent_cfg = _parallel_results_dag[-1]
 
     from fim_one.db import create_session as _create_session
+
     try:
         async with _create_session() as _llm_db:
-            llm, fast_llm, _fast_context_budget, _context_budget, dag_model_supports_vision = (
-                await asyncio.gather(
-                    _resolve_llm(agent_cfg, _llm_db),
-                    _resolve_fast_llm(agent_cfg, _llm_db),
-                    get_effective_fast_context_budget(_llm_db),
-                    get_effective_context_budget(_llm_db),
-                    _resolve_model_supports_vision(agent_cfg, _llm_db),
-                )
+            (
+                llm,
+                fast_llm,
+                _fast_context_budget,
+                _context_budget,
+                dag_model_supports_vision,
+            ) = await asyncio.gather(
+                _resolve_llm(agent_cfg, _llm_db),
+                _resolve_fast_llm(agent_cfg, _llm_db),
+                get_effective_fast_context_budget(_llm_db),
+                get_effective_context_budget(_llm_db),
+                _resolve_model_supports_vision(agent_cfg, _llm_db),
             )
     except ValueError as exc:
         raise AppError(
@@ -3213,12 +3321,14 @@ async def dag_endpoint(
                         if _dag_meta:
                             _dag_name = str(_dag_meta.get("filename", ""))
                             if Path(_dag_name).suffix.lower() in _DAG_DOC_EXTS:
-                                dag_all_images.append({
-                                    "file_id": _dag_fid,
-                                    "filename": _dag_name,
-                                    "mime_type": str(_dag_meta.get("mime_type", "")),
-                                    "source": "document",
-                                })
+                                dag_all_images.append(
+                                    {
+                                        "file_id": _dag_fid,
+                                        "filename": _dag_name,
+                                        "mime_type": str(_dag_meta.get("mime_type", "")),
+                                        "source": "document",
+                                    }
+                                )
                 if dag_all_images:
                     dag_final_metadata["images"] = dag_all_images
                 if dag_extra_meta:
@@ -3260,7 +3370,9 @@ async def dag_endpoint(
         if dag_image_data or dag_doc_vision_urls:
             annotations: list[str] = []
             if dag_image_data:
-                img_refs = ", ".join(f"{fname} (file_id: {fid})" for fid, fname, _ in dag_image_data)
+                img_refs = ", ".join(
+                    f"{fname} (file_id: {fid})" for fid, fname, _ in dag_image_data
+                )
                 annotations.append(f"Attached images: {img_refs}")
             if dag_doc_vision_urls:
                 annotations.append(
@@ -3282,14 +3394,14 @@ async def dag_endpoint(
                 history = await dag_memory.get_messages()
                 if history:
                     from fim_one.core.memory.compact import CompactUtils as _CU
+
                     context_lines = []
                     for msg in history:
                         prefix = "User" if msg.role == "user" else "Assistant"
                         context_lines.append(f"{prefix}: {_CU.content_as_text(msg.content)}")
                     context_str = "\n".join(context_lines)
                     enriched_query = (
-                        f"Previous conversation:\n{context_str}\n\n"
-                        f"Current request: {q}"
+                        f"Previous conversation:\n{context_str}\n\nCurrent request: {q}"
                     )
 
                     # Truncate enriched_query if too large for planner.
@@ -3301,13 +3413,15 @@ async def dag_endpoint(
                         if fast_llm:
                             from fim_one.core.model.types import ChatMessage
 
-                            summary_result = await fast_llm.chat([
-                                ChatMessage(
-                                    role="system",
-                                    content=_COMPACT_PROMPTS["planner_input"],
-                                ),
-                                ChatMessage(role="user", content=context_str),
-                            ])
+                            summary_result = await fast_llm.chat(
+                                [
+                                    ChatMessage(
+                                        role="system",
+                                        content=_COMPACT_PROMPTS["planner_input"],
+                                    ),
+                                    ChatMessage(role="user", content=context_str),
+                                ]
+                            )
                             if summary_result.usage:
                                 await fast_usage_tracker.record(summary_result.usage)
                             _content = summary_result.message.content
@@ -3326,8 +3440,7 @@ async def dag_endpoint(
                             )
             except Exception:
                 logger.warning(
-                    "Failed to load conversation history for DAG planning "
-                    "(conversation %s)",
+                    "Failed to load conversation history for DAG planning (conversation %s)",
                     conversation_id,
                     exc_info=True,
                 )
@@ -3386,6 +3499,7 @@ async def dag_endpoint(
             # -- Domain detection middleware — classify query domain for
             # planner guidance.  Called once before the planning loop.
             from fim_one.core.planner.domain import classify_domain
+
             _domain_hint = await classify_domain(q, fast_llm)
 
             while True:
@@ -3421,15 +3535,14 @@ async def dag_endpoint(
                     return
 
                 tool_descriptors = [
-                    {"name": t.name, "description": t.description}
-                    for t in tools.list_tools()
+                    {"name": t.name, "description": t.description} for t in tools.list_tools()
                 ]
                 _domain_context = replan_context
                 if _domain_hint:
                     _domain_guidance = (
                         f"[Domain: {_domain_hint}] This is a {_domain_hint}-domain task. "
                         f"For steps that involve analysis, synthesis, or report writing, "
-                        f"set model_hint=\"reasoning\" to ensure accuracy and reduce "
+                        f'set model_hint="reasoning" to ensure accuracy and reduce '
                         f"citation hallucination.  Avoid splitting tightly coupled "
                         f"analysis dimensions into separate steps — keep cross-"
                         f"referencing analysis together in fewer, deeper steps."
@@ -3478,11 +3591,14 @@ async def dag_endpoint(
                     compact_llm=fast_llm,
                     default_budget=_fast_context_budget,
                     usage_tracker=fast_usage_tracker,
-                    custom_compact_prompt=agent_cfg.get("compact_instructions") if agent_cfg else None,
+                    custom_compact_prompt=agent_cfg.get("compact_instructions")
+                    if agent_cfg
+                    else None,
                 )
 
                 # Inject fast usage tracker into grounded retrieve tool
                 from fim_one.core.tool.builtin.grounded_retrieve import GroundedRetrieveTool
+
                 for tool in tools._tools.values():
                     if isinstance(tool, GroundedRetrieveTool):
                         tool.set_usage_tracker(fast_usage_tracker)
@@ -3497,6 +3613,7 @@ async def dag_endpoint(
                     agent_directive=agent_instructions,
                 )
                 from fim_one.db import create_session as _create_registry_session
+
                 async with _create_registry_session() as _registry_db:
                     registry = await get_model_registry_with_group(_registry_db)
                 exec_stop_event = asyncio.Event()
@@ -3713,41 +3830,40 @@ async def dag_endpoint(
                 answer_chunks: list[str] = []
                 try:
                     async for _token in analyzer.stream_synthesize(
-                        enriched_query, plan, analysis,
+                        enriched_query,
+                        plan,
+                        analysis,
                     ):
                         answer_chunks.append(_token)
                         yield _emit(
-                            sse_events, "answer",
+                            sse_events,
+                            "answer",
                             {"status": "delta", "content": _token},
                         )
                     answer = "".join(answer_chunks)
                 except Exception:
                     logger.warning(
-                        "stream_synthesize failed, falling back to "
-                        "analysis.final_answer",
+                        "stream_synthesize failed, falling back to analysis.final_answer",
                         exc_info=True,
                     )
                     answer = analysis.final_answer or ""
                     for _ans_chunk in _chunk_answer(answer):
                         yield _emit(
-                            sse_events, "answer",
+                            sse_events,
+                            "answer",
                             {"status": "delta", "content": _ans_chunk},
                         )
             else:
                 # Goal not achieved — use fallback answer
-                completed = [
-                    s for s in plan.steps
-                    if s.status == "completed" and s.result
-                ]
+                completed = [s for s in plan.steps if s.status == "completed" and s.result]
                 if completed:
-                    answer = "\n\n---\n\n".join(
-                        f"**{s.id}**: {s.result}" for s in completed
-                    )
+                    answer = "\n\n---\n\n".join(f"**{s.id}**: {s.result}" for s in completed)
                 else:
                     answer = "The task could not be completed — none of the planned steps produced a result. You can try rephrasing the goal or breaking it into simpler steps."
                 for _ans_chunk in _chunk_answer(answer):
                     yield _emit(
-                        sse_events, "answer",
+                        sse_events,
+                        "answer",
                         {"status": "delta", "content": _ans_chunk},
                     )
 
@@ -3760,11 +3876,13 @@ async def dag_endpoint(
                     sp_data = evt["data"]
                     if sp_data.get("artifacts"):
                         for a in sp_data["artifacts"]:
-                            dag_all_artifacts.append({
-                                **a,
-                                "tool_name": sp_data.get("tool_name", ""),
-                                "step_id": sp_data.get("step_id", ""),
-                            })
+                            dag_all_artifacts.append(
+                                {
+                                    **a,
+                                    "tool_name": sp_data.get("tool_name", ""),
+                                    "step_id": sp_data.get("step_id", ""),
+                                }
+                            )
 
             dag_deliverables: list[dict[str, Any]] = []
             if dag_all_artifacts:
@@ -3776,8 +3894,7 @@ async def dag_endpoint(
 
                 # Artifacts from terminal steps are deliverables
                 dag_deliverables = [
-                    a for a in dag_all_artifacts
-                    if a.get("step_id") in terminal_step_ids
+                    a for a in dag_all_artifacts if a.get("step_id") in terminal_step_ids
                 ]
                 # Fallback: if terminal steps produced no artifacts, use all
                 if not dag_deliverables:
@@ -3823,6 +3940,7 @@ async def dag_endpoint(
             # message to avoid holding a connection during DAG execution.
             if conversation_id:
                 from fim_one.db import create_session
+
                 db_session = create_session()
 
             # -- Persist assistant message BEFORE yielding done -----------
@@ -3833,34 +3951,41 @@ async def dag_endpoint(
                         Message as MessageModel,
                     )
 
+                    # DAG plans don't hold ChatMessages directly, but when
+                    # a future change surfaces the analyzer / last-step
+                    # ChatMessage list here we will automatically pick up
+                    # the thinking block via the same helper.
+                    dag_thinking = _extract_final_thinking(
+                        getattr(plan, "messages", None),
+                    )
+                    dag_metadata: dict[str, Any] = {
+                        **dag_done_payload,
+                        "sse_events": sse_events,
+                        "mode": "dag",
+                    }
+                    if dag_thinking is not None:
+                        dag_metadata["thinking"] = dag_thinking
                     assistant_msg = MessageModel(
                         conversation_id=conversation_id,
                         role="assistant",
                         content=answer,
                         message_type="done",
-                        metadata_={**dag_done_payload, "sse_events": sse_events, "mode": "dag"},
+                        metadata_=dag_metadata,
                     )
                     db_session.add(assistant_msg)
                     if "usage" in dag_done_payload:
-                        stmt = sa_select(ConvModel).where(
-                            ConvModel.id == conversation_id
-                        )
-                        conv = (
-                            await db_session.execute(stmt)
-                        ).scalar_one_or_none()
+                        stmt = sa_select(ConvModel).where(ConvModel.id == conversation_id)
+                        conv = (await db_session.execute(stmt)).scalar_one_or_none()
                         if conv:
-                            conv.total_tokens = (
-                                conv.total_tokens or 0
-                            ) + dag_done_payload["usage"].get(
-                                "total_tokens", 0
-                            )
+                            conv.total_tokens = (conv.total_tokens or 0) + dag_done_payload[
+                                "usage"
+                            ].get("total_tokens", 0)
                             if conv.model_name is None and llm.model_id:
                                 conv.model_name = llm.model_id
                     await db_session.commit()
                 except Exception:
                     logger.warning(
-                        "Failed to persist assistant message for "
-                        "conversation %s",
+                        "Failed to persist assistant message for conversation %s",
                         conversation_id,
                         exc_info=True,
                     )
@@ -3889,6 +4014,7 @@ async def dag_endpoint(
             async def _dag_post_processing() -> None:
                 """Background task for DAG suggestions, title, and fast-LLM token tracking."""
                 from fim_one.db import create_session as _bg_create_session
+
                 _bg_db: AsyncSession | None = None
                 try:
                     _bg_usage_tracker = UsageTracker()
@@ -3902,6 +4028,7 @@ async def dag_endpoint(
                                 Conversation as ConvModel,
                                 Message as _MsgModel,
                             )
+
                             async with _bg_create_session() as _cnt_db:
                                 msg_count = (
                                     await _cnt_db.execute(
@@ -3912,7 +4039,9 @@ async def dag_endpoint(
                                 ).scalar() or 0
                             if msg_count <= 2:
                                 return await _generate_title(
-                                    _dag_bg_fast_llm, _dag_bg_query, _dag_bg_answer,
+                                    _dag_bg_fast_llm,
+                                    _dag_bg_query,
+                                    _dag_bg_answer,
                                     preferred_language=_dag_bg_preferred_language,
                                     usage_tracker=_bg_usage_tracker,
                                 )
@@ -3922,7 +4051,9 @@ async def dag_endpoint(
 
                     dag_suggestions, dag_gen_title = await asyncio.gather(
                         _generate_suggestions(
-                            _dag_bg_fast_llm, _dag_bg_query, _dag_bg_answer,
+                            _dag_bg_fast_llm,
+                            _dag_bg_query,
+                            _dag_bg_answer,
                             preferred_language=_dag_bg_preferred_language,
                             usage_tracker=_bg_usage_tracker,
                         ),
@@ -3936,6 +4067,7 @@ async def dag_endpoint(
                     if dag_suggestions:
                         try:
                             from fim_one.web.models import Message as _MsgModel
+
                             # Store suggestions in the most recent assistant message's metadata
                             _last_msg_stmt = (
                                 sa_select(_MsgModel)
@@ -3958,6 +4090,7 @@ async def dag_endpoint(
                         try:
                             from sqlalchemy import update as _sa_update
                             from fim_one.web.models import Conversation as ConvModel
+
                             await _bg_db.execute(
                                 _sa_update(ConvModel)
                                 .where(ConvModel.id == _dag_bg_conversation_id)
@@ -3973,12 +4106,15 @@ async def dag_endpoint(
                         try:
                             from sqlalchemy import update as _sa_update, func as _sa_func
                             from fim_one.web.models import Conversation as ConvModel
+
                             await _bg_db.execute(
                                 _sa_update(ConvModel)
                                 .where(ConvModel.id == _dag_bg_conversation_id)
                                 .values(
-                                    total_tokens=_sa_func.coalesce(ConvModel.total_tokens, 0) + bg_fast_summary.total_tokens,
-                                    fast_llm_tokens=_sa_func.coalesce(ConvModel.fast_llm_tokens, 0) + bg_fast_summary.total_tokens,
+                                    total_tokens=_sa_func.coalesce(ConvModel.total_tokens, 0)
+                                    + bg_fast_summary.total_tokens,
+                                    fast_llm_tokens=_sa_func.coalesce(ConvModel.fast_llm_tokens, 0)
+                                    + bg_fast_summary.total_tokens,
                                 )
                             )
                             await _bg_db.commit()
@@ -3992,7 +4128,9 @@ async def dag_endpoint(
 
             asyncio.create_task(_dag_post_processing())
         except StructuredOutputError as exc:
-            logger.warning("Structured output failed for model %s: %s", getattr(llm, 'model_id', '?'), exc)
+            logger.warning(
+                "Structured output failed for model %s: %s", getattr(llm, "model_id", "?"), exc
+            )
             elapsed = round(time.time() - t0, 2)
             yield _sse(
                 "done",
@@ -4075,9 +4213,12 @@ async def auto_endpoint(
     from fim_one.core.planner.router import classify_execution_mode
 
     from fim_one.db import create_session as _create_session
+
     async with _create_session() as _llm_db:
         fast_llm = await _resolve_fast_llm(
-            await _resolve_agent_config(body.agent_id, body.conversation_id, user_id=current_user_id),
+            await _resolve_agent_config(
+                body.agent_id, body.conversation_id, user_id=current_user_id
+            ),
             _llm_db,
         )
 
