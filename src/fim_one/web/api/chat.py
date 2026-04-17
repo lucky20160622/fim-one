@@ -31,7 +31,7 @@ import time
 import uuid
 from collections.abc import AsyncGenerator
 from contextlib import suppress
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -40,13 +40,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 if TYPE_CHECKING:
     from fim_one.core.model.openai_compatible import OpenAICompatibleLLM
 
-from fim_one.web.exceptions import AppError
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select as sa_select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fim_one.core.agent import ReActAgent
+from fim_one.core.memory.context_guard import ContextGuard
 from fim_one.core.model import BaseLLM
 from fim_one.core.model.fallback import FallbackLLM
 from fim_one.core.model.rate_limit import set_current_user_id as _rl_set_user
@@ -60,13 +60,15 @@ from fim_one.core.planner import (
     ExecutionPlan,
     PlanAnalyzer,
 )
-from fim_one.core.memory.context_guard import ContextGuard
 from fim_one.core.security import is_stdio_allowed
 from fim_one.core.tool import ToolRegistry
 from fim_one.core.utils import extract_json_value, get_language_directive
+from fim_one.db import get_session
+from fim_one.web.auth import get_current_user
+from fim_one.web.exceptions import AppError
+from fim_one.web.models import User
 
 from ..deps import (
-    get_context_budget,
     get_dag_max_replan_rounds,
     get_dag_replan_stop_confidence,
     get_dag_step_max_iterations,
@@ -74,9 +76,6 @@ from ..deps import (
     get_dag_tool_cache_enabled,
     get_effective_context_budget,
     get_effective_fast_context_budget,
-    get_fast_context_budget,
-    get_fast_llm,
-    get_llm,
     get_llm_by_config_id,
     get_llm_from_config,
     get_max_concurrency,
@@ -85,9 +84,6 @@ from ..deps import (
     get_react_max_turn_tokens,
     get_tools,
 )
-from fim_one.db import get_session
-from fim_one.web.auth import get_current_user, get_current_user_optional
-from fim_one.web.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -279,13 +275,13 @@ def _format_replan_context(
 
 
 async def _generate_suggestions(
-    fast_llm: "BaseLLM",
+    fast_llm: BaseLLM,
     query: str,
     answer: str,
     *,
     count: int = 3,
     preferred_language: str | None = None,
-    usage_tracker: "UsageTracker | None" = None,
+    usage_tracker: UsageTracker | None = None,
 ) -> list[str]:
     """Generate follow-up question suggestions based on query and answer.
 
@@ -345,12 +341,12 @@ async def _generate_suggestions(
 
 
 async def _generate_title(
-    fast_llm: "BaseLLM",
+    fast_llm: BaseLLM,
     query: str,
     answer: str,
     *,
     preferred_language: str | None = None,
-    usage_tracker: "UsageTracker | None" = None,
+    usage_tracker: UsageTracker | None = None,
 ) -> str | None:
     """Generate a concise conversation title from the first Q&A exchange.
 
@@ -404,11 +400,11 @@ async def _generate_title(
 
 
 async def _classify_deliverables(
-    fast_llm: "BaseLLM",
+    fast_llm: BaseLLM,
     answer: str,
     artifacts: list[dict[str, Any]],
     *,
-    usage_tracker: "UsageTracker | None" = None,
+    usage_tracker: UsageTracker | None = None,
 ) -> list[dict[str, Any]]:
     """Classify which artifacts are final deliverables vs intermediate outputs.
 
@@ -507,7 +503,8 @@ async def _resolve_user(
 
     # -- JWT authentication -------------------------------------------------
     import jwt as pyjwt
-    from fim_one.web.auth import SECRET_KEY, ALGORITHM
+
+    from fim_one.web.auth import ALGORITHM, SECRET_KEY
 
     # Decode the JWT — works for both SSE tickets and normal access tokens
     try:
@@ -599,7 +596,7 @@ async def _check_token_quota(user_id: str) -> None:
         if user_quota and user_quota > 0:
             from sqlalchemy import func as _func
 
-            first_of_month = datetime(date.today().year, date.today().month, 1, tzinfo=timezone.utc)
+            first_of_month = datetime(date.today().year, date.today().month, 1, tzinfo=UTC)
             monthly_result = await session.execute(
                 sa_select(_func.coalesce(_func.sum(Conversation.total_tokens), 0)).where(
                     Conversation.user_id == user_id,
@@ -888,7 +885,7 @@ async def _resolve_vision_llm(
 async def _build_markitdown_vision_deps(
     agent_cfg: dict[str, Any] | None,
     db: AsyncSession,
-) -> "OpenAICompatibleLLM | None":
+) -> OpenAICompatibleLLM | None:
     """Narrow the resolver's return to ``OpenAICompatibleLLM | None``.
 
     :class:`MarkItDownTool` and the RAG pipeline both need an
@@ -1060,6 +1057,9 @@ async def _resolve_tools(
     # Load connector tools when the agent has bound connectors.
     connector_ids = agent_cfg.get("connector_ids") if agent_cfg else None
     if connector_ids:
+        from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
+
         from fim_one.core.tool.connector import (
             ConnectorToolAdapter,
             build_connector_meta_tool,
@@ -1072,9 +1072,6 @@ async def _resolve_tools(
         from fim_one.db import create_session
         from fim_one.web.models.connector import Connector as ConnectorModel
         from fim_one.web.models.connector_call_log import ConnectorCallLog
-
-        from sqlalchemy import select
-        from sqlalchemy.orm import selectinload
 
         agent_id_for_log = agent_cfg.get("agent_id") if agent_cfg else None
         _connector_tool_mode = get_connector_tool_mode(agent_cfg)
@@ -1201,10 +1198,10 @@ async def _resolve_tools(
                             db_tool_count += len(db_tools)
                     else:
                         # API connector — resolve per-user credentials
+                        from fim_one.core.security.encryption import decrypt_credential
                         from fim_one.web.models.connector_credential import (
                             ConnectorCredential as ConnectorCredentialModel,
                         )
-                        from fim_one.core.security.encryption import decrypt_credential
 
                         resolved_creds: dict[str, Any] = {}
                         _calling_user_id = user_id
@@ -1314,12 +1311,15 @@ async def _resolve_tools(
     elif user_id and not agent_cfg:
         # No-agent mode: auto-discover all visible connectors (progressive mode).
         try:
+            from sqlalchemy import select
+            from sqlalchemy.orm import selectinload
+
+            from fim_one.core.security.encryption import (
+                decrypt_db_config,
+            )
             from fim_one.core.tool.connector import build_connector_meta_tool
             from fim_one.core.tool.connector.database.meta_tool import (
                 build_database_meta_tool as _ad_build_db_meta,
-            )
-            from fim_one.core.security.encryption import (
-                decrypt_db_config,
             )
             from fim_one.db import create_session
             from fim_one.web.models.connector import Connector as ConnectorModel
@@ -1327,9 +1327,6 @@ async def _resolve_tools(
                 DatabaseSchema as DatabaseSchemaModel,
             )
             from fim_one.web.visibility import resolve_visibility
-
-            from sqlalchemy import select
-            from sqlalchemy.orm import selectinload
 
             async with create_session() as _ad_session:
                 _ad_vis, _, _ = await resolve_visibility(
@@ -1441,15 +1438,15 @@ async def _resolve_tools(
         if _m:
             _builder_cid = _m.group(1)
             from fim_one.core.tool.builtin.connector_builder import (
-                ConnectorListActionsTool,
                 ConnectorCreateActionTool,
-                ConnectorUpdateActionTool,
                 ConnectorDeleteActionTool,
-                ConnectorUpdateSettingsTool,
-                ConnectorTestActionTool,
                 ConnectorGetSettingsTool,
-                ConnectorTestConnectionTool,
                 ConnectorImportOpenAPITool,
+                ConnectorListActionsTool,
+                ConnectorTestActionTool,
+                ConnectorTestConnectionTool,
+                ConnectorUpdateActionTool,
+                ConnectorUpdateSettingsTool,
             )
 
             for _BCls in [
@@ -1475,12 +1472,12 @@ async def _resolve_tools(
         if _m2:
             _builder_aid = _m2.group(1)
             from fim_one.core.tool.builtin.agent_builder import (
-                AgentGetSettingsTool,
-                AgentUpdateSettingsTool,
-                AgentListConnectorsTool,
                 AgentAddConnectorTool,
+                AgentGetSettingsTool,
+                AgentListConnectorsTool,
                 AgentRemoveConnectorTool,
                 AgentSetModelTool,
+                AgentUpdateSettingsTool,
             )
 
             for _BCls2 in [
@@ -1503,16 +1500,16 @@ async def _resolve_tools(
         if _m3:
             _builder_dbid = _m3.group(1)
             from fim_one.core.tool.builtin.db_builder import (
-                DbGetConnectorSettingsTool,
-                DbUpdateConnectorSettingsTool,
-                DbTestConnectionTool,
-                DbListTablesTool,
-                DbGetTableDetailTool,
-                DbAnnotateTableTool,
                 DbAnnotateColumnTool,
-                DbSetTableVisibilityTool,
+                DbAnnotateTableTool,
                 DbBatchSetVisibilityTool,
+                DbGetConnectorSettingsTool,
+                DbGetTableDetailTool,
+                DbListTablesTool,
                 DbRunSampleQueryTool,
+                DbSetTableVisibilityTool,
+                DbTestConnectionTool,
+                DbUpdateConnectorSettingsTool,
             )
 
             for _BCls3 in [
@@ -1533,9 +1530,8 @@ async def _resolve_tools(
     # Filter out globally disabled built-in tools (admin setting).
     try:
         from fim_one.db import create_session as _cs_disabled
-        from fim_one.web.api.admin_utils import get_setting as _get_setting
-
         from fim_one.web.api.admin import SETTING_DISABLED_BUILTIN_TOOLS as _SDBT
+        from fim_one.web.api.admin_utils import get_setting as _get_setting
 
         async with _cs_disabled() as _disabled_db:
             _disabled_raw = await _get_setting(_disabled_db, _SDBT, default="[]")
@@ -1551,9 +1547,11 @@ async def _resolve_tools(
     # happens inside the SSE generator (same coroutine) to avoid the anyio
     # cancel-scope cross-task RuntimeError on disconnect_all().
     try:
+        from sqlalchemy import false as _sa_false
+        from sqlalchemy import true as _true
+
         from fim_one.db import create_session as _create_session
         from fim_one.web.models.mcp_server import MCPServer as _MCPServerModel
-        from sqlalchemy import true as _true, false as _sa_false
 
         # Determine which MCP servers to load based on agent config
         _agent_mcp_ids = agent_cfg.get("mcp_server_ids") if agent_cfg else None
@@ -1679,7 +1677,6 @@ async def _connect_pending_mcp_servers(
     consolidated into a single :class:`MCPServerMetaTool` with ``discover``
     and ``call`` subcommands instead of registering each tool individually.
     """
-    import json as _json_mod
 
     pending = getattr(tools, "_pending_mcp_servers", None)
     if not pending:
@@ -1693,7 +1690,7 @@ async def _connect_pending_mcp_servers(
     _loaded = 0
 
     # Determine MCP tool mode (progressive vs legacy)
-    from fim_one.core.mcp import get_mcp_tool_mode, build_mcp_meta_tool
+    from fim_one.core.mcp import build_mcp_meta_tool, get_mcp_tool_mode
 
     _mcp_tool_mode = get_mcp_tool_mode(agent_cfg)
     # Collect adapters per server for progressive mode
@@ -1707,11 +1704,12 @@ async def _connect_pending_mcp_servers(
 
             if _mcp_user_id:
                 try:
+                    from sqlalchemy import select as _sa_select
+
                     from fim_one.db import create_session as _cs_cred
                     from fim_one.web.models.mcp_server_credential import (
                         MCPServerCredential as _MCPCred,
                     )
-                    from sqlalchemy import select as _sa_select
 
                     async with _cs_cred() as _cred_db:
                         _cred_res = await _cred_db.execute(
@@ -2296,6 +2294,8 @@ async def resume_stream(
     """
     from fim_one.web.models import (
         Conversation as _ConvModel,
+    )
+    from fim_one.web.models import (
         Message as MessageModel,
     )
 
@@ -2586,7 +2586,7 @@ async def react_endpoint(
                 "read_uploaded_file to access content:\n" + "\n".join(unhandled) + "]"
             )
 
-    async def generate() -> AsyncGenerator[str, None]:  # noqa: C901
+    async def generate() -> AsyncGenerator[str, None]:
         t0 = time.time()
         sse_events: list[dict[str, Any]] = []
         yield _emit(sse_events, "step", {"type": "thinking", "status": "start", "iteration": 1})
@@ -2922,7 +2922,7 @@ async def react_endpoint(
             while not done_event.is_set():
                 try:
                     item = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     if await request.is_disconnected():
                         logger.info("Client disconnected — cancelling ReAct task")
                         run_task.cancel()
@@ -3034,6 +3034,15 @@ async def react_endpoint(
                     "completion_tokens": result.usage.completion_tokens,
                     "total_tokens": result.usage.total_tokens,
                 }
+                # Prompt-cache observability: surface Anthropic-style
+                # cache counters to the client so it can eventually
+                # render cost savings.  Always present (zeros when the
+                # provider doesn't report caching) so the frontend can
+                # treat the field as non-optional.
+                done_payload["cache"] = {
+                    "read_tokens": result.usage.cache_read_input_tokens,
+                    "creation_tokens": result.usage.cache_creation_input_tokens,
+                }
             # Final drain of any remaining injected messages.
             if interrupt_queue is not None:
                 remaining = await interrupt_queue.drain()
@@ -3055,6 +3064,8 @@ async def react_endpoint(
                 try:
                     from fim_one.web.models import (
                         Conversation,
+                    )
+                    from fim_one.web.models import (
                         Message as MessageModel,
                     )
 
@@ -3130,8 +3141,8 @@ async def react_endpoint(
                             return None
                         try:
                             from sqlalchemy import func as _sa_func
+
                             from fim_one.web.models import (
-                                Conversation,
                                 Message as _MsgModel,
                             )
 
@@ -3195,6 +3206,7 @@ async def react_endpoint(
                     if gen_title:
                         try:
                             from sqlalchemy import update as _sa_update
+
                             from fim_one.web.models import Conversation
 
                             await _bg_db.execute(
@@ -3210,7 +3222,9 @@ async def react_endpoint(
                     bg_fast_summary = _bg_usage_tracker.get_summary()
                     if bg_fast_summary.total_tokens > 0:
                         try:
-                            from sqlalchemy import update as _sa_update, func as _sa_func
+                            from sqlalchemy import func as _sa_func
+                            from sqlalchemy import update as _sa_update
+
                             from fim_one.web.models import Conversation
 
                             await _bg_db.execute(
@@ -3407,7 +3421,7 @@ async def dag_endpoint(
             model_supports_vision=dag_model_supports_vision,
         )
 
-    async def generate() -> AsyncGenerator[str, None]:  # noqa: C901
+    async def generate() -> AsyncGenerator[str, None]:
         t0 = time.time()
         sse_events: list[dict[str, Any]] = []
 
@@ -3778,7 +3792,7 @@ async def dag_endpoint(
                 while not done_event.is_set():
                     try:
                         item = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         if await request.is_disconnected():
                             logger.info("Client disconnected — cancelling DAG exec task")
                             exec_task.cancel()
@@ -4052,6 +4066,15 @@ async def dag_endpoint(
                     "completion_tokens": cumulative_usage.completion_tokens,
                     "total_tokens": cumulative_usage.total_tokens,
                 }
+                # Prompt-cache observability: surface Anthropic-style
+                # cache counters to the client so it can eventually
+                # render cost savings.  Always present (zeros when the
+                # provider doesn't report caching) so the frontend can
+                # treat the field as non-optional.
+                dag_done_payload["cache"] = {
+                    "read_tokens": cumulative_usage.cache_read_input_tokens,
+                    "creation_tokens": (cumulative_usage.cache_creation_input_tokens),
+                }
             # Final drain: emit inject events for any late messages, then record them.
             if dag_interrupt_queue is not None:
                 remaining = await dag_interrupt_queue.drain()
@@ -4081,6 +4104,8 @@ async def dag_endpoint(
                 try:
                     from fim_one.web.models import (
                         Conversation as ConvModel,
+                    )
+                    from fim_one.web.models import (
                         Message as MessageModel,
                     )
 
@@ -4157,8 +4182,8 @@ async def dag_endpoint(
                             return None
                         try:
                             from sqlalchemy import func as _sa_func
+
                             from fim_one.web.models import (
-                                Conversation as ConvModel,
                                 Message as _MsgModel,
                             )
 
@@ -4222,6 +4247,7 @@ async def dag_endpoint(
                     if dag_gen_title:
                         try:
                             from sqlalchemy import update as _sa_update
+
                             from fim_one.web.models import Conversation as ConvModel
 
                             await _bg_db.execute(
@@ -4237,7 +4263,9 @@ async def dag_endpoint(
                     bg_fast_summary = _bg_usage_tracker.get_summary()
                     if bg_fast_summary.total_tokens > 0:
                         try:
-                            from sqlalchemy import update as _sa_update, func as _sa_func
+                            from sqlalchemy import func as _sa_func
+                            from sqlalchemy import update as _sa_update
+
                             from fim_one.web.models import Conversation as ConvModel
 
                             await _bg_db.execute(
@@ -4344,7 +4372,6 @@ async def auto_endpoint(
 
     # Determine execution mode
     from fim_one.core.planner.router import classify_execution_mode
-
     from fim_one.db import create_session as _create_session
 
     async with _create_session() as _llm_db:

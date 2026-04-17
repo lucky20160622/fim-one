@@ -77,11 +77,28 @@ class ChatMessage:
             )
         return parts
 
-    def to_openai_dict(self) -> dict[str, Any]:
+    def to_openai_dict(
+        self,
+        *,
+        replay_policy: Literal["anthropic_thinking", "informational_only", "unsupported"]
+        | None = None,
+    ) -> dict[str, Any]:
         """Convert to OpenAI API format.
 
+        Args:
+            replay_policy: Provider-aware reasoning-replay policy.  When
+                ``None`` (default), the legacy permissive behaviour is
+                preserved: ``reasoning_content`` and ``signature`` are
+                serialised unconditionally if set.  Callers that know
+                their target provider (see
+                :func:`fim_one.core.prompt.reasoning_replay_policy`)
+                should pass the resolved policy so that non-Anthropic
+                models don't receive replayed thinking fields, which
+                would break provider-side KV/prefix caches.
+
         Returns:
-            A dictionary conforming to the OpenAI chat completion message schema.
+            A dictionary conforming to the OpenAI chat completion
+            message schema.
         """
         d: dict[str, Any] = {"role": self.role}
         if self.content is not None:
@@ -103,13 +120,20 @@ class ChatMessage:
                 for tc in self.tool_calls
             ]
         # Replay thinking block on subsequent turns so Anthropic models
-        # that emit extended-thinking accept the history.  LiteLLM passes
-        # ``reasoning_content`` + ``signature`` through to the provider;
-        # providers that don't understand the fields ignore them (global
-        # ``litellm.drop_params=True`` handles the rest).
-        if self.reasoning_content:
+        # that emit extended-thinking accept the history.  For
+        # non-Anthropic providers (DeepSeek R1, Qwen QwQ, Gemini
+        # thinking, OpenAI o-series) the reasoning field is
+        # informational-only and MUST NOT be replayed — sending it back
+        # invalidates the provider-side KV / prefix cache and violates
+        # documented protocol.  Legacy callers that don't pass a
+        # policy keep the old permissive behaviour for backward
+        # compatibility; centralised request builders (see
+        # ``OpenAICompatibleLLM._build_request_kwargs``) always pass
+        # a resolved policy.
+        include_reasoning = replay_policy in (None, "anthropic_thinking")
+        if include_reasoning and self.reasoning_content:
             d["reasoning_content"] = self.reasoning_content
-        if self.signature:
+        if include_reasoning and self.signature:
             d["signature"] = self.signature
         # Anthropic prompt-caching breakpoint — LiteLLM forwards this
         # field at the message level for system messages and at the

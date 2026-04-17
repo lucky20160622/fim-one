@@ -77,10 +77,25 @@ class TurnProfiler:
     Attributes:
         turn_id: The 1-indexed iteration number this profiler belongs to.
         phases: Mapping of phase name to cumulative elapsed seconds.
+        cache_read_tokens: Cumulative input tokens served from the
+            provider-side prompt cache across every LLM call in this
+            turn.  Non-zero only when the model reports Anthropic-style
+            cache usage (Claude / Bedrock / Vertex).  Surfaced in the
+            ``turn_cache`` log line and the ``/chat/*`` ``done`` SSE
+            payload so callers can detect cache honesty and quantify
+            cost savings.
+        cache_creation_tokens: Cumulative input tokens written to the
+            provider-side cache during this turn.
+        model_id: The resolved model identifier for the LLM used in
+            this turn.  Captured once per turn (set by the first cache
+            update) purely for log readability.
     """
 
     turn_id: int = 0
     phases: dict[str, float] = field(default_factory=dict)
+    cache_read_tokens: int = 0
+    cache_creation_tokens: int = 0
+    model_id: str | None = None
 
     @contextmanager
     def phase(self, name: str) -> Iterator[None]:
@@ -109,26 +124,83 @@ class TurnProfiler:
             seconds = 0.0
         self.phases[name] = self.phases.get(name, 0.0) + seconds
 
+    def add_cache_hit(
+        self,
+        *,
+        cache_read: int = 0,
+        cache_creation: int = 0,
+        model_id: str | None = None,
+    ) -> None:
+        """Accumulate prompt-cache token counters from one LLM call.
+
+        Call sites feed the values pulled from the provider response
+        (``LLMResult.usage["cache_read_input_tokens"]`` /
+        ``cache_creation_input_tokens``).  The profiler aggregates
+        across every LLM call in a single turn and ultimately surfaces
+        the totals in the ``turn_cache`` log line and the ``/chat/*``
+        ``done`` SSE payload.
+
+        Negative values are clamped to zero — the method is a pure
+        counter, never a reset.  ``model_id`` is stored once per turn
+        on first call purely for log readability.
+        """
+        if cache_read > 0:
+            self.cache_read_tokens += cache_read
+        if cache_creation > 0:
+            self.cache_creation_tokens += cache_creation
+        if model_id and self.model_id is None:
+            self.model_id = model_id
+
     def emit(self, conversation_id: str | None = None) -> None:
         """Emit a structured log line summarising this turn's phases.
 
         The log format is a single-line key=value series sorted by
         phase name, suitable for ``grep``/``awk`` pipelines and log
         aggregators.  Durations are rendered in milliseconds.
+
+        When the turn recorded any prompt-cache token activity (non-zero
+        ``cache_read_tokens`` / ``cache_creation_tokens``), a second
+        ``turn_cache`` log line is emitted with the cache totals and a
+        coarse savings estimate (cache reads are billed at ~10% of the
+        normal input-token rate by Anthropic, so ``read * 0.9`` tokens
+        worth of input was effectively discounted).
         """
-        parts = " ".join(
-            f"{k}={v * 1000:.0f}ms" for k, v in sorted(self.phases.items())
-        )
+        parts = " ".join(f"{k}={v * 1000:.0f}ms" for k, v in sorted(self.phases.items()))
         logger.info(
             "turn_profile conv=%s turn=%d %s",
             conversation_id or "-",
             self.turn_id,
             parts,
         )
+        if self.cache_read_tokens > 0 or self.cache_creation_tokens > 0:
+            saved = int(self.cache_read_tokens * 0.9)
+            logger.info(
+                "turn_cache conv=%s turn=%d model=%s read_tokens=%d "
+                "create_tokens=%d saved_input_tokens=%d (~90%%)",
+                conversation_id or "-",
+                self.turn_id,
+                self.model_id or "-",
+                self.cache_read_tokens,
+                self.cache_creation_tokens,
+                saved,
+            )
 
     def to_dict(self) -> dict[str, float]:
         """Return a shallow copy of the phases dict (mutation-safe)."""
         return dict(self.phases)
+
+    def cache_summary(self) -> dict[str, int]:
+        """Return a snapshot of the turn's cache token counters.
+
+        Returns a dict with ``read_tokens`` and ``creation_tokens``
+        keys suitable for inclusion in the ``/chat/*`` ``done`` SSE
+        payload under the ``cache`` field.  Consumers that need to
+        aggregate across turns can add the dicts key-wise.
+        """
+        return {
+            "read_tokens": self.cache_read_tokens,
+            "creation_tokens": self.cache_creation_tokens,
+        }
 
 
 class NoOpTurnProfiler(TurnProfiler):
@@ -142,7 +214,16 @@ class NoOpTurnProfiler(TurnProfiler):
     def phase(self, name: str) -> Iterator[None]:
         yield
 
-    def add(self, name: str, seconds: float) -> None:  # noqa: D401 — override
+    def add(self, name: str, seconds: float) -> None:
+        return None
+
+    def add_cache_hit(
+        self,
+        *,
+        cache_read: int = 0,
+        cache_creation: int = 0,
+        model_id: str | None = None,
+    ) -> None:
         return None
 
     def emit(self, conversation_id: str | None = None) -> None:
@@ -150,6 +231,9 @@ class NoOpTurnProfiler(TurnProfiler):
 
     def to_dict(self) -> dict[str, float]:
         return {}
+
+    def cache_summary(self) -> dict[str, int]:
+        return {"read_tokens": 0, "creation_tokens": 0}
 
 
 def make_profiler(turn_id: int) -> TurnProfiler:

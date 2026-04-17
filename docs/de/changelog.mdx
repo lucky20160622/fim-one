@@ -12,7 +12,8 @@ Das Format folgt [Keep a Changelog](https://keepachangelog.com/). Versionen ents
 
 ### Hinzugefügt
 
-- Conversation recovery: Synthetische tool_result Zeilen bleiben jetzt nach einem unterbrochenen Turn bestehen; Clients können einen unterbrochenen SSE-Stream über `POST /chat/resume` mit dem zuletzt gesehenen Cursor fortsetzen.
+- Conversation-Wiederherstellung: Synthetische tool_result-Zeilen bleiben jetzt nach einem unterbrochenen Turn erhalten; Clients können einen unterbrochenen SSE-Stream über `POST /chat/resume` mit dem zuletzt gesehenen Cursor fortsetzen.
+- Der Playground verbindet unterbrochene SSE-Streams jetzt automatisch wieder mit dem `/chat/resume`-Endpoint mit exponentiellem Backoff (max. 3 Versuche); zeigt während der Wiederherstellung einen "Reconnecting…"-Indikator an.
 
 ### Geändert
 

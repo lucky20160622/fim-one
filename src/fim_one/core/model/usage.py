@@ -8,7 +8,7 @@ multiple LLM calls.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -20,12 +20,19 @@ class UsageSummary:
         completion_tokens: Total completion (output) tokens consumed.
         total_tokens: Sum of prompt and completion tokens.
         llm_calls: Number of LLM calls that contributed to this summary.
+        cache_read_input_tokens: Total prompt tokens served from the
+            provider-side cache (Anthropic ``cache_read_input_tokens``).
+            ``0`` when the model/provider does not report cache usage.
+        cache_creation_input_tokens: Total prompt tokens written to the
+            provider-side cache on this conversation.
     """
 
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
     llm_calls: int = 0
+    cache_read_input_tokens: int = 0
+    cache_creation_input_tokens: int = 0
 
     def __add__(self, other: UsageSummary) -> UsageSummary:
         """Merge two summaries by adding their counters."""
@@ -34,6 +41,10 @@ class UsageSummary:
             completion_tokens=self.completion_tokens + other.completion_tokens,
             total_tokens=self.total_tokens + other.total_tokens,
             llm_calls=self.llm_calls + other.llm_calls,
+            cache_read_input_tokens=(self.cache_read_input_tokens + other.cache_read_input_tokens),
+            cache_creation_input_tokens=(
+                self.cache_creation_input_tokens + other.cache_creation_input_tokens
+            ),
         )
 
     def __iadd__(self, other: UsageSummary) -> UsageSummary:
@@ -42,6 +53,8 @@ class UsageSummary:
         self.completion_tokens += other.completion_tokens
         self.total_tokens += other.total_tokens
         self.llm_calls += other.llm_calls
+        self.cache_read_input_tokens += other.cache_read_input_tokens
+        self.cache_creation_input_tokens += other.cache_creation_input_tokens
         return self
 
 
@@ -52,6 +65,8 @@ class _UsageRecord:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
+    cache_read_input_tokens: int = 0
+    cache_creation_input_tokens: int = 0
     model: str | None = None
 
 
@@ -91,6 +106,8 @@ class UsageTracker:
             prompt_tokens=usage.get("prompt_tokens", 0),
             completion_tokens=usage.get("completion_tokens", 0),
             total_tokens=usage.get("total_tokens", 0),
+            cache_read_input_tokens=usage.get("cache_read_input_tokens", 0),
+            cache_creation_input_tokens=usage.get("cache_creation_input_tokens", 0),
             model=model,
         )
         async with self._lock:
@@ -107,6 +124,8 @@ class UsageTracker:
             summary.prompt_tokens += rec.prompt_tokens
             summary.completion_tokens += rec.completion_tokens
             summary.total_tokens += rec.total_tokens
+            summary.cache_read_input_tokens += rec.cache_read_input_tokens
+            summary.cache_creation_input_tokens += rec.cache_creation_input_tokens
             summary.llm_calls += 1
         return summary
 

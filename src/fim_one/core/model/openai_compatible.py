@@ -15,6 +15,8 @@ from typing import Any
 import httpx
 import litellm
 
+from fim_one.core.prompt.reasoning import reasoning_replay_policy
+
 from .base import REASONING_INHERIT, BaseLLM
 
 # Local alias — shorter than importing from base everywhere.
@@ -29,6 +31,55 @@ logger = logging.getLogger(__name__)
 # Some providers (MiniMax, QwQ, etc.) wrap CoT reasoning this way
 # instead of using an API-level reasoning_content field.
 _THINK_RE = re.compile(r"<think>(.*?)</think>", re.DOTALL)
+
+
+def _merge_cache_usage(usage: dict[str, int], raw_usage: Any) -> None:
+    """Pull Anthropic-style cache token counters from a LiteLLM usage object.
+
+    LiteLLM surfaces Anthropic prompt-caching counters in two shapes:
+
+    * Directly on the usage object:
+      ``usage.cache_read_input_tokens`` /
+      ``usage.cache_creation_input_tokens`` (modern LiteLLM + Anthropic
+      native routes).
+    * Nested under ``usage.prompt_tokens_details`` (OpenAI-compat shim
+      for some proxies):
+      ``usage.prompt_tokens_details.cached_tokens``.
+
+    Both paths are probed best-effort.  Missing / malformed fields
+    default to ``0`` — this helper must never raise on an unexpected
+    provider response shape because it runs on the hot path.
+
+    The helper mutates *usage* in place, adding:
+
+    * ``cache_read_input_tokens`` — number of input tokens served from
+      the Anthropic prompt cache on this call (billed at ~10% of
+      normal input rate).
+    * ``cache_creation_input_tokens`` — number of input tokens written
+      to the cache on this call (billed at ~125% of normal).
+
+    Downstream consumers (``UsageTracker``, ``TurnProfiler``, the
+    ``/chat/*`` SSE payload) can then surface cache efficiency without
+    needing provider-specific parsing logic.
+    """
+    cache_read = 0
+    cache_creation = 0
+    # Direct attributes (Anthropic native / LiteLLM >= 1.50).
+    direct_read = getattr(raw_usage, "cache_read_input_tokens", None)
+    direct_creation = getattr(raw_usage, "cache_creation_input_tokens", None)
+    if isinstance(direct_read, int):
+        cache_read = direct_read
+    if isinstance(direct_creation, int):
+        cache_creation = direct_creation
+    # Nested fallback under prompt_tokens_details (OpenAI-compat shim).
+    if cache_read == 0:
+        details = getattr(raw_usage, "prompt_tokens_details", None)
+        nested_read = getattr(details, "cached_tokens", None)
+        if isinstance(nested_read, int):
+            cache_read = nested_read
+    usage["cache_read_input_tokens"] = cache_read
+    usage["cache_creation_input_tokens"] = cache_creation
+
 
 # ---------------------------------------------------------------------------
 # LiteLLM global configuration
@@ -311,6 +362,7 @@ class OpenAICompatibleLLM(BaseLLM):
                 "completion_tokens": response.usage.completion_tokens,
                 "total_tokens": response.usage.total_tokens,
             }
+            _merge_cache_usage(usage, response.usage)
 
         # Report actual token usage back to the rate limiter.
         if self._rate_limiter is not None and usage.get("total_tokens"):
@@ -386,6 +438,7 @@ class OpenAICompatibleLLM(BaseLLM):
                         "completion_tokens": chunk.usage.completion_tokens,
                         "total_tokens": chunk.usage.total_tokens,
                     }
+                    _merge_cache_usage(stream_usage, chunk.usage)
 
                 if not chunk.choices:
                     continue
@@ -570,9 +623,18 @@ class OpenAICompatibleLLM(BaseLLM):
         )
         token_limit = max_tokens if max_tokens is not None else self._default_max_tokens
 
+        # Provider-aware reasoning replay policy — ensures
+        # ``reasoning_content`` + ``signature`` are dropped from history
+        # messages for every provider except Anthropic.  Without this
+        # gate, DeepSeek R1 / Qwen QwQ / Gemini thinking / o-series
+        # receive replayed reasoning they never asked for, which
+        # invalidates their prefix cache and may be rejected outright.
+        # This is the single centralised enforcement point — do not
+        # replicate the policy decision elsewhere.
+        policy = reasoning_replay_policy(self.model_id)
         kwargs: dict[str, Any] = {
             "model": self._litellm_model,
-            "messages": [m.to_openai_dict() for m in messages],
+            "messages": [m.to_openai_dict(replay_policy=policy) for m in messages],
             "temperature": effective_temperature,
             "max_tokens": token_limit,
             "stream": stream,

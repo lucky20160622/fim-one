@@ -13,7 +13,7 @@ __fim_origin__ = "https://github.com/fim-ai/fim-one"
 import logging
 import os
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fim_one.core.model import BaseLLM, ChatMessage
@@ -163,7 +163,11 @@ class DAGPlanner:
                 dangling dependency references), or unparseable content.
         """
         messages = self._build_messages(
-            goal, context, tool_names, tools, skill_descriptions,
+            goal,
+            context,
+            tool_names,
+            tools,
+            skill_descriptions,
         )
 
         call_result = await structured_llm_call(
@@ -184,6 +188,10 @@ class DAGPlanner:
                 completion_tokens=call_result.total_usage.get("completion_tokens", 0),
                 total_tokens=call_result.total_usage.get("total_tokens", 0),
                 llm_calls=call_result.llm_calls,
+                cache_read_input_tokens=call_result.total_usage.get("cache_read_input_tokens", 0),
+                cache_creation_input_tokens=call_result.total_usage.get(
+                    "cache_creation_input_tokens", 0
+                ),
             )
 
         return ExecutionPlan(goal=goal, steps=steps, total_usage=total_usage)
@@ -213,7 +221,7 @@ class DAGPlanner:
         Returns:
             A list of ``ChatMessage`` objects.
         """
-        now_dt = datetime.now(timezone.utc)
+        now_dt = datetime.now(UTC)
         now = now_dt.strftime("%Y-%m-%d %H:%M UTC")
         system_content = _PLANNING_PROMPT.format(
             current_datetime=now,
@@ -230,9 +238,9 @@ class DAGPlanner:
             # Rich format: one line per tool with name + description
             tool_lines = []
             for t in tools:
-                desc = t.get('description', '')
+                desc = t.get("description", "")
                 if len(desc) > _PLANNER_DESC_LEN:
-                    desc = desc[:_PLANNER_DESC_LEN - 3] + "..."
+                    desc = desc[: _PLANNER_DESC_LEN - 3] + "..."
                 tool_lines.append(f"- {t['name']}: {desc}")
             user_content += "\n\nAvailable tools:\n" + "\n".join(tool_lines)
         elif tool_names:
@@ -251,9 +259,9 @@ class DAGPlanner:
                 "\n\nAvailable skills (specialized procedures the agent can follow):\n"
                 + "\n".join(skill_lines)
                 + "\n\nWhen a step's task clearly matches a skill's domain, set "
-                "tool_hint to \"read_skill\" and mention the skill name in the "
+                'tool_hint to "read_skill" and mention the skill name in the '
                 "task description (e.g. \"Read and follow the 'legal-advisor' "
-                "skill, then analyse ...\")."
+                'skill, then analyse ...").'
             )
 
         if context:
@@ -360,15 +368,12 @@ class DAGPlanner:
             dangling = [d for d in step.dependencies if d not in step_ids]
             if dangling:
                 logger.warning(
-                    "Step '%s' references unknown deps %s — removing them. "
-                    "Known step IDs: %s",
+                    "Step '%s' references unknown deps %s — removing them. Known step IDs: %s",
                     step.id,
                     dangling,
                     sorted(step_ids),
                 )
-                step.dependencies = [
-                    d for d in step.dependencies if d in step_ids
-                ]
+                step.dependencies = [d for d in step.dependencies if d in step_ids]
 
         # Topological sort via Kahn's algorithm to detect cycles.
         in_degree: dict[str, int] = {s.id: 0 for s in steps}
@@ -379,9 +384,7 @@ class DAGPlanner:
                 adjacency[dep_id].append(step.id)
                 in_degree[step.id] += 1
 
-        queue: deque[str] = deque(
-            sid for sid, degree in in_degree.items() if degree == 0
-        )
+        queue: deque[str] = deque(sid for sid, degree in in_degree.items() if degree == 0)
         visited_count = 0
 
         while queue:
@@ -393,13 +396,10 @@ class DAGPlanner:
                     queue.append(neighbour)
 
         if visited_count != len(steps):
-            remaining = {
-                sid for sid, degree in in_degree.items() if degree > 0
-            }
-            raise ValueError(
-                f"Circular dependency detected among steps: {sorted(remaining)}"
-            )
+            remaining = {sid for sid, degree in in_degree.items() if degree > 0}
+            raise ValueError(f"Circular dependency detected among steps: {sorted(remaining)}")
 
         logger.debug(
-            "DAG validation passed: %d steps, no cycles", len(steps),
+            "DAG validation passed: %d steps, no cycles",
+            len(steps),
         )

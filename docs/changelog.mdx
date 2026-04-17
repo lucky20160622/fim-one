@@ -13,6 +13,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 ### Added
 
 - Conversation recovery: synthetic tool_result rows now persist after an interrupted turn; clients can resume a disconnected SSE stream via `POST /chat/resume` with the last-seen cursor.
+- Playground now auto-reconnects dropped SSE streams using the `/chat/resume` endpoint with exponential backoff (max 3 attempts); shows a "Reconnecting…" indicator during recovery.
 
 ### Changed
 

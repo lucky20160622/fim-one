@@ -12,7 +12,8 @@ description: "FIM One 的所有重要更改。"
 
 ### 已添加
 
-- 对话恢复：合成 tool_result 行现在在中断的轮次后持久化；客户端可以通过 `POST /chat/resume` 使用最后看到的游标恢复断开连接的 SSE 流。
+- 对话恢复：合成 tool_result 行现在在中断的轮次后持久化；客户端可以通过 `POST /chat/resume` 使用最后看到的游标恢复断开的 SSE 流。
+- Playground 现在使用 `/chat/resume` 端点自动重新连接断开的 SSE 流，采用指数退避策略（最多 3 次尝试）；在恢复期间显示"重新连接中…"指示器。
 
 ### 已更改
 

@@ -121,6 +121,10 @@ class PlanAnalyzer:
                 completion_tokens=call_result.total_usage.get("completion_tokens", 0),
                 total_tokens=call_result.total_usage.get("total_tokens", 0),
                 llm_calls=call_result.llm_calls,
+                cache_read_input_tokens=call_result.total_usage.get("cache_read_input_tokens", 0),
+                cache_creation_input_tokens=call_result.total_usage.get(
+                    "cache_creation_input_tokens", 0
+                ),
             )
 
         return analysis
@@ -205,8 +209,7 @@ class PlanAnalyzer:
         step_summaries = self._format_step_results(plan)
 
         user_content = (
-            f"Goal: {goal}\n\n"
-            f"Execution plan (round {plan.current_round}):\n{step_summaries}"
+            f"Goal: {goal}\n\nExecution plan (round {plan.current_round}):\n{step_summaries}"
         )
 
         system_content = _ANALYSIS_PROMPT

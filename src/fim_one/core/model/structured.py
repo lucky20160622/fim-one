@@ -17,8 +17,9 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
 from fim_one.core.model.base import BaseLLM
 from fim_one.core.model.types import ChatMessage
@@ -78,7 +79,13 @@ def _accumulate_usage(
         return dict(new)
     return {
         k: acc.get(k, 0) + new.get(k, 0)
-        for k in ("prompt_tokens", "completion_tokens", "total_tokens")
+        for k in (
+            "prompt_tokens",
+            "completion_tokens",
+            "total_tokens",
+            "cache_read_input_tokens",
+            "cache_creation_input_tokens",
+        )
     }
 
 
@@ -323,6 +330,4 @@ async def structured_llm_call(
         )
 
     preview = last_content[:200] + "..." if len(last_content) > 200 else last_content
-    raise StructuredOutputError(
-        f"All structured extraction levels failed. Last content: {preview}"
-    )
+    raise StructuredOutputError(f"All structured extraction levels failed. Last content: {preview}")

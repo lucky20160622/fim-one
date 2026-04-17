@@ -19,7 +19,7 @@ import os
 import re
 import time
 from collections.abc import AsyncIterator, Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fim_one.core.memory.base import BaseMemory
@@ -1143,6 +1143,14 @@ class ReActAgent:
             # Non-streaming chat: first-token latency equals full call time.
             profiler.add("llm_first_token", profiler.phases.get("llm_total", 0.0))
             await usage_tracker.record(result.usage)
+            # Feed any Anthropic-style cache counters into the turn
+            # profiler.  Returns zeros for non-caching providers so the
+            # call is a no-op in that case (model-agnostic).
+            profiler.add_cache_hit(
+                cache_read=result.usage.get("cache_read_input_tokens", 0),
+                cache_creation=result.usage.get("cache_creation_input_tokens", 0),
+                model_id=self._llm.model_id,
+            )
 
             raw_content = result.message.content
             assistant_content = raw_content if isinstance(raw_content, str) else ""
@@ -1563,6 +1571,14 @@ class ReActAgent:
                     else:
                         raise
             await usage_tracker.record(result.usage)
+            # Feed any Anthropic-style cache counters into the turn
+            # profiler.  Returns zeros for non-caching providers so the
+            # call is a no-op in that case (model-agnostic).
+            profiler.add_cache_hit(
+                cache_read=result.usage.get("cache_read_input_tokens", 0),
+                cache_creation=result.usage.get("cache_creation_input_tokens", 0),
+                model_id=self._llm.model_id,
+            )
 
             assistant_msg = result.message
 
@@ -2083,7 +2099,7 @@ class ReActAgent:
         """Return ``(datetime_obj, formatted_str, year)`` in the user's tz."""
         import zoneinfo
 
-        utc_now = datetime.now(timezone.utc)
+        utc_now = datetime.now(UTC)
         tz_name = self._user_timezone
         if tz_name:
             try:

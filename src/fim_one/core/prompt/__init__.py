@@ -12,6 +12,7 @@ See :mod:`fim_one.core.prompt.registry` for the public API.
 """
 
 from .caching import is_cache_capable
+from .reasoning import ReasoningReplayPolicy, reasoning_replay_policy
 from .registry import (
     DYNAMIC_BOUNDARY,
     PromptRegistry,
@@ -24,7 +25,9 @@ __all__ = [
     "DYNAMIC_BOUNDARY",
     "PromptRegistry",
     "PromptSection",
+    "ReasoningReplayPolicy",
     "default_registry",
     "is_cache_capable",
+    "reasoning_replay_policy",
     "register_section",
 ]
