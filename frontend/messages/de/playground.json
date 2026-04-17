@@ -148,5 +148,8 @@
   "retryUpload": "Upload erneut versuchen",
   "newChat": "Neuer Chat",
   "autoAgent": "Automatisch",
-  "autoAgentDescription": "Delegiert automatisch an den besten Agent"
+  "autoAgentDescription": "Delegiert automatisch an den besten Agent",
+  "reconnecting": "Verbindung wird wiederhergestellt...",
+  "reconnectAttempt": "Verbindung wird wiederhergestellt... ({attempt}/{max})",
+  "reconnectFailed": "Wiederherstellung der Verbindung fehlgeschlagen"
 }

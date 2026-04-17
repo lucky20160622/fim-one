@@ -148,5 +148,8 @@
   "retryUpload": "アップロードを再試行",
   "newChat": "新しいチャット",
   "autoAgent": "自動",
-  "autoAgentDescription": "最適なエージェントに自動的に委譲します"
+  "autoAgentDescription": "最適なエージェントに自動的に委譲します",
+  "reconnecting": "再接続中...",
+  "reconnectAttempt": "再接続中... ({attempt}/{max})",
+  "reconnectFailed": "再接続に失敗しました"
 }

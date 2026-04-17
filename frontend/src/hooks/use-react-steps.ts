@@ -85,6 +85,12 @@ export function useReactSteps(messages: SSEMessage[], isRunning: boolean): React
         isPostProcessing = false
         continue
       }
+      // resume_done is a resume-protocol marker emitted by /api/chat/resume.
+      // It carries no step data — just swallow it so downstream rendering
+      // isn't disrupted while we're recovering from a disconnect.
+      if (msg.event === "resume_done") {
+        continue
+      }
       // Normalize step events for backward compat with stored sse_events
       const data = msg.event === "step"
         ? normalizeStep(msg.data as ReactStepEvent)

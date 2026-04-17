@@ -148,5 +148,8 @@
   "retryUpload": "Réessayer le téléchargement",
   "newChat": "Nouveau Chat",
   "autoAgent": "Auto",
-  "autoAgentDescription": "Délègue automatiquement au meilleur agent"
+  "autoAgentDescription": "Délègue automatiquement au meilleur agent",
+  "reconnecting": "Reconnexion en cours...",
+  "reconnectAttempt": "Reconnexion en cours... ({attempt}/{max})",
+  "reconnectFailed": "Échec de la reconnexion"
 }

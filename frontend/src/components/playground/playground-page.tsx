@@ -5,12 +5,14 @@ import { useTranslations } from "next-intl"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Send, Loader2, PanelRightOpen, PanelRightClose, ArrowDown, Square, Zap, GitBranch, Bot, Paperclip, X, Plus, ChevronsUpDown, Check, Undo2, RotateCcw, Download, FileText, ChevronDown, ChevronUp, Sparkles } from "lucide-react"
 import { UserAvatar } from "@/components/shared/user-avatar"
 import { toast } from "sonner"
 import { getErrorMessage } from "@/lib/error-utils"
 import { useSSE } from "@/hooks/use-sse"
+import { useSseResume } from "@/hooks/use-sse-resume"
 import { useSlashCommands } from "@/hooks/use-slash-commands"
 import { SlashCommandMenu } from "@/components/playground/slash-command-menu"
 import { ExportDialog } from "@/components/playground/export-dialog"
@@ -127,7 +129,19 @@ export function PlaygroundPage({ isNewChat, embedded, initialAgentId, onTurnComp
   const [sourceMode, setSourceMode] = useState<AgentMode | null>(null)
   const [pendingQuery, setPendingQuery] = useState<string | null>(null)
   // pendingMode removed — mode switching is now free within conversations
-  const { messages, isRunning, isError, start, reset, abort } = useSSE()
+  // Use resume-capable wrapper so dropped SSE streams auto-reconnect via
+  // /api/chat/resume (backed by the A1 recovery endpoint). When no active
+  // conversation is present the hook degrades to plain useSSE behaviour.
+  const {
+    messages,
+    isRunning,
+    isError,
+    start,
+    reset,
+    abort,
+    resumeState,
+    resumeAttempt,
+  } = useSseResume({ conversationId: activeId ?? undefined })
   const [injectedMessages, setInjectedMessages] = useState<{id?: string; content: string; ts: number}[]>([])
   const failedInjectRef = useRef<string | null>(null)
   const pendingNextTurnRef = useRef<string | null>(null)
@@ -434,7 +448,7 @@ export function PlaygroundPage({ isNewChat, embedded, initialAgentId, onTurnComp
         onNewChat={() => {
           reset()
           setPendingQuery(null)
-    
+
           setSourceMode(null)
           clearActive()
           if (!embedded) router.push("/new")
@@ -443,6 +457,8 @@ export function PlaygroundPage({ isNewChat, embedded, initialAgentId, onTurnComp
         initialAgentId={initialAgentId ?? agentParam}
         embedded={embedded}
         isPostProcessing={isPostProcessing}
+        resumeState={resumeState}
+        resumeAttempt={resumeAttempt}
       />
 
     </div>
@@ -639,6 +655,9 @@ interface PlaygroundContentProps {
   initialAgentId?: string | null
   embedded?: boolean
   isPostProcessing?: boolean
+  /** Auto-resume state from useSseResume — drives the "Reconnecting…" badge. */
+  resumeState?: "idle" | "running" | "reconnecting" | "failed"
+  resumeAttempt?: number
 }
 
 function PlaygroundContent({
@@ -664,6 +683,8 @@ function PlaygroundContent({
   initialAgentId,
   embedded,
   isPostProcessing,
+  resumeState,
+  resumeAttempt,
 }: PlaygroundContentProps) {
   const t = useTranslations("playground")
   const tc = useTranslations("common")
@@ -1395,6 +1416,17 @@ function PlaygroundContent({
                   <Loader2 className="h-3 w-3 animate-spin" />
                   <span className="shiny-text">{statusText}</span>
                 </span>
+              )}
+              {resumeState === "reconnecting" && (
+                <Badge variant="outline" className="ml-3 gap-1.5 text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>{t("reconnectAttempt", { attempt: resumeAttempt ?? 1, max: 3 })}</span>
+                </Badge>
+              )}
+              {resumeState === "failed" && (
+                <Badge variant="destructive" className="ml-3">
+                  {t("reconnectFailed")}
+                </Badge>
               )}
               {mode === "auto" && routingEvent && (
                 <span className="ml-3 text-xs text-muted-foreground">

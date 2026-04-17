@@ -148,5 +148,8 @@
   "retryUpload": "重试上传",
   "newChat": "新对话",
   "autoAgent": "自动",
-  "autoAgentDescription": "自动委派给最佳智能体"
+  "autoAgentDescription": "自动委派给最佳智能体",
+  "reconnecting": "重新连接中...",
+  "reconnectAttempt": "重新连接中...({attempt}/{max})",
+  "reconnectFailed": "重新连接失败"
 }

@@ -113,6 +113,12 @@ export function useDagSteps(messages: SSEMessage[], isRunning: boolean): DagStep
         isPostProcessing = false
         continue
       }
+      // resume_done is a resume-protocol marker emitted by /api/chat/resume.
+      // It carries no plan/step data — swallow it so downstream rendering
+      // isn't disrupted while we're recovering from a disconnect.
+      if (msg.event === "resume_done") {
+        continue
+      }
       if (msg.event === "phase") {
         const phase = msg.data as DagPhaseEvent
 

@@ -148,5 +148,8 @@
   "retryUpload": "업로드 다시 시도",
   "newChat": "새 채팅",
   "autoAgent": "자동",
-  "autoAgentDescription": "최적의 에이전트에 자동으로 위임합니다"
+  "autoAgentDescription": "최적의 에이전트에 자동으로 위임합니다",
+  "reconnecting": "다시 연결 중...",
+  "reconnectAttempt": "다시 연결 중... ({attempt}/{max})",
+  "reconnectFailed": "재연결 실패"
 }
