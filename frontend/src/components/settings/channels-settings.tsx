@@ -332,7 +332,7 @@ export function ChannelsSettings() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">
-                    {formatDateTime(ch.updated_at)}
+                    {formatDateTime(ch.updated_at ?? ch.created_at)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <DropdownMenu>

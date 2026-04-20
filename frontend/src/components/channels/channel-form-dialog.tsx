@@ -408,9 +408,13 @@ export function ChannelFormDialog({
                       fieldErrors.verification_token ? true : undefined
                     }
                   />
-                  {fieldErrors.verification_token && (
+                  {fieldErrors.verification_token ? (
                     <p className="text-sm text-destructive">
                       {fieldErrors.verification_token}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {t("form.verification_token_hint")}
                     </p>
                   )}
                 </div>

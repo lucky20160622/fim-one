@@ -123,6 +123,9 @@ export function ChannelDetailsSheet({
                 <li>{t("details.step2")}</li>
                 <li>{t("details.step3")}</li>
                 <li>{t("details.step4")}</li>
+                <li>{t("details.step5")}</li>
+                <li>{t("details.step6")}</li>
+                <li>{t("details.step7")}</li>
               </ol>
             </section>
 
