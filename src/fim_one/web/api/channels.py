@@ -40,6 +40,9 @@ from fim_one.web.schemas.channel import (
     ChatDiscoveryRequest,
     ChatDiscoveryResponse,
     ChatInfo,
+    ConfirmationStatusResponse,
+    TestApprovalRequest,
+    TestApprovalResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -260,6 +263,181 @@ async def test_channel(
             }
         )
     return ChannelTestResponse(ok=result.ok, error=result.error)
+
+
+# ---------------------------------------------------------------------------
+# Hook Playground — full approval-gate round-trip from the UI
+# ---------------------------------------------------------------------------
+
+
+_DEFAULT_TEST_TOOL_NAME = "delete_customer_records"
+_DEFAULT_TEST_TOOL_ARGS: dict[str, Any] = {
+    "customer_id": "C-20240892",
+    "reason": "GDPR erasure request",
+    "confirmed_by": "ops@acme.com",
+}
+_DEFAULT_TEST_TITLE = "FIM One — Approval Required (Hook Playground)"
+_DEFAULT_TEST_SUMMARY = (
+    "**Playground test.** This card is identical to what a real agent "
+    "gate would show. Press **Approve** or **Reject** to drive the "
+    "round-trip; the portal is polling for your decision."
+)
+
+
+@router.post(
+    "/{channel_id}/test-approval", response_model=TestApprovalResponse
+)
+async def test_approval(
+    channel_id: str,
+    body: TestApprovalRequest,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> TestApprovalResponse:
+    """Simulate a ``FeishuGateHook`` round-trip.
+
+    Creates a real ``ConfirmationRequest`` row in ``pending`` state, sends
+    the production approval card to the channel's chat, and returns the
+    ``confirmation_id``.  The UI then polls ``GET /confirmations/{id}``
+    until the status flips (operator clicked Approve/Reject in Feishu) or
+    the caller gives up.
+
+    Unlike ``/test`` which uses a sentinel ``test-*`` id that the callback
+    handler ignores, this endpoint creates a genuine DB row — so the card
+    buttons drive the same code path that a production hook would.
+    """
+    channel = await _load_channel_or_404(db, channel_id)
+    await require_org_member(channel.org_id, user, db)
+
+    if not channel.is_active:
+        return TestApprovalResponse(
+            ok=False, error="Channel is disabled; enable it first."
+        )
+
+    adapter = build_channel(channel.type, dict(channel.config or {}))
+    if adapter is None or not isinstance(adapter, FeishuChannel):
+        return TestApprovalResponse(
+            ok=False,
+            error=(
+                "Approval playground currently supports Feishu channels "
+                "only."
+            ),
+        )
+
+    chat_id = str((channel.config or {}).get("chat_id") or "").strip()
+    if not chat_id:
+        return TestApprovalResponse(
+            ok=False, error="channel has no chat_id configured"
+        )
+
+    tool_name = (body.tool_name or _DEFAULT_TEST_TOOL_NAME).strip()
+    tool_args = body.tool_args if body.tool_args is not None else _DEFAULT_TEST_TOOL_ARGS
+    title = (body.title or _DEFAULT_TEST_TITLE).strip()
+    summary = (body.summary or _DEFAULT_TEST_SUMMARY).strip()
+
+    # Pretty-render args for the card body.
+    try:
+        import json as _json  # local alias to avoid the outer json shadow
+        preview = _json.dumps(tool_args, ensure_ascii=False, indent=2)
+    except Exception:
+        preview = str(tool_args)
+
+    confirmation_id = str(uuid.uuid4())
+    req = ConfirmationRequest(
+        id=confirmation_id,
+        tool_call_id=None,
+        agent_id=None,
+        user_id=user.id,
+        org_id=channel.org_id,
+        channel_id=channel.id,
+        status="pending",
+        payload={
+            "tool_name": tool_name,
+            "tool_args": tool_args,
+            "test_mode": True,
+            "initiator": user.email or user.username,
+        },
+    )
+    db.add(req)
+    await db.commit()
+
+    card = build_confirmation_card(
+        confirmation_id=confirmation_id,
+        title=title,
+        summary=summary,
+        tool_name=tool_name,
+        tool_args_preview=preview,
+    )
+    result = await adapter.send_interactive_card(chat_id, card)
+
+    if not result.ok:
+        # Roll the pending row into a terminal failure so the UI can stop
+        # polling immediately.
+        req.status = "expired"
+        req.responded_at = datetime.now(UTC)
+        await db.commit()
+        return TestApprovalResponse(
+            ok=False,
+            confirmation_id=confirmation_id,
+            error=result.error or "Failed to deliver approval card.",
+        )
+
+    return TestApprovalResponse(ok=True, confirmation_id=confirmation_id)
+
+
+@router.get(
+    "/{channel_id}/confirmations/{confirmation_id}",
+    response_model=ConfirmationStatusResponse,
+)
+async def get_confirmation_status(
+    channel_id: str,
+    confirmation_id: str,
+    user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ConfirmationStatusResponse:
+    """Return the current status of a ``ConfirmationRequest`` row.
+
+    The frontend polls this every ~2s while a Hook Playground session is
+    running.  Requires org membership (the same scope that can create the
+    request in the first place).
+    """
+    channel = await _load_channel_or_404(db, channel_id)
+    await require_org_member(channel.org_id, user, db)
+
+    row = (
+        await db.execute(
+            select(ConfirmationRequest).where(
+                ConfirmationRequest.id == confirmation_id,
+                ConfirmationRequest.channel_id == channel.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Confirmation request not found.",
+        )
+
+    payload: dict[str, Any] = dict(row.payload or {})
+    tool_name_raw = payload.get("tool_name")
+    tool_args_raw = payload.get("tool_args")
+    tool_args_out: dict[str, Any] | None = (
+        tool_args_raw if isinstance(tool_args_raw, dict) else None
+    )
+
+    return ConfirmationStatusResponse(
+        id=row.id,
+        status=row.status,
+        tool_name=(
+            str(tool_name_raw) if isinstance(tool_name_raw, str) else None
+        ),
+        tool_args=tool_args_out,
+        test_mode=bool(payload.get("test_mode", False)),
+        created_at=row.created_at.isoformat() if row.created_at else "",
+        responded_at=(
+            row.responded_at.isoformat() if row.responded_at else None
+        ),
+        responded_by_open_id=row.responded_by_open_id,
+    )
 
 
 # ---------------------------------------------------------------------------

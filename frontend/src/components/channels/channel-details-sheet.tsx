@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useTranslations } from "next-intl"
-import { Check, Copy, Loader2, Send } from "lucide-react"
+import { Check, Copy, Loader2, Send, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +16,7 @@ import {
 import { channelsApi } from "@/lib/api/channels"
 import { getErrorMessage } from "@/lib/error-utils"
 import type { Channel } from "@/types/channel"
+import { HookPlaygroundDialog } from "@/components/channels/hook-playground-dialog"
 
 interface ChannelDetailsSheetProps {
   channel: Channel | null
@@ -31,6 +32,7 @@ export function ChannelDetailsSheet({
 
   const [copied, setCopied] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [playgroundOpen, setPlaygroundOpen] = useState(false)
 
   const handleCopyUrl = async () => {
     if (!channel) return
@@ -172,7 +174,7 @@ export function ChannelDetailsSheet({
             </section>
 
             {/* Test send */}
-            <section>
+            <section className="space-y-2">
               <Button
                 variant="default"
                 className="w-full gap-1.5"
@@ -186,10 +188,30 @@ export function ChannelDetailsSheet({
                 )}
                 {isSending ? t("details.testing") : t("details.testSend")}
               </Button>
+
+              {/* Hook Playground — full approval round-trip */}
+              <Button
+                variant="outline"
+                className="w-full gap-1.5"
+                onClick={() => setPlaygroundOpen(true)}
+                disabled={!channel.is_active}
+              >
+                <Sparkles className="h-4 w-4" />
+                {t("details.openPlayground")}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                {t("details.playgroundHint")}
+              </p>
             </section>
           </div>
         )}
       </SheetContent>
+
+      <HookPlaygroundDialog
+        channel={channel}
+        open={playgroundOpen}
+        onOpenChange={setPlaygroundOpen}
+      />
     </Sheet>
   )
 }

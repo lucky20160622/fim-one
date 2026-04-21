@@ -95,7 +95,9 @@
     "copyToastFailed": "复制失败。请手动复制 URL。",
     "step5": "点击保存。飞书将立即发送URL验证挑战；FIM One会自动响应，无需手动操作。",
     "step6": "Under Subscribed Callbacks (已订阅的回调), click 'Add Callback' (添加回调) and select Card Action Trigger (card.action.trigger).",
-    "step7": "Optional: If you set an Encrypt Key on the Encryption Strategy (加密策略) tab, paste the same value into the Encrypt Key field when editing this channel."
+    "step7": "Optional: If you set an Encrypt Key on the Encryption Strategy (加密策略) tab, paste the same value into the Encrypt Key field when editing this channel.",
+    "openPlayground": "测试审批流程",
+    "playgroundHint": "模拟敏感工具调用，向飞书群组推送真实审批卡片，实时观看决策反馈。"
   },
   "actions": {
     "viewDetails": "查看详情",
@@ -131,5 +133,57 @@
     "externalBadge": "外部",
     "needCredentials": "请先填写 App ID 和 App Secret。",
     "select": "选择"
+  },
+  "playground": {
+    "title": "Hook 审批演练场",
+    "description": "向 {chat} 推送生产级审批卡片，观看真实审核人驱动决策。",
+    "chatFallback": "配置的飞书群组",
+    "channelDisabledHint": "此频道已禁用。运行审批测试前请启用它。",
+    "statusHeading": "往返状态",
+    "form": {
+      "toolName": "模拟工具名称",
+      "toolNameHint": "在审批卡片上显示为待审核的操作。",
+      "toolArgs": "模拟工具参数（JSON）",
+      "toolArgsHint": "在卡片上格式化显示，便于审核人判断请求。"
+    },
+    "errors": {
+      "jsonInvalid": "JSON 无效 - 请在发送前修复语法。",
+      "jsonNotObject": "工具参数必须是 JSON 对象。",
+      "sendFailedUnknown": "发送审批卡片失败。"
+    },
+    "status": {
+      "unknownOperator": "飞书群组成员",
+      "sending": {
+        "title": "创建审批请求中...",
+        "description": "记录待处理的 ConfirmationRequest 并将卡片发送到飞书。"
+      },
+      "waiting": {
+        "title": "等待审核人...",
+        "description": "卡片已送达。已耗时 {elapsed}s - 将继续轮询 {remaining}s。"
+      },
+      "approved": {
+        "title": "已批准",
+        "description": "{operator} 批准了请求。在生产环境中，hook 现在将释放工具调用。"
+      },
+      "rejected": {
+        "title": "已拒绝",
+        "description": "{operator} 拒绝了请求。在生产环境中，hook 将以此决策阻止工具调用。"
+      },
+      "expired": {
+        "title": "已超时",
+        "description": "轮询窗口内未收到决策。在生产环境中，hook 将采用失败关闭策略并阻止调用。"
+      },
+      "sendFailed": {
+        "title": "无法送达卡片"
+      }
+    },
+    "actions": {
+      "send": "发送审批",
+      "sending": "发送中...",
+      "inFlight": "等待中...",
+      "sendAgain": "重新发送",
+      "close": "关闭",
+      "closeStopsPolling": "关闭"
+    }
   }
 }

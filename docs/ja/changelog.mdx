@@ -12,9 +12,10 @@ description: "FIM Oneへの全ての注目すべき変更。"
 
 ### 追加
 
-- **信创データベースサポート**: Database Connectorは、PostgreSQL/MySQLと並んでKingbaseES（人大金仓）、HighGo（瀚高）、DM8（达梦）をリストアップするようになりました。KingbaseESとHighGoはPG互換で、追加の依存関係なしに`asyncpg`を再利用します。DM8は公式の`dmPython`ベンダーホイールを使用します。スタンドアロンの`scripts/test_xinchuang_dbs.py`により、オペレーターはCLIからライブ接続を検証できます。
-- **Feishuチャネル + IM経由の確認ゲート**: 新しい`Channel`リソースタイプ（組織スコープ、認証情報は保存時に暗号化）により、組織はFeishuアプリを接続して送信メッセージを実現できます。`requires_confirmation=True`でフラグされたツールは、ポータルの確認ダイアログのみを表示する代わりに、設定されたFeishuグループに承認/却下インタラクティブカードを送信するようになりました。グループの任意の認可されたメンバーがFeishuから直接承認または却下できます。Settings → Channels管理UI（リスト、ダーティ状態保護付きの作成/編集、コピー可能なコールバックURLを含む詳細、テスト送信）、CRUD API（`/api/channels`）、署名検証とURLチャレンジサポート付きのFeishuイベントコールバックエンドポイント（`/api/channels/{id}/callback`）をカバーします。v0.9 IM Channel Integration ロードマップアイテムの最初のステップで、2026-04-24ロードショーより前にリリースされます。
-- **Agent Hook System（スケルトン）**: `src/fim_one/core/hooks/`の新しい`PreToolUseHook` / `PostToolUseHook`抽象化により、決定論的ロジックがLLMループの外で実行できます。FeishuGateHookが最初の具体的な実装で、確認ゲートフローに接続されています。完全なhookライフサイクル + ユーザー定義YAMLフックはv0.9スコープのままです。
+- **信创データベースサポート**: Database Connectorが、PostgreSQL/MySQLと並んでKingbaseES（人大金仓）、HighGo（瀚高）、DM8（达梦）をリストアップするようになりました。KingbaseESとHighGoはPG互換で、追加の依存関係なしに`asyncpg`を再利用します。DM8は公式の`dmPython`ベンダーホイールを使用します。スタンドアロンの`scripts/test_xinchuang_dbs.py`により、オペレーターはCLIからライブ接続を検証できます。
+- **Feishuチャネル + IM経由の確認ゲート**: 新しい`Channel`リソースタイプ（組織スコープ、認証情報は保存時に暗号化）により、組織はFeishuアプリを接続して送信メッセージを実現できます。`requires_confirmation=True`でマークされたツールは、ポータルの確認ダイアログのみを表示する代わりに、設定されたFeishuグループに承認/却下のインタラクティブカードを送信するようになりました。グループの認可されたメンバーは誰でもFeishuから直接承認または却下できます。Settings → Channels管理UI（リスト、ダーティ状態保護付きの作成/編集、コピー可能なコールバックURLを含む詳細、テスト送信）、CRUD API（`/api/channels`）、署名検証とURLチャレンジサポート付きのFeishuイベントコールバックエンドポイント（`/api/channels/{id}/callback`）をカバーします。v0.9 IM Channel Integration ロードマップアイテムの最初のステップで、2026-04-24ロードショーに向けて予定より早くリリースされます。
+- **Agent Hook System（スケルトン）**: `src/fim_one/core/hooks/`の新しい`PreToolUseHook` / `PostToolUseHook`抽象化により、決定論的ロジックがLLMループの外で実行できます。FeishuGateHookは最初の具体的な実装で、確認ゲートフローに接続されています。完全なhookライフサイクル + ユーザー定義YAMLフックはv0.9スコープのままです。
+- **Hook Approval Playground**: Channelsの詳細シートに「Test Approval Flow」アクションが追加されました。これは機密ツール呼び出しをシミュレートし、リンクされたFeishuグループに実際の確認カードをプッシュし、レビュアーの決定をライブでポーリングします。既存のプレビューボタンとは異なり、これは完全な本番パス（本物の`ConfirmationRequest`行、実際のFeishuコールバック、ステータス遷移）を実行するため、デモと本番前リハーサルは本番フックが使用するのと同じコードパスを使用します。
 
 ### 変更
 

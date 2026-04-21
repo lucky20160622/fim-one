@@ -14,6 +14,9 @@ import type {
   ChannelUpdateRequest,
   ChatDiscoveryRequest,
   ChatDiscoveryResponse,
+  ConfirmationStatus,
+  TestApprovalRequest,
+  TestApprovalResponse,
 } from "@/types/channel"
 
 export const channelsApi = {
@@ -43,6 +46,26 @@ export const channelsApi = {
     apiFetch<ChannelTestResponse>(`/api/channels/${id}/test`, {
       method: "POST",
     }),
+
+  /**
+   * Hook Playground — kick off a real approval round-trip.
+   *
+   * The backend creates a genuine `ConfirmationRequest` row and sends a
+   * production-grade card to the chat.  Operators can press Approve/Reject
+   * in Feishu; the card callback flips the row's status; the UI then
+   * reflects the decision via `getConfirmation()`.
+   */
+  testApproval: (id: string, body: TestApprovalRequest = {}) =>
+    apiFetch<TestApprovalResponse>(`/api/channels/${id}/test-approval`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  /** Fetch the current state of a pending approval (polled by the UI). */
+  getConfirmation: (channelId: string, confirmationId: string) =>
+    apiFetch<ConfirmationStatus>(
+      `/api/channels/${channelId}/confirmations/${confirmationId}`,
+    ),
 
   /**
    * Ask the backend to list Feishu groups the given app/bot is a member of.

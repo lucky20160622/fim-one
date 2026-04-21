@@ -95,7 +95,9 @@
     "copyToastFailed": "Kopieren fehlgeschlagen. Bitte kopieren Sie die URL manuell.",
     "step5": "Klicken Sie auf Speichern. Feishu sendet sofort eine URL-Verifizierungsanforderung; FIM One antwortet automatisch, daher ist keine manuelle Aktion erforderlich.",
     "step6": "Klicken Sie unter Subscribed Callbacks (已订阅的回调) auf 'Add Callback' (添加回调) und wählen Sie Card Action Trigger (card.action.trigger).",
-    "step7": "Optional: Wenn Sie einen Encrypt Key auf der Encryption Strategy (加密策略) Registerkarte festgelegt haben, fügen Sie denselben Wert in das Encrypt Key Feld ein, wenn Sie diesen Kanal bearbeiten."
+    "step7": "Optional: Wenn Sie einen Encrypt Key auf der Encryption Strategy (加密策略) Registerkarte festgelegt haben, fügen Sie denselben Wert in das Encrypt Key Feld ein, wenn Sie diesen Kanal bearbeiten.",
+    "openPlayground": "Genehmigungsfluss testen",
+    "playgroundHint": "Simulieren Sie einen sensiblen Tool-Aufruf, senden Sie eine echte Genehmigungskarte an die Feishu-Gruppe und beobachten Sie, wie die Entscheidung live zurückkommt."
   },
   "actions": {
     "viewDetails": "Details anzeigen",
@@ -131,5 +133,57 @@
     "externalBadge": "Extern",
     "needCredentials": "Füllen Sie zuerst App ID und App Secret aus.",
     "select": "Auswählen"
+  },
+  "playground": {
+    "title": "Hook-Genehmigungsspielplatz",
+    "description": "Senden Sie eine produktionsreife Genehmigungskarte an {chat} und beobachten Sie, wie ein echter Reviewer die Entscheidung trifft.",
+    "chatFallback": "die konfigurierte Feishu-Gruppe",
+    "channelDisabledHint": "Dieser Kanal ist deaktiviert. Aktivieren Sie ihn, bevor Sie einen Genehmigungstest durchführen.",
+    "statusHeading": "Hin- und Rückfahrtstatus",
+    "form": {
+      "toolName": "Simulierter Tool-Name",
+      "toolNameHint": "Wird auf der Genehmigungskarte als überprüfte Aktion angezeigt.",
+      "toolArgs": "Simulierte Tool-Argumente (JSON)",
+      "toolArgsHint": "Auf der Karte schön formatiert, damit der Reviewer die Anfrage beurteilen kann."
+    },
+    "errors": {
+      "jsonInvalid": "Ungültiges JSON - bitte beheben Sie die Syntax vor dem Senden.",
+      "jsonNotObject": "Tool-Argumente müssen ein JSON-Objekt sein.",
+      "sendFailedUnknown": "Fehler beim Senden der Genehmigungskarte."
+    },
+    "status": {
+      "unknownOperator": "ein Mitglied der Feishu-Gruppe",
+      "sending": {
+        "title": "Genehmigungsanfrage wird erstellt...",
+        "description": "Protokollierung einer ausstehenden ConfirmationRequest und Versand der Karte an Feishu."
+      },
+      "waiting": {
+        "title": "Warten auf Reviewer...",
+        "description": "Karte zugestellt. Verstrichene Zeit {elapsed}s - wird noch {remaining}s lang abgefragt."
+      },
+      "approved": {
+        "title": "Genehmigt",
+        "description": "{operator} hat die Anfrage genehmigt. In der Produktion würde der Hook nun den Tool-Aufruf freigeben."
+      },
+      "rejected": {
+        "title": "Abgelehnt",
+        "description": "{operator} hat die Anfrage abgelehnt. In der Produktion würde der Hook den Tool-Aufruf mit dieser Entscheidung blockieren."
+      },
+      "expired": {
+        "title": "Zeitüberschreitung",
+        "description": "Keine Entscheidung innerhalb des Abfragefensters eingegangen. In der Produktion würde der Hook fehlgeschlagen und den Aufruf blockieren."
+      },
+      "sendFailed": {
+        "title": "Karte konnte nicht zugestellt werden"
+      }
+    },
+    "actions": {
+      "send": "Genehmigung senden",
+      "sending": "Wird gesendet...",
+      "inFlight": "Warten...",
+      "sendAgain": "Erneut senden",
+      "close": "Schließen",
+      "closeStopsPolling": "Schließen"
+    }
   }
 }

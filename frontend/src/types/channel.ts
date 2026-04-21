@@ -82,6 +82,43 @@ export interface ChannelTestResponse {
 }
 
 /**
+ * Hook Playground — exercises the real FeishuGateHook round-trip from the UI.
+ *
+ * Unlike `/test` (which sends a preview card with a sentinel id whose button
+ * clicks are no-ops), `test-approval` creates a genuine `ConfirmationRequest`
+ * row.  The UI then polls `getConfirmation()` until the status flips.
+ */
+export interface TestApprovalRequest {
+  tool_name?: string
+  tool_args?: Record<string, unknown>
+  title?: string
+  summary?: string
+}
+
+export interface TestApprovalResponse {
+  ok: boolean
+  confirmation_id?: string
+  error?: string
+}
+
+export type ConfirmationStatusValue =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "expired"
+
+export interface ConfirmationStatus {
+  id: string
+  status: ConfirmationStatusValue
+  tool_name?: string | null
+  tool_args?: Record<string, unknown> | null
+  test_mode: boolean
+  created_at: string
+  responded_at?: string | null
+  responded_by_open_id?: string | null
+}
+
+/**
  * Payload for `POST /api/channels/discover-chats`.
  *
  * - **Create mode**: provide `app_id` + `app_secret` + `org_id`.

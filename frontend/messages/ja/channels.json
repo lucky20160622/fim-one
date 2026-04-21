@@ -95,7 +95,9 @@
     "copyToastFailed": "コピーに失敗しました。URLを手動でコピーしてください。",
     "step5": "保存をクリックします。Feishu は直ちに URL 検証チャレンジを POST します。FIM One は自動的に応答するため、手動操作は不要です。",
     "step6": "Subscribed Callbacks (已订阅的回调) の下で「Add Callback」(添加回调) をクリックし、Card Action Trigger (card.action.trigger) を選択します。",
-    "step7": "オプション: Encryption Strategy (加密策略) タブで Encrypt Key を設定した場合、このチャネルを編集する際に同じ値を Encrypt Key フィールドに貼り付けてください。"
+    "step7": "オプション: Encryption Strategy (加密策略) タブで Encrypt Key を設定した場合、このチャネルを編集する際に同じ値を Encrypt Key フィールドに貼り付けてください。",
+    "openPlayground": "承認フローをテスト",
+    "playgroundHint": "機密ツール呼び出しをシミュレートし、実際の承認カードをFeishuグループにプッシュして、リアルタイムで決定を確認します。"
   },
   "actions": {
     "viewDetails": "詳細を表示",
@@ -131,5 +133,57 @@
     "externalBadge": "外部",
     "needCredentials": "先に App ID と App Secret を入力してください。",
     "select": "選択"
+  },
+  "playground": {
+    "title": "フック承認プレイグラウンド",
+    "description": "本番環境対応の承認カードを{chat}にプッシュして、実際のレビュアーが決定を下すのを確認します。",
+    "chatFallback": "設定されたFeishuグループ",
+    "channelDisabledHint": "このチャネルは無効です。承認テストを実行する前に有効にしてください。",
+    "statusHeading": "往復ステータス",
+    "form": {
+      "toolName": "シミュレートされたツール名",
+      "toolNameHint": "承認カードにレビュー対象のアクションとして表示されます。",
+      "toolArgs": "シミュレートされたツール引数（JSON）",
+      "toolArgsHint": "カードに見やすく表示され、レビュアーがリクエストを判断できます。"
+    },
+    "errors": {
+      "jsonInvalid": "無効なJSON - 送信前に構文を修正してください。",
+      "jsonNotObject": "ツール引数はJSONオブジェクトである必要があります。",
+      "sendFailedUnknown": "承認カードの送信に失敗しました。"
+    },
+    "status": {
+      "unknownOperator": "Feishuグループメンバー",
+      "sending": {
+        "title": "承認リクエストを作成中...",
+        "description": "保留中のConfirmationRequestをログに記録し、カードをFeishuに送信しています。"
+      },
+      "waiting": {
+        "title": "レビュアーの応答を待機中...",
+        "description": "カード配信完了。経過時間 {elapsed}秒 - {remaining}秒間ポーリングを続けます。"
+      },
+      "approved": {
+        "title": "承認済み",
+        "description": "{operator}がリクエストを承認しました。本番環境では、フックはツール呼び出しをリリースします。"
+      },
+      "rejected": {
+        "title": "却下",
+        "description": "{operator}がリクエストを却下しました。本番環境では、フックはこの決定でツール呼び出しをブロックします。"
+      },
+      "expired": {
+        "title": "タイムアウト",
+        "description": "ポーリングウィンドウ内に決定が到着しませんでした。本番環境では、フックはフェイルクローズしてコールをブロックします。"
+      },
+      "sendFailed": {
+        "title": "カードを配信できませんでした"
+      }
+    },
+    "actions": {
+      "send": "承認を送信",
+      "sending": "送信中...",
+      "inFlight": "待機中...",
+      "sendAgain": "再度送信",
+      "close": "閉じる",
+      "closeStopsPolling": "閉じる"
+    }
   }
 }

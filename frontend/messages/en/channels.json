@@ -115,6 +115,8 @@
     "step7": "Optional: If you set an Encrypt Key on the Encryption Strategy (加密策略) tab, paste the same value into the Encrypt Key field when editing this channel.",
     "testSend": "Send Test Message",
     "testing": "Sending...",
+    "openPlayground": "Test Approval Flow",
+    "playgroundHint": "Simulate a sensitive tool call, push a real approval card to the Feishu group, and watch the decision come back live.",
     "copyToastSuccess": "Callback URL copied",
     "copyToastFailed": "Copy failed. Please copy the URL manually."
   },
@@ -143,5 +145,62 @@
   "deleteDialog": {
     "title": "Delete channel?",
     "description": "This permanently removes the channel \"{name}\". Agents that post to this channel will stop delivering messages. This action cannot be undone."
+  },
+
+  "playground": {
+    "title": "Hook Approval Playground",
+    "description": "Push a production-grade approval card to {chat} and watch a real reviewer drive the decision.",
+    "chatFallback": "the configured Feishu group",
+    "channelDisabledHint": "This channel is disabled. Enable it before running an approval test.",
+    "statusHeading": "Round-trip status",
+
+    "form": {
+      "toolName": "Simulated tool name",
+      "toolNameHint": "Shown on the approval card as the action under review.",
+      "toolArgs": "Simulated tool arguments (JSON)",
+      "toolArgsHint": "Pretty-printed on the card so the reviewer can judge the request."
+    },
+
+    "errors": {
+      "jsonInvalid": "Invalid JSON - please fix the syntax before sending.",
+      "jsonNotObject": "Tool arguments must be a JSON object.",
+      "sendFailedUnknown": "Failed to send approval card."
+    },
+
+    "status": {
+      "unknownOperator": "a Feishu group member",
+      "sending": {
+        "title": "Creating approval request...",
+        "description": "Logging a pending ConfirmationRequest and shipping the card to Feishu."
+      },
+      "waiting": {
+        "title": "Waiting for reviewer...",
+        "description": "Card delivered. Elapsed {elapsed}s - will keep polling for {remaining}s."
+      },
+      "approved": {
+        "title": "Approved",
+        "description": "{operator} approved the request. In production, the hook would now release the tool call."
+      },
+      "rejected": {
+        "title": "Rejected",
+        "description": "{operator} rejected the request. In production, the hook would block the tool call with this decision."
+      },
+      "expired": {
+        "title": "Timed out",
+        "description": "No decision arrived within the polling window. In production, the hook would fail-close and block the call."
+      },
+      "sendFailed": {
+        "title": "Could not deliver card"
+      }
+    },
+
+    "actions": {
+      "send": "Send Approval",
+      "sending": "Sending...",
+      "inFlight": "Waiting...",
+      "sendAgain": "Send Again",
+      "close": "Close",
+      "closeStopsPolling": "Close"
+    }
   }
 }

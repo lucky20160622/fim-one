@@ -95,7 +95,9 @@
     "copyToastFailed": "La copie a échoué. Veuillez copier l'URL manuellement.",
     "step5": "Cliquez sur Enregistrer. Feishu enverra immédiatement un défi de vérification d'URL par POST ; FIM One répond automatiquement, aucune action manuelle n'est nécessaire.",
     "step6": "Sous Subscribed Callbacks (已订阅的回调), cliquez sur « Ajouter un rappel » (添加回调) et sélectionnez Card Action Trigger (card.action.trigger).",
-    "step7": "Facultatif : Si vous avez défini une clé de chiffrement dans l'onglet Encryption Strategy (加密策略), collez la même valeur dans le champ Encrypt Key lors de la modification de ce canal."
+    "step7": "Facultatif : Si vous avez défini une clé de chiffrement dans l'onglet Encryption Strategy (加密策略), collez la même valeur dans le champ Encrypt Key lors de la modification de ce canal.",
+    "openPlayground": "Tester le flux d'approbation",
+    "playgroundHint": "Simulez un appel d'outil sensible, envoyez une véritable carte d'approbation au groupe Feishu et observez la décision revenir en direct."
   },
   "actions": {
     "viewDetails": "Afficher les détails",
@@ -131,5 +133,57 @@
     "externalBadge": "Externe",
     "needCredentials": "Remplissez d'abord l'ID d'application et le secret d'application.",
     "select": "Sélectionner"
+  },
+  "playground": {
+    "title": "Terrain de jeu d'approbation Hook",
+    "description": "Envoyez une carte d'approbation de qualité production à {chat} et observez un véritable examinateur piloter la décision.",
+    "chatFallback": "le groupe Feishu configuré",
+    "channelDisabledHint": "Ce canal est désactivé. Activez-le avant d'exécuter un test d'approbation.",
+    "statusHeading": "Statut aller-retour",
+    "form": {
+      "toolName": "Nom d'outil simulé",
+      "toolNameHint": "Affiché sur la carte d'approbation comme l'action en cours d'examen.",
+      "toolArgs": "Arguments d'outil simulés (JSON)",
+      "toolArgsHint": "Affiché de manière lisible sur la carte afin que l'examinateur puisse juger la demande."
+    },
+    "errors": {
+      "jsonInvalid": "JSON invalide - veuillez corriger la syntaxe avant d'envoyer.",
+      "jsonNotObject": "Les arguments d'outil doivent être un objet JSON.",
+      "sendFailedUnknown": "Échec de l'envoi de la carte d'approbation."
+    },
+    "status": {
+      "unknownOperator": "un membre du groupe Feishu",
+      "sending": {
+        "title": "Création de la demande d'approbation...",
+        "description": "Enregistrement d'une ConfirmationRequest en attente et envoi de la carte à Feishu."
+      },
+      "waiting": {
+        "title": "En attente de l'examinateur...",
+        "description": "Carte livrée. Temps écoulé {elapsed}s - continuera à interroger pendant {remaining}s."
+      },
+      "approved": {
+        "title": "Approuvé",
+        "description": "{operator} a approuvé la demande. En production, le hook libérerait maintenant l'appel d'outil."
+      },
+      "rejected": {
+        "title": "Rejeté",
+        "description": "{operator} a rejeté la demande. En production, le hook bloquerait l'appel d'outil avec cette décision."
+      },
+      "expired": {
+        "title": "Délai d'attente dépassé",
+        "description": "Aucune décision n'est arrivée dans la fenêtre d'interrogation. En production, le hook échouerait de manière sécurisée et bloquerait l'appel."
+      },
+      "sendFailed": {
+        "title": "Impossible de livrer la carte"
+      }
+    },
+    "actions": {
+      "send": "Envoyer l'approbation",
+      "sending": "Envoi en cours...",
+      "inFlight": "En attente...",
+      "sendAgain": "Envoyer à nouveau",
+      "close": "Fermer",
+      "closeStopsPolling": "Fermer"
+    }
   }
 }

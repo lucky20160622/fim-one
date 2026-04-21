@@ -389,6 +389,298 @@ class TestTestChannel:
 
 
 # ---------------------------------------------------------------------------
+# Hook Playground — test-approval + confirmation polling
+# ---------------------------------------------------------------------------
+
+
+async def _seed_active_feishu_channel(
+    session_factory: async_sessionmaker[AsyncSession],
+    seed: dict[str, Any],
+    *,
+    is_active: bool = True,
+) -> str:
+    async with session_factory() as db:
+        ch = Channel(
+            id=str(uuid.uuid4()),
+            name="Playground",
+            type="feishu",
+            org_id=seed["org_id"],
+            created_by=seed["user_id"],
+            is_active=is_active,
+            config={
+                "app_id": "cli_x",
+                "app_secret": "s",
+                "chat_id": "oc_playground",
+            },
+        )
+        db.add(ch)
+        await db.commit()
+        return ch.id
+
+
+class TestApprovalPlayground:
+    @pytest.mark.asyncio
+    async def test_creates_real_confirmation_and_sends_card(
+        self,
+        client: AsyncClient,
+        seed: dict[str, Any],
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        ch_id = await _seed_active_feishu_channel(session_factory, seed)
+
+        send_mock = AsyncMock(return_value=ChannelSendResult(ok=True))
+        with patch(
+            "fim_one.core.channels.feishu.FeishuChannel.send_interactive_card",
+            new=send_mock,
+        ):
+            resp = await client.post(
+                f"/api/channels/{ch_id}/test-approval",
+                json={
+                    "tool_name": "drop_table",
+                    "tool_args": {"table": "orders"},
+                },
+                headers=seed["headers"],
+            )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["ok"] is True
+        assert body["confirmation_id"]
+        send_mock.assert_awaited_once()
+
+        # A real DB row was created in pending state.
+        async with session_factory() as db:
+            row = (
+                await db.execute(
+                    select(ConfirmationRequest).where(
+                        ConfirmationRequest.id == body["confirmation_id"]
+                    )
+                )
+            ).scalar_one_or_none()
+            assert row is not None
+            assert row.status == "pending"
+            assert row.channel_id == ch_id
+            assert row.payload["tool_name"] == "drop_table"
+            assert row.payload["test_mode"] is True
+
+    @pytest.mark.asyncio
+    async def test_fills_defaults_when_body_empty(
+        self,
+        client: AsyncClient,
+        seed: dict[str, Any],
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        ch_id = await _seed_active_feishu_channel(session_factory, seed)
+
+        send_mock = AsyncMock(return_value=ChannelSendResult(ok=True))
+        with patch(
+            "fim_one.core.channels.feishu.FeishuChannel.send_interactive_card",
+            new=send_mock,
+        ):
+            resp = await client.post(
+                f"/api/channels/{ch_id}/test-approval",
+                json={},
+                headers=seed["headers"],
+            )
+
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+
+    @pytest.mark.asyncio
+    async def test_rejects_when_channel_disabled(
+        self,
+        client: AsyncClient,
+        seed: dict[str, Any],
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        ch_id = await _seed_active_feishu_channel(
+            session_factory, seed, is_active=False
+        )
+
+        resp = await client.post(
+            f"/api/channels/{ch_id}/test-approval",
+            json={},
+            headers=seed["headers"],
+        )
+        body = resp.json()
+        assert resp.status_code == 200
+        assert body["ok"] is False
+        assert "disabled" in (body.get("error") or "").lower()
+
+    @pytest.mark.asyncio
+    async def test_outsider_rejected(
+        self,
+        client: AsyncClient,
+        seed: dict[str, Any],
+        outsider: dict[str, Any],
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        ch_id = await _seed_active_feishu_channel(session_factory, seed)
+
+        resp = await client.post(
+            f"/api/channels/{ch_id}/test-approval",
+            json={},
+            headers=outsider["headers"],
+        )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_marks_expired_on_send_failure(
+        self,
+        client: AsyncClient,
+        seed: dict[str, Any],
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        ch_id = await _seed_active_feishu_channel(session_factory, seed)
+
+        send_mock = AsyncMock(
+            return_value=ChannelSendResult(ok=False, error="network")
+        )
+        with patch(
+            "fim_one.core.channels.feishu.FeishuChannel.send_interactive_card",
+            new=send_mock,
+        ):
+            resp = await client.post(
+                f"/api/channels/{ch_id}/test-approval",
+                json={},
+                headers=seed["headers"],
+            )
+
+        body = resp.json()
+        assert body["ok"] is False
+        assert body["confirmation_id"]
+
+        async with session_factory() as db:
+            row = (
+                await db.execute(
+                    select(ConfirmationRequest).where(
+                        ConfirmationRequest.id == body["confirmation_id"]
+                    )
+                )
+            ).scalar_one_or_none()
+            assert row is not None
+            assert row.status == "expired"
+
+
+class TestConfirmationStatus:
+    @pytest.mark.asyncio
+    async def test_returns_current_status(
+        self,
+        client: AsyncClient,
+        seed: dict[str, Any],
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        ch_id = await _seed_active_feishu_channel(session_factory, seed)
+
+        send_mock = AsyncMock(return_value=ChannelSendResult(ok=True))
+        with patch(
+            "fim_one.core.channels.feishu.FeishuChannel.send_interactive_card",
+            new=send_mock,
+        ):
+            create = await client.post(
+                f"/api/channels/{ch_id}/test-approval",
+                json={"tool_name": "foo", "tool_args": {"a": 1}},
+                headers=seed["headers"],
+            )
+        conf_id = create.json()["confirmation_id"]
+
+        resp = await client.get(
+            f"/api/channels/{ch_id}/confirmations/{conf_id}",
+            headers=seed["headers"],
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["id"] == conf_id
+        assert body["status"] == "pending"
+        assert body["tool_name"] == "foo"
+        assert body["test_mode"] is True
+
+    @pytest.mark.asyncio
+    async def test_reflects_approval_via_callback(
+        self,
+        client: AsyncClient,
+        seed: dict[str, Any],
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        ch_id = await _seed_active_feishu_channel(session_factory, seed)
+
+        send_mock = AsyncMock(return_value=ChannelSendResult(ok=True))
+        with patch(
+            "fim_one.core.channels.feishu.FeishuChannel.send_interactive_card",
+            new=send_mock,
+        ):
+            create = await client.post(
+                f"/api/channels/{ch_id}/test-approval",
+                json={},
+                headers=seed["headers"],
+            )
+        conf_id = create.json()["confirmation_id"]
+
+        # Simulate the Feishu callback flipping the row to approved.
+        async with session_factory() as db:
+            row = (
+                await db.execute(
+                    select(ConfirmationRequest).where(
+                        ConfirmationRequest.id == conf_id
+                    )
+                )
+            ).scalar_one()
+            row.status = "approved"
+            row.responded_by_open_id = "ou_operator_123"
+            await db.commit()
+
+        resp = await client.get(
+            f"/api/channels/{ch_id}/confirmations/{conf_id}",
+            headers=seed["headers"],
+        )
+        body = resp.json()
+        assert body["status"] == "approved"
+        assert body["responded_by_open_id"] == "ou_operator_123"
+
+    @pytest.mark.asyncio
+    async def test_404_when_not_found(
+        self,
+        client: AsyncClient,
+        seed: dict[str, Any],
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        ch_id = await _seed_active_feishu_channel(session_factory, seed)
+        resp = await client.get(
+            f"/api/channels/{ch_id}/confirmations/{uuid.uuid4()}",
+            headers=seed["headers"],
+        )
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_outsider_rejected(
+        self,
+        client: AsyncClient,
+        seed: dict[str, Any],
+        outsider: dict[str, Any],
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
+        ch_id = await _seed_active_feishu_channel(session_factory, seed)
+
+        send_mock = AsyncMock(return_value=ChannelSendResult(ok=True))
+        with patch(
+            "fim_one.core.channels.feishu.FeishuChannel.send_interactive_card",
+            new=send_mock,
+        ):
+            create = await client.post(
+                f"/api/channels/{ch_id}/test-approval",
+                json={},
+                headers=seed["headers"],
+            )
+        conf_id = create.json()["confirmation_id"]
+
+        resp = await client.get(
+            f"/api/channels/{ch_id}/confirmations/{conf_id}",
+            headers=outsider["headers"],
+        )
+        assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
 # Discover chats (Feishu group picker)
 # ---------------------------------------------------------------------------
 

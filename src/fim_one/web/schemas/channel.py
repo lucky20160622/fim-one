@@ -98,6 +98,51 @@ class ChannelTestResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Hook Playground — test the real approval-gate flow end-to-end
+# ---------------------------------------------------------------------------
+
+
+class TestApprovalRequest(BaseModel):
+    """Body for ``POST /api/channels/{id}/test-approval``.
+
+    All fields are optional — the endpoint fills sensible defaults modeled
+    on a realistic "sensitive tool call" so demos look natural out of the
+    box.
+    """
+
+    tool_name: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Simulated tool name shown on the approval card.",
+    )
+    tool_args: dict[str, Any] | None = Field(
+        default=None,
+        description="Simulated tool arguments (rendered as pretty JSON).",
+    )
+    title: str | None = Field(default=None, max_length=200)
+    summary: str | None = Field(default=None, max_length=2000)
+
+
+class TestApprovalResponse(BaseModel):
+    ok: bool
+    confirmation_id: str | None = None
+    error: str | None = None
+
+
+class ConfirmationStatusResponse(BaseModel):
+    """Current state of a ``ConfirmationRequest`` row — polled by the UI."""
+
+    id: str
+    status: str  # pending | approved | rejected | expired
+    tool_name: str | None = None
+    tool_args: dict[str, Any] | None = None
+    test_mode: bool = False
+    created_at: str
+    responded_at: str | None = None
+    responded_by_open_id: str | None = None
+
+
+# ---------------------------------------------------------------------------
 # Chat discovery (Feishu group picker)
 # ---------------------------------------------------------------------------
 
@@ -138,6 +183,9 @@ __all__ = [
     "ChannelResponse",
     "ChannelListResponse",
     "ChannelTestResponse",
+    "TestApprovalRequest",
+    "TestApprovalResponse",
+    "ConfirmationStatusResponse",
     "ChatDiscoveryRequest",
     "ChatInfo",
     "ChatDiscoveryResponse",
