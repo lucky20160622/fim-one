@@ -474,11 +474,21 @@ def build_confirmation_card(
                             "elements": [
                                 {
                                     "tag": "button",
+                                    # ``name`` is REQUIRED for Feishu v2
+                                    # cards — without it, button clicks
+                                    # are NOT routed to the
+                                    # ``card.action.trigger`` event
+                                    # subscription and silently fail
+                                    # with error 200340 on the clicker's
+                                    # client.
+                                    "name": f"btn_approve_{confirmation_id}",
                                     "text": {
                                         "tag": "plain_text",
                                         "content": approve_text,
                                     },
                                     "type": "primary_filled",
+                                    "width": "default",
+                                    "size": "medium",
                                     "behaviors": [
                                         {
                                             "type": "callback",
@@ -498,11 +508,14 @@ def build_confirmation_card(
                             "elements": [
                                 {
                                     "tag": "button",
+                                    "name": f"btn_reject_{confirmation_id}",
                                     "text": {
                                         "tag": "plain_text",
                                         "content": reject_text,
                                     },
                                     "type": "danger_filled",
+                                    "width": "default",
+                                    "size": "medium",
                                     "behaviors": [
                                         {
                                             "type": "callback",
