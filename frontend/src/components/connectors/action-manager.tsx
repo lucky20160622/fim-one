@@ -172,8 +172,14 @@ export function ActionManager({ connector, onChanged }: ActionManagerProps) {
         await connectorApi.createAction(connector.id, body)
       }
 
-      toast.success(isAddingNew || !editingActionId ? t("actionCreated") : t("actionUpdated"))
-      resetForm()
+      const wasCreate = isAddingNew || !editingActionId
+      toast.success(wasCreate ? t("actionCreated") : t("actionUpdated"))
+      if (wasCreate) {
+        resetForm()
+      } else {
+        // Update: keep the user on the action they just edited; leave form in sync.
+        setIsAddingNew(false)
+      }
       onChanged()
     } catch {
       toast.error(t("actionSaveFailed"))
