@@ -224,9 +224,21 @@ export function ChannelFormDialog({
         <DialogContent
           className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
           onInteractOutside={(e) => {
+            // Picker is layered above this dialog — clicks inside it count as
+            // "outside" the parent content, which would spuriously trigger the
+            // discard-edits prompt. Let the picker own its own close logic.
+            if (showPicker) {
+              e.preventDefault()
+              return
+            }
             if (isDirty) {
               e.preventDefault()
               setShowCloseConfirm(true)
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            if (showPicker) {
+              e.preventDefault()
             }
           }}
         >
