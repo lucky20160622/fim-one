@@ -161,6 +161,7 @@
     "emptyStateAction": "Organization Settings → Channelsで設定してください",
     "helperText": "このエージェントが会話ターンを終了すると、サマリーカードが選択されたチャネルに投稿されます。承認カード（ブロッキング）はエージェントのhooksによって制御されたままです。",
     "missingChannelError": "チャネルを選択してください。",
-    "loading": "チャネルを読み込み中…"
+    "loading": "チャネルを読み込み中…",
+    "personalAgentHint": "完了通知には組織スコープのエージェントが必要です。このエージェントを組織に公開してから、ここでチャネルを設定してください。"
   }
 }

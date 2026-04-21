@@ -183,6 +183,7 @@
     "channelPlaceholder": "Select a channel…",
     "emptyState": "No active channels in this org.",
     "emptyStateAction": "Configure one in Organization Settings → Channels",
+    "personalAgentHint": "Completion notifications require an org-scoped agent. Publish this agent to an organization first, then configure a channel here.",
     "helperText": "When this agent finishes a conversation turn, a summary card is posted to the selected channel. Approval cards (blocking) remain controlled by the agent's hooks.",
     "missingChannelError": "Please select a channel.",
     "loading": "Loading channels…"

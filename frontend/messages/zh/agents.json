@@ -161,6 +161,7 @@
     "emptyStateAction": "在组织设置 → 频道中配置一个",
     "helperText": "当此智能体完成对话轮次时，摘要卡片将发布到选定的频道。审批卡片（阻止）仍由智能体的钩子控制。",
     "missingChannelError": "请选择一个频道。",
-    "loading": "加载频道中…"
+    "loading": "加载频道中…",
+    "personalAgentHint": "完成通知需要组织范围的智能体。请先将此智能体发布到组织，然后在此处配置频道。"
   }
 }

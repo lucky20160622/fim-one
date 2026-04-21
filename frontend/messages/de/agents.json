@@ -161,6 +161,7 @@
     "emptyStateAction": "Konfigurieren Sie einen in Organisationseinstellungen → Kanäle",
     "helperText": "Wenn dieser Agent einen Gesprächsturn beendet, wird eine Zusammenfassungskarte an den ausgewählten Kanal gesendet. Genehmigungskarten (blockierend) werden weiterhin durch die Hooks des Agenten gesteuert.",
     "missingChannelError": "Bitte wählen Sie einen Kanal aus.",
-    "loading": "Kanäle werden geladen…"
+    "loading": "Kanäle werden geladen…",
+    "personalAgentHint": "Abschlussbenachrichtigungen erfordern einen organisationsweit geltenden Agenten. Veröffentlichen Sie diesen Agenten zunächst in einer Organisation und konfigurieren Sie dann einen Kanal hier."
   }
 }

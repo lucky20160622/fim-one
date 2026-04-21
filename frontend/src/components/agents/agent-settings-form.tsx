@@ -915,6 +915,12 @@ export function AgentSettingsForm({
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     <span>{t("notifications.loading")}</span>
                   </div>
+                ) : !agent?.org_id ? (
+                  <div className="rounded-md border border-dashed border-input px-3 py-2.5 space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      {t("notifications.personalAgentHint")}
+                    </p>
+                  </div>
                 ) : availableChannels.length === 0 ? (
                   <div className="rounded-md border border-dashed border-input px-3 py-2.5 space-y-1">
                     <p className="text-xs text-muted-foreground">
