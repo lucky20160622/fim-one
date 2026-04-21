@@ -1,0 +1,134 @@
+---
+title: "Feishu (Lark) Channel"
+icon: "comment-dots"
+description: "Wire FIM One to a Feishu app for outbound messages, inbound replies, and interactive approval cards."
+---
+
+A Feishu Channel gives agents in one org a single hotline into a Feishu group: outbound notifications, inbound replies, and interactive Approve / Reject cards (via the `feishu_gate` hook).
+
+This guide walks through the end-to-end setup. It assumes FIM One is reachable at a stable HTTPS origin — call this `API_BASE_URL` (e.g. `https://one.yourdomain.com`).
+
+## 1. Create a Feishu app
+
+1. Go to the [Feishu Open Platform](https://open.feishu.cn/app/) and click **Create custom app for enterprise**.
+2. Give it a name, icon, and a short description — end-users of your org will see these on cards.
+3. On the **Credentials & Basic Info** page, copy the **App ID** and **App Secret**. You'll paste them into FIM One in step 4.
+
+<Warning>
+Treat the App Secret like a password. FIM One encrypts it at rest, but anyone holding a plaintext copy can impersonate the bot.
+</Warning>
+
+## 2. Grant permissions
+
+Under **Permissions & Scopes**, enable the following scopes and submit the permission version:
+
+| Scope | Why |
+|---|---|
+| `im:message` | Send messages (text + cards) |
+| `im:message:send_as_bot` | Post as the bot identity |
+| `im:chat` | List and read group chats the bot is in |
+| `im:chat:readonly` | Minimum read access for group discovery |
+| `im:resource` | (Optional) Upload images / files shown on cards |
+
+## 3. Enable event subscriptions (leave the Request URL blank for now)
+
+Open **Event Subscriptions**, but **don't fill in the Request URL yet** — you get it from FIM One in step 5.
+
+Subscribe the following events:
+
+- `im.message.receive_v1` — inbound messages from users
+- `card.action.trigger` — Approve / Reject button clicks
+
+Under the same page, optionally set a **Verification Token** and **Encrypt Key**. FIM One supports both modes and will use whichever is provided.
+
+## 4. Add the Channel in FIM One
+
+1. Sign in as an **Org Owner** or **Admin**.
+2. Go to **Organization Settings → Channels → New Channel**.
+3. Pick **Feishu** as the type, then fill in:
+
+   | Field | Source |
+   |---|---|
+   | **Name** | Any internal label (e.g. `Ops team Feishu`) |
+   | **App ID** | From step 1 (`cli_xxxxxxxxxxxxxxxx`) |
+   | **App Secret** | From step 1 |
+   | **Verification Token** | (Optional) From step 3 |
+   | **Encrypt Key** | (Optional) From step 3 |
+
+4. Click **Browse chats** — FIM One calls Feishu with your credentials and lists every group the bot is currently a member of.
+
+<Tip>
+If the list is empty, the bot hasn't been added to any group yet. Open Feishu, add the bot to the target group, then reopen the picker.
+</Tip>
+
+5. Pick the group chat you want to route to, click **Save**.
+
+## 5. Register the callback URL with Feishu
+
+After saving, FIM One shows a **Callback URL** on the channel detail panel, shaped like:
+
+```
+{API_BASE_URL}/api/channels/{CHANNEL_ID}/callback
+```
+
+Copy it, go back to the Feishu **Event Subscriptions** page, paste it as the **Request URL**, then click **Verify**. Feishu will POST a one-time `url_verification` challenge; FIM One answers automatically.
+
+## 6. Send a test message
+
+Back in the FIM One channel detail panel, click **Send test message**. A short plaintext message (`FIM One test message from <your email>`) should appear in the target group within a second.
+
+If it doesn't:
+
+- **401 / 403** — recheck App Secret, re-enable the scopes from step 2, and re-publish the permission version.
+- **Silent failure** — confirm the bot is actually in the group (step 4 picker) and that `is_active` is true on the channel row.
+- **Verification fails on step 5** — confirm `API_BASE_URL` is HTTPS and publicly reachable; Feishu refuses non-HTTPS request URLs.
+
+## 7. Wire up an agent (optional — approvals)
+
+To gate tool calls behind group approval:
+
+1. On the tool / connector action, flip **Requires confirmation** on.
+2. On the agent, add `feishu_gate` under **Hooks → Class hooks**.
+3. Ensure the agent's org has exactly one **active** Feishu channel — the hook routes to it automatically.
+
+When the agent tries to run a gated tool, an interactive card posts to the group with **Approve** / **Reject**. The tool waits (SSE stream pauses) until a member taps one; the verdict streams back and the agent either completes or aborts.
+
+## Troubleshooting
+
+### Finding a `chat_id` without the picker
+
+The **Browse chats** UI is the recommended flow. If you need the raw ID (e.g. for a `POST /api/channels` call from scripting), there are three fallbacks:
+
+**a. `curl` against Feishu directly**
+
+```bash
+APP_ID="cli_xxxxxxxxxxxxxxxx"
+APP_SECRET="<your-app-secret>"
+
+TOKEN=$(curl -s -X POST \
+  "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
+  -H "Content-Type: application/json" \
+  -d "{\"app_id\":\"$APP_ID\",\"app_secret\":\"$APP_SECRET\"}" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['tenant_access_token'])")
+
+curl -s "https://open.feishu.cn/open-apis/im/v1/chats?page_size=50" \
+  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+```
+
+Every `items[].chat_id` in the response (prefixed `oc_`) is a candidate.
+
+**b. Feishu API Explorer**
+
+In the Feishu Open Platform console, open **Dev Tools → API Explorer**, find `/open-apis/im/v1/chats`, pick **tenant_access_token** auth, and click **Invoke**. Feishu mints the token for you — no shell required.
+
+**c. Copy from the Feishu client**
+
+In the Feishu desktop or mobile client, open the group → **Group settings → Group info**, and some versions expose a **Copy group ID** affordance. Availability depends on client version and admin-set permissions, so this is the least reliable fallback.
+
+### Card clicks don't reach FIM One
+
+The `card.action.trigger` event must be subscribed (step 3). If you enabled approval gates before subscribing, click **Resubscribe** in the Feishu console.
+
+### One org, two Feishu channels
+
+`feishu_gate` picks the first **active** channel it finds. If you need multiple Feishu endpoints in the same org (e.g. staging vs. production groups), disable all but one, or write a custom hook that selects by agent tag.

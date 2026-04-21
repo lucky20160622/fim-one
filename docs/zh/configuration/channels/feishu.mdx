@@ -1,0 +1,134 @@
+---
+title: "飞书（Lark）频道"
+icon: "comment-dots"
+description: "将 FIM One 连接到飞书应用，用于出站消息、入站回复和交互式审批卡片。"
+---
+
+飞书频道为一个组织中的智能体提供了一条进入飞书群组的单一热线：出站通知、入站回复和交互式的批准/拒绝卡片（通过 `feishu_gate` hook）。
+
+本指南介绍了端到端的设置过程。它假设 FIM One 可以在稳定的 HTTPS 源上访问——称之为 `API_BASE_URL`（例如 `https://one.yourdomain.com`）。
+
+## 1. 创建飞书应用
+
+1. 前往 [飞书开放平台](https://open.feishu.cn/app/)，点击**为企业创建自定义应用**。
+2. 为应用命名、上传图标并添加简短描述 — 您组织的最终用户将在卡片上看到这些信息。
+3. 在**凭证与基本信息**页面，复制 **App ID** 和 **App Secret**。您将在第 4 步将它们粘贴到 FIM One 中。
+
+<Warning>
+将 App Secret 视为密码。FIM One 会对其进行静态加密，但任何持有明文副本的人都可以冒充该机器人。
+</Warning>
+
+## 2. 授予权限
+
+在 **Permissions & Scopes** 下，启用以下作用域并提交权限版本：
+
+| 作用域 | 原因 |
+|---|---|
+| `im:message` | 发送消息（文本 + 卡片） |
+| `im:message:send_as_bot` | 以机器人身份发布 |
+| `im:chat` | 列出并读取机器人所在的群组聊天 |
+| `im:chat:readonly` | 群组发现的最小读取权限 |
+| `im:resource` | （可选）上传卡片上显示的图像/文件 |
+
+## 3. 启用事件订阅（暂时将请求 URL 留空）
+
+打开 **Event Subscriptions**，但**暂时不要填写请求 URL** — 你将在第 5 步从 FIM One 获取它。
+
+订阅以下事件：
+
+- `im.message.receive_v1` — 来自用户的入站消息
+- `card.action.trigger` — 批准/拒绝按钮点击
+
+在同一页面上，可选地设置 **Verification Token** 和 **Encrypt Key**。FIM One 支持两种模式，并将使用提供的任何一种。
+
+## 4. 在 FIM One 中添加频道
+
+1. 以**组织所有者**或**管理员**身份登录。
+2. 转到**组织设置 → 频道 → 新建频道**。
+3. 选择 **Feishu** 作为类型，然后填写：
+
+   | 字段 | 来源 |
+   |---|---|
+   | **名称** | 任何内部标签（例如 `Ops team Feishu`） |
+   | **App ID** | 来自第 1 步（`cli_xxxxxxxxxxxxxxxx`） |
+   | **App Secret** | 来自第 1 步 |
+   | **验证 Token** | （可选）来自第 3 步 |
+   | **加密密钥** | （可选）来自第 3 步 |
+
+4. 点击**浏览聊天** — FIM One 使用您的凭证调用 Feishu，并列出机器人当前所在的每个群组。
+
+<Tip>
+如果列表为空，说明机器人还未被添加到任何群组。打开 Feishu，将机器人添加到目标群组，然后重新打开选择器。
+</Tip>
+
+5. 选择要路由到的群组聊天，点击**保存**。
+
+## 5. 向飞书注册回调 URL
+
+保存后，FIM One 在频道详情面板上显示一个**回调 URL**，格式如下：
+
+```
+{API_BASE_URL}/api/channels/{CHANNEL_ID}/callback
+```
+
+复制它，返回飞书的**事件订阅**页面，将其粘贴为**请求 URL**，然后点击**验证**。飞书会 POST 一个一次性的 `url_verification` 挑战；FIM One 会自动应答。
+
+## 6. 发送测试消息
+
+回到 FIM One 频道详情面板，点击**发送测试消息**。一条简短的纯文本消息（`FIM One test message from <your email>`）应该在一秒内出现在目标群组中。
+
+如果没有出现：
+
+- **401 / 403** — 重新检查 App Secret，重新启用第 2 步中的权限范围，并重新发布权限版本。
+- **静默失败** — 确认机器人确实在群组中（第 4 步选择器）且频道行上的 `is_active` 为 true。
+- **第 5 步验证失败** — 确认 `API_BASE_URL` 是 HTTPS 且可公开访问；飞书拒绝非 HTTPS 请求 URL。
+
+## 7. 连接智能体（可选 — 审批）
+
+要在组审批后执行工具调用：
+
+1. 在工具 / 连接器操作上，打开 **Requires confirmation**。
+2. 在智能体上，在 **Hooks → Class hooks** 下添加 `feishu_gate`。
+3. 确保智能体的组织恰好有一个**活跃的** Feishu 频道 — 钩子会自动路由到它。
+
+当智能体尝试运行受限工具时，一张交互卡片会发布到组中，显示 **Approve** / **Reject**。工具会等待（SSE 流暂停），直到成员点击其中一个；判决流回，智能体要么完成，要么中止。
+
+## 故障排除
+
+### 在没有选择器的情况下查找 `chat_id`
+
+**浏览聊天** UI 是推荐的流程。如果您需要原始 ID（例如用于脚本编写中的 `POST /api/channels` 调用），有三个备选方案：
+
+**a. 直接对 Feishu 使用 `curl`**
+
+```bash
+APP_ID="cli_xxxxxxxxxxxxxxxx"
+APP_SECRET="<your-app-secret>"
+
+TOKEN=$(curl -s -X POST \
+  "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
+  -H "Content-Type: application/json" \
+  -d "{\"app_id\":\"$APP_ID\",\"app_secret\":\"$APP_SECRET\"}" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['tenant_access_token'])")
+
+curl -s "https://open.feishu.cn/open-apis/im/v1/chats?page_size=50" \
+  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+```
+
+响应中的每个 `items[].chat_id`（前缀为 `oc_`）都是一个候选项。
+
+**b. Feishu API 浏览器**
+
+在 Feishu 开放平台控制台中，打开 **开发者工具 → API 浏览器**，找到 `/open-apis/im/v1/chats`，选择 **tenant_access_token** 身份验证，然后点击**调用**。Feishu 会为您生成 token — 无需使用 shell。
+
+**c. 从 Feishu 客户端复制**
+
+在 Feishu 桌面或移动客户端中，打开群组 → **群组设置 → 群组信息**，某些版本会显示**复制群组 ID** 选项。可用性取决于客户端版本和管理员设置的权限，因此这是最不可靠的备选方案。
+
+### 卡片点击无法到达 FIM One
+
+必须订阅 `card.action.trigger` 事件（第 3 步）。如果在订阅前启用了审批门，请在飞书控制台中点击**重新订阅**。
+
+### 一个组织，两个飞书频道
+
+`feishu_gate` 会选择它找到的第一个**活跃**频道。如果你需要在同一个组织中使用多个飞书端点（例如测试组和生产组），可以禁用除一个之外的所有频道，或编写一个自定义 hook 来按智能体标签选择。

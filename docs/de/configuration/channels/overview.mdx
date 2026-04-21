@@ -1,0 +1,50 @@
+---
+title: "Channels-Übersicht"
+icon: "tower-broadcast"
+description: "Verbinden Sie FIM One mit externen Messaging-Plattformen für Benachrichtigungen, Genehmigungen und bidirektionale Agent-Interaktion."
+---
+
+Ein **Channel** ist eine Brücke zwischen FIM One und einer externen Messaging-Plattform — Feishu (Lark), Slack, DingTalk, Teams und so weiter. Channels ermöglichen es einem Agent:
+
+- **Ausgehende Nachrichten zu senden** (Statusaktualisierungen, Artefakte, Berichte).
+- **Eingehende Nachrichten zu empfangen** (ein Benutzer stellt eine Frage in einem Gruppenchat; der Agent antwortet).
+- **Sensitive Tool-Aufrufe** hinter einer menschlichen Genehmigung zu sperren, die als interaktive Karte bereitgestellt wird.
+
+Channels sind auf eine **Organisation** beschränkt, nicht auf einen einzelnen Benutzer. Jeder Org-Admin kann sie erstellen, bearbeiten und deaktivieren.
+
+## Unterstützte Plattformen
+
+| Plattform | Status | Eingehend | Ausgehend | Genehmigungskarte |
+|---|---|---|---|---|
+| [Feishu (Lark)](./feishu) | GA | Ja | Ja | Ja (`feishu_gate` hook) |
+| Slack | Geplant | — | — | — |
+| DingTalk | Geplant | — | — | — |
+
+## Wie Channels mit Hooks interagieren
+
+Der `feishu_gate` Hook ist der primäre Consumer eines Feishu Channels. Wenn ein Agent dabei ist, ein Tool mit `requires_confirmation: true` aufzurufen, führt der Hook folgende Schritte aus:
+
+1. Löst den aktiven Feishu Channel der Organisation auf.
+2. Rendert eine interaktive Genehmigungskarte mit dem Tool-Namen und den Argumenten.
+3. Postet die Karte in den konfigurierten Gruppen-Chat (`chat_id`).
+4. Setzt den Tool-Aufruf aus, bis ein Gruppenmitglied auf **Approve** oder **Reject** tippt.
+5. Setzt den Tool-Aufruf fort (oder bricht ihn ab) basierend auf dem Ergebnis und streamt die Entscheidung über SSE zurück.
+
+Fügen Sie den Hook an einem Agent über `model_config_json.hooks.class_hooks = ["feishu_gate"]` an, oder schalten Sie ihn im Agent-Editor um.
+
+## Einen Kanal erstellen
+
+1. Melden Sie sich als **Org Owner** oder **Admin** an.
+2. Gehen Sie zu **Organization Settings → Channels → New Channel**.
+3. Wählen Sie einen Kanaltyp (z. B. Feishu), geben Sie Anmeldedaten ein, wählen Sie einen Zielchat aus und speichern Sie.
+4. Klicken Sie auf **Send test message**, um die bidirektionale Verbindung zu überprüfen.
+
+Jeder Kanaltyp hat seine eigene Anmeldedatenstruktur und Event-Abonnement-Konfiguration — folgen Sie der plattformspezifischen Anleitung für die genauen Schritte:
+
+- [Feishu (Lark) setup](./feishu)
+
+## Sicherheitshinweise
+
+- App-Geheimnisse und Verschlüsselungsschlüssel werden **im Ruhezustand verschlüsselt** mit dem `FERNET_SECRET_KEY` des Backends.
+- Der Callback-Endpunkt (`/api/channels/{id}/callback`) **überprüft jede Signatur** gegen den gespeicherten `encrypt_key` / `verification_token`, bevor er auf das Ereignis reagiert.
+- Nur Mitglieder des Zielgruppenchats können eine Genehmigungskarte genehmigen oder ablehnen — FIM One gewährt keine zusätzliche Autorität über das hinaus, was die Messaging-Plattform bereits bietet.

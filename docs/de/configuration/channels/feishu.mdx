@@ -1,0 +1,134 @@
+---
+title: "Feishu (Lark) Channel"
+icon: "comment-dots"
+description: "Verbinden Sie FIM One mit einer Feishu-App für ausgehende Nachrichten, eingehende Antworten und interaktive Genehmigungskarten."
+---
+
+Ein Feishu Channel gibt Agenten in einer Organisation eine einzelne Hotline in eine Feishu-Gruppe: ausgehende Benachrichtigungen, eingehende Antworten und interaktive Genehmigungskarten (über den `feishu_gate` Hook).
+
+Diese Anleitung führt Sie durch das End-to-End-Setup. Sie setzt voraus, dass FIM One unter einer stabilen HTTPS-Adresse erreichbar ist — nennen Sie diese `API_BASE_URL` (z. B. `https://one.yourdomain.com`).
+
+## 1. Erstelle eine Feishu-App
+
+1. Gehe zur [Feishu Open Platform](https://open.feishu.cn/app/) und klicke auf **Create custom app for enterprise**.
+2. Gib einen Namen, ein Symbol und eine kurze Beschreibung ein — Endbenutzer deiner Organisation sehen diese auf Karten.
+3. Auf der Seite **Credentials & Basic Info** kopiere die **App ID** und das **App Secret**. Du wirst sie in Schritt 4 in FIM One einfügen.
+
+<Warning>
+Behandle das App Secret wie ein Passwort. FIM One verschlüsselt es im Ruhezustand, aber jeder, der eine Klartextkopie hat, kann den Bot imitieren.
+</Warning>
+
+## 2. Berechtigungen erteilen
+
+Aktivieren Sie unter **Permissions & Scopes** die folgenden Bereiche und reichen Sie die Berechtigungsversion ein:
+
+| Bereich | Grund |
+|---|---|
+| `im:message` | Nachrichten senden (Text + Karten) |
+| `im:message:send_as_bot` | Als Bot-Identität posten |
+| `im:chat` | Gruppenchats auflisten und lesen, in denen sich der Bot befindet |
+| `im:chat:readonly` | Minimaler Lesezugriff für Gruppenerkennung |
+| `im:resource` | (Optional) Bilder/Dateien hochladen, die auf Karten angezeigt werden |
+
+## 3. Event-Abonnements aktivieren (Request URL vorerst leer lassen)
+
+Öffnen Sie **Event Subscriptions**, aber **füllen Sie die Request URL noch nicht aus** — Sie erhalten sie in Schritt 5 von FIM One.
+
+Abonnieren Sie die folgenden Events:
+
+- `im.message.receive_v1` — eingehende Nachrichten von Benutzern
+- `card.action.trigger` — Klicks auf Approve / Reject Schaltflächen
+
+Auf der gleichen Seite können Sie optional ein **Verification Token** und **Encrypt Key** festlegen. FIM One unterstützt beide Modi und verwendet denjenigen, der bereitgestellt wird.
+
+## 4. Kanal in FIM One hinzufügen
+
+1. Melden Sie sich als **Org Owner** oder **Admin** an.
+2. Gehen Sie zu **Organization Settings → Channels → New Channel**.
+3. Wählen Sie **Feishu** als Typ und füllen Sie folgende Felder aus:
+
+   | Feld | Quelle |
+   |---|---|
+   | **Name** | Beliebige interne Bezeichnung (z. B. `Ops team Feishu`) |
+   | **App ID** | Aus Schritt 1 (`cli_xxxxxxxxxxxxxxxx`) |
+   | **App Secret** | Aus Schritt 1 |
+   | **Verification Token** | (Optional) Aus Schritt 3 |
+   | **Encrypt Key** | (Optional) Aus Schritt 3 |
+
+4. Klicken Sie auf **Browse chats** — FIM One ruft Feishu mit Ihren Anmeldedaten auf und listet alle Gruppen auf, denen der Bot derzeit angehört.
+
+<Tip>
+Wenn die Liste leer ist, wurde der Bot noch zu keiner Gruppe hinzugefügt. Öffnen Sie Feishu, fügen Sie den Bot zur Zielgruppe hinzu und öffnen Sie dann die Auswahl erneut.
+</Tip>
+
+5. Wählen Sie den Gruppenchat aus, zu dem Sie weiterleiten möchten, und klicken Sie auf **Save**.
+
+## 5. Callback-URL bei Feishu registrieren
+
+Nach dem Speichern zeigt FIM One eine **Callback URL** im Kanal-Detailbereich an, die wie folgt aussieht:
+
+```
+{API_BASE_URL}/api/channels/{CHANNEL_ID}/callback
+```
+
+Kopieren Sie sie, gehen Sie zurück zur Feishu-Seite **Event Subscriptions**, fügen Sie sie als **Request URL** ein und klicken Sie auf **Verify**. Feishu sendet eine einmalige `url_verification`-Herausforderung per POST; FIM One antwortet automatisch.
+
+## 6. Testnachricht senden
+
+Klicken Sie im FIM One-Kanal-Detailbereich auf **Send test message**. Eine kurze Klartextnachricht (`FIM One test message from <your email>`) sollte innerhalb einer Sekunde in der Zielgruppe erscheinen.
+
+Falls nicht:
+
+- **401 / 403** — überprüfen Sie App Secret erneut, aktivieren Sie die Bereiche aus Schritt 2 erneut, und veröffentlichen Sie die Berechtigungsversion erneut.
+- **Stille Fehler** — bestätigen Sie, dass der Bot tatsächlich in der Gruppe ist (Schritt 4 Picker) und dass `is_active` in der Kanalzeile true ist.
+- **Verifizierung schlägt in Schritt 5 fehl** — bestätigen Sie, dass `API_BASE_URL` HTTPS ist und öffentlich erreichbar ist; Feishu lehnt Anfrage-URLs ohne HTTPS ab.
+
+## 7. Einen Agenten verbinden (optional — Genehmigungen)
+
+Um Tool-Aufrufe hinter Gruppengenehmigungen zu sperren:
+
+1. Aktivieren Sie bei der Tool- / Connector-Aktion **Requires confirmation**.
+2. Fügen Sie beim Agenten `feishu_gate` unter **Hooks → Class hooks** hinzu.
+3. Stellen Sie sicher, dass die Organisation des Agenten genau einen **aktiven** Feishu-Kanal hat — der Hook leitet automatisch dorthin weiter.
+
+Wenn der Agent versucht, ein gesperrtes Tool auszuführen, wird eine interaktive Karte in der Gruppe mit **Approve** / **Reject** gepostet. Das Tool wartet (SSE-Stream wird pausiert), bis ein Mitglied auf eine der Optionen tippt; das Ergebnis wird zurückgestreamt und der Agent wird entweder abgeschlossen oder abgebrochen.
+
+## Fehlerbehebung
+
+### Eine `chat_id` ohne den Picker finden
+
+Die **Browse chats** UI ist der empfohlene Workflow. Wenn Sie die rohe ID benötigen (z. B. für einen `POST /api/channels` Aufruf aus Scripting), gibt es drei Fallbacks:
+
+**a. `curl` direkt gegen Feishu**
+
+```bash
+APP_ID="cli_xxxxxxxxxxxxxxxx"
+APP_SECRET="<your-app-secret>"
+
+TOKEN=$(curl -s -X POST \
+  "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
+  -H "Content-Type: application/json" \
+  -d "{\"app_id\":\"$APP_ID\",\"app_secret\":\"$APP_SECRET\"}" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['tenant_access_token'])")
+
+curl -s "https://open.feishu.cn/open-apis/im/v1/chats?page_size=50" \
+  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+```
+
+Jede `items[].chat_id` in der Antwort (mit Präfix `oc_`) ist ein Kandidat.
+
+**b. Feishu API Explorer**
+
+In der Feishu Open Platform Konsole öffnen Sie **Dev Tools → API Explorer**, suchen Sie `/open-apis/im/v1/chats`, wählen Sie **tenant_access_token** Authentifizierung und klicken Sie auf **Invoke**. Feishu generiert das Token für Sie — keine Shell erforderlich.
+
+**c. Aus dem Feishu Client kopieren**
+
+Im Feishu Desktop- oder Mobile-Client öffnen Sie die Gruppe → **Gruppeneinstellungen → Gruppeninfo**, und einige Versionen bieten eine **Copy group ID** Funktion. Die Verfügbarkeit hängt von der Client-Version und den vom Administrator festgelegten Berechtigungen ab, daher ist dies der am wenigsten zuverlässige Fallback.
+
+### Card-Klicks erreichen FIM One nicht
+
+Das `card.action.trigger`-Ereignis muss abonniert sein (Schritt 3). Wenn Sie Genehmigungsgates aktiviert haben, bevor Sie sich angemeldet haben, klicken Sie in der Feishu-Konsole auf **Resubscribe**.
+
+### Eine Organisation, zwei Feishu-Kanäle
+
+`feishu_gate` wählt den ersten **aktiven** Kanal aus, den es findet. Wenn Sie mehrere Feishu-Endpunkte in derselben Organisation benötigen (z. B. Staging- vs. Produktionsgruppen), deaktivieren Sie alle bis auf einen, oder schreiben Sie einen benutzerdefinierten Hook, der nach Agent-Tag auswählt.

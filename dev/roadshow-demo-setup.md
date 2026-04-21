@@ -1,22 +1,20 @@
-# 东升杯 Roadshow — Feishu Gate Demo Setup
+# 东升杯路演 — 飞书审批门 Demo 配置指南
 
-This guide describes the exact configuration needed to run the "Feishu
-confirmation gate" segment of the 2026-04-24 roadshow demo. The punchline
-is: when the agent tries to call the `oa__purchase_pay` tool, a rich card
-pops up in the Feishu group; the presenter taps **Approve**, and the tool
-proceeds. Tap **Reject** and the tool is blocked.
+本指南详述了 2026-04-24 路演中「飞书确认门」环节所需的完整配置。
+核心看点：当 Agent 尝试调用 `oa__purchase_pay` 工具时，飞书群内会
+弹出一张富文本卡片；演示者点击 **同意**，工具继续执行；点击 **拒绝**，
+工具被拦截。
 
-Everything below assumes FIM One is running at `https://one.fim.ai`
-(or whatever `BACKEND_URL` you point Feishu at).
+以下内容均假设 FIM One 运行在 `https://one.fim.ai`（或你为飞书配置
+的任何 `BACKEND_URL`）。
 
 ---
 
-## 1. Pre-filled demo Channel credentials
+## 1. 预置的 Demo Channel 凭据
 
-These values are the ones the team has already provisioned. Use them as-is
-when you reach the "Create Channel" step further down.
+以下是团队已经预先配置好的值。后续进入「创建 Channel」步骤时直接照抄即可。
 
-| Field | Value |
+| 字段 | 值 |
 |---|---|
 | App ID | `cli_a9271aab36f89bb4` |
 | App Secret | `P6TzXl0kd52yQt7s4JSqMbNkGqZm4hif` |
@@ -25,48 +23,47 @@ when you reach the "Create Channel" step further down.
 | Tenant Key | `10b87b7f1897575f` |
 | Owner Open ID | `ou_fd960776ebfe136028a3fea1c9257ef9` |
 
-> The demo sends the card to the **group chat** (Chat ID above).
-> Any member of that group can tap Approve / Reject. Individual DM routing
-> (per-user open_id) is deferred to v0.9 and is not used here.
+> 本次 Demo 将卡片发送到 **群聊**（上面的 Chat ID）。
+> 该群内任何成员都可以点击 同意 / 拒绝。按 open_id 路由到
+> 单人私聊的能力延迟到 v0.9，本次不使用。
 
 ---
 
-## 2. Feishu open-platform setup
+## 2. 飞书开放平台配置
 
-Only do this once per app — the values above are already configured.
+同一个 App 只需做一次——上面的值均已配置完毕。
 
-1. Go to <https://open.feishu.cn/app/> → sign in → open the app
-   `cli_a9271aab36f89bb4`.
-2. Under **Credentials & Basic Info**, confirm the App Secret matches.
-3. Under **Permissions & Scopes**, make sure the following are granted:
-   - `im:message` (send messages)
+1. 访问 <https://open.feishu.cn/app/> → 登录 → 打开应用
+   `cli_a9271aab36f89bb4`。
+2. 在 **凭证与基础信息** 中确认 App Secret 一致。
+3. 在 **权限与范围** 中确保以下权限已开通：
+   - `im:message`（发送消息）
    - `im:message:send_as_bot`
-   - `im:chat` (read/write group chats)
-   - `im:chat:readonly` (at minimum)
-4. Under **Event Subscriptions** → **Request URL**, set:
+   - `im:chat`（读写群聊）
+   - `im:chat:readonly`（至少）
+4. 在 **事件订阅** → **请求地址** 中填入：
    ```
    https://one.fim.ai/api/channels/<CHANNEL_ID>/callback
    ```
-   (you get `<CHANNEL_ID>` from step 4 below). Click **Verify** — Feishu
-   will POST `{"type":"url_verification","challenge":"..."}` to the URL,
-   and our callback will echo `challenge` back.
-5. Under **Bot** → **Features**, enable **Message Card Actions**. This
-   ensures clicks on our Approve/Reject buttons are delivered to the
-   same Request URL.
-6. (Optional but recommended) Under **Event Subscriptions** →
-   **Encrypt Strategy**, set a **Verification Token** and an
-   **Encrypt Key**. Copy both into the Channel's `config` when you
-   create it below — our `verify_signature()` uses the Encrypt Key to
-   validate every callback.
-7. Add the bot to the `FIM One` group chat (`oc_4f313b...`).
+   （`<CHANNEL_ID>` 从下文第 4 节获取）。点击 **验证**——飞书会向
+   该地址 POST `{"type":"url_verification","challenge":"..."}`，
+   我们的回调会把 `challenge` 原样返回。
+5. 在 **机器人** → **功能** 中启用 **消息卡片交互**。
+   这样用户点击我们的 同意/拒绝 按钮后，事件才会被投递到同一个
+   请求地址。
+6. （可选但推荐）在 **事件订阅** → **加密策略** 中设置
+   **Verification Token** 和 **Encrypt Key**。在下一步创建 Channel
+   时把这两个值填入 `config`——我们的 `verify_signature()` 会用
+   Encrypt Key 校验每一个回调请求。
+7. 把机器人拉进 `FIM One` 群（`oc_4f313b...`）。
 
 ---
 
-## 3. Mock data store
+## 3. Mock 数据源
 
-### 3.1 MySQL — historical purchase data
+### 3.1 MySQL — 历史采购数据
 
-Drop this SQL against any local MySQL (the demo uses `demo_oa`):
+把以下 SQL 跑到任意本地 MySQL（Demo 使用 `demo_oa`）：
 
 ```sql
 CREATE DATABASE IF NOT EXISTS demo_oa CHARACTER SET utf8mb4;
@@ -89,26 +86,25 @@ INSERT INTO purchase_history (vendor, item, amount_cny, ordered_at, status) VALU
  ('北京智成科技', 'GPU A100 x 2',     240000.00, '2026-04-05 11:08:00', 'pending_approval');
 ```
 
-Register it in FIM One:
+在 FIM One 中注册：
 
-1. Portal → **Connectors** → **New database connector**.
-2. Host / port / db / user / password of your local MySQL.
-3. Name it `oa_mysql`. Click **Introspect schema** → confirm
-   `purchase_history` is listed.
-4. Save.
+1. 门户 → **连接器** → **新建数据库连接器**。
+2. 填入本地 MySQL 的 Host / 端口 / 数据库 / 用户名 / 密码。
+3. 命名为 `oa_mysql`。点击 **探测 Schema** → 确认列表中包含
+   `purchase_history`。
+4. 保存。
 
-### 3.2 Feishu Doc — contract draft
+### 3.2 飞书文档 — 合同草稿
 
-Either create a real Feishu Doc at
-<https://hzn5uy7d2w.feishu.cn/docx/DemoContractDraft> and paste in a
-one-page boilerplate contract, **or** mock it by adding a markdown file
-to `uploads/kb/demo-contracts/contract-2026-04.md` and attaching that KB
-to the demo agent. The agent's job is only to _read_ the doc title and
-line items, so either works.
+要么在 <https://hzn5uy7d2w.feishu.cn/docx/DemoContractDraft>
+创建一篇真正的飞书文档并粘贴一份一页的合同模板，**或者** 通过把
+一个 markdown 文件放到 `uploads/kb/demo-contracts/contract-2026-04.md`
+并将该知识库挂到 Demo Agent 上来 Mock。Agent 只需要 _读取_ 文档
+标题和条目，两种方式都可以。
 
-### 3.3 OA HTTP webhook — the "pay" tool
+### 3.3 OA HTTP Webhook — 「支付」工具
 
-Run a trivial webhook receiver locally:
+在本地跑一个极简的 webhook 接收端：
 
 ```python
 # scripts/demo_oa_webhook.py
@@ -122,19 +118,19 @@ async def pay(req: Request):
     return {"ok": True, "po_id": "PO-2026-0418"}
 ```
 
-Run it with `uvicorn scripts.demo_oa_webhook:app --port 7799`.
+用 `uvicorn scripts.demo_oa_webhook:app --port 7799` 启动它。
 
-Then in FIM One:
+然后在 FIM One 中：
 
-1. Portal → **Connectors** → **New HTTP connector**.
-2. Base URL: `http://localhost:7799`.
-3. Add an action:
-   - Name: `purchase_pay`
-   - Method: `POST`
-   - Path: `/oa/purchase/pay`
-   - `requires_confirmation`: **on** — this is what triggers
-     `FeishuGateHook`.
-   - Parameters schema:
+1. 门户 → **连接器** → **新建 HTTP 连接器**。
+2. Base URL：`http://localhost:7799`。
+3. 添加一个 action：
+   - 名称：`purchase_pay`
+   - Method：`POST`
+   - Path：`/oa/purchase/pay`
+   - `requires_confirmation`：**打开**——这正是触发
+     `FeishuGateHook` 的开关。
+   - 参数 Schema：
      ```json
      {
        "type":"object",
@@ -149,12 +145,11 @@ Then in FIM One:
 
 ---
 
-## 4. Create the Feishu Channel in FIM One
+## 4. 在 FIM One 中创建飞书 Channel
 
-1. Sign into the portal as an **Org Owner** (or Admin) of the org you are
-   demoing.
-2. Portal → **Organization settings** → **Channels** → **New channel**.
-   (If the UI isn't wired yet, `POST /api/channels` with:
+1. 以即将演示的组织的 **Org Owner**（或 Admin）身份登录门户。
+2. 门户 → **组织设置** → **Channels** → **新建 Channel**。
+   （如果 UI 还没接通，可以直接 `POST /api/channels`：
    ```json
    {
      "name": "FIM One Demo Feishu",
@@ -165,27 +160,27 @@ Then in FIM One:
        "app_id": "cli_a9271aab36f89bb4",
        "app_secret": "P6TzXl0kd52yQt7s4JSqMbNkGqZm4hif",
        "chat_id": "oc_4f313b3d41ae30fbcb5a23710096982e",
-       "verification_token": "<from Feishu console>",
-       "encrypt_key": "<from Feishu console>"
+       "verification_token": "<从飞书控制台复制>",
+       "encrypt_key": "<从飞书控制台复制>"
      }
    }
    ```
-   The response contains `id` (the `<CHANNEL_ID>`) and `callback_url`.)
-3. Copy the `callback_url` from the response — paste it into the Feishu
-   app's **Event Subscriptions → Request URL**. Click **Verify**.
-4. Back in the portal, click **Send test message**. Check the FIM One
-   group — you should see a plaintext `FIM One test message from
-   <your email>`. If so, the channel is live.
+   响应会返回 `id`（即 `<CHANNEL_ID>`）和 `callback_url`。）
+3. 从响应中复制 `callback_url` — 粘贴到飞书应用的
+   **事件订阅 → 请求地址**。点击 **验证**。
+4. 回到门户，点击 **发送测试消息**。查看 FIM One 群——应该能看到
+   一条纯文本 `FIM One test message from <your email>`。
+   如果能看到，说明 Channel 已经联通。
 
 ---
 
-## 5. Demo agent configuration
+## 5. Demo Agent 配置
 
-Portal → **Agents** → **New agent** → fill:
+门户 → **Agents** → **新建 Agent**，填入：
 
-- **Name**: `采购审批助手 Procurement Assistant`
-- **Avatar**: anything
-- **System prompt** (copy-paste):
+- **名称**：`采购审批助手 Procurement Assistant`
+- **头像**：任选
+- **System Prompt**（复制粘贴）：
   ```
   你是 FIM One 的采购审批助手。当用户询问历史采购记录时，从
   oa_mysql 的 purchase_history 表查询。当用户要求执行一笔支付时，
@@ -193,26 +188,26 @@ Portal → **Agents** → **New agent** → fill:
   oa_http.purchase_pay 提交付款。所有付款动作都需要人工审批。
   回答必须简洁，用中文。
   ```
-- **Tools / Connectors**: add `oa_mysql` and `oa_http` (with
-  `purchase_pay`).
-- **Hooks**: enable `feishu_gate`. (If the agent UI doesn't expose it
-  yet, set `model_config_json.hooks = {"class_hooks": ["feishu_gate"]}`
-  via `PATCH /api/agents/{id}` or via the agent JSON editor.)
-- Save.
+- **工具 / 连接器**：加上 `oa_mysql` 和 `oa_http`（其中包含
+  `purchase_pay`）。
+- **Hooks**：启用 `feishu_gate`。（如果 Agent UI 还没暴露该配置，
+  可通过 `PATCH /api/agents/{id}` 或 Agent JSON 编辑器设置
+  `model_config_json.hooks = {"class_hooks": ["feishu_gate"]}`。）
+- 保存。
 
 ---
 
-## 6. One-click smoke test
+## 6. 一键冒烟测试
 
-Run this from the repo root after everything above is wired up:
+在以上所有配置完成后，从仓库根目录执行：
 
 ```bash
-# Prereqs:
-#   1. ./start.sh has the backend running
-#   2. scripts/demo_oa_webhook.py is running on :7799
-#   3. The Feishu channel was created and test-sent successfully
+# 前置条件：
+#   1. ./start.sh 已经启动后端
+#   2. scripts/demo_oa_webhook.py 正在 :7799 监听
+#   3. 飞书 Channel 已创建且测试消息发送成功
 #
-# Replace <AGENT_ID> and <AUTH_TOKEN> with values for your org.
+# 把 <AGENT_ID> 和 <AUTH_TOKEN> 替换为你所在组织的真实值。
 
 curl -N -X POST https://one.fim.ai/api/react \
   -H "Authorization: Bearer <AUTH_TOKEN>" \
@@ -223,35 +218,35 @@ curl -N -X POST https://one.fim.ai/api/react \
   }'
 ```
 
-You should observe, in order:
+你会依次观察到：
 
-1. The agent issues a MySQL query against `purchase_history` and
-   summarises the vendor's recent spend.
-2. Before the `purchase_pay` call fires, a Feishu interactive card
-   appears in the `FIM One` group with **Approve** / **Reject**.
-3. The SSE stream shows the agent waiting.
-4. Tap **Approve** — the SSE stream resumes; the mock webhook prints
-   the received payload; the agent announces success.
-5. Re-run the same curl and tap **Reject** this time — the agent
-   reports the tool was blocked by an operator.
+1. Agent 对 `purchase_history` 发起 MySQL 查询，并总结该供应商
+   近期的消费情况。
+2. 在 `purchase_pay` 真正触发之前，`FIM One` 群内弹出一张
+   飞书交互卡片，带 **同意** / **拒绝** 按钮。
+3. SSE 流显示 Agent 正在等待。
+4. 点击 **同意** — SSE 流恢复；Mock webhook 打印出收到的 payload；
+   Agent 宣布执行成功。
+5. 重跑同一条 curl，这次点击 **拒绝** — Agent 会报告工具被
+   操作员拦截。
 
 ---
 
-## 7. Day-of presenter cheat sheet (5 steps)
+## 7. 当天演示者 Cheat Sheet（5 步）
 
-Show these on stage / print them out:
+舞台上展示 / 打印出来备用：
 
-1. `./start.sh` on the demo laptop → backend up at
-   `https://one.fim.ai`.
-2. `uvicorn scripts.demo_oa_webhook:app --port 7799` in a second
-   terminal → mock OA up.
-3. Sign into portal, open agent `采购审批助手`, click **Chat**.
-4. Type the rehearsed prompt (section 6 above). Watch the Feishu group
-   on a second screen for the card to appear.
-5. Tap **Approve** on the Feishu card → agent completes. Done.
+1. 在演示笔记本上执行 `./start.sh` → 后端运行在
+   `https://one.fim.ai`。
+2. 在第二个终端执行 `uvicorn scripts.demo_oa_webhook:app --port 7799`
+   → Mock OA 起来。
+3. 登录门户，打开 `采购审批助手` Agent，点击 **Chat**。
+4. 输入排练过的 Prompt（见上文第 6 节）。在第二块屏幕上盯着
+   飞书群，等卡片弹出。
+5. 在飞书卡片上点击 **同意** → Agent 完成。搞定。
 
-If the card doesn't show up within 3 s:
-- confirm the Channel row has `is_active = true`
-- confirm the Request URL in the Feishu console matches the
-  `callback_url` returned by the `GET /api/channels/{id}` call
-- check `docker logs fim-one-api | grep feishu_gate`
+如果 3 秒内卡片没有出现：
+- 确认 Channel 记录的 `is_active = true`
+- 确认飞书控制台的请求地址与 `GET /api/channels/{id}` 返回的
+  `callback_url` 一致
+- 检查 `docker logs fim-one-api | grep feishu_gate`

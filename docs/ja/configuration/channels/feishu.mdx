@@ -1,0 +1,134 @@
+---
+title: "飞书（Lark）频道"
+icon: "comment-dots"
+description: "将 FIM One 连接到飞书应用，用于出站消息、入站回复和交互式审批卡片。"
+---
+
+飞书频道为一个组织中的智能体提供了一条进入飞书群组的单一热线：出站通知、入站回复和交互式的批准/拒绝卡片（通过 `feishu_gate` hook）。
+
+本指南介绍了端到端的设置过程。它假设 FIM One 可以在稳定的 HTTPS 源上访问——称之为 `API_BASE_URL`（例如 `https://one.yourdomain.com`）。
+
+## 1. Feishuアプリを作成する
+
+1. [Feishu Open Platform](https://open.feishu.cn/app/)にアクセスして、**Create custom app for enterprise**をクリックします。
+2. 名前、アイコン、簡単な説明を入力します。組織のエンドユーザーはカード上でこれらを表示します。
+3. **Credentials & Basic Info**ページで、**App ID**と**App Secret**をコピーします。これらはステップ4でFIM Oneに貼り付けます。
+
+<Warning>
+App Secretはパスワードのように扱ってください。FIM Oneは保存時に暗号化しますが、平文コピーを持つ誰もがボットになりすまし可能です。
+</Warning>
+
+## 2. パーミッションを付与する
+
+**Permissions & Scopes** で、以下のスコープを有効にしてパーミッションバージョンを送信します:
+
+| スコープ | 理由 |
+|---|---|
+| `im:message` | メッセージ（テキスト + カード）を送信 |
+| `im:message:send_as_bot` | ボットアイデンティティとして投稿 |
+| `im:chat` | ボットが属するグループチャットをリストおよび読み取り |
+| `im:chat:readonly` | グループ検出の最小読み取りアクセス |
+| `im:resource` | （オプション）カードに表示される画像 / ファイルをアップロード |
+
+## 3. イベントサブスクリプションを有効にする（Request URLは今のところ空白のままにしておく）
+
+**Event Subscriptions**を開きますが、**Request URLはまだ入力しないでください** — ステップ5でFIM Oneから取得します。
+
+以下のイベントをサブスクライブします：
+
+- `im.message.receive_v1` — ユーザーからのインバウンドメッセージ
+- `card.action.trigger` — 承認/却下ボタンのクリック
+
+同じページで、オプションとして**Verification Token**と**Encrypt Key**を設定できます。FIM Oneは両方のモードをサポートしており、提供されたものを使用します。
+
+## 4. FIM One でチャネルを追加する
+
+1. **組織オーナー**または**管理者**としてサインインします。
+2. **Organization Settings → Channels → New Channel** に移動します。
+3. タイプとして **Feishu** を選択し、以下を入力します：
+
+   | フィールド | ソース |
+   |---|---|
+   | **Name** | 任意の内部ラベル（例：`Ops team Feishu`） |
+   | **App ID** | ステップ 1 から（`cli_xxxxxxxxxxxxxxxx`） |
+   | **App Secret** | ステップ 1 から |
+   | **Verification Token** | （オプション）ステップ 3 から |
+   | **Encrypt Key** | （オプション）ステップ 3 から |
+
+4. **Browse chats** をクリックします — FIM One はあなたの認証情報を使用して Feishu を呼び出し、ボットが現在メンバーであるすべてのグループをリストアップします。
+
+<Tip>
+リストが空の場合、ボットはまだどのグループにも追加されていません。Feishu を開き、ボットをターゲットグループに追加してから、ピッカーを再度開いてください。
+</Tip>
+
+5. ルーティング先のグループチャットを選択し、**Save** をクリックします。
+
+## 5. Feishuでコールバック URLを登録する
+
+保存後、FIM One はチャネル詳細パネルに**コールバック URL**を表示します。形式は以下の通りです：
+
+```
+{API_BASE_URL}/api/channels/{CHANNEL_ID}/callback
+```
+
+これをコピーして、Feishu の**イベント購読**ページに戻り、**リクエスト URL**として貼り付けて、**検証**をクリックします。Feishu は 1 回限りの `url_verification` チャレンジを POST します。FIM One が自動的に応答します。
+
+## 6. テストメッセージを送信
+
+FIM One チャネル詳細パネルに戻り、**Send test message** をクリックします。短いプレーンテキストメッセージ（`FIM One test message from <your email>`）が1秒以内にターゲットグループに表示されるはずです。
+
+表示されない場合：
+
+- **401 / 403** — App Secret を再確認し、ステップ2のスコープを再度有効にして、権限バージョンを再公開します。
+- **Silent failure** — ボットが実際にグループに参加していることを確認し（ステップ4のピッカー）、チャネル行の `is_active` が true であることを確認します。
+- **Verification fails on step 5** — `API_BASE_URL` が HTTPS であり、公開でアクセス可能であることを確認します。Feishu は非 HTTPS リクエスト URL を拒否します。
+
+## 7. 智能体の配線（オプション — 承認）
+
+ツール呼び出しをグループ承認の背後に置くには：
+
+1. ツール / コネクタアクション上で、**Requires confirmation** をオンにします。
+2. 智能体上で、**Hooks → Class hooks** の下に `feishu_gate` を追加します。
+3. 智能体の組織が正確に1つの**アクティブな** Feishuチャネルを持つことを確認します — フックは自動的にそこにルーティングされます。
+
+智能体がゲートされたツールを実行しようとすると、インタラクティブカードがグループに投稿され、**Approve** / **Reject** が表示されます。ツールは待機し（SSEストリームが一時停止）、メンバーがタップするまで待ちます。判定がストリームバックされ、智能体は完了するか中止します。
+
+## トラブルシューティング
+
+### `chat_id` をピッカーなしで見つける
+
+**チャットを閲覧** UI が推奨されるフローです。生の ID が必要な場合（例えば、スクリプティングから `POST /api/channels` を呼び出す場合）、3 つのフォールバックがあります：
+
+**a. Feishu に対して `curl` を実行する**
+
+```bash
+APP_ID="cli_xxxxxxxxxxxxxxxx"
+APP_SECRET="<your-app-secret>"
+
+TOKEN=$(curl -s -X POST \
+  "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
+  -H "Content-Type: application/json" \
+  -d "{\"app_id\":\"$APP_ID\",\"app_secret\":\"$APP_SECRET\"}" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['tenant_access_token'])")
+
+curl -s "https://open.feishu.cn/open-apis/im/v1/chats?page_size=50" \
+  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+```
+
+レスポンス内のすべての `items[].chat_id`（`oc_` というプレフィックスが付いている）は候補です。
+
+**b. Feishu API Explorer**
+
+Feishu Open Platform コンソールで、**Dev Tools → API Explorer** を開き、`/open-apis/im/v1/chats` を見つけ、**tenant_access_token** 認証を選択して、**Invoke** をクリックします。Feishu がトークンを生成します — シェルは不要です。
+
+**c. Feishu クライアントからコピーする**
+
+Feishu デスクトップまたはモバイル クライアントで、グループを開き、**グループ設定 → グループ情報** に移動します。一部のバージョンでは **グループ ID をコピー** オプションが表示されます。可用性はクライアント バージョンと管理者が設定した権限によって異なるため、これは最も信頼性の低いフォールバックです。
+
+### カードクリックがFIM Oneに到達しない
+
+`card.action.trigger` イベントをサブスクライブする必要があります（ステップ3）。サブスクライブ前に承認ゲートを有効にした場合は、Feishuコンソールで**再度サブスクライブ**をクリックしてください。
+
+### 1つの組織、2つのFeishuチャネル
+
+`feishu_gate` は最初に見つかった**アクティブな**チャネルを選択します。同じ組織内に複数のFeishuエンドポイントが必要な場合（例：ステージング対本番グループ）、1つを除くすべてを無効にするか、エージェントタグで選択するカスタムフックを作成してください。

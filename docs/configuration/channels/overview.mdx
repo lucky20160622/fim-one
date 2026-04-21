@@ -1,0 +1,50 @@
+---
+title: "Channels Overview"
+icon: "tower-broadcast"
+description: "Connect FIM One to external messaging platforms for notifications, approvals, and two-way agent interaction."
+---
+
+A **Channel** is a bridge between FIM One and an external messaging platform — Feishu (Lark), Slack, DingTalk, Teams, and so on. Channels let an agent:
+
+- **Send outbound messages** (status updates, artifacts, reports).
+- **Receive inbound messages** (a user asks a question in a group chat; the agent answers).
+- **Gate sensitive tool calls** behind a human approval, delivered as an interactive card.
+
+Channels are scoped to an **organization**, not an individual user. Any org admin can create, edit, and disable them.
+
+## Supported platforms
+
+| Platform | Status | Inbound | Outbound | Approval card |
+|---|---|---|---|---|
+| [Feishu (Lark)](./feishu) | GA | Yes | Yes | Yes (`feishu_gate` hook) |
+| Slack | Planned | — | — | — |
+| DingTalk | Planned | — | — | — |
+
+## How Channels interact with Hooks
+
+The `feishu_gate` hook is the primary consumer of a Feishu channel. When an agent is about to call a tool marked `requires_confirmation: true`, the hook:
+
+1. Resolves the org's active Feishu channel.
+2. Renders an interactive approval card with the tool name and arguments.
+3. Posts the card to the configured group chat (`chat_id`).
+4. Suspends the tool call until a group member taps **Approve** or **Reject**.
+5. Resumes (or aborts) the tool based on the verdict, and streams the decision back over SSE.
+
+Attach the hook on an agent via `model_config_json.hooks.class_hooks = ["feishu_gate"]`, or toggle it in the agent editor.
+
+## Creating a Channel
+
+1. Sign in as an **Org Owner** or **Admin**.
+2. Go to **Organization Settings → Channels → New Channel**.
+3. Pick a channel type (e.g. Feishu), fill in credentials, pick a target chat, and save.
+4. Click **Send test message** to verify the bidirectional wiring.
+
+Each channel type has its own credential shape and event-subscription dance — follow the platform-specific guide for the exact steps:
+
+- [Feishu (Lark) setup](./feishu)
+
+## Security notes
+
+- App secrets and encrypt keys are **encrypted at rest** using the backend's `FERNET_SECRET_KEY`.
+- The callback endpoint (`/api/channels/{id}/callback`) **verifies every signature** against the stored `encrypt_key` / `verification_token` before acting on the event.
+- Only members of the target group chat can approve or reject an approval card — FIM One does not grant extra authority beyond what the messaging platform already gives them.

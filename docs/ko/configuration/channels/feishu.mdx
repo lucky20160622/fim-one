@@ -1,0 +1,134 @@
+---
+title: "飞书 (Lark) 频道"
+icon: "comment-dots"
+description: "将 FIM One 连接到飞书应用，用于出站消息、入站回复和交互式审批卡片。"
+---
+
+飞书频道为一个组织中的智能体提供了一条进入飞书群组的单一热线：出站通知、入站回复和交互式的批准/拒绝卡片（通过 `feishu_gate` hook）。
+
+本指南介绍端到端的设置步骤。它假设 FIM One 可在稳定的 HTTPS 源访问 — 称之为 `API_BASE_URL`（例如 `https://one.yourdomain.com`）。
+
+## 1. Feishu 앱 생성
+
+1. [Feishu Open Platform](https://open.feishu.cn/app/)으로 이동하여 **Create custom app for enterprise**를 클릭합니다.
+2. 앱의 이름, 아이콘, 간단한 설명을 입력합니다 — 조직의 최종 사용자가 카드에서 이를 볼 수 있습니다.
+3. **Credentials & Basic Info** 페이지에서 **App ID**와 **App Secret**을 복사합니다. 4단계에서 FIM One에 붙여넣을 것입니다.
+
+<Warning>
+App Secret을 비밀번호처럼 취급하세요. FIM One은 저장 시 암호화하지만, 평문 복사본을 가진 누구나 봇을 가장할 수 있습니다.
+</Warning>
+
+## 2. 권한 부여
+
+**Permissions & Scopes** 아래에서 다음 범위를 활성화하고 권한 버전을 제출합니다:
+
+| Scope | 이유 |
+|---|---|
+| `im:message` | 메시지 전송 (텍스트 + 카드) |
+| `im:message:send_as_bot` | 봇 신원으로 게시 |
+| `im:chat` | 봇이 속한 그룹 채팅 나열 및 읽기 |
+| `im:chat:readonly` | 그룹 검색을 위한 최소 읽기 액세스 |
+| `im:resource` | (선택사항) 카드에 표시된 이미지/파일 업로드 |
+
+## 3. 이벤트 구독 활성화 (지금은 Request URL을 비워두세요)
+
+**Event Subscriptions**를 열되, **아직 Request URL을 입력하지 마세요** — 5단계에서 FIM One에서 가져옵니다.
+
+다음 이벤트를 구독하세요:
+
+- `im.message.receive_v1` — 사용자로부터의 인바운드 메시지
+- `card.action.trigger` — 승인 / 거부 버튼 클릭
+
+동일한 페이지에서 선택적으로 **Verification Token**과 **Encrypt Key**를 설정할 수 있습니다. FIM One은 두 모드를 모두 지원하며 제공된 것을 사용합니다.
+
+## 4. FIM One에서 채널 추가
+
+1. **조직 소유자** 또는 **관리자**로 로그인합니다.
+2. **조직 설정 → 채널 → 새 채널**로 이동합니다.
+3. 유형으로 **Feishu**를 선택한 후 다음을 입력합니다:
+
+   | 필드 | 출처 |
+   |---|---|
+   | **Name** | 내부 레이블 (예: `Ops team Feishu`) |
+   | **App ID** | 1단계에서 (`cli_xxxxxxxxxxxxxxxx`) |
+   | **App Secret** | 1단계에서 |
+   | **Verification Token** | (선택사항) 3단계에서 |
+   | **Encrypt Key** | (선택사항) 3단계에서 |
+
+4. **Browse chats**를 클릭합니다 — FIM One이 당신의 자격증명으로 Feishu를 호출하고 봇이 현재 멤버인 모든 그룹을 나열합니다.
+
+<Tip>
+목록이 비어 있으면 봇이 아직 어떤 그룹에도 추가되지 않은 것입니다. Feishu를 열어 대상 그룹에 봇을 추가한 후 선택기를 다시 엽니다.
+</Tip>
+
+5. 라우팅할 그룹 채팅을 선택하고 **Save**를 클릭합니다.
+
+## 5. Feishu에 콜백 URL 등록
+
+저장 후 FIM One은 채널 상세 패널에 다음과 같은 형태의 **Callback URL**을 표시합니다:
+
+```
+{API_BASE_URL}/api/channels/{CHANNEL_ID}/callback
+```
+
+이를 복사하여 Feishu **Event Subscriptions** 페이지로 돌아가 **Request URL**에 붙여넣은 후 **Verify**를 클릭합니다. Feishu는 일회성 `url_verification` 챌린지를 POST로 전송하며, FIM One이 자동으로 응답합니다.
+
+## 6. 테스트 메시지 전송
+
+FIM One 채널 상세 패널로 돌아가서 **Send test message**를 클릭합니다. 짧은 평문 메시지(`FIM One test message from <your email>`)가 대상 그룹에 1초 이내에 나타나야 합니다.
+
+나타나지 않으면:
+
+- **401 / 403** — App Secret을 다시 확인하고, 2단계에서 스코프를 다시 활성화한 후, 권한 버전을 다시 게시합니다.
+- **Silent failure** — 봇이 실제로 그룹에 있는지(4단계 선택기) 확인하고 채널 행의 `is_active`가 true인지 확인합니다.
+- **5단계에서 검증 실패** — `API_BASE_URL`이 HTTPS이고 공개적으로 접근 가능한지 확인합니다. Feishu는 비-HTTPS 요청 URL을 거부합니다.
+
+## 7. 智能体 연결 (선택사항 — 승인)
+
+도구 호출을 그룹 승인으로 제어하려면:
+
+1. 도구 / 커넥터 작업에서 **Requires confirmation**을 켭니다.
+2. 智能体에서 **Hooks → Class hooks** 아래에 `feishu_gate`를 추가합니다.
+3. 智能体의 조직이 정확히 하나의 **활성** Feishu 채널을 가지고 있는지 확인합니다 — 훅이 자동으로 라우팅됩니다.
+
+智能体가 제어된 도구를 실행하려고 할 때, **Approve** / **Reject** 버튼이 있는 대화형 카드가 그룹에 게시됩니다. 도구는 대기 상태(SSE 스트림 일시 중지)이며 멤버가 하나를 탭할 때까지 기다립니다. 결과가 스트림으로 돌아오고 智能体는 완료되거나 중단됩니다.
+
+## 문제 해결
+
+### `chat_id` 선택기 없이 찾기
+
+**채팅 찾아보기** UI가 권장되는 흐름입니다. 원본 ID가 필요한 경우(예: 스크립팅에서 `POST /api/channels` 호출), 세 가지 대체 방법이 있습니다:
+
+**a. Feishu에 대해 `curl` 실행**
+
+```bash
+APP_ID="cli_xxxxxxxxxxxxxxxx"
+APP_SECRET="<your-app-secret>"
+
+TOKEN=$(curl -s -X POST \
+  "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal" \
+  -H "Content-Type: application/json" \
+  -d "{\"app_id\":\"$APP_ID\",\"app_secret\":\"$APP_SECRET\"}" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['tenant_access_token'])")
+
+curl -s "https://open.feishu.cn/open-apis/im/v1/chats?page_size=50" \
+  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+```
+
+응답의 모든 `items[].chat_id`(`oc_` 접두사 포함)가 후보입니다.
+
+**b. Feishu API Explorer**
+
+Feishu Open Platform 콘솔에서 **Dev Tools → API Explorer**를 열고, `/open-apis/im/v1/chats`를 찾은 다음, **tenant_access_token** 인증을 선택하고 **Invoke**를 클릭합니다. Feishu가 토큰을 생성해줍니다 — 셸이 필요하지 않습니다.
+
+**c. Feishu 클라이언트에서 복사**
+
+Feishu 데스크톱 또는 모바일 클라이언트에서 그룹을 열고 → **그룹 설정 → 그룹 정보**에서 일부 버전은 **그룹 ID 복사** 옵션을 제공합니다. 가용성은 클라이언트 버전 및 관리자 설정 권한에 따라 다르므로, 이것이 가장 신뢰성이 낮은 대체 방법입니다.
+
+### 카드 클릭이 FIM One에 도달하지 않음
+
+`card.action.trigger` 이벤트를 구독해야 합니다(3단계). 구독하기 전에 승인 게이트를 활성화한 경우 Feishu 콘솔에서 **재구독**을 클릭하세요.
+
+### 하나의 조직, 두 개의 Feishu 채널
+
+`feishu_gate`는 찾은 첫 번째 **활성** 채널을 선택합니다. 동일한 조직에서 여러 Feishu 엔드포인트가 필요한 경우(예: 스테이징 vs. 프로덕션 그룹), 하나를 제외한 모두를 비활성화하거나 에이전트 태그로 선택하는 커스텀 훅을 작성하세요.
