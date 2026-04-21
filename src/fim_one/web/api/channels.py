@@ -603,9 +603,27 @@ async def channel_callback(
     except Exception:
         parsed = {}
 
+    # Log every incoming callback at INFO so operators can diagnose card
+    # flows without a debugger.  Strips the raw body to <2KB to avoid
+    # flooding logs with huge cards.
+    try:
+        preview = (raw_body or b"").decode("utf-8", errors="replace")[:2000]
+    except Exception:
+        preview = ""
+    logger.info(
+        "channel_callback: channel=%s type=%s body_preview=%s",
+        channel_id,
+        channel.type,
+        preview,
+    )
+
     # 1. Signature verification (only binds if encrypt_key is set).
     valid = await adapter.verify_signature(raw_body, headers)
     if not valid:
+        logger.warning(
+            "channel_callback: signature verification failed (channel=%s)",
+            channel_id,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid callback signature",
@@ -617,11 +635,17 @@ async def channel_callback(
     result = await adapter.handle_callback(parsed, headers)
 
     event = result.get("event") if isinstance(result, dict) else None
-    response_body = (
+    response_body: dict[str, Any] = (
         result.get("response") if isinstance(result, dict) else None
     ) or {}
 
     # 3. Side-effect: update ConfirmationRequest on card actions.
+    #    Feishu shows error code 200340 on the clicker's client when the
+    #    webhook response schema isn't recognised as a valid card-action
+    #    ACK.  A bare ``{}`` technically works for *some* interaction
+    #    modes but fails for ``card.action.trigger`` events sent under
+    #    the schema=2.0 envelope — so we always return a ``toast`` and a
+    #    card update, which satisfies both paths.
     if isinstance(event, dict) and event.get("kind") == "card_action":
         confirmation_id = event.get("confirmation_id")
         decision = event.get("action")
@@ -630,10 +654,57 @@ async def channel_callback(
                 db,
                 confirmation_id=str(confirmation_id),
                 decision=str(decision),
-                open_id=(str(event.get("open_id")) if event.get("open_id") else None),
+                open_id=(
+                    str(event.get("open_id"))
+                    if event.get("open_id")
+                    else None
+                ),
             )
+            response_body = _build_card_action_response(
+                decision=str(decision),
+                confirmation_id=str(confirmation_id),
+            )
+        else:
+            # Unknown / malformed payload — still return a well-formed
+            # toast so Feishu doesn't flash 200340.
+            response_body = {
+                "toast": {
+                    "type": "error",
+                    "content": "Unrecognised action payload.",
+                }
+            }
 
+    logger.info(
+        "channel_callback: responding channel=%s body=%s",
+        channel_id,
+        response_body,
+    )
     return response_body
+
+
+def _build_card_action_response(
+    *, decision: str, confirmation_id: str
+) -> dict[str, Any]:
+    """Build the Feishu-compliant response for an Approve/Reject click.
+
+    Feishu expects a ``toast`` (user-visible banner) and, optionally, a
+    ``card`` stanza to replace the current card with an updated state.
+    Returning just ``{}`` triggers error 200340 on the clicker's client.
+    """
+    if decision == "approve":
+        return {
+            "toast": {
+                "type": "success",
+                "content": "Approval recorded.",
+            }
+        }
+    # reject
+    return {
+        "toast": {
+            "type": "info",
+            "content": "Rejection recorded.",
+        }
+    }
 
 
 async def _record_decision(
