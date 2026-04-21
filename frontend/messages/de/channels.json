@@ -89,8 +89,6 @@
     "step2": "Öffnen Sie Feishu Open Platform -> Events & Callbacks und fügen Sie die URL ein.",
     "step3": "Führen Sie den Challenge-Handshake durch (FIM One antwortet automatisch).",
     "step4": "Abonnieren Sie das card.action.trigger-Ereignis, damit Schaltflächenklicks Ihren Agent erreichen.",
-    "testSend": "Testnachricht senden",
-    "testing": "Wird gesendet...",
     "copyToastSuccess": "Callback-URL kopiert",
     "copyToastFailed": "Kopieren fehlgeschlagen. Bitte kopieren Sie die URL manuell.",
     "step5": "Klicken Sie auf Speichern. Feishu sendet sofort eine URL-Verifizierungsanforderung; FIM One antwortet automatisch, daher ist keine manuelle Aktion erforderlich.",
@@ -102,7 +100,6 @@
   "actions": {
     "viewDetails": "Details anzeigen",
     "edit": "Konfiguration bearbeiten",
-    "test": "Testnachricht senden",
     "enable": "Aktivieren",
     "disable": "Deaktivieren",
     "delete": "Löschen"
@@ -113,9 +110,6 @@
     "deleted": "Kanal gelöscht",
     "enabled": "Kanal aktiviert",
     "disabled": "Kanal deaktiviert",
-    "testSentWithChat": "Testnachricht an {chat} gesendet",
-    "testSent": "Testnachricht gesendet",
-    "testFailed": "Testnachricht fehlgeschlagen: {error}",
     "loadFailed": "Kanäle konnten nicht geladen werden"
   },
   "deleteDialog": {

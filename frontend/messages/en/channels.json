@@ -113,8 +113,6 @@
     "step5": "Click Save. Feishu will immediately POST a URL verification challenge; FIM One responds automatically, so no manual action is needed.",
     "step6": "Under Subscribed Callbacks (已订阅的回调), click 'Add Callback' (添加回调) and select Card Action Trigger (card.action.trigger).",
     "step7": "Optional: If you set an Encrypt Key on the Encryption Strategy (加密策略) tab, paste the same value into the Encrypt Key field when editing this channel.",
-    "testSend": "Send Test Message",
-    "testing": "Sending...",
     "openPlayground": "Test Approval Flow",
     "playgroundHint": "Simulate a sensitive tool call, push a real approval card to the Feishu group, and watch the decision come back live.",
     "copyToastSuccess": "Callback URL copied",
@@ -124,7 +122,6 @@
   "actions": {
     "viewDetails": "View Details",
     "edit": "Edit Configuration",
-    "test": "Send Test Message",
     "enable": "Enable",
     "disable": "Disable",
     "delete": "Delete"
@@ -136,9 +133,6 @@
     "deleted": "Channel deleted",
     "enabled": "Channel enabled",
     "disabled": "Channel disabled",
-    "testSentWithChat": "Test message sent to {chat}",
-    "testSent": "Test message sent",
-    "testFailed": "Test message failed: {error}",
     "loadFailed": "Failed to load channels"
   },
 

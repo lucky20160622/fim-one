@@ -89,8 +89,6 @@
     "step2": "打开飞书开放平台 -> 事件与回调，粘贴 URL。",
     "step3": "完成挑战握手（FIM One 自动响应）。",
     "step4": "订阅 card.action.trigger 事件，以便按钮点击到达您的智能体。",
-    "testSend": "发送测试消息",
-    "testing": "发送中...",
     "copyToastSuccess": "回调 URL 已复制",
     "copyToastFailed": "复制失败。请手动复制 URL。",
     "step5": "点击保存。飞书将立即发送URL验证挑战；FIM One会自动响应，无需手动操作。",
@@ -102,7 +100,6 @@
   "actions": {
     "viewDetails": "查看详情",
     "edit": "编辑配置",
-    "test": "发送测试消息",
     "enable": "启用",
     "disable": "禁用",
     "delete": "删除"
@@ -113,9 +110,6 @@
     "deleted": "频道已删除",
     "enabled": "频道已启用",
     "disabled": "频道已禁用",
-    "testSentWithChat": "测试消息已发送到 {chat}",
-    "testSent": "测试消息已发送",
-    "testFailed": "测试消息发送失败：{error}",
     "loadFailed": "加载频道失败"
   },
   "deleteDialog": {

@@ -89,8 +89,6 @@
     "step2": "Ouvrez Feishu Open Platform -> Événements et rappels et collez l'URL.",
     "step3": "Complétez la poignée de main de défi (FIM One répond automatiquement).",
     "step4": "Abonnez-vous à l'événement card.action.trigger pour que les clics de bouton atteignent votre agent.",
-    "testSend": "Envoyer un message de test",
-    "testing": "Envoi en cours...",
     "copyToastSuccess": "URL de rappel copiée",
     "copyToastFailed": "La copie a échoué. Veuillez copier l'URL manuellement.",
     "step5": "Cliquez sur Enregistrer. Feishu enverra immédiatement un défi de vérification d'URL par POST ; FIM One répond automatiquement, aucune action manuelle n'est nécessaire.",
@@ -102,7 +100,6 @@
   "actions": {
     "viewDetails": "Afficher les détails",
     "edit": "Modifier la configuration",
-    "test": "Envoyer un message de test",
     "enable": "Activer",
     "disable": "Désactiver",
     "delete": "Supprimer"
@@ -113,9 +110,6 @@
     "deleted": "Canal supprimé",
     "enabled": "Canal activé",
     "disabled": "Canal désactivé",
-    "testSentWithChat": "Message de test envoyé à {chat}",
-    "testSent": "Message de test envoyé",
-    "testFailed": "Échec du message de test : {error}",
     "loadFailed": "Échec du chargement des canaux"
   },
   "deleteDialog": {

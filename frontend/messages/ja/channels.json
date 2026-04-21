@@ -89,8 +89,6 @@
     "step2": "Feishu Open Platform → イベント＆コールバックを開き、URLを貼り付けます。",
     "step3": "チャレンジハンドシェイクを完了します（FIM Oneが自動的に応答します）。",
     "step4": "card.action.triggerイベントをサブスクライブして、ボタンクリックがエージェントに到達するようにします。",
-    "testSend": "テストメッセージを送信",
-    "testing": "送信中...",
     "copyToastSuccess": "コールバックURLをコピーしました",
     "copyToastFailed": "コピーに失敗しました。URLを手動でコピーしてください。",
     "step5": "保存をクリックします。Feishu は直ちに URL 検証チャレンジを POST します。FIM One は自動的に応答するため、手動操作は不要です。",
@@ -102,7 +100,6 @@
   "actions": {
     "viewDetails": "詳細を表示",
     "edit": "設定を編集",
-    "test": "テストメッセージを送信",
     "enable": "有効にする",
     "disable": "無効にする",
     "delete": "削除"
@@ -113,9 +110,6 @@
     "deleted": "チャネルが削除されました",
     "enabled": "チャネルが有効になりました",
     "disabled": "チャネルが無効になりました",
-    "testSentWithChat": "テストメッセージを{chat}に送信しました",
-    "testSent": "テストメッセージを送信しました",
-    "testFailed": "テストメッセージの送信に失敗しました：{error}",
     "loadFailed": "チャネルの読み込みに失敗しました"
   },
   "deleteDialog": {
