@@ -82,14 +82,14 @@ export function ChannelDetailsSheet({
         if (!open) onOpenChange(false)
       }}
     >
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-        <SheetHeader>
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-4">
+        <SheetHeader className="px-0">
           <SheetTitle>{t("details.title")}</SheetTitle>
           <SheetDescription>{channel?.name}</SheetDescription>
         </SheetHeader>
 
         {channel && (
-          <div className="space-y-5 px-4 pb-4">
+          <div className="mt-4 space-y-5">
             {/* Callback URL block */}
             <section className="space-y-2">
               <div className="flex items-center justify-between">
