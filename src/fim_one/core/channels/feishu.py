@@ -396,73 +396,131 @@ def build_confirmation_card(
     approve_text: str = "Approve",
     reject_text: str = "Reject",
 ) -> dict[str, Any]:
-    """Build a Feishu interactive card spec for a confirmation gate.
+    """Build a Feishu **v2.0** interactive card for a confirmation gate.
 
-    The card has two buttons whose ``value`` payloads carry the
-    ``confirmation_id`` back to our callback endpoint so we can look up
-    and update the pending request.
+    Why v2.0 and not the legacy (``config.wide_screen_mode``) schema:
+    button clicks on v1 cards are delivered to the bot's **"卡片回传
+    交互（旧版）"** URL, which is a separate legacy endpoint that most
+    apps no longer configure.  v2.0 cards route button clicks through
+    the **"卡片回传交互" (card.action.trigger)** event callback — the
+    same endpoint as event subscriptions — so a single Callback URL is
+    sufficient.
+
+    Button behaviours use ``type="callback"`` with the ``value`` payload
+    that our ``handle_callback`` parses.  Response schema: the webhook
+    must return ``{"toast": {...}, "card": ... (optional)}`` — see
+    ``fim_one.web.api.channels``.
     """
     return {
-        "config": {"wide_screen_mode": True},
+        "schema": "2.0",
+        "config": {
+            "update_multi": True,
+        },
         "header": {
             "title": {"tag": "plain_text", "content": title[:100]},
             "template": "orange",
         },
-        "elements": [
-            {
-                "tag": "markdown",
-                "content": summary[:2000],
-            },
-            {
-                "tag": "div",
-                "fields": [
-                    {
-                        "is_short": True,
-                        "text": {
-                            "tag": "lark_md",
-                            "content": f"**Tool**\n{tool_name}",
+        "body": {
+            "direction": "vertical",
+            "padding": "12px 12px 12px 12px",
+            "elements": [
+                {
+                    "tag": "markdown",
+                    "content": summary[:2000],
+                },
+                {
+                    "tag": "column_set",
+                    "horizontal_spacing": "8px",
+                    "columns": [
+                        {
+                            "tag": "column",
+                            "width": "weighted",
+                            "weight": 1,
+                            "elements": [
+                                {
+                                    "tag": "markdown",
+                                    "content": f"**Tool**\n{tool_name}",
+                                }
+                            ],
                         },
-                    },
-                    {
-                        "is_short": True,
-                        "text": {
-                            "tag": "lark_md",
-                            "content": f"**Request ID**\n`{confirmation_id}`",
+                        {
+                            "tag": "column",
+                            "width": "weighted",
+                            "weight": 1,
+                            "elements": [
+                                {
+                                    "tag": "markdown",
+                                    "content": (
+                                        f"**Request ID**\n`{confirmation_id}`"
+                                    ),
+                                }
+                            ],
                         },
-                    },
-                ],
-            },
-            {
-                "tag": "hr",
-            },
-            {
-                "tag": "markdown",
-                "content": f"**Arguments**\n```\n{tool_args_preview[:800]}\n```",
-            },
-            {
-                "tag": "action",
-                "actions": [
-                    {
-                        "tag": "button",
-                        "text": {"tag": "plain_text", "content": approve_text},
-                        "type": "primary",
-                        "value": {
-                            "confirmation_id": confirmation_id,
-                            "decision": "approve",
+                    ],
+                },
+                {"tag": "hr"},
+                {
+                    "tag": "markdown",
+                    "content": (
+                        f"**Arguments**\n```\n{tool_args_preview[:800]}\n```"
+                    ),
+                },
+                {
+                    "tag": "column_set",
+                    "horizontal_spacing": "8px",
+                    "columns": [
+                        {
+                            "tag": "column",
+                            "elements": [
+                                {
+                                    "tag": "button",
+                                    "text": {
+                                        "tag": "plain_text",
+                                        "content": approve_text,
+                                    },
+                                    "type": "primary_filled",
+                                    "behaviors": [
+                                        {
+                                            "type": "callback",
+                                            "value": {
+                                                "confirmation_id": (
+                                                    confirmation_id
+                                                ),
+                                                "decision": "approve",
+                                            },
+                                        }
+                                    ],
+                                }
+                            ],
                         },
-                    },
-                    {
-                        "tag": "button",
-                        "text": {"tag": "plain_text", "content": reject_text},
-                        "type": "danger",
-                        "value": {
-                            "confirmation_id": confirmation_id,
-                            "decision": "reject",
+                        {
+                            "tag": "column",
+                            "elements": [
+                                {
+                                    "tag": "button",
+                                    "text": {
+                                        "tag": "plain_text",
+                                        "content": reject_text,
+                                    },
+                                    "type": "danger_filled",
+                                    "behaviors": [
+                                        {
+                                            "type": "callback",
+                                            "value": {
+                                                "confirmation_id": (
+                                                    confirmation_id
+                                                ),
+                                                "decision": "reject",
+                                            },
+                                        }
+                                    ],
+                                }
+                            ],
                         },
-                    },
-                ],
-            },
-        ],
+                    ],
+                },
+            ],
+        },
     }
 
 

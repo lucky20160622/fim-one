@@ -385,7 +385,9 @@ class TestTestChannel:
         args, _ = send_mock.await_args
         assert args[0] == "oc_test"
         assert isinstance(args[1], dict)
-        assert "elements" in args[1]
+        # v2.0 card: elements now nested under `body`
+        assert args[1].get("schema") == "2.0"
+        assert "elements" in args[1].get("body", {})
 
 
 # ---------------------------------------------------------------------------

@@ -438,7 +438,24 @@ class TestVerifySignature:
 
 
 class TestBuildConfirmationCard:
-    def test_card_has_both_buttons(self) -> None:
+    def _buttons(self, card: dict[str, Any]) -> list[dict[str, Any]]:
+        """Collect all button elements from a v2.0 card's body tree."""
+        buttons: list[dict[str, Any]] = []
+
+        def _walk(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("tag") == "button":
+                    buttons.append(node)
+                for v in node.values():
+                    _walk(v)
+            elif isinstance(node, list):
+                for item in node:
+                    _walk(item)
+
+        _walk(card.get("body"))
+        return buttons
+
+    def test_card_is_v2_schema(self) -> None:
         card = build_confirmation_card(
             confirmation_id="conf-42",
             title="Approval needed",
@@ -446,15 +463,35 @@ class TestBuildConfirmationCard:
             tool_name="oa__purchase_pay",
             tool_args_preview='{"amount": 500}',
         )
-        action_block = next(
-            e for e in card["elements"] if e.get("tag") == "action"
+        assert card["schema"] == "2.0"
+        assert isinstance(card.get("body"), dict)
+        assert "elements" in card["body"]
+
+    def test_card_has_both_callback_buttons(self) -> None:
+        card = build_confirmation_card(
+            confirmation_id="conf-42",
+            title="Approval needed",
+            summary="Pay 500 to vendor X",
+            tool_name="oa__purchase_pay",
+            tool_args_preview='{"amount": 500}',
         )
-        actions = action_block["actions"]
-        assert len(actions) == 2
-        decisions = {a["value"]["decision"] for a in actions}
+        buttons = self._buttons(card)
+        assert len(buttons) == 2
+        decisions = set()
+        for btn in buttons:
+            behaviors = btn.get("behaviors")
+            assert isinstance(behaviors, list) and behaviors
+            # Every button must drive the card.action.trigger event via
+            # a callback behavior with our confirmation_id in the value.
+            cb = next(
+                (b for b in behaviors if b.get("type") == "callback"),
+                None,
+            )
+            assert cb is not None
+            val = cb.get("value", {})
+            assert val["confirmation_id"] == "conf-42"
+            decisions.add(val["decision"])
         assert decisions == {"approve", "reject"}
-        for a in actions:
-            assert a["value"]["confirmation_id"] == "conf-42"
 
     def test_card_title_truncates(self) -> None:
         long_title = "x" * 300
