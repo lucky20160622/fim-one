@@ -231,5 +231,9 @@
   "fromTemplate": "从模板",
   "privateDefaultBadge": "私有默认",
   "privateDefaultHelp": "回退已禁用——只有您（所有者）可以使用此连接器的默认凭证。其他用户必须配置自己的凭证，此连接器才能为他们工作。",
-  "requiresConfirmationHelp": "勾选此项后，智能体在调用此操作前将请求批准。批准的收集方式（在聊天中内联或通过关联的频道）按智能体配置。"
+  "requiresConfirmationHelp": "勾选此项后，智能体在调用此操作前将请求批准。批准的收集方式（在聊天中内联或通过关联的频道）按智能体配置。",
+  "aiFailedActions": "{count, plural, one {# 个操作} other {# 个操作}}失败：{details}",
+  "aiPartialFailure": "完成，共有 {count, plural, one {# 个失败} other {# 个失败}}",
+  "aiAllFailed": "所有操作均失败",
+  "aiNoChanges": "No changes applied. Your instruction didn't match any actionable operation — try rephrasing with a concrete target (e.g. \"add a GET /users action\")."
 }

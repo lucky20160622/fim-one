@@ -231,6 +231,9 @@ export function AIPanel({
       if (mode === "connector-api") {
         const result = await connectorApi.aiRefineAction(id, { instruction: trimmed, history })
         const parts: string[] = []
+        const failed = result.failed ?? []
+        const successCount = result.created.length + result.updated.length + result.deleted.length
+          + (result.connector_updated ? 1 : 0)
         if (result.created.length > 0) {
           parts.push(tConnectors("aiCreatedActions", { count: result.created.length, names: result.created.map((a) => a.name).join(", ") }))
         }
@@ -244,12 +247,26 @@ export function AIPanel({
           parts.push(tConnectors("aiConnectorSettingsUpdated"))
           onConnectorUpdated?.(result.connector_updated)
         }
+        if (failed.length > 0) {
+          // Show up to 3 failure reasons inline so the user can see what went wrong.
+          const details = failed.slice(0, 3).join("; ") + (failed.length > 3 ? "…" : "")
+          parts.push(tConnectors("aiFailedActions", { count: failed.length, details }))
+        }
         const translatedFallback = result.message_key
           ? tConnectors(result.message_key, (result.message_args ?? {}) as Record<string, string | number>)
           : result.message
-        const summary = parts.length > 0 ? parts.join(". ") + "." : translatedFallback
+        // No-op case (LLM found nothing to do): prefer a clear "nothing happened" line
+        // over the backend's generic "completed" so users aren't misled.
+        const summary = parts.length > 0
+          ? parts.join(". ") + "."
+          : translatedFallback || tConnectors("aiNoChanges")
         setMessages((prev) => [...prev, { role: "assistant", content: summary }])
-        if (parts.length > 0) {
+        // Toast severity reflects real outcome: all-failed=error, partial=warning, success=success.
+        if (successCount === 0 && failed.length > 0) {
+          toast.error(tConnectors("aiAllFailed"))
+        } else if (failed.length > 0) {
+          toast.warning(tConnectors("aiPartialFailure", { count: failed.length }))
+        } else if (successCount > 0) {
           toast.success(tConnectors("aiConnectorModified"))
         }
         onActionsChanged?.()

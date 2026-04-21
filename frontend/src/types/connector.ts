@@ -136,6 +136,7 @@ export interface AIActionResult {
   created: ConnectorActionResponse[]
   updated: ConnectorActionResponse[]
   deleted: string[]
+  failed?: string[]
   connector_updated: ConnectorResponse | null
   message: string
   message_key?: string

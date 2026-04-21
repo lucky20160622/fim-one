@@ -231,5 +231,9 @@
   "fromTemplate": "Aus Vorlage",
   "privateDefaultBadge": "Privates Standard-token",
   "privateDefaultHelp": "Fallback ist deaktiviert – nur Sie (der Besitzer) können das Standard-token dieses Connectors verwenden. Andere Benutzer müssen ihre eigenen Anmeldedaten konfigurieren, bevor dieser Connector für sie funktioniert.",
-  "requiresConfirmationHelp": "Wenn aktiviert, fordern Agenten eine Genehmigung an, bevor diese Aktion aufgerufen wird. Wo die Genehmigung eingeholt wird – inline im Chat oder über einen verknüpften Kanal – wird pro Agent konfiguriert."
+  "requiresConfirmationHelp": "Wenn aktiviert, fordern Agenten eine Genehmigung an, bevor diese Aktion aufgerufen wird. Wo die Genehmigung eingeholt wird – inline im Chat oder über einen verknüpften Kanal – wird pro Agent konfiguriert.",
+  "aiFailedActions": "{count, plural, one {# Operation} other {# Operationen}} fehlgeschlagen: {details}",
+  "aiNoChanges": "Keine Änderungen angewendet. Ihre Anweisung entsprach keinem umsetzbaren Vorgang — versuchen Sie es mit einer konkreteren Formulierung (z. B. \"eine GET /users Aktion hinzufügen\").",
+  "aiPartialFailure": "Abgeschlossen mit {count, plural, one {# Fehler} other {# Fehlern}}",
+  "aiAllFailed": "Alle Operationen fehlgeschlagen"
 }
