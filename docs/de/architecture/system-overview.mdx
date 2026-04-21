@@ -51,7 +51,7 @@ Fähigkeiten unterstützen zwei Injektionsmodi – **progressiv** (Standard) und
 
 Für einen tieferen Einblick, warum Fähigkeiten global sind (nicht an Agenten gebunden) und wie sie mit der dualen Ressourcenermittlung interagieren, siehe [Agent & Ressourcenermittlung](/architecture/agent-discovery).
 
-## Werkzeugsatz pro Anfrage
+## Werkzeugzusammensetzung pro Anfrage
 
 Jede Chat-Anfrage stellt einen frischen Werkzeugsatz durch eine Filterpipeline in `_resolve_tools()` zusammen. Dies ist keine statische Konfiguration -- sie wird pro Anfrage basierend auf den Einstellungen des Agenten, der Identität des Benutzers und den verfügbaren Konnektoren und MCP-Servern berechnet.
 
@@ -68,18 +68,20 @@ flowchart LR
     F -->|No| H["Use full set"]
     G --> I["<b>Final ToolRegistry</b>"]
     H --> I
+    I --> HK["<b>HookRegistry</b><br/>PreToolUse / PostToolUse hooks<br/>wrap every tool call"]
 ```
 
 Die acht Schritte:
 
 1. **Basis-Erkennung.** `discover_builtin_tools()` lädt alle integrierten Werkzeuge, begrenzt auf die Sandbox des Gesprächs.
-2. **Agent-Kategorie-Filter.** `filter_by_category(*agent.tool_categories)` beschränkt sich nur auf die Kategorien, die der Agent verwenden darf.
-3. **KB-Injektion.** Wenn der Agent `kb_ids` hat, wird das generische Abrufwerkzeug durch `KBRetrieveTool` oder `GroundedRetrieveTool` basierend auf dem Abrufmodus ersetzt.
-4. **Konnektor-Laden.** Im Agent-beschränkten Modus werden nur die an den Agent gebundenen Konnektoren geladen. Im Auto-Discovery-Modus (kein Agent ausgewählt) werden alle für den Benutzer sichtbaren Konnektoren geladen. Sowohl API-Konnektoren (`ConnectorMetaTool`) als auch Datenbank-Konnektoren (`DatabaseMetaTool`) verwenden standardmäßig [Progressive Disclosure](/architecture/progressive-disclosure) -- leichte Stubs im System-Prompt, vollständige Schemas werden bei Bedarf geladen.
-5. **MCP-Laden.** Die persönlichen MCP-Server des Benutzers sowie von Administratoren bereitgestellte globale MCP-Server werden geladen und verbunden. Im Progressive-Modus (Standard) konsolidiert ein einzelnes `MCPServerMetaTool` alle Server; das LLM ruft `discover` und `call` Unterbefehle bei Bedarf auf. Siehe [Progressive Disclosure](/architecture/progressive-disclosure).
+2. **Agent-Kategorie-Filter.** `filter_by_category(*agent.tool_categories)` beschränkt auf nur die Kategorien, die der Agent verwenden darf.
+3. **KB-Injektion.** Wenn der Agent `kb_ids` hat, wird das generische Abruf-Werkzeug durch `KBRetrieveTool` oder `GroundedRetrieveTool` basierend auf dem Abrufmodus ersetzt.
+4. **Konnektor-Laden.** Im Agent-beschränkten Modus werden nur die an den Agent gebundenen Konnektoren geladen. Im Auto-Discovery-Modus (kein Agent ausgewählt) werden alle für den Benutzer sichtbaren Konnektoren geladen. Sowohl API-Konnektoren (`ConnectorMetaTool`) als auch Datenbank-Konnektoren (`DatabaseMetaTool`) verwenden standardmäßig [Progressive Disclosure](/architecture/progressive-disclosure) -- leichte Stubs im System-Prompt, vollständige Schemas bei Bedarf geladen.
+5. **MCP-Laden.** Die persönlichen MCP-Server des Benutzers sowie von Administratoren bereitgestellte globale MCP-Server werden geladen und verbunden. Im Progressive-Modus (Standard) konsolidiert ein einzelner `MCPServerMetaTool` alle Server; das LLM ruft `discover`- und `call`-Unterbefehle bei Bedarf auf. Siehe [Progressive Disclosure](/architecture/progressive-disclosure).
 6. **Skills-Injektion.** Alle aktiven Skills, die für den Benutzer sichtbar sind, werden geladen -- unabhängig von der Agent-Auswahl. Im Progressive-Modus wird `ReadSkillTool` mit kompakten Stubs im System-Prompt registriert. Im Inline-Modus wird der vollständige Skill-Inhalt direkt eingebettet.
-7. **CallAgent-Registrierung (Nur Auto-Modus).** Wenn kein spezifischer Agent ausgewählt ist, werden alle aktiven, sichtbaren Agenten in einen Katalog zusammengefasst und über `CallAgentTool` verfügbar gemacht, sodass das LLM Aufgaben an spezialisierte Agenten delegieren kann. Delegierte Agenten erhalten eine vollständige `ToolRegistry`, die aus ihrer eigenen Konfiguration erstellt wird, schließt aber `call_agent` aus, um unendliche Rekursion zu verhindern. Wenn ein spezifischer Agent ausgewählt ist, wird `CallAgentTool` nicht registriert -- Agenten sind spezialisiert und delegieren nicht an andere Agenten. Dies verhindert, dass Marketplace-Agenten auf die privaten Prompts anderer Agenten zugreifen.
-8. **Laufzeit-Auswahl.** Wenn die Gesamtzahl der Werkzeuge 12 überschreitet, wählt ein leichter LLM-Aufruf die relevanteste Teilmenge (bis zu 6) für diese spezifische Anfrage aus. Ein `request_tools` Meta-Werkzeug wird automatisch registriert, sodass das LLM während des Gesprächs dynamisch zusätzliche Werkzeuge laden kann, wenn die anfängliche Auswahl ein benötigtes Werkzeug verpasst hat. Auswahlfehlschlag ist nicht fatal -- der Agent fällt auf den vollständigen Satz zurück. Siehe [Progressive Disclosure](/architecture/progressive-disclosure).
+7. **CallAgent-Registrierung (nur Auto-Modus).** Wenn kein spezifischer Agent ausgewählt ist, werden alle aktiven, sichtbaren Agenten in einen Katalog zusammengefasst und über `CallAgentTool` verfügbar gemacht, wodurch das LLM Aufgaben an spezialisierte Agenten delegieren kann. Delegierte Agenten erhalten eine vollständige `ToolRegistry`, die aus ihrer eigenen Konfiguration erstellt wird, schließt aber `call_agent` aus, um unendliche Rekursion zu verhindern. Wenn ein spezifischer Agent ausgewählt ist, wird `CallAgentTool` nicht registriert -- Agenten sind spezialisiert und delegieren nicht an andere Agenten. Dies verhindert, dass Marketplace-Agenten auf die privaten Prompts anderer Agenten zugreifen.
+8. **Laufzeit-Auswahl.** Wenn die Gesamtzahl der Werkzeuge 12 überschreitet, wählt ein leichter LLM-Aufruf die relevanteste Teilmenge (bis zu 6) für diese spezifische Anfrage aus. Ein `request_tools` Meta-Werkzeug wird automatisch registriert, das es dem LLM ermöglicht, während des Gesprächs dynamisch zusätzliche Werkzeuge zu laden, falls die anfängliche Auswahl ein benötigtes Werkzeug übersehen hat. Auswahlfehlschlag ist nicht fatal -- der Agent fällt auf den vollständigen Satz zurück. Siehe [Progressive Disclosure](/architecture/progressive-disclosure).
+9. **Hook-Registrierung.** Die deklarierten Hooks des Agenten (aus `model_config_json.hooks`) werden instanziiert und an eine `HookRegistry` angehängt. Jeder gewählte Werkzeugaufruf wird umhüllt: `PreToolUse` Hooks können Argumente vor der Ausführung blockieren oder umschreiben; `PostToolUse` Hooks können die Beobachtung umschreiben, bevor sie an das LLM zurückkommt. Hooks laufen **außerhalb der LLM-Schleife** und können nicht durch Agent-Anweisungen umgangen werden -- siehe [Hook-System](/architecture/hook-system).
 
 Das Ergebnis: Der Agent sieht genau die Werkzeuge, die er braucht, nicht mehr. Ein einfacher Agent ohne Konnektoren und ohne KB könnte 5 Werkzeuge sehen. Ein Hub-Agent, der mit 3 Unternehmenssystemen verbunden ist, mit einer fundierten Wissensdatenbank und 2 MCP-Servern könnte 30 sehen -- aber nach der Auswahl schaffen es nur die 6 relevantesten in den Kontext.
 
@@ -116,10 +118,10 @@ Neben den LLM-gesteuerten ReAct- und DAG-Engines enthält FIM One einen **Workfl
 
 ## Lifecycle-Übersicht
 
-**Startup.** `start.sh` führt Alembic-Migrationen aus, startet den FastAPI-Server, erkennt integrierte Werkzeuge und stellt MCP-Serververbindungen für alle vorkonfigurierten globalen Server her.
+**Startup.** `start.sh` führt Alembic-Migrationen aus, startet den FastAPI-Server, erkennt integrierte Tools und stellt MCP-Serververbindungen für alle vorkonfigurierten globalen Server her.
 
-**Pro Anfrage.** JWT-Authentifizierung, Agenten-Konfigurationssuche, Werkzeugzusammenbau (die 8-Schritte-Pipeline oben), Engine-Auswahl (ReAct oder DAG basierend auf Agenten-Konfiguration), Ausführung mit SSE-Streaming und Ergebnispersistenz.
+**Pro Anfrage.** JWT-Authentifizierung, Agent-Konfigurationssuche, Tool-Zusammenstellung (die 8-Schritte-Pipeline oben), Engine-Auswahl (ReAct oder DAG basierend auf Agent-Konfiguration), Ausführung mit SSE-Streaming und Ergebnispersistenz.
 
-**Übergreifende Belange.** [Kontextverwaltung](/architecture/context-management) (5-Schichten-Token-Budget) schützt jeden LLM-Aufruf vor Überlauf. Audit-Logging verfolgt jede Konnektor-Werkzeugaufrufe. Sandbox-Isolation enthält Code-Ausführungswerkzeuge. Die Zwei-LLM-Architektur (intelligent + schnell) optimiert Kosten über Planung, Ausführung und Synthese.
+**Übergreifende Belange.** [Kontextverwaltung](/architecture/context-management) (5-Schichten-Token-Budget) schützt jeden LLM-Aufruf vor Überlauf. Das [Hook-System](/architecture/hook-system) umhüllt jeden Tool-Aufruf mit plattformgesteuerte `PreToolUse` / `PostToolUse` Logik — der Mechanismus hinter der Genehmigung durch Menschen in der Schleife (`FeishuGateHook`), Audit-Protokollierung und Durchsetzung des Nur-Lesen-Modus. Die Audit-Protokollierung verfolgt jeden Connector-Tool-Aufruf. Sandbox-Isolierung enthält Code-Ausführungs-Tools. Die Zwei-LLM-Architektur (smart + fast) optimiert die Kosten über Planung, Ausführung und Synthese.
 
-Die Architektur ist so konzipiert, dass jeder Belang – Werkzeugregistrierung, Ausführungsorchestration, Kontextverwaltung, Sicherheit – sich unabhängig entwickeln kann. Ein neuer Konnektor-Typ, eine neue Ausführungs-Engine oder eine neue Kontextstrategie können hinzugefügt werden, ohne kaskadierende Änderungen im gesamten System zu verursachen.
+Die Architektur ist so konzipiert, dass jeder Belang – Tool-Registrierung, Ausführungsorchestration, Kontextverwaltung, Sicherheit – sich unabhängig entwickeln kann. Ein neuer Connector-Typ, eine neue Ausführungs-Engine oder eine neue Kontextstrategie können hinzugefügt werden, ohne kaskadierende Änderungen im gesamten System zu verursachen.

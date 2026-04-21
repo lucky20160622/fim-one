@@ -231,13 +231,21 @@ flowchart LR
 
 ### v0.9 — 可観測性 + 本番環境対応
 
-**目標**: 本番環境グレードの運用、デバッグ、監視。**フック システム** を導入 — LLM が上書きできない、エージェント命令の下に位置する決定論的な強制レイヤー。
+**目標**: 本番環境レベルの運用、デバッグ、監視。**Hook System** を導入 — エージェント指示の下に位置する決定論的な強制レイヤーで、LLM によってオーバーライドできません。
 
-- [ ] **コネクタ段階的開示 (フェーズ 3-4)**: 統一された `ConnectorExecutor` インターフェース (API/DB/MCP を 1 つの抽象化の背後に); `jsonschema` によるアクション パラメータ検証; プロトコル非依存の検出/実行
-- [ ] **YAML/JSON コネクタ設定**: プラットフォームが MCP サーバーを自動生成
-- [ ] **データベース コネクタ フェーズ 4**: エンタープライズ ドライバー — Oracle (`oracledb`)、SQL Server (`aioodbc`)、[x] 達梦 DM8 (ネイティブ `dmPython`)、[x] 人大金仓 KingbaseES + 瀚高 HighGo (PG 互換、`asyncpg` を再利用)、南大通用 GBase (`aioodbc` + GBase ODBC)
-- [ ] **IM チャネル統合 (双方向)**: **フェーズ 1 — アウトバウンド プッシュ**: Lark、WeCom、Slack、Email、Teams 通知アクション (エージェント/ワークフロー結果から)。**フェーズ 2 — インバウンド トリガー**: ユーザーが IM グループ チャットでエージェントに @mention してポータルを開かずにタスクをトリガー; チャネルごとの webhook レシーバー; 各 IM チャネルはコネクタとしてモデル化 (送信 + 受信の双方向アクション)。ハブ モード キラー機能
-  - [x] **Feishu チャネル (フェーズ 1 サブセット)** — 組織スコープの `Channel` リソース (Fernet 暗号化認証情報付き); インタラクティブ カード送信 + コールバック (署名検証 + URL チャレンジ) をサポートする `FeishuChannel` 実装; 確認ゲートと統合して書き込み操作の承認が設定された Feishu グループ チャットに承認/却下カードとして到着; 設定 → チャネル管理 UI。2026-04-24 ロードショー向けに早期出荷。残り: WeCom、Slack、Email、Teams アウトバウンド + フェーズ 2 インバウンド トリガー。
+- [ ] **Connector Progressive Disclosure (Phase 3-4)**: 統一された `ConnectorExecutor` インターフェース (API/DB/MCP を単一の抽象化の背後に); `jsonschema` を使用したアクション パラメータ検証; プロトコル非依存の discover/execute
+- [ ] **YAML/JSON connector 設定**: プラットフォームが自動的に MCP サーバーを生成
+- [ ] **Database connectors Phase 4**: エンタープライズドライバー — Oracle (`oracledb`)、SQL Server (`aioodbc`)、[x] 達梦 DM8 (ネイティブ `dmPython`)、[x] 人大金仓 KingbaseES + 瀚高 HighGo (PG互換、`asyncpg` を再利用)、南大通用 GBase (`aioodbc` + GBase ODBC)
+- [ ] **IM Channel Integration (双方向)**: **Phase 1 — アウトバウンド プッシュ**: Lark、WeCom、Slack、Email、Teams 通知アクション (エージェント/ワークフロー結果から)。**Phase 2 — インバウンド トリガー**: ユーザーが IM グループチャットでエージェントに @mention してポータルを開かずにタスクをトリガー; チャネルごとの webhook レシーバー; 各 IM チャネルは双方向アクション (送信 + 受信) を持つ Connector としてモデル化。Hub モードのキラー機能
+  - [x] **Feishu Channel (Phase 1 サブセット)** — 組織スコープの `Channel` リソース (Fernet 暗号化認証情報付き); インタラクティブカード送信 + コールバック (署名検証 + URL チャレンジ) をサポートする `FeishuChannel` 実装; 確認ゲートと統合して書き込み操作の承認が設定された Feishu グループチャットに Approve/Reject カードとして表示; Settings → Channels 管理 UI。2026-04-24 ロードショー向けに早期出荷。残り: WeCom、Slack、Email、Teams アウトバウンド + Phase 2 インバウンド トリガー。
+  - [ ] **アウトバウンド通知パターン (汎用、チャネルタイプ全体で再利用可能)**: 同じ `BaseChannel` 抽象化は承認ゲート以外のアウトバウンド ユースケースのカタログをサポート。各パターンは `BaseChannel` に対して一度実装され、すべての具体的なチャネル (今日は Feishu; Slack/WeCom/Teams/Email が追加される際) で自動的に機能します。
+    - [ ] **タスク完了通知**: 長時間実行される DAG / ワークフロー / スケジュール済みエージェントが完了すると、結果スニペット + アーティファクト リンク付きの概要カードを組織チャネル (またはユーザーが選択したチャネル) に投稿。最小限の実行可能な「Channel アウトバウンド」製品 — `FeishuGateHook` の後の最初のコンシューマー
+    - [ ] **例外 / 失敗アラート**: エージェント推論が失敗、LLM プロバイダーがエラー、コネクタが 5xx を発生、DAG プランが再プラン予算を使い果たす → トレース ID と再試行オプション付きの診断カードを ops チャネルにプッシュ
+    - [ ] **コスト / 予算警告**: ユーザーごと、またはエージェントごとの token/リクエスト予算が 80% / 100% しきい値に達する → 現在の使用量と上限を含む管理チャネル (またはエージェント所有者への @-mention) にプッシュ
+    - [ ] **スケジュール済みダイジェスト**: エージェントまたはワークフローが定期的 (日次 / 週次) の概要カード — KPI ロールアップ、未解決チケット トリアージ、契約更新リスト — をポータルを開くことなくチャネルに直接発行
+    - [ ] **スタック状態のエージェントでのエスカレーション**: エージェントが N 回連続の反復で観測可能な進捗を示していない (サイクル検出、または `max_iterations` 超過) → 現在のコンテキストと「メモで再開」アクションを含む、人間のオペレーターが引き継ぐよう求めるカードを投稿
+    - [ ] **機密ツール呼び出しの監査レシート**: 承認ゲートとは独立して — `audit=true` でタグ付けされたツールへのすべての呼び出しは、コンプライアンス チャネルに読み取り専用レシート カード (誰が / 何を / いつ / 引数) を発行し、データベース外の永続的な監査証跡を提供
+    - [ ] **承認エスカレーション**: `feishu_gate` 承認カードが N 分以内に応答を受け取らない場合、グループ所有者に自動的に @-mention するか、カードをより高いレベルのチャネルに転送; ツール/コネクタごとに設定可能
 
 #### パブリックAPI（フェーズ2）
 
@@ -256,32 +264,30 @@ flowchart LR
 
 #### 可観測性とエージェント ランタイム
 
-- [ ] **Agent Trace Layer (Observability++)**: アプリケーションレベルの run/trace/thread 階層でエージェント デバッグ用 — 各会話 → `Trace`、各 LLM 呼び出し / ツール呼び出し / DAG ステップ → 入力/出力/token/タイミング付き `Span`。タイムライン表示と展開可能な LLM 呼び出しペイロード付きフロントエンド trace ビューアー。これは OTel (インフラレベル) を超えて、開発者とエンタープライズ クライアント向けの実用的なエージェント ループ デバッグを提供します。OpenTelemetry エクスポートをデータ シンク オプションとして使用可能。LangSmith の run/trace/thread コンセプトをモデルに — エージェント可観測性の業界検証済みパターン。
-- [ ] **Metrics ダッシュボード**: レイテンシ、成功率、token 使用量、コネクタ呼び出し分析 — エージェント別、ユーザー別、組織別の内訳
-- [x] ~~**Circuit breaker**: 3 状態マシン (closed/open/half-open) で、コネクタごとの障害追跡、5xx 検出、監視エンドポイント~~ *(v0.8 で早期出荷 — 実装済み)*
-- [x] ~~**Workflow 実行保持クリーンアップ**: 設定可能な最大経過時間と workflow ごとの最大数を持つバックグラウンド クリーンアップ タスク; workflow ごとのオーバーライド; 手動トリガー用の管理エンドポイント~~ *(v0.8.1 で出荷)*
-- [x] ~~**Workflow バージョン変更サマリー**: `compute_blueprint_diff()` が blueprint diff からバージョン保存時に人間が読める形のサマリーを自動生成~~ *(v0.8.1 で出荷)*
-- [x] ~~**DAG 品質オーバーホール**: 非高速ステップのデフォルト モデル アップグレード; プランニングでのスキル自動検出; 法律/医療/金融ドメイン向け引用検証者; 構造化コンテンツ コンテキスト保持; ルーターでのドメイン分類とドメイン対応モデル選択~~ *(v0.8.1 で出荷)*
-- [x] ~~**ReAct でのドメイン モデル エスカレーション**: 専門ドメインが推理モデルに自動エスカレーション、必須 web 検索と引用検証付き~~ *(v0.8.1 で出荷)*
-- [x] ~~**モデルごとの Native Function Calling トグル**: `tool_choice_enabled` 設定でモデルが強制ツール選択をスキップして JSON Mode に直接移行可能~~ *(v0.8.1 で出荷)*
-- [x] ~~**DatabaseMetaTool (DB コネクタの段階的開示)**: 単一 `database` メタツール (`list_tables`/`discover`/`query` サブコマンド付き) がデータベース コネクタごとの 3N 個の個別ツールを置き換え; `DATABASE_TOOL_MODE` 環境変数で設定可能 (`progressive` デフォルト、`legacy` フォールバック)~~ *(v0.8.1 で出荷)*
-- [x] ~~**`request_tools` メタツール経由のオンデマンド ツール ロード**: スマート選択後に >12 ツール利用可能な場合、LLM は会話中に動的に追加ツールをロード可能; JSON と native function-calling の両モードで動作~~ *(v0.8.1 で出荷)*
-- [x] ~~**MCPServerMetaTool (MCP の段階的開示)**: 単一 `mcp` メタツール (`discover`/`call` サブコマンド付き) が N*M 個の個別 MCP ツールを置き換え; `MCP_TOOL_MODE` 環境変数で設定可能 (`progressive` デフォルト、`legacy` フォールバック)~~ *(v0.8.1 で出荷)*
-- [x] ~~**Workflow Connection Dep 自動サブスクライブ**: Market サブスクリプション カスケードを拡張して Workflow の接続依存関係 (API コネクタ、MCP サーバー) を自動サブスクライブ。Workflow ノードはコネクタ、MCP サーバー、エージェント (さらに多くの依存関係を再帰的に参照)、サブ Workflow を参照可能 — 完全なツリー内のすべての接続依存関係はサブスクライブ時に自動サブスクライブされ、アンサブスクライブ時にカスケード クリーンアップされる必要があります。スキル/エージェントと比較してサイクル検出を伴う再帰的サブ workflow 解決により複雑。Solution (スキル/エージェント) 接続 dep 自動サブスクライブのカウンターパート~~ *(v0.8.1 で出荷)*
-- [x] ~~**Workflow 実際の実行者**: MCP と BuiltinTool ノード実行者スタブを完全な実装に置き換え (MCP サーバー検出 + ツール呼び出し; ToolRegistry 統合)~~ *(v0.8.1 で出荷)*
-- [ ] **Agent Hook System**: **LLM ループの外で実行される**決定論的な強制レイヤー — hook はツール イベントで自動実行され、エージェント命令でバイパスできません。3 つの hook ポイント: `PreToolUse` (実行前に検証/ブロック)、`PostToolUse` (実行後の副作用)、`SessionStart` (動的コンテキスト注入)。組み込み hook: すべてのコネクタ呼び出しで `ConnectorCallLog` を自動書き込み (現在は手動); 組織が読み取り専用モードの場合は書き込み操作をブロック; オーバーサイズ DB クエリ結果をエージェントに到達する前に自動切り詰め; コネクタごとの呼び出し頻度をレート制限。ユーザー定義 hook: エージェントごとの YAML 設定 (`hooks:` フィールド) で、マッチするツール イベントでトリガーされるシェル コマンドまたは Python 呼び出し可能を宣言 — 最新のエージェント フレームワーク全体で共有される hook ベースの強制パターン。主要な設計原則: **hook は「常に発生する必要がある」ロジック用で、LLM がそれを実行することを覚えておく必要がない**。命令は「すべての呼び出しを記録」と言う; hook は実際に記録します。命令は「読み取り専用モードで書き込まない」と言う; hook は実際にブロックします。
-  - [x] **Hook System スケルトン + FeishuGateHook** — クラスベースの `PreToolUseHook` / `PostToolUseHook` 抽象化が ReAct ループの下に配線; 最初の具体的な hook は `FeishuGateHook` で、`requires_confirmation=True` でフラグされたツールをインターセプトして、承認を組織の Feishu チャネル経由でルーティング。完全な hook ライフサイクル (ユーザー定義 YAML hook、組み込み監査/ブロック/切り詰め hook、`SessionStart`) は v0.9 スコープのまま。2026-04-24 ロードショー向けに早期出荷。
-  - [x] **Hook Approval Playground** — UI 駆動ラウンドトリップ テスター: Channels 詳細シートが実際の `ConfirmationRequest` 行を作成するダイアログを起動し、本番カードを Feishu に送信し、決定をライブでポーリング。本番 hook が実行するコード パスを正確に実行し、ロールアウト前のリハーサルとデモを忠実にします。
-- [ ] **Agent Workspace (永続エージェント デスクトップ)**: 3 つのレイヤー: (1) **Tool Output Offloading** — オーバーサイズ ツール応答 (>8K 文字) を `workspace://` ファイルに自動保存、切り詰められたプレビュー + URI を返す; 組み込みツール `read_workspace_file`、`list_workspace_files`、`write_workspace_file` で選択的アクセスとエージェント生成アーティファクト。(2) **Handoff Notes** — コンテキスト遷移用の `write_handoff(summary)` (圧縮/セッション スイッチ全体)。(3) **Workspace UI** — 会話ごとのフロントエンド ファイル ブラウザ パネル (テキスト/JSON/CSV プレビュー、ダウンロード、削除/名前変更); セッション間ファイル保持; ユーザーごとのストレージ クォータ統合。アダプタの `truncate_tool_output()` + `GET /api/conversations/{id}/workspace` エンドポイントを拡張
-- [x] **Smart File Content Injection + `read_uploaded_file` ツール**: 小さいアップロード ファイル (`<32K` 文字) は LLM コンテキストに自動インライン; 大きいファイルはメタデータ + ツール ヒント。デュアルモード `read_uploaded_file` ツール (ページネーション読み取り + regex 検索)。`GET /api/files/{file_id}/content` エンドポイント、`.content` サイドカー ストレージ、ファイル API レスポンスの `content_length`
-- [x] ~~**Intelligent Document Processing (Vision-Aware)**: 適応的ドキュメント処理 — PDF ページは vision 対応モデル (GPT-4o、Claude 3/4、Gemini) 用に PyMuPDF 経由で画像としてレンダリング; pdfplumber 経由のテキストのみフォールバック。Admin の モデルごとの `supports_vision` フラグ。`DOCUMENT_PROCESSING_MODE` 環境変数で設定可能な 2 つのモード (vision/テキスト)。スマート PDF 処理: テキストリッチ ページはテキスト + 埋め込み画像を抽出 (token 効率的)、スキャン ページは完全ページ PNG としてレンダリング。DOCX/PPTX 埋め込み画像抽出。マルチターン vision 永続化。事前構築サンドボックス イメージ (`Dockerfile.sandbox`)。`.pages/` サイドカーでキャッシュされたページ レンダリング。~~ *(v0.8.2 で出荷)*
-- [x] ~~**Universal Document Conversion (`convert_to_markdown` + OCR)** — Microsoft MarkItDown をラップする組み込みエージェント ツール、すべてのエージェントでデフォルト利用可能。PDF、Word、Excel、PowerPoint、HTML、JSON、CSV、XML、ZIP、EPUB、Outlook .msg、画像、オーディオ、YouTube URL、データ URI をクリーン Markdown に会話内で変換。Office ファイルの埋め込み画像とスキャン PDF ページは公式 `markitdown-ocr` プラグイン経由で自動 OCR (DB ファースト、ENV フォールバック) を使用してワークスペースの vision 対応 LLM を使用。同じ変換カーネルが RAG 取り込みパイプラインで共有されるため、チャット時変換とナレッジベース取り込みはバイト同一の Markdown を生成。非 OpenAI プロバイダー (Claude、Gemini、Bedrock、Azure) は `LiteLLMOpenAIShim` 経由で透過的にサポート (任意の FIM One LLM を openai-SDK 形状クライアントとして提示し、LiteLLM 経由でルーティング)。ゼロ リグレッション フォールバック: vision モデルが利用できない場合、テキストのみ抽出は以前と同じように続行。~~ *(v0.8.3 で出荷)*
-- [ ] **Cross-session file management**: ファイル ブラウザ UI、ストレージ クォータ、自動有効期限切れクリーンアップ
-- [ ] **Session-level file associations**: どのファイルがどの会話で使用されたかを追跡
-- [ ] **Cross-session conversation recall**: 過去の会話履歴をリスト、検索、読み取るエージェント ツール — `list_conversations`、`search_conversations` (履歴全体でのキーワード/regex)、`read_conversation` (完全なスレッドを取得)。「前回何を議論したか」と「先週質問した API 変更を見つけて」ワークフローを有効にします。セッション間ファイル管理と組み合わせて、完全な長期エージェント メモリ レイヤーを形成
-- [ ] **Sandbox hardening**: コード実行分離への v2 改善
-- [ ] **Performance testing**: 並行負荷ベンチマーク
-- [ ] **MCP Connection Pooling**: リクエストごとの STDIO サブプロセス生成はスケーリングしない — 100 同時ユーザー = MCP サーバーごとに 100 サブプロセス。STDIO 接続をプール化 (ユーザーごとの env 分離付き、`(server_id, env_hash)` でキー化); SSE/
+- [ ] **Agent Trace Layer (Observability++)**: アプリケーション レベルの run/trace/thread 階層でエージェント デバッグ用 — 各会話 → `Trace`、各 LLM 呼び出し / ツール呼び出し / DAG ステップ → input/output/tokens/timing を含む `Span`。タイムライン表示と展開可能な LLM 呼び出しペイロードを備えたフロントエンド trace ビューアー。これは OTel (インフラストラクチャ レベル) を超えて、開発者とエンタープライズ クライアント向けの実用的なエージェント ループ デバッグを提供します。OpenTelemetry エクスポートをデータ シンク オプションとして使用可能。LangSmith の run/trace/thread コンセプトをモデルに — エージェント可観測性の業界検証済みパターン。
+- [ ] **Metrics ダッシュボード**: レイテンシ、成功率、token 使用量、connector 呼び出し分析 — エージェント単位、ユーザー単位、組織単位の内訳
+- [x] ~~**Circuit breaker**: 3 状態マシン (closed/open/half-open)、connector ごとの障害追跡、5xx 検出、監視エンドポイント~~ *(v0.8 で早期出荷 — 実装済み)*
+- [x] ~~**Workflow run 保持クリーンアップ**: 設定可能な最大経過時間と workflow ごとの最大カウントを備えた背景クリーンアップ タスク; workflow ごとのオーバーライド; 手動トリガー用の管理エンドポイント~~ *(v0.8.1 で出荷)*
+- [x] ~~**Workflow バージョン変更サマリー**: `compute_blueprint_diff()` は blueprint diff からバージョン保存時に人間が読める形のサマリーを自動生成~~ *(v0.8.1 で出荷)*
+- [x] ~~**DAG 品質オーバーホール**: 非高速ステップ用のデフォルト モデル アップグレード; 計画での skill 自動検出; 法務/医療/金融ドメイン向けの citation 検証者; 構造化コンテンツ コンテキスト保持; router でのドメイン分類とドメイン対応モデル選択~~ *(v0.8.1 で出荷)*
+- [x] ~~**ReAct でのドメイン モデル エスカレーション**: 専門ドメインは自動的に推理モデルにエスカレーション、必須 web 検索と citation 検証~~ *(v0.8.1 で出荷)*
+- [x] ~~**モデルごとの Native Function Calling トグル**: `tool_choice_enabled` 設定により、モデルは強制ツール選択をスキップして JSON Mode に直接移行可能~~ *(v0.8.1 で出荷)*
+- [x] ~~**DatabaseMetaTool (DB connector 向けの段階的開示)**: `list_tables`/`discover`/`query` サブコマンド付きの単一 `database` メタツールが、database connector ごとの 3N 個の個別ツールを置き換え; `DATABASE_TOOL_MODE` env var で設定可能 (`progressive` デフォルト、`legacy` フォールバック)~~ *(v0.8.1 で出荷)*
+- [x] ~~**`request_tools` メタツール経由のオンデマンド ツール読み込み**: スマート選択後に >12 個のツールが利用可能な場合、LLM は会話中に動的に追加ツールを読み込み可能; JSON と native function-calling の両モードで動作~~ *(v0.8.1 で出荷)*
+- [x] ~~**MCPServerMetaTool (MCP 向けの段階的開示)**: `discover`/`call` サブコマンド付きの単一 `mcp` メタツールが N*M 個の個別 MCP ツールを置き換え; `MCP_TOOL_MODE` env var で設定可能 (`progressive` デフォルト、`legacy` フォールバック)~~ *(v0.8.1 で出荷)*
+- [x] ~~**Workflow Connection Dep 自動サブスクライブ**: Market サブスクリプション カスケードを拡張して Workflow の connection 依存関係 (API Connectors、MCP Servers) を自動サブスクライブ。Workflow ノードは Connectors、MCP Servers、Agents (さらに多くの deps を再帰的に参照)、および sub-Workflows を参照可能 — 完全なツリー内のすべての connection deps は subscribe 時に自動サブスクライブされ、unsubscribe 時にカスケード クリーンアップされる必要があります。Skill/Agent よりも複雑 (サイクル検出を伴う再帰的 sub-workflow 解決)。Solution (Skill/Agent) connection dep 自動サブスクライブの対応物~~ *(v0.8.1 で出荷)*
+- [x] ~~**Workflow 実行エグゼキューター**: MCP と BuiltinTool ノード エグゼキューター スタブを完全な実装に置き換え (MCP サーバー検出 + ツール呼び出し; ToolRegistry 統合)~~ *(v0.8.1 で出荷)*
+- [ ] **Agent Hook System**: LLM ループの **外側で実行される** 決定論的な強制レイヤー — hooks はツール イベント時に自動的に実行され、エージェント命令によってバイパスできません。3 つの hook ポイント: `PreToolUse` (実行前に検証 / ブロック)、`PostToolUse` (実行後の副作用)、`SessionStart` (動的コンテキスト注入)。組み込み hooks: すべての connector 呼び出しで自動的に `ConnectorCallLog` を書き込み (現在は手動); 組織が読み取り専用モードの場合は書き込み操作をブロック; オーバーサイズ DB クエリ結果をエージェントに到達する前に自動切り詰め; connector ごとの呼び出し頻度をレート制限。ユーザー定義 hooks: エージェント単位の YAML 設定 (`hooks:` フィールド) で、マッチング ツール イベント時にトリガーされるシェル コマンドまたは Python callable を宣言 — 最新のエージェント フレームワーク全体で共有される hook ベースの強制パターン。主要な設計原則: **hooks は「常に発生する必要がある」ロジック用で、LLM がそれを実行することを覚えておくことに依存してはいけません**。命令は「すべての呼び出しを記録する」と言います; hooks は実際に記録します。命令は「読み取り専用モードで書き込まない」と言います; hooks は実際にそれをブロックします。
+  - [x] **Hook System スケルトン + FeishuGateHook** — クラス ベースの `PreToolUseHook` / `PostToolUseHook` 抽象化が ReAct ループの下に配線; 最初の具体的な hook は `FeishuGateHook` で、`requires_confirmation=True` とフラグ付けされたツールをインターセプトし、承認を組織の Feishu Channel 経由でルーティング。完全な hook ライフサイクル (ユーザー定義 YAML hooks、組み込み監査/ブロック/切り詰め hooks、`SessionStart`) は v0.9 スコープのまま。2026-04-24 ロードショー向けに早期出荷。
+  - [x] **Hook Approval Playground** — UI 駆動ラウンド トリップ テスター: Channels 詳細シートは、実際の `ConfirmationRequest` 行を作成し、本番カードを Feishu に送信し、決定をライブでポーリングするダイアログを起動します。本番 hook が使用するのと同じコード パスを実行し、ロールアウト前のリハーサルとデモを忠実にします。
+  - [x] **Hook System が ReAct + DAG ランタイムでライブ** — `build_hook_registry_for_agent` は各チャット セッションで `agent.model_config_json.hooks.class_hooks` を解決; ReAct と DAG エントリ ポイントの両方がツール ディスパッチ前に hooks をインスタンス化。Tool adapter は `requires_confirmation` を公開プロパティとして公開し、hook 述語が adapter カップリングなしでダック タイピングできるようにします。エンド ツー エンド smoke スクリプト (`scripts/smoke_feishu_gate.py`) と組み合わせて、実際のエージェント ループを通じた approve / reject パスをカバー。
+  - [ ] **Hook ごとの設定パス スルー** — `class_hooks` エントリは現在、ベア文字列; `FeishuGateHook.timeout_seconds`、`poll_interval_seconds`、または `callback_base_url` をエージェント単位でオーバーライドするには、スキーマが hook ファクトリに kwargs として転送される `{"name": "feishu_gate", "config": {...}}` オブジェクトを受け入れる必要があります。低リスク v0.8.5 フォローアップ; 現在のデフォルト (120s timeout / 1.5s poll / env-var callback URL) は v0.8 では許容可能。
+- [ ] **Agent Workspace (永続的なエージェント デスクトップ)**: 3 つのレイヤー: (1) **Tool Output Offloading** — オーバーサイズ ツール レスポンス (>8K chars) を `workspace://` ファイルに自動保存、切り詰められたプレビュー + URI を返す; 組み込み tools `read_workspace_file`、`list_workspace_files`、`write_workspace_file` で選択的アクセスとエージェント生成アーティファクト。(2) **Handoff Notes** — コンテキスト遷移用の `write_handoff(summary)` (圧縮/セッション切り替え時)。(3) **Workspace UI** — 会話ごとのフロントエンド ファイル ブラウザー パネル (text/JSON/CSV プレビュー、ダウンロード、削除/名前変更); クロス セッション ファイル保持; ユーザー単位のストレージ クォータ統合。adapters の `truncate_tool_output()` + `GET /api/conversations/{id}/workspace` エンドポイントを拡張
+- [x] **Smart File Content Injection + `read_uploaded_file` tool**: 小さいアップロード ファイル (`<32K` chars) は LLM コンテキストに自動インライン; 大きいファイルはメタデータ + tool ヒント。デュアル モード `read_uploaded_file` tool (ページネーション読み取り + regex 検索)。`GET /api/files/{file_id}/content` エンドポイント、`.content` sidecar ストレージ、ファイル API レスポンスの `content_length`
+- [x] ~~**Intelligent Document Processing (Vision-Aware)**: 適応型ドキュメント処理 — PDF ページは vision 対応モデル (GPT-4o、Claude 3/4、Gemini) 用に PyMuPDF 経由で画像としてレンダリング; text のみフォールバックは pdfplumber 経由。Admin の モデルごとの `supports_vision` フラグ。2 つのモード (vision/text) は `DOCUMENT_PROCESSING_MODE` env var で設定可能。Smart PDF 処理: text 豊富なページは text + 埋め込み画像を抽出 (token 効率的)、スキャン ページは full-page PNG としてレンダリング。DOCX/PPTX 埋め込み画像抽出。マルチターン vision 永続性。事前構築 sandbox イメージ (`Dockerfile.sandbox`)。キャッシュ ページ レンダリング (`.pages/` sidecar)。~~ *(v0.8.2 で出荷)*
+- [x] ~~**Universal Document Conversion (`convert_to_markdown` + OCR)** — Microsoft MarkItDown をラップする組み込み Agent tool で、すべてのエージェントにデフォルトで利用可能。PDF、Word、Excel、PowerPoint、HTML、JSON、CSV、XML、ZIP、EPUB、Outlook .msg、画像、オーディオ、YouTube URL、data URI をクリーン Markdown に会話内で変換。Office ファイルの埋め込み画像とスキャン PDF ページは公式 `markitdown-ocr` プラグイン経由で自動的に OCR (workspace の vision 対応 LLM を使用、DB ファースト、ENV フォールバック)。同じ変換カーネルは RAG 取り込みパイプラインで共有されるため、チャット時の変換とナレッジ ベース取り込みはバイト同一の Markdown を生成。非 OpenAI プロバイダー (Claude、Gemini、Bedrock、Azure) は `LiteLLMOpenAIShim` 経由で透過的にサポート (任意の FIM One LLM を openai-SDK 形状のクライアントとして提示し、LiteLLM 経由でルーティング)。ゼロ リグレッション フォールバック: vision モデルが利用できない場合、text のみ抽出は以前とまったく同じように続行。~~ *(v0.8.3 で出荷)*
+- [ ] **Cross-session ファイル管理**: ファイル ブラウザー UI、ストレージ クォータ、自動有効期限切れクリーンアップ
+- [ ] **Session レベルのファイ
 #### Prompt Cache + Reasoning Follow-ups (Batch A MVPs から)
 
 これらの項目は Batch A で出荷された部分的な作業 (Conversation Recovery、System Prompt Registry、Thinking Blocks) を完成させ、キャッシュ対象を残りのプロバイダーファミリーに拡張します。

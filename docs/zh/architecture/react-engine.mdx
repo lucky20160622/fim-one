@@ -114,6 +114,7 @@ sequenceDiagram
     participant Agent as ReActAgent
     participant CG as ContextGuard
     participant LLM as LLM API
+    participant Hooks as HookRegistry
     participant Tool as Tool Registry
 
     loop Each iteration (max 50)
@@ -122,13 +123,22 @@ sequenceDiagram
         Agent->>LLM: chat(messages) [non-streaming]
         LLM-->>Agent: response
         alt tool_call action
-            Agent->>Tool: execute(tool_name, args)
-            Tool-->>Agent: observation
-            Agent->>Agent: cycle check (hash args)
-            opt identical call ≥ threshold
-                Agent->>Agent: inject "try different approach" warning
+            Agent->>Hooks: run_pre_tool_use_hooks(ctx)
+            alt hook blocks
+                Hooks-->>Agent: allow=False, error="..."
+                Agent->>Agent: append block message, continue
+            else hook allows (possibly rewrote args)
+                Hooks-->>Agent: allow=True, modified_args?
+                Agent->>Tool: execute(tool_name, args)
+                Tool-->>Agent: observation
+                Agent->>Hooks: run_post_tool_use_hooks(ctx, result)
+                Hooks-->>Agent: modified_result?
+                Agent->>Agent: cycle check (hash args)
+                opt identical call ≥ threshold
+                    Agent->>Agent: inject "try different approach" warning
+                end
+                Agent->>Agent: append observation, continue
             end
-            Agent->>Agent: append observation, continue
         else final_answer action
             opt tools used ≥ threshold AND not yet checked
                 Agent->>Agent: inject completion checklist
@@ -141,13 +151,29 @@ sequenceDiagram
     LLM-->>Agent: token stream → SSE to client
 ```
 
-**JSON 模式循环。** LLM 的响应通过 `_parse_action()` 解析，该函数使用 `extract_json()` 在内容中查找 JSON 对象。如果解析失败，智能体会追加原始响应和重新格式化请求，然后继续——这会计入 `max_iterations`，防止无限重试循环。成功时，操作要么是 `tool_call`（执行工具，将观察结果作为用户消息追加），要么是 `final_answer`（中断并继续进行合成）。
+**JSON 模式循环。** LLM 的响应通过 `_parse_action()` 解析，该函数使用 `extract_json()` 在内容中查找 JSON 对象。如果解析失败，智能体会附加原始响应和重新格式化请求，然后继续——这会计入 `max_iterations`，防止无限重试循环。成功时，操作要么是 `tool_call`（执行工具，将观察结果作为用户消息附加），要么是 `final_answer`（中断并继续进行合成）。
 
-**原生模式循环。** LLM 的响应可能包含一个或多个 `tool_calls`。单个响应中的所有工具调用通过 `asyncio.gather` 并行执行，所有工具结果消息在任何其他消息之前追加。这个排序约束至关重要——OpenAI API（及兼容提供商）要求 `tool` 消息紧跟在产生 `tool_calls` 的 `assistant` 消息之后。在它们之间插入任何其他消息（例如用户中断）会破坏协议。当不存在 `tool_calls` 时，响应被视为最终答案。
+**原生模式循环。** LLM 的响应可能包含一个或多个 `tool_calls`。单个响应中的所有工具调用通过 `asyncio.gather` 并行执行，所有工具结果消息在任何其他消息之前附加。这个排序约束至关重要——OpenAI API（和兼容提供商）要求 `tool` 消息紧跟在产生 `tool_calls` 的 `assistant` 消息之后。在它们之间插入任何其他消息（例如用户中断）会破坏协议。当不存在 `tool_calls` 时，响应被视为最终答案。
 
-**最大迭代次数。** 默认限制为 50 次迭代。如果循环在未产生 `final_answer` 的情况下耗尽此限制，智能体会从累积的步骤结果合成一个回退响应——总结调用了哪些工具以及它们是否成功或失败。这是一个安全网，不是正常的退出路径。
+**最大迭代次数。** 默认限制为 50 次迭代。如果循环在没有产生 `final_answer` 的情况下耗尽此限制，智能体会从累积的步骤结果合成一个回退响应——总结调用了哪些工具以及它们是否成功或失败。这是一个安全网，而不是正常的退出路径。
 
-[上下文管理](/architecture/context-management) 解释了 ContextGuard 如何在每次迭代上强制执行令牌预算，包括告诉压缩 LLM 保留最近推理链的提示系统。
+[上下文管理](/architecture/context-management)解释了 ContextGuard 如何在每次迭代上强制执行 token 预算，包括告诉压缩 LLM 保留最近推理链的提示系统。
+
+## 工具执行钩子
+
+迭代循环中的每个工具调用都由两个钩子点包装：
+
+- **`PreToolUse`** — 在 LLM 选择工具后、工具运行前触发。钩子可以：
+  - **阻止**调用，返回 `allow=False`（LLM 会看到解释原因的观察，例如"等待人工批准"或"组织处于只读模式"）
+  - **重写**工具参数后再执行
+  - **触发副作用**（发送飞书卡片、创建审计行、发出指标）
+- **`PostToolUse`** — 在工具返回后、观察到达 LLM 前触发。钩子可以：
+  - **重写**观察（例如将 200 KB 的 SQL 结果截断为 4 KB 摘要）
+  - **触发副作用**（写入 `ConnectorCallLog`、更新使用计数器）
+
+钩子运行在 **LLM 循环之外** — LLM 说或做的任何事都无法跳过它们。这是对无法信任提示词指令的策略的确定性执行层：人工在环批准（`FeishuGateHook`）、审计日志、速率限制和只读模式保护。详见 [钩子系统](/architecture/hook-system)。
+
+相同的钩子点也存在于 [DAG 引擎](/architecture/dag-engine) 中 — 每个 DAG 步骤都运行自己的 ReAct 循环，因此无论哪个执行引擎驱动工具调用，钩子都统一适用。
 
 ## 中期循环自我反思
 

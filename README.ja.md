@@ -122,10 +122,11 @@ cd frontend && pnpm install && cd ..
 - **3つの構築方法** — OpenAPI仕様をインポート、AIチャットビルダー、またはMCPサーバーを直接接続。
 
 #### 計画と実行
-- **動的DAG計画** — LLMが実行時に目標を依存グラフに分解します。ハードコードされたワークフローはありません。
-- **並行実行** — 独立したステップはasyncioを介して並列実行され、最大3ラウンドまで自動的に再計画します。
-- **ReActエージェント** — 自動エラー回復を備えた構造化された推論と行動のループ。
-- **エージェントハーネス** — 決定論的なガードレール用のHookミドルウェア、コンテキスト管理用のContextGuard、段階的開示メタツール、自己反省ループを備えた本番グレードの実行環境。
+- **動的DAG計画** — LLMが目標を実行時に依存グラフに分解します。ハードコードされたワークフローはありません。
+- **並行実行** — 独立したステップはasyncioを介して並列実行されます。最大3ラウンドまで自動的に再計画します。
+- **ReAct智能体** — 構造化された推理と行動のループ、自動エラー回復機能付き。
+- **Agent harness** — 本番環境対応の実行環境：ContextGuardによる5層のtoken予算管理、ツール表面を扱いやすく保つための段階的開示メタツール、目標のずれに対抗するための自己反省ループ。
+- **Hook System** — LLMループの外で実行される決定論的な強制。最初のリリース：`FeishuGateHook`は機密ツール呼び出しをFeishuグループに投稿された人間の承認カードの背後に置きます。監査ログ、読み取り専用モードガード、レート制限に拡張可能（v0.9）。
 - **自動ルーティング** — クエリを分類し、最適なモード（ReActまたはDAG）にルーティングします。`AUTO_ROUTING`で設定可能。
 - **拡張思考** — OpenAI o-series、Gemini 2.5+、Claudeのための思考の連鎖。
 
@@ -136,33 +137,39 @@ cd frontend && pnpm install && cd ..
 - **完全なRAGパイプライン** — Jinaエンベディング + LanceDB + ハイブリッド検索 + リランカー + インライン `[N]` 引用。
 - **ツールアーティファクト** — リッチ出力（HTMLプレビュー、ファイル）がチャット内でレンダリング。
 
+#### メッセージングチャネル (v0.8)
+- **組織スコープの IM ブリッジ** — Feishu (Lark) へのアウトバウンドメッセージング用の `BaseChannel` 抽象化; Slack / WeCom / Teams / Email は v0.9 ロードマップに予定されています。
+- **Fernet 暗号化認証情報** — アプリシークレットと暗号化キーは保存時に暗号化されます; すべてのインバウンドコールバックは署名検証されます。
+- **インタラクティブな承認カード** — `FeishuGateHook` は機密ツール呼び出しが発火したときに、Feishu グループに承認 / 却下カードを投稿します; ツールはグループメンバーが判定をタップするまでブロックされます。カスタムワークフローエンジンなしでのヒューマンインザループ承認。
+- **ブラウズ・アンド・ピック UI** — Feishu コンソールから生の `chat_id` 値をコピーする必要はありません; ポータルは Feishu API を呼び出し、グループピッカーを表示します。
+
 #### プラットフォーム
 - **マルチテナント** — JWT認証、組織の分離、使用分析とコネクタメトリクスを備えた管理パネル。
-- **マーケットプレイス** — エージェント、コネクタ、ナレッジベース、スキル、ワークフローの公開と購読。
-- **グローバルスキル（SOP）** — すべてのユーザーに対して読み込まれる再利用可能な運用手順。プログレッシブモードはトークンを約80%削減します。
+- **マーケットプレイス** — 智能体、コネクタ、ナレッジベース、スキル、ワークフローの公開と購読。
+- **グローバルスキル（SOP）** — すべてのユーザーに対して読み込まれる再利用可能な運用手順。プログレッシブモードでトークンを約80%削減。
 - **6言語対応** — EN、ZH、JA、KO、DE、FR。翻訳は[完全に自動化](https://docs.fim.ai/quickstart#internationalization)されています。
 - **初回セットアップウィザード**、ダーク/ライトテーマ、コマンドパレット、ストリーミングSSE、DAG可視化。
 
-> 詳細情報: [アーキテクチャ](https://docs.fim.ai/architecture/system-overview) · [実行モード](https://docs.fim.ai/concepts/execution-modes) · [FIM Oneを選ぶ理由](https://docs.fim.ai/why) · [競争環境](https://docs.fim.ai/strategy/competitive-landscape)
+> 詳細：[アーキテクチャ](https://docs.fim.ai/architecture/system-overview) · [フックシステム](https://docs.fim.ai/architecture/hook-system) · [チャネル](https://docs.fim.ai/configuration/channels/overview) · [実行モード](https://docs.fim.ai/concepts/execution-modes) · [FIM Oneについて](https://docs.fim.ai/why) · [競争環境](https://docs.fim.ai/strategy/competitive-landscape)
 
 ## アーキテクチャ
 
 ```mermaid
 graph TB
     subgraph app["Application Layer"]
-        a["Portal · API · iframe · Lark/Slack Bot · Webhook · WeCom/DingTalk"]
+        a["Portal · API · iframe · Feishu · Slack · WeCom · DingTalk · Teams · Email · Contract Systems · Custom Webhooks"]
     end
     subgraph mid["FIM One"]
         direction LR
-        m1["Connectors<br/>+ MCP Hub"] ~~~ m2["Orch Engine<br/>ReAct / DAG"] ~~~ m3["RAG /<br/>Knowledge"] ~~~ m4["Auth /<br/>Admin"]
+        m1["Connectors<br/>+ MCP Hub"] ~~~ m2["Orch Engine<br/>ReAct / DAG"] ~~~ m3["RAG /<br/>Knowledge"] ~~~ m5["Hook System<br/>+ Channels"] ~~~ m4["Auth /<br/>Admin"]
     end
     subgraph biz["Business Systems"]
-        b["ERP · CRM · OA · Finance · Databases · Custom APIs"]
+        b["ERP · CRM · OA · Finance · Databases · Contract Mgmt · Custom APIs"]
     end
     app --> mid --> biz
 ```
 
-各コネクタは標準化されたブリッジです。エージェントは SAPと通信しているのか、カスタムデータベースと通信しているのかを知る必要も気にする必要もありません。詳細は[コネクタアーキテクチャ](https://docs.fim.ai/architecture/connector-architecture)を参照してください。
+各コネクタとチャネルは標準化されたブリッジです。智能体は SAP、カスタム契約システム、または Feishu グループと通信しているかどうかを知る必要がありません。Hook System は LLM ループの外でプラットフォームコードを実行して、承認、監査、およびレート制限を処理します。チャネルは外部 IM プラットフォームへのアウトバウンド通知と承認カードを配信します。詳細は [Connector Architecture](https://docs.fim.ai/architecture/connector-architecture)、[Hook System](https://docs.fim.ai/architecture/hook-system)、および [Channels](https://docs.fim.ai/configuration/channels/overview) を参照してください。
 
 ## 設定
 
@@ -192,9 +199,10 @@ JINA_API_KEY=jina_...                       # unlocks web tools + RAG
 | ----------- | ------------------------------------------------------------------- |
 | バックエンド     | Python 3.11+, FastAPI, SQLAlchemy, Alembic, asyncio                 |
 | フロントエンド    | Next.js 14, React 18, Tailwind CSS, shadcn/ui, React Flow v12      |
-| AI / RAG    | OpenAI互換LLM, Jina AI (embed + search), LanceDB          |
-| データベース    | SQLite (dev) / PostgreSQL (prod)                                    |
-| インフラ       | Docker, uv, pnpm, SSEストリーミング                                    |
+| AI / RAG    | OpenAI互換LLM、Jina AI（嵌入 + 検索）、LanceDB          |
+| データベース    | SQLite（開発環境）/ PostgreSQL（本番環境）                                    |
+| メッセージング   | Feishu Open Platform（Lark）、Fernet暗号化認証情報、HMAC署名検証 |
+| インフラ       | Docker、uv、pnpm、SSE ストリーミング                                    |
 
 ## 開発
 

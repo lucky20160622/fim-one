@@ -141,6 +141,35 @@ A resource is available in your workspace if:
 Publishing a resource to an organization does not grant automatic access. Members must subscribe through the Market's org scope to add the resource to their workspace.
 </Warning>
 
+## Infrastructure Resources (org-wide, no subscription)
+
+A second class of org-scoped resource does **not** follow the personal → publish → subscribe lifecycle above. These are **configured once by an Org Owner or Admin** and then transparently available to every agent in the org:
+
+| Resource | Purpose | Configured by | Consumed by |
+|---|---|---|---|
+| **Channels** | Outbound bridge to an IM platform (Feishu today; Slack / WeCom / Teams planned) | Org Owner / Admin | Every agent's [Hook System](/architecture/hook-system) and proactive-notification tools |
+| **OAuth Providers** | Social-login credentials (GitHub, Google, Feishu, Discord) | System admin (env vars) | Sign-in page |
+| **API Keys** | Programmatic access tokens for headless clients | Each user, org-scoped | External integrations |
+
+```mermaid
+flowchart LR
+    Admin["Org Owner / Admin"]
+    subgraph Org["Organization"]
+        Ch["Channel<br/>(e.g. FIM One ↔ Feishu group)"]
+        A1["Agent A"]
+        A2["Agent B"]
+        A3["Agent C"]
+    end
+    Admin -->|"configure once"| Ch
+    A1 -. "uses via feishu_gate hook" .-> Ch
+    A2 -. "uses for notifications" .-> Ch
+    A3 -. "uses for approval cards" .-> Ch
+```
+
+The key distinction: **publishable resources** (Agents, Connectors, KBs, …) are per-user artifacts that need explicit member subscription; **infrastructure resources** (Channels, OAuth, API keys) are platform-level wiring that all agents share implicitly. Channels specifically are the IM hotline for the whole org — one well-maintained Feishu channel backs every agent's approval gate, every scheduled report, every escalation event.
+
+See [Channels overview](/configuration/channels/overview) for the channel lifecycle and supported platforms.
+
 ## Practical Scenarios
 
 ### Team Sharing a Database Connector

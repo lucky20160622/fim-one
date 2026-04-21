@@ -122,12 +122,13 @@ cd frontend && pnpm install && cd ..
 - **Trois façons de construire** — Importez une spécification OpenAPI, utilisez le générateur de chat IA ou connectez directement les serveurs MCP.
 
 #### Planification et exécution
-- **Planification DAG dynamique** — Le LLM décompose les objectifs en graphes de dépendances à l'exécution. Aucun workflow codé en dur.
-- **Exécution concurrente** — Les étapes indépendantes s'exécutent en parallèle via asyncio ; re-planification automatique jusqu'à 3 rounds.
+- **Planification DAG dynamique** — L'LLM décompose les objectifs en graphes de dépendances à l'exécution. Aucun workflow codé en dur.
+- **Exécution concurrente** — Les étapes indépendantes s'exécutent en parallèle via asyncio ; re-planification automatique jusqu'à 3 tours.
 - **Agent ReAct** — Boucle structurée de raisonnement et d'action avec récupération automatique des erreurs.
-- **Harnais d'agent** — Environnement d'exécution de qualité production avec middleware Hook pour les garde-fous déterministes, ContextGuard pour la gestion du contexte, méta-outils à divulgation progressive et boucles d'auto-réflexion.
+- **Harnais d'agent** — Environnement d'exécution de qualité production : ContextGuard pour la gestion des budgets de tokens à 5 niveaux, méta-outils à divulgation progressive pour maintenir la surface d'outils tractable, et boucles d'auto-réflexion pour contrer la dérive d'objectifs.
+- **Système de hooks** — Application déterministe qui s'exécute en dehors de la boucle LLM. Premier livré : `FeishuGateHook` contrôle les appels d'outils sensibles derrière une carte d'approbation humaine affichée dans un groupe Feishu. Extensible à la journalisation d'audit, aux garde-fous en mode lecture seule et aux limites de débit (v0.9).
 - **Routage automatique** — Classe les requêtes et les achemine vers le mode optimal (ReAct ou DAG). Configurable via `AUTO_ROUTING`.
-- **Réflexion étendue** — Chaîne de pensée pour OpenAI o-series, Gemini 2.5+, Claude.
+- **Pensée étendue** — Chaîne de pensée pour OpenAI o-series, Gemini 2.5+, Claude.
 
 #### Flux de travail et outils
 - **Éditeur de flux de travail visuel** — 12 types de nœuds, canevas glisser-déposer (React Flow v12), import/export en JSON.
@@ -136,33 +137,39 @@ cd frontend && pnpm install && cd ..
 - **Pipeline RAG complet** — Intégration Jina + LanceDB + récupération hybride + reclassement + citations en ligne `[N]`.
 - **Artefacts d'outils** — Les sorties enrichies (aperçus HTML, fichiers) sont rendues dans le chat.
 
+#### Canaux de Messagerie (v0.8)
+- **Pont IM étendu à l'organisation** — Abstraction `BaseChannel` pour la messagerie sortante vers Feishu (Lark) aujourd'hui ; Slack / WeCom / Teams / Email sur la feuille de route v0.9.
+- **Identifiants chiffrés Fernet** — Les secrets d'application et les clés de chiffrement sont chiffrés au repos ; chaque signature de rappel entrant est vérifiée.
+- **Cartes d'approbation interactives** — `FeishuGateHook` publie une carte Approuver / Rejeter dans votre groupe Feishu lorsqu'un appel d'outil sensible se déclenche ; l'outil se bloque jusqu'à ce qu'un membre du groupe appuie sur un verdict. Approbation avec intervention humaine sans moteur de flux de travail personnalisé.
+- **Interface de navigation et sélection** — Pas besoin de copier les valeurs `chat_id` brutes depuis la console Feishu ; le portail appelle l'API Feishu et affiche un sélecteur de groupe.
+
 #### Plateforme
-- **Multi-locataire** — Authentification JWT, isolation des organisations, panneau d'administration avec analyses d'utilisation et métriques des connecteurs.
-- **Marketplace** — Publier et s'abonner à des agents, connecteurs, bases de connaissances, compétences, workflows.
-- **Compétences globales (SOP)** — Procédures d'exploitation réutilisables chargées pour chaque utilisateur ; le mode progressif réduit les jetons d'environ 80 %.
+- **Multi-locataire** — Authentification JWT, isolation des organisations, panneau d'administration avec analytique d'utilisation et métriques des connecteurs.
+- **Marketplace** — Publiez et abonnez-vous à des agents, connecteurs, bases de connaissances, compétences, workflows.
+- **Compétences globales (POS)** — Procédures opérationnelles réutilisables chargées pour chaque utilisateur ; le mode progressif réduit les tokens d'environ 80 %.
 - **6 langues** — EN, ZH, JA, KO, DE, FR. Les traductions sont [entièrement automatisées](https://docs.fim.ai/quickstart#internationalization).
 - **Assistant de configuration à la première exécution**, thème sombre/clair, palette de commandes, SSE en continu, visualisation DAG.
 
-> Approfondissement : [Architecture](https://docs.fim.ai/architecture/system-overview) · [Modes d'exécution](https://docs.fim.ai/concepts/execution-modes) · [Pourquoi FIM One](https://docs.fim.ai/why) · [Paysage concurrentiel](https://docs.fim.ai/strategy/competitive-landscape)
+> Approfondissement : [Architecture](https://docs.fim.ai/architecture/system-overview) · [Système de hooks](https://docs.fim.ai/architecture/hook-system) · [Canaux](https://docs.fim.ai/configuration/channels/overview) · [Modes d'exécution](https://docs.fim.ai/concepts/execution-modes) · [Pourquoi FIM One](https://docs.fim.ai/why) · [Paysage concurrentiel](https://docs.fim.ai/strategy/competitive-landscape)
 
 ## Architecture
 
 ```mermaid
 graph TB
     subgraph app["Application Layer"]
-        a["Portal · API · iframe · Lark/Slack Bot · Webhook · WeCom/DingTalk"]
+        a["Portal · API · iframe · Feishu · Slack · WeCom · DingTalk · Teams · Email · Contract Systems · Custom Webhooks"]
     end
     subgraph mid["FIM One"]
         direction LR
-        m1["Connectors<br/>+ MCP Hub"] ~~~ m2["Orch Engine<br/>ReAct / DAG"] ~~~ m3["RAG /<br/>Knowledge"] ~~~ m4["Auth /<br/>Admin"]
+        m1["Connectors<br/>+ MCP Hub"] ~~~ m2["Orch Engine<br/>ReAct / DAG"] ~~~ m3["RAG /<br/>Knowledge"] ~~~ m5["Hook System<br/>+ Channels"] ~~~ m4["Auth /<br/>Admin"]
     end
     subgraph biz["Business Systems"]
-        b["ERP · CRM · OA · Finance · Databases · Custom APIs"]
+        b["ERP · CRM · OA · Finance · Databases · Contract Mgmt · Custom APIs"]
     end
     app --> mid --> biz
 ```
 
-Chaque connecteur est un pont standardisé — l'agent n'a pas besoin de savoir ou de se soucier s'il communique avec SAP ou une base de données personnalisée. Consultez [Architecture des connecteurs](https://docs.fim.ai/architecture/connector-architecture) pour plus de détails.
+Chaque connecteur et canal est un pont standardisé — l'agent ne sait pas et ne se soucie pas de savoir s'il communique avec SAP, un système de contrat personnalisé ou un groupe Feishu. Le système Hook exécute le code de la plateforme en dehors de la boucle LLM pour les approbations, les audits et les limites de débit ; les canaux transmettent les notifications sortantes et les cartes d'approbation aux plateformes de messagerie instantanée externes. Consultez [Architecture des connecteurs](https://docs.fim.ai/architecture/connector-architecture), [Système Hook](https://docs.fim.ai/architecture/hook-system) et [Canaux](https://docs.fim.ai/configuration/channels/overview) pour plus de détails.
 
 ## Configuration
 
@@ -193,8 +200,9 @@ JINA_API_KEY=jina_...                       # unlocks web tools + RAG
 | Backend     | Python 3.11+, FastAPI, SQLAlchemy, Alembic, asyncio                 |
 | Frontend    | Next.js 14, React 18, Tailwind CSS, shadcn/ui, React Flow v12      |
 | IA / RAG    | LLMs compatibles OpenAI, Jina AI (embed + search), LanceDB          |
-| Base de données | SQLite (dev) / PostgreSQL (prod)                                |
-| Infrastructure | Docker, uv, pnpm, SSE streaming                                 |
+| Base de données | SQLite (dev) / PostgreSQL (prod)                                    |
+| Messagerie  | Feishu Open Platform (Lark), identifiants chiffrés Fernet, vérification de signature HMAC |
+| Infrastructure | Docker, uv, pnpm, SSE streaming                                    |
 
 ## Développement
 

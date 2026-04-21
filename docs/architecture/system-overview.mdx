@@ -68,6 +68,7 @@ flowchart LR
     F -->|No| H["Use full set"]
     G --> I["<b>Final ToolRegistry</b>"]
     H --> I
+    I --> HK["<b>HookRegistry</b><br/>PreToolUse / PostToolUse hooks<br/>wrap every tool call"]
 ```
 
 The eight steps:
@@ -80,6 +81,7 @@ The eight steps:
 6. **Skills injection.** All active Skills visible to the user are loaded -- regardless of agent selection. In progressive mode, `ReadSkillTool` is registered with compact stubs in the system prompt. In inline mode, full Skill content is embedded directly.
 7. **CallAgent registration (Auto mode only).** When no specific Agent is selected, all active, visible Agents are assembled into a catalog and exposed via `CallAgentTool`, enabling the LLM to delegate tasks to specialist agents. Delegated agents receive a full `ToolRegistry` built from their own configuration but exclude `call_agent` to prevent infinite recursion. When a specific Agent is selected, `CallAgentTool` is not registered — agents are specialized and do not delegate to other agents. This prevents marketplace agents from accessing other agents' private prompts.
 8. **Runtime selection.** If the total tool count exceeds 12, a lightweight LLM call picks the most relevant subset (up to 6) for this specific query. A `request_tools` meta-tool is automatically registered, allowing the LLM to dynamically load additional tools mid-conversation if the initial selection missed a needed tool. Selection failure is non-fatal -- the agent falls back to the full set. See [Progressive Disclosure](/architecture/progressive-disclosure).
+9. **Hook registration.** The agent's declared hooks (from `model_config_json.hooks`) are instantiated and attached to a `HookRegistry`. Each chosen tool call will be wrapped: `PreToolUse` hooks can block or rewrite args before execution; `PostToolUse` hooks can rewrite the observation before it returns to the LLM. Hooks run **outside the LLM loop** and cannot be bypassed by agent instructions — see [Hook System](/architecture/hook-system).
 
 The result: the agent sees exactly the tools it needs, no more. A simple agent with no connectors and no KB might see 5 tools. A Hub agent connected to 3 enterprise systems with a grounded knowledge base and 2 MCP servers might see 30 -- but after selection, only the 6 most relevant make it into the context.
 
@@ -120,6 +122,6 @@ Alongside the LLM-driven ReAct and DAG engines, FIM One includes a **Workflow En
 
 **Per-request.** JWT authentication, agent configuration lookup, tool assembly (the 8-step pipeline above), engine selection (ReAct or DAG based on agent config), execution with SSE streaming, and result persistence.
 
-**Cross-cutting concerns.** [Context management](/architecture/context-management) (5-layer token budget) protects every LLM call from overflow. Audit logging tracks every connector tool invocation. Sandbox isolation contains code execution tools. The two-LLM architecture (smart + fast) optimizes cost across planning, execution, and synthesis.
+**Cross-cutting concerns.** [Context management](/architecture/context-management) (5-layer token budget) protects every LLM call from overflow. The [Hook System](/architecture/hook-system) wraps every tool call with platform-controlled `PreToolUse` / `PostToolUse` logic — the mechanism behind human-in-the-loop approval (`FeishuGateHook`), audit logging, and read-only-mode enforcement. Audit logging tracks every connector tool invocation. Sandbox isolation contains code execution tools. The two-LLM architecture (smart + fast) optimizes cost across planning, execution, and synthesis.
 
 The architecture is designed so that each concern -- tool registration, execution orchestration, context management, security -- can evolve independently. A new connector type, a new execution engine, or a new context strategy can be added without cascading changes across the system.

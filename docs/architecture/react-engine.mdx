@@ -114,6 +114,7 @@ sequenceDiagram
     participant Agent as ReActAgent
     participant CG as ContextGuard
     participant LLM as LLM API
+    participant Hooks as HookRegistry
     participant Tool as Tool Registry
 
     loop Each iteration (max 50)
@@ -122,13 +123,22 @@ sequenceDiagram
         Agent->>LLM: chat(messages) [non-streaming]
         LLM-->>Agent: response
         alt tool_call action
-            Agent->>Tool: execute(tool_name, args)
-            Tool-->>Agent: observation
-            Agent->>Agent: cycle check (hash args)
-            opt identical call ≥ threshold
-                Agent->>Agent: inject "try different approach" warning
+            Agent->>Hooks: run_pre_tool_use_hooks(ctx)
+            alt hook blocks
+                Hooks-->>Agent: allow=False, error="..."
+                Agent->>Agent: append block message, continue
+            else hook allows (possibly rewrote args)
+                Hooks-->>Agent: allow=True, modified_args?
+                Agent->>Tool: execute(tool_name, args)
+                Tool-->>Agent: observation
+                Agent->>Hooks: run_post_tool_use_hooks(ctx, result)
+                Hooks-->>Agent: modified_result?
+                Agent->>Agent: cycle check (hash args)
+                opt identical call ≥ threshold
+                    Agent->>Agent: inject "try different approach" warning
+                end
+                Agent->>Agent: append observation, continue
             end
-            Agent->>Agent: append observation, continue
         else final_answer action
             opt tools used ≥ threshold AND not yet checked
                 Agent->>Agent: inject completion checklist
@@ -148,6 +158,22 @@ sequenceDiagram
 **Max iterations.** The default limit is 50 iterations. If the loop exhausts this limit without producing a `final_answer`, the agent synthesizes a fallback response from the accumulated step results — a summary of which tools were called and whether they succeeded or failed. This is a safety net, not a normal exit path.
 
 [Context Management](/architecture/context-management) explains how ContextGuard enforces the token budget on every iteration, including the hint system that tells the compaction LLM to preserve recent reasoning chains.
+
+## Tool execution hooks
+
+Every tool call in the iteration loop is wrapped by two hook points:
+
+- **`PreToolUse`** — fires after the LLM picks a tool, before the tool runs. A hook can:
+  - **Block** the call by returning `allow=False` (the LLM sees an observation explaining why, e.g. "waiting for human approval" or "org is in read-only mode")
+  - **Rewrite** the tool arguments before execution
+  - **Trigger side effects** (post a Feishu card, create an audit row, emit a metric)
+- **`PostToolUse`** — fires after the tool returns, before the observation reaches the LLM. A hook can:
+  - **Rewrite** the observation (e.g. truncate a 200 KB SQL result to a 4 KB summary)
+  - **Trigger side effects** (write to `ConnectorCallLog`, update usage counters)
+
+Hooks run **outside the LLM loop** — nothing the LLM says or does can skip them. This is the deterministic enforcement layer for policies that cannot be trusted to a prompt instruction: human-in-the-loop approval (`FeishuGateHook`), audit logging, rate limiting, and read-only-mode guards. See [Hook System](/architecture/hook-system) for the full design.
+
+The same hook points exist in the [DAG engine](/architecture/dag-engine) — each DAG step runs its own ReAct loop, so hooks apply uniformly regardless of which execution engine is driving the tool call.
 
 ## Mid-loop self-reflection
 

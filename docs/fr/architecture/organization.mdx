@@ -141,6 +141,35 @@ A resource is available in your workspace if:
 Publier une ressource dans une organisation n'accorde pas d'accès automatique. Les membres doivent s'abonner via la portée org du Marché pour ajouter la ressource à leur espace de travail.
 </Warning>
 
+## Ressources d'infrastructure (à l'échelle de l'organisation, sans abonnement)
+
+Une deuxième classe de ressource à l'échelle de l'organisation ne suit **pas** le cycle de vie personnel → publier → s'abonner décrit ci-dessus. Ces ressources sont **configurées une seule fois par un propriétaire d'organisation ou un administrateur** et ensuite disponibles de manière transparente pour chaque agent de l'organisation :
+
+| Ressource | Objectif | Configurée par | Consommée par |
+|---|---|---|---|
+| **Channels** | Pont sortant vers une plateforme de messagerie instantanée (Feishu aujourd'hui ; Slack / WeCom / Teams prévus) | Propriétaire d'organisation / Administrateur | [Système de Hook](/architecture/hook-system) de chaque agent et outils de notification proactive |
+| **Fournisseurs OAuth** | Identifiants de connexion sociale (GitHub, Google, Feishu, Discord) | Administrateur système (variables d'environnement) | Page de connexion |
+| **Clés API** | Jetons d'accès programmatique pour les clients sans interface | Chaque utilisateur, à l'échelle de l'organisation | Intégrations externes |
+
+```mermaid
+flowchart LR
+    Admin["Org Owner / Admin"]
+    subgraph Org["Organization"]
+        Ch["Channel<br/>(e.g. FIM One ↔ Feishu group)"]
+        A1["Agent A"]
+        A2["Agent B"]
+        A3["Agent C"]
+    end
+    Admin -->|"configure once"| Ch
+    A1 -. "uses via feishu_gate hook" .-> Ch
+    A2 -. "uses for notifications" .-> Ch
+    A3 -. "uses for approval cards" .-> Ch
+```
+
+La distinction clé : les **ressources publiables** (Agents, Connecteurs, BCs, …) sont des artefacts par utilisateur qui nécessitent un abonnement explicite des membres ; les **ressources d'infrastructure** (Channels, OAuth, clés API) sont le câblage au niveau de la plateforme que tous les agents partagent implicitement. Les Channels en particulier sont la ligne directe de messagerie instantanée pour toute l'organisation — un seul channel Feishu bien maintenu soutient la porte d'approbation de chaque agent, chaque rapport planifié, chaque événement d'escalade.
+
+Consultez [Aperçu des Channels](/configuration/channels/overview) pour le cycle de vie des channels et les plateformes prises en charge.
+
 ## Scénarios Pratiques
 
 ### Partage d'un connecteur de base de données en équipe

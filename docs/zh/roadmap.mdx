@@ -229,15 +229,23 @@ flowchart LR
 
 ## 计划版本
 
-### v0.9 — 可观测性 + 生产级强化
+### v0.9 — 可观测性 + 生产强化
 
-**目标**: 生产级操作、调试和监控。引入**Hook 系统** — 一个确定性执行层，位于智能体指令下方，LLM 无法覆盖。
+**目标**: 生产级运维、调试和监控。引入**Hook 系统** — 一个确定性执行层，位于智能体指令下方，LLM 无法覆盖。
 
-- [ ] **连接器渐进式披露（第 3-4 阶段）**: 统一的 `ConnectorExecutor` 接口（API/DB/MCP 在一个抽象后面）；使用 `jsonschema` 进行操作参数验证；协议无关的发现/执行
+- [ ] **连接器渐进式披露 (第 3-4 阶段)**: 统一的 `ConnectorExecutor` 接口 (API/DB/MCP 在一个抽象后); 使用 `jsonschema` 进行操作参数验证; 协议无关的发现/执行
 - [ ] **YAML/JSON 连接器配置**: 平台自动生成 MCP 服务器
-- [ ] **数据库连接器第 4 阶段**: 企业驱动程序 — Oracle (`oracledb`)、SQL Server (`aioodbc`)、[x] 达梦 DM8（原生 `dmPython`）、[x] 人大金仓 KingbaseES + 瀚高 HighGo（PG 兼容，复用 `asyncpg`）、南大通用 GBase（`aioodbc` + GBase ODBC）
-- [ ] **IM 频道集成（双向）**: **第 1 阶段 — 出站推送**: Lark、WeCom、Slack、Email、Teams 通知操作来自智能体/工作流结果。**第 2 阶段 — 入站触发**: 用户在 IM 群聊中 @mention 智能体以触发任务，无需打开 Portal；每个频道的 webhook 接收器；每个 IM 频道建模为具有双向操作的连接器（发送 + 接收）。Hub 模式杀手级功能
-  - [x] **Feishu 频道（第 1 阶段子集）** — 组织范围的 `Channel` 资源，具有 Fernet 加密凭证；`FeishuChannel` 实现支持交互式卡片发送 + 回调（签名验证 + URL 挑战）；与确认门集成，以便写操作批准作为 Approve/Reject 卡片出现在配置的 Feishu 群聊中；Settings → Channels 管理 UI。为 2026-04-24 路演提前发布。剩余：WeCom、Slack、Email、Teams 出站 + 第 2 阶段入站触发。
+- [ ] **数据库连接器第 4 阶段**: 企业驱动 — Oracle (`oracledb`)、SQL Server (`aioodbc`)、[x] 达梦 DM8 (原生 `dmPython`)、[x] 人大金仓 KingbaseES + 瀚高 HighGo (PG 兼容，复用 `asyncpg`)、南大通用 GBase (`aioodbc` + GBase ODBC)
+- [ ] **IM 频道集成 (双向)**: **第 1 阶段 — 出站推送**: Lark、WeCom、Slack、Email、Teams 来自智能体/工作流结果的通知操作。**第 2 阶段 — 入站触发**: 用户在 IM 群聊中 @mention 智能体以触发任务，无需打开 Portal; 每个频道的 webhook 接收器; 每个 IM 频道建模为具有双向操作的连接器 (发送 + 接收)。Hub 模式杀手级功能
+  - [x] **飞书频道 (第 1 阶段子集)** — 组织范围的 `Channel` 资源，具有 Fernet 加密凭证; `FeishuChannel` 实现支持交互式卡片发送 + 回调 (签名验证 + URL 挑战); 与确认门集成，以便写操作批准作为批准/拒绝卡片出现在配置的飞书群聊中; 设置 → 频道管理 UI。已在 2026-04-24 路演前提前发布。剩余: WeCom、Slack、Email、Teams 出站 + 第 2 阶段入站触发。
+  - [ ] **出站通知模式 (通用，可跨频道类型复用)**: 相同的 `BaseChannel` 抽象支持超越批准门控的出站用例目录。每个模式针对 `BaseChannel` 实现一次，并自动适用于每个具体频道 (今天是飞书; Slack/WeCom/Teams/Email 随后推出)。
+    - [ ] **任务完成通知**: 当长时间运行的 DAG / 工作流 / 计划智能体完成时，将包含结果片段 + 工件链接的摘要卡片发布到组织频道 (或用户选择的频道)。最小可行的"频道出站"产品 — `FeishuGateHook` 之后的第一个消费者
+    - [ ] **异常 / 失败警报**: 智能体推理失败、LLM 提供商出错、连接器抛出 5xx、DAG 计划耗尽重新规划预算 → 将包含 trace ID 和重试选项的诊断卡片推送到运维频道
+    - [ ] **成本 / 预算警告**: 按用户或按智能体的 token/请求预算达到 80% / 100% 阈值 → 推送到管理员频道 (或 @-mention 智能体所有者)，显示当前使用情况与上限
+    - [ ] **计划摘要**: 智能体或工作流发出定期 (每日 / 每周) 摘要卡片 — KPI 汇总、未解决工单分类、合同续期列表 — 直接进入频道，无需用户打开 Portal
+    - [ ] **卡住的智能体升级**: 智能体在 N 个连续迭代中没有取得可观察的进展 (检测到循环，或超过 `max_iterations`) → 发布卡片要求人工操作员接管，包含当前上下文和"用您的备注恢复"操作
+    - [ ] **敏感工具调用的审计收据**: 独立于批准门控 — 每次调用标记为 `audit=true` 的工具都会向合规频道发出只读收据卡片 (谁 / 什么 / 何时 / 参数)，在数据库外提供持久审计跟踪
+    - [ ] **批准升级**: 如果 `feishu_gate` 批准卡片在 N 分钟内未收到响应，自动 @-mention 群组所有者或将卡片转发到更高层级频道; 可按工具/连接器配置
 
 #### 公开 API（第 2 阶段）
 
@@ -256,36 +264,38 @@ flowchart LR
 
 #### 可观测性与智能体运行时
 
-- [ ] **智能体追踪层（可观测性++）**: 应用级运行/追踪/线程层级，用于智能体调试 — 每个对话 → `Trace`，每个 LLM 调用/工具调用/DAG 步骤 → `Span`，包含输入/输出/token/时序。前端追踪查看器，具有时间线和可展开的 LLM 调用负载。这超越了 OTel（基础设施级）的范围，为开发者和企业客户提供可操作的智能体循环调试。OpenTelemetry 导出作为数据接收器选项。以 LangSmith 的运行/追踪/线程概念为模型 — 业界验证的智能体可观测性模式。
+- [ ] **智能体追踪层（可观测性++）**: 应用级运行/追踪/线程层级，用于智能体调试 — 每个对话 → `Trace`，每个 LLM 调用/工具调用/DAG 步骤 → `Span`，包含输入/输出/token/耗时。前端追踪查看器，带时间线和可展开的 LLM 调用负载。这超越了 OTel（基础设施级）的范围，为开发者和企业客户提供可操作的智能体循环调试。OpenTelemetry 导出作为数据接收选项。参考 LangSmith 的运行/追踪/线程概念建模 — 智能体可观测性的行业验证模式。
 - [ ] **指标仪表板**: 延迟、成功率、token 使用、连接器调用分析 — 按智能体、按用户、按组织细分
-- [x] ~~**断路器**: 三态机（关闭/打开/半开），具有按连接器故障追踪、5xx 检测和监控端点~~ *（v0.8 提前发布）*
-- [x] ~~**工作流运行保留清理**: 后台清理任务，具有可配置的最大年龄和每个工作流的最大计数；按工作流覆盖；管理员端点用于手动触发~~ *（v0.8.1 发布）*
+- [x] ~~**断路器**: 三态机（关闭/打开/半开），带每连接器故障追踪、5xx 检测和监控端点~~ *（v0.8 提前发布）*
+- [x] ~~**工作流运行保留清理**: 后台清理任务，可配置最大年龄和每个工作流的最大计数；每个工作流的覆盖；管理员手动触发端点~~ *（v0.8.1 发布）*
 - [x] ~~**工作流版本变更摘要**: `compute_blueprint_diff()` 在版本保存时从蓝图差异自动生成人类可读的摘要~~ *（v0.8.1 发布）*
-- [x] ~~**DAG 质量大修**: 非快速步骤的默认模型升级；规划中的技能自动发现；法律/医疗/金融领域的引用验证器；结构化内容上下文保留；路由器中的领域分类，具有领域感知的模型选择~~ *（v0.8.1 发布）*
-- [x] ~~**ReAct 中的领域模型升级**: 专家领域自动升级到推理模型，具有强制网络搜索和引用验证~~ *（v0.8.1 发布）*
-- [x] ~~**按模型原生函数调用切换**: `tool_choice_enabled` 设置让模型跳过强制工具选择，直接进入 JSON 模式~~ *（v0.8.1 发布）*
-- [x] ~~**DatabaseMetaTool（数据库连接器的渐进式披露）**: 单个 `database` 元工具，具有 `list_tables`/`discover`/`query` 子命令，替换每个数据库连接器的 3N 个单独工具；通过 `DATABASE_TOOL_MODE` 环境变量配置（`progressive` 默认，`legacy` 回退）~~ *（v0.8.1 发布）*
-- [x] ~~**通过 `request_tools` 元工具按需加载工具**: 当智能选择后有 >12 个工具可用时，LLM 可以在对话中动态加载其他工具；在 JSON 和原生函数调用模式中都有效~~ *（v0.8.1 发布）*
-- [x] ~~**MCPServerMetaTool（MCP 的渐进式披露）**: 单个 `mcp` 元工具，具有 `discover`/`call` 子命令，替换 N*M 个单独的 MCP 工具；通过 `MCP_TOOL_MODE` 环境变量配置（`progressive` 默认，`legacy` 回退）~~ *（v0.8.1 发布）*
-- [x] ~~**工作流连接依赖自动订阅**: 将市场订阅级联扩展到自动订阅工作流的连接依赖（API 连接器、MCP 服务器）。工作流节点可以引用连接器、MCP 服务器、智能体（递归引用更多依赖）和子工作流 — 完整树中的所有连接依赖必须在订阅时自动订阅，并在取消订阅时级联清理。由于递归子工作流解析和循环检测，比解决方案（技能/智能体）连接依赖自动订阅更复杂。解决方案（技能/智能体）连接依赖自动订阅的对应部分~~ *（v0.8.1 发布）*
-- [x] ~~**工作流真实执行器**: 用完整实现替换 MCP 和 BuiltinTool 节点执行器存根（MCP 服务器发现 + 工具调用；ToolRegistry 集成）~~ *（v0.8.1 发布）*
-- [ ] **智能体钩子系统**: 在 **LLM 循环外** 运行的确定性强制层 — 钩子在工具事件上自动执行，不能被智能体指令绕过。三个钩子点：`PreToolUse`（执行前验证/阻止）、`PostToolUse`（执行后副作用）、`SessionStart`（注入动态上下文）。内置钩子：每个连接器调用时自动写入 `ConnectorCallLog`（目前手动）；当组织处于只读模式时阻止写操作；在代理接收前自动截断超大 DB 查询结果；按连接器调用频率进行速率限制。用户定义的钩子：按智能体 YAML 配置（`hooks:` 字段），声明在匹配工具事件上触发的 shell 命令或 Python 可调用对象 — 一种在现代智能体框架中共享的基于钩子的强制模式。关键设计原则：**钩子用于"必须始终发生"的逻辑，不应该依赖 LLM 记住去做它**。指令说"记录所有调用"；钩子实际上记录它们。指令说"不要在只读模式下写入"；钩子实际上阻止它。
-  - [x] **钩子系统骨架 + FeishuGateHook** — 基于类的 `PreToolUseHook` / `PostToolUseHook` 抽象，在 ReAct 循环下方连接；第一个具体钩子是 `FeishuGateHook`，它拦截标记为 `requires_confirmation=True` 的工具，并通过组织的飞书频道路由批准。完整钩子生命周期（用户定义的 YAML 钩子、内置审计/阻止/截断钩子、`SessionStart`）仍在 v0.9 范围内。为 2026-04-24 路演提前发布。
-  - [x] **钩子批准游乐场** — UI 驱动的往返测试器：频道详情表现在启动一个对话框，创建真实的 `ConfirmationRequest` 行，将生产卡发送到飞书，并实时轮询决定。执行生产钩子会执行的确切代码路径，使预发布排练和演示保真。
-- [ ] **智能体工作区（持久智能体桌面）**: 三层：(1) **工具输出卸载** — 自动保存超大工具响应（>8K 字符）到 `workspace://` 文件，返回截断预览 + URI；内置工具 `read_workspace_file`、`list_workspace_files`、`write_workspace_file` 用于选择性访问和智能体生成的工件。(2) **交接笔记** — `write_handoff(summary)` 用于跨压缩/会话切换的上下文转换。(3) **工作区 UI** — 前端文件浏览器面板，每个对话（预览文本/JSON/CSV、下载、删除/重命名）；跨会话文件保留；按用户存储配额集成。扩展适配器中的 `truncate_tool_output()` + `GET /api/conversations/{id}/workspace` 端点
-- [x] **智能文件内容注入 + `read_uploaded_file` 工具**: 小上传文件（`<32K` 字符）自动内联到 LLM 上下文；大文件获取元数据 + 工具提示。双模式 `read_uploaded_file` 工具（分页读取 + 正则表达式搜索）。`GET /api/files/{file_id}/content` 端点、`.content` 旁车存储、文件 API 响应中的 `content_length`
-- [x] ~~**智能文档处理（视觉感知）**: 自适应文档处理 — PDF 页面通过 PyMuPDF 为视觉能力模型（GPT-4o、Claude 3/4、Gemini）渲染为图像；通过 pdfplumber 的纯文本回退。管理员中按模型 `supports_vision` 标志。两种模式（视觉/文本）通过 `DOCUMENT_PROCESSING_MODE` 环境变量配置。智能 PDF 处理：文本丰富的页面提取文本 + 嵌入图像（token 高效），扫描页面渲染为全页 PNG。DOCX/PPTX 嵌入图像提取。多轮视觉持久性。预构建沙箱镜像（`Dockerfile.sandbox`）。缓存页面渲染，带 `.pages/` 旁车。~~ *（v0.8.2 发布）*
-- [x] ~~**通用文档转换（`convert_to_markdown` + OCR）** — 内置智能体工具，包装 Microsoft MarkItDown，默认对每个智能体可用。在对话中将 PDF、Word、Excel、PowerPoint、HTML、JSON、CSV、XML、ZIP、EPUB、Outlook .msg、图像、音频、YouTube URL 和数据 URI 转换为干净的 Markdown。Office 文件和扫描 PDF 页面中的嵌入图像通过官方 `markitdown-ocr` 插件使用工作区的视觉能力 LLM（DB 优先，ENV 回退）自动进行 OCR。相同的转换内核由 RAG 摄取管道共享，因此聊天时转换和知识库摄取生成字节相同的 Markdown。非 OpenAI 提供商（Claude、Gemini、Bedrock、Azure）通过 `LiteLLMOpenAIShim` 透明支持，该 shim 将任何 FIM One LLM 呈现为 openai-SDK 形状的客户端，然后通过 LiteLLM 路由。零回归回退：当没有视觉模型可用时，纯文本提取完全如前所述继续。~~ *（v0.8.3 发布）*
+- [x] ~~**DAG 质量大修**: 非快速步骤的默认模型升级；规划中的技能自动发现；法律/医疗/金融领域的引用验证器；结构化内容上下文保留；路由器中的领域分类，带领域感知模型选择~~ *（v0.8.1 发布）*
+- [x] ~~**ReAct 中的领域模型升级**: 专业领域自动升级到推理模型，带强制网络搜索和引用验证~~ *（v0.8.1 发布）*
+- [x] ~~**每模型原生函数调用切换**: `tool_choice_enabled` 设置让模型跳过强制工具选择，直接进入 JSON 模式~~ *（v0.8.1 发布）*
+- [x] ~~**DatabaseMetaTool（数据库连接器的渐进式披露）**: 单个 `database` 元工具，带 `list_tables`/`discover`/`query` 子命令，替代每个数据库连接器的 3N 个单独工具；通过 `DATABASE_TOOL_MODE` 环境变量可配置（`progressive` 默认，`legacy` 回退）~~ *（v0.8.1 发布）*
+- [x] ~~**通过 `request_tools` 元工具按需工具加载**: 当智能选择后有 >12 个工具可用时，LLM 可以在对话中动态加载额外工具；在 JSON 和原生函数调用模式中都有效~~ *（v0.8.1 发布）*
+- [x] ~~**MCPServerMetaTool（MCP 的渐进式披露）**: 单个 `mcp` 元工具，带 `discover`/`call` 子命令，替代 N*M 个单独的 MCP 工具；通过 `MCP_TOOL_MODE` 环境变量可配置（`progressive` 默认，`legacy` 回退）~~ *（v0.8.1 发布）*
+- [x] ~~**工作流连接依赖自动订阅**: 扩展市场订阅级联，自动订阅工作流的连接依赖（API 连接器、MCP 服务器）。工作流节点可以引用连接器、MCP 服务器、智能体（递归引用更多依赖）和子工作流 — 完整树中的所有连接依赖必须在订阅时自动订阅，在取消订阅时级联清理。由于递归子工作流解析和循环检测，比技能/智能体更复杂。解决方案（技能/智能体）连接依赖自动订阅的对应物~~ *（v0.8.1 发布）*
+- [x] ~~**工作流真实执行器**: 用完整实现替代 MCP 和 BuiltinTool 节点执行器存根（MCP 服务器发现+工具调用；ToolRegistry 集成）~~ *（v0.8.1 发布）*
+- [ ] **智能体钩子系统**: 在 **LLM 循环外** 运行的确定性强制层 — 钩子在工具事件上自动执行，不能被智能体指令绕过。三个钩子点：`PreToolUse`（执行前验证/阻止）、`PostToolUse`（执行后副作用）、`SessionStart`（注入动态上下文）。内置钩子：每个连接器调用时自动写入 `ConnectorCallLog`（目前手动）；当组织处于只读模式时阻止写操作；在代理接收前自动截断超大 DB 查询结果；限制每连接器调用频率。用户定义的钩子：每个智能体 YAML 配置（`hooks:` 字段）声明在匹配工具事件上触发的 shell 命令或 Python 可调用对象 — 现代智能体框架共享的基于钩子的强制模式。关键设计原则：**钩子用于"必须始终发生"的逻辑，不应依赖 LLM 记住执行它**。指令说"记录所有调用"；钩子实际记录它们。指令说"不要在只读模式下写入"；钩子实际阻止它。
+  - [x] **钩子系统骨架 + FeishuGateHook** — 基于类的 `PreToolUseHook` / `PostToolUseHook` 抽象，连接到 ReAct 循环下方；第一个具体钩子是 `FeishuGateHook`，它拦截标记为 `requires_confirmation=True` 的工具，并通过组织的飞书频道路由批准。完整钩子生命周期（用户定义的 YAML 钩子、内置审计/阻止/截断钩子、`SessionStart`）仍在 v0.9 范围内。为 2026-04-24 路演提前发布。
+  - [x] **钩子批准游乐场** — UI 驱动的往返测试器：频道详情表现在启动一个对话框，创建真实的 `ConfirmationRequest` 行，将生产卡发送到飞书，并实时轮询决定。执行生产钩子会采用的确切代码路径，使预发布排练和演示保持真实。
+  - [x] **钩子系统在 ReAct + DAG 运行时中实时运行** — `build_hook_registry_for_agent` 在每个聊天会话上解析 `agent.model_config_json.hooks.class_hooks`；ReAct 和 DAG 入口点都在工具分发前实例化钩子。工具适配器将 `requires_confirmation` 公开为公共属性，以便钩子谓词可以鸭子类型而不耦合适配器。配合端到端烟雾脚本（`scripts/smoke_feishu_gate.py`），覆盖通过真实智能体循环的批准/拒绝路径。
+  - [ ] **每钩子配置传递** — `class_hooks` 条目目前是裸字符串；要覆盖 `FeishuGateHook.timeout_seconds`、`poll_interval_seconds` 或 `callback_base_url` 按智能体，模式需要接受 `{"name": "feishu_gate", "config": {...}}` 对象，作为 kwargs 转发给钩子工厂。低风险 v0.8.5 后续；当前默认值（120s 超时/1.5s 轮询/env-var 回调 URL）对 v0.8 可接受。
+- [ ] **智能体工作区（持久智能体桌面）**: 三层：(1) **工具输出卸载** — 自动保存超大工具响应（>8K 字符）到 `workspace://` 文件，返回截断预览 + URI；内置工具 `read_workspace_file`、`list_workspace_files`、`write_workspace_file` 用于选择性访问和智能体生成的工件。(2) **交接笔记** — `write_handoff(summary)` 用于压缩/会话切换间的上下文转换。(3) **工作区 UI** — 前端文件浏览器面板，每个对话（预览文本/JSON/CSV、下载、删除/重命名）；跨会话文件保留；按用户存储配额集成。扩展适配器中的 `truncate_tool_output()` + `GET /api/conversations/{id}/workspace` 端点
+- [x] **智能文件内容注入 + `read_uploaded_file` 工具**: 小上传文件（`<32K` 字符）自动内联到 LLM 上下文；大文件获得元数据 + 工具提示。双模式 `read_uploaded_file` 工具（分页读取 + 正则搜索）。`GET /api/files/{file_id}/content` 端点、`.content` 伴随存储、文件 API 响应中的 `content_length`
+- [x] ~~**智能文档处理（视觉感知）**: 自适应文档处理 — PDF 页面通过 PyMuPDF 为视觉能力模型（GPT-4o、Claude 3/4、Gemini）渲染为图像；文本专用回退通过 pdfplumber。Admin 中每个模型的 `supports_vision` 标志。两种模式（视觉/文本）通过 `DOCUMENT_PROCESSING_MODE` 环境变量可配置。智能 PDF 处理：文本丰富的页面提取文本 + 嵌入图像（token 高效），扫描页面渲染为全页 PNG。DOCX/PPTX 嵌入图像提取。多轮视觉持久性。预构建沙箱镜像（`Dockerfile.sandbox`）。缓存页面渲染，带 `.pages/` 伴随。~~ *（v0.8.2 发布）*
+- [x] ~~**通用文档转换（`convert_to_markdown` + OCR）** — 内置智能体工具，包装 Microsoft MarkItDown，对每个智能体默认可用。将 PDF、Word、Excel、PowerPoint、HTML、JSON、CSV、XML、ZIP、EPUB、Outlook .msg、图像、音频、YouTube URL 和数据 URI 转换为对话中的干净 Markdown。Office 文件和扫描 PDF 页面中的嵌入图像通过官方 `markitdown-ocr` 插件使用工作区的视觉能力 LLM（DB 优先，ENV 回退）自动进行 OCR。相同的转换内核由 RAG 摄取管道共享，因此聊天时转换和知识库摄取生成字节相同的 Markdown。非 OpenAI 提供商（Claude、Gemini、Bedrock、Azure）通过 `LiteLLMOpenAIShim` 透明支持，该 shim 将任何 FIM One LLM 呈现为 openai-SDK 形状的客户端，然后通过 LiteLLM 路由。零回归回退：当没有视觉模型可用时，纯文本提取继续完全如前。~~ *（v0.8.3 发布）*
 - [ ] **跨会话文件管理**: 文件浏览器 UI、存储配额、自动过期清理
-- [ ] **会话级文件关联**: 追踪哪些文件在哪些对话中被使用
-- [ ] **跨会话对话回忆**: 智能体工具用于列出、搜索和读取过去的对话历史 — `list_conversations`、`search_conversations`（跨历史的关键字/正则表达式）、`read_conversation`（检索完整线程）。启用"我们上次讨论了什么"和"找到我上周要求的 API 变更"工作流。与跨会话文件管理配对，形成完整的长期智能体记忆层
-- [ ] **沙箱加固**: v2 改进代码执行隔离
+- [ ] **会话级文件关联**: 追踪哪些文件在哪些对话中使用
+- [ ] **跨会话对话回忆**: 智能体工具列出、搜索和读取过去的对话历史 — `list_conversations`、`search_conversations`（历史中的关键字/正则）、`read_conversation`（检索完整线程）。启用"我们上次讨论了什么"和"找到我上周要求的 API 变更"工作流。与跨会话文件管理配对，形成完整的长期智能体记忆层
+- [ ] **沙箱加固**: 代码执行隔离的 v2 改进
 - [ ] **性能测试**: 并发负载基准
-- [ ] **MCP 连接池**: 按请求 STDIO 子进程生成不能扩展 — 100 个并发用户 = 每个 MCP 服务器 100 个子进程。使用按用户环境隔离的池 STDIO 连接（由 `(server_id, env_hash)` 键入）；SSE/HTTP 传输共享 `httpx.AsyncClient` 会话。目标：池 STDIO 的 `≤100 ms` 热启动，无论用户数如何，每个 MCP 服务器 O(1) HTTP 连接
+- [ ] **MCP 连接池**: 每请求 STDIO 子进程生成不可扩展 — 100 个并发用户 = 每个 MCP 服务器 100 个子进程。使用每用户环境隔离（由 `(server_id, env_hash)` 键入）池化 STDIO 连接；SSE/HTTP 传输共享 `httpx.AsyncClient` 会话。目标：池化 STDIO 的 `≤100 ms` 热启动，无论用户计数如何，每个 MCP 服务器 O(1) HTTP 连接
 - [ ] **内部工具基准** — 使用 EVAL CENTER 基础设施量化工具参数变化（系统提示词、自反思频率、工具选择阈值）的内置测试套件
-- [x] ~~**ReAct 循环检测** — 确定性重复工具调用检测，具有可配置的阈值；防止智能体循环，无需依赖 LLM 自我意识~~ *（v0.8.1 发布）*
+- [x] ~~**ReAct 循环检测** — 确定性重复工具调用检测，可配置阈值；防止智能体循环，无需依赖 LLM 自我意识~~ *（v0.8.1 发布）*
 - [x] ~~**ReAct 完成清单** — 使用工具时的一次性答案前验证提示词；减少过早结论~~ *（v0.8.1 发布）*
-- [x] ~~**智能体核心第 3 阶段 — 运行时不变量加固**: 四个错误修复/可观测性升级，解决 CC 的运行时不变量 — (I.14) 对话恢复：在 `DbMemory.get_messages()` 中检测和修复来自中断轮次的悬空 `tool_use` 块，以防止 HTTP 400 轨迹错误；(I.15) 结构化紧凑工作卡：将 9 部分紧凑输出解析为类型化 `WorkCard`，并在连续压缩中合并，以便错误/待处理任务在多轮中存活；(I.16) 轮次分析器：按轮次阶段级时序日志（`memory_load`/`compact`/`tool_schema_build`/`llm_first_token`/`llm_total`/`tool_exec`），由 `REACT_TURN_PROFILE_ENABLED` 门控；(I.17) 按用户速率限制：修复进程全局速率限制器为按用户键入的桶，通过 `ContextVar` 布
+- [x] ~~**
 #### Prompt Cache + 推理 Follow-ups（来自 Batch A MVPs）
 
 这些项目完成了 Batch A 中已发货的部分工作（对话恢复、系统提示词注册表、思考块）并将缓存覆盖范围扩展到剩余的提供商系列。

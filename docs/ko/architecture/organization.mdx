@@ -141,6 +141,35 @@ A resource is available in your workspace if:
 조직에 리소스를 게시해도 자동으로 접근 권한이 부여되지 않습니다. 구성원은 마켓의 조직 범위를 통해 구독하여 리소스를 자신의 워크스페이스에 추가해야 합니다.
 </Warning>
 
+## 인프라 리소스 (조직 전체, 구독 불필요)
+
+두 번째 클래스의 조직 범위 리소스는 위의 개인 → 게시 → 구독 라이프사이클을 **따르지 않습니다**. 이러한 리소스는 **조직 소유자 또는 관리자가 한 번 구성**한 후 조직의 모든 에이전트에서 투명하게 사용 가능합니다:
+
+| 리소스 | 목적 | 구성자 | 사용자 |
+|---|---|---|---|
+| **채널** | IM 플랫폼으로의 아웃바운드 브릿지 (현재 Feishu; Slack / WeCom / Teams 계획 중) | 조직 소유자 / 관리자 | 모든 에이전트의 [Hook System](/architecture/hook-system) 및 사전 알림 도구 |
+| **OAuth 제공자** | 소셜 로그인 자격증명 (GitHub, Google, Feishu, Discord) | 시스템 관리자 (환경 변수) | 로그인 페이지 |
+| **API 키** | 헤드리스 클라이언트를 위한 프로그래밍 방식 액세스 토큰 | 각 사용자, 조직 범위 | 외부 통합 |
+
+```mermaid
+flowchart LR
+    Admin["Org Owner / Admin"]
+    subgraph Org["Organization"]
+        Ch["Channel<br/>(e.g. FIM One ↔ Feishu group)"]
+        A1["Agent A"]
+        A2["Agent B"]
+        A3["Agent C"]
+    end
+    Admin -->|"configure once"| Ch
+    A1 -. "uses via feishu_gate hook" .-> Ch
+    A2 -. "uses for notifications" .-> Ch
+    A3 -. "uses for approval cards" .-> Ch
+```
+
+핵심 구분: **게시 가능한 리소스**(에이전트, 커넥터, KB, …)는 명시적 멤버 구독이 필요한 사용자별 아티팩트이고, **인프라 리소스**(채널, OAuth, API 키)는 모든 에이전트가 암묵적으로 공유하는 플랫폼 수준의 배선입니다. 채널은 특히 전체 조직의 IM 핫라인입니다 — 잘 유지된 하나의 Feishu 채널이 모든 에이전트의 승인 게이트, 모든 예약된 보고서, 모든 에스컬레이션 이벤트를 지원합니다.
+
+채널 라이프사이클 및 지원되는 플랫폼에 대해서는 [채널 개요](/configuration/channels/overview)를 참조하세요.
+
 ## 실제 시나리오
 
 ### 팀이 데이터베이스 커넥터 공유하기

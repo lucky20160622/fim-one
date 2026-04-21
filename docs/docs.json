@@ -102,6 +102,7 @@
                   "architecture/context-management",
                   "architecture/progressive-disclosure",
                   "architecture/connector-architecture",
+                  "architecture/hook-system",
                   "architecture/planning-landscape",
                   "architecture/design-philosophy"
                 ]
@@ -238,6 +239,7 @@
                   "zh/architecture/context-management",
                   "zh/architecture/progressive-disclosure",
                   "zh/architecture/connector-architecture",
+                  "zh/architecture/hook-system",
                   "zh/architecture/planning-landscape",
                   "zh/architecture/design-philosophy"
                 ]
@@ -367,6 +369,7 @@
                   "ja/architecture/context-management",
                   "ja/architecture/progressive-disclosure",
                   "ja/architecture/connector-architecture",
+                  "ja/architecture/hook-system",
                   "ja/architecture/planning-landscape",
                   "ja/architecture/design-philosophy"
                 ]
@@ -496,6 +499,7 @@
                   "ko/architecture/context-management",
                   "ko/architecture/progressive-disclosure",
                   "ko/architecture/connector-architecture",
+                  "ko/architecture/hook-system",
                   "ko/architecture/planning-landscape",
                   "ko/architecture/design-philosophy"
                 ]
@@ -625,6 +629,7 @@
                   "de/architecture/context-management",
                   "de/architecture/progressive-disclosure",
                   "de/architecture/connector-architecture",
+                  "de/architecture/hook-system",
                   "de/architecture/planning-landscape",
                   "de/architecture/design-philosophy"
                 ]
@@ -754,6 +759,7 @@
                   "fr/architecture/context-management",
                   "fr/architecture/progressive-disclosure",
                   "fr/architecture/connector-architecture",
+                  "fr/architecture/hook-system",
                   "fr/architecture/planning-landscape",
                   "fr/architecture/design-philosophy"
                 ]

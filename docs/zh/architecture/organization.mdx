@@ -141,6 +141,35 @@ A resource is available in your workspace if:
 将资源发布到组织不会自动授予访问权限。成员必须通过市场的组织范围订阅才能将资源添加到其工作区。
 </Warning>
 
+## 基础设施资源（组织范围，无订阅）
+
+第二类组织范围的资源**不遵循**上述个人 → 发布 → 订阅的生命周期。这些资源**由组织所有者或管理员配置一次**，然后对组织中的每个智能体透明可用：
+
+| 资源 | 用途 | 配置者 | 使用者 |
+|---|---|---|---|
+| **Channels** | 到即时通讯平台的出站桥接（目前支持 Feishu；计划支持 Slack / WeCom / Teams） | 组织所有者 / 管理员 | 每个智能体的 [Hook System](/architecture/hook-system) 和主动通知工具 |
+| **OAuth Providers** | 社交登录凭证（GitHub、Google、Feishu、Discord） | 系统管理员（环境变量） | 登录页面 |
+| **API Keys** | 无头客户端的编程访问令牌 | 每个用户，组织范围 | 外部集成 |
+
+```mermaid
+flowchart LR
+    Admin["Org Owner / Admin"]
+    subgraph Org["Organization"]
+        Ch["Channel<br/>(e.g. FIM One ↔ Feishu group)"]
+        A1["Agent A"]
+        A2["Agent B"]
+        A3["Agent C"]
+    end
+    Admin -->|"configure once"| Ch
+    A1 -. "uses via feishu_gate hook" .-> Ch
+    A2 -. "uses for notifications" .-> Ch
+    A3 -. "uses for approval cards" .-> Ch
+```
+
+关键区别：**可发布资源**（智能体、连接器、知识库等）是需要显式成员订阅的每用户工件；**基础设施资源**（Channels、OAuth、API 密钥）是所有智能体隐式共享的平台级接线。Channels 特别是整个组织的即时通讯热线 — 一个维护良好的 Feishu 频道支持每个智能体的审批门、每个计划报告、每个升级事件。
+
+有关频道生命周期和支持的平台，请参阅 [Channels 概览](/configuration/channels/overview)。
+
 ## 实际应用场景
 
 ### 团队共享数据库连接器

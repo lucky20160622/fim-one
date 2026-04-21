@@ -124,10 +124,11 @@ cd frontend && pnpm install && cd ..
 #### 规划与执行
 - **动态 DAG 规划** — LLM 在运行时将目标分解为依赖图。无硬编码工作流。
 - **并发执行** — 独立步骤通过 asyncio 并行运行；自动重新规划最多 3 轮。
-- **ReAct 智能体** — 结构化的推理和行动循环，具有自动错误恢复。
-- **智能体框架** — 生产级执行环境，配备 Hook 中间件用于确定性防护栏、ContextGuard 用于上下文管理、渐进式披露元工具和自反思循环。
-- **自动路由** — 分类查询并路由到最优模式（ReAct 或 DAG）。可通过 `AUTO_ROUTING` 配置。
-- **扩展思维** — OpenAI o 系列、Gemini 2.5+、Claude 的思维链。
+- **ReAct 智能体** — 结构化推理与行动循环，具有自动错误恢复。
+- **智能体框架** — 生产级执行环境：ContextGuard 用于 5 层 token 预算管理，渐进式披露元工具以保持工具表面的可控性，以及自反思循环以对抗目标漂移。
+- **Hook 系统** — 在 LLM 循环外运行的确定性强制执行。首次发布：`FeishuGateHook` 在 Feishu 群组中通过人工审批卡片来控制敏感工具调用。可扩展至审计日志、只读模式保护和速率限制（v0.9）。
+- **自动路由** — 对查询进行分类并路由到最优模式（ReAct 或 DAG）。通过 `AUTO_ROUTING` 配置。
+- **扩展思考** — OpenAI o 系列、Gemini 2.5+、Claude 的思维链。
 
 #### 工作流与工具
 - **可视化工作流编辑器** — 12 种节点类型、拖放画布（React Flow v12）、JSON 格式的导入/导出功能。
@@ -136,33 +137,39 @@ cd frontend && pnpm install && cd ..
 - **完整 RAG 管道** — Jina 嵌入 + LanceDB + 混合检索 + 重排器 + 内联 `[N]` 引用。
 - **工具制品** — 丰富的输出（HTML 预览、文件）在聊天中呈现。
 
+#### 消息通道 (v0.8)
+- **组织范围的即时通讯桥接** — `BaseChannel` 抽象层用于向飞书（Lark）发送出站消息；Slack / WeCom / Teams / Email 在 v0.9 路线图中。
+- **Fernet 加密凭证** — 应用密钥和加密密钥在静态时加密；每个入站回调都经过签名验证。
+- **交互式审批卡片** — 当敏感工具调用触发时，`FeishuGateHook` 向你的飞书群组发布一张"批准/拒绝"卡片；工具会阻塞直到群组成员点击一个决议。无需自定义工作流引擎的人工审批循环。
+- **浏览并选择 UI** — 无需从飞书控制台复制原始 `chat_id` 值；门户调用飞书 API 并显示群组选择器。
+
 #### 平台
-- **多租户** — JWT 认证、组织隔离、管理面板（包含使用分析和连接器指标）。
+- **多租户** — JWT 认证、组织隔离、管理面板（包含使用情况分析和连接器指标）。
 - **应用市场** — 发布和订阅智能体、连接器、知识库、技能、工作流。
 - **全局技能（SOP）** — 为每个用户加载的可复用操作流程；渐进模式可减少约 80% 的 token 消耗。
 - **6 种语言** — EN、ZH、JA、KO、DE、FR。翻译[完全自动化](https://docs.fim.ai/quickstart#internationalization)。
 - **首次运行设置向导**、深色/浅色主题、命令面板、流式 SSE、DAG 可视化。
 
-> 深入了解：[架构](https://docs.fim.ai/architecture/system-overview) · [执行模式](https://docs.fim.ai/concepts/execution-modes) · [为什么选择 FIM One](https://docs.fim.ai/why) · [竞争格局](https://docs.fim.ai/strategy/competitive-landscape)
+> 深入了解：[架构](https://docs.fim.ai/architecture/system-overview) · [Hook 系统](https://docs.fim.ai/architecture/hook-system) · [通道](https://docs.fim.ai/configuration/channels/overview) · [执行模式](https://docs.fim.ai/concepts/execution-modes) · [为什么选择 FIM One](https://docs.fim.ai/why) · [竞争格局](https://docs.fim.ai/strategy/competitive-landscape)
 
 ## 架构
 
 ```mermaid
 graph TB
     subgraph app["Application Layer"]
-        a["Portal · API · iframe · Lark/Slack Bot · Webhook · WeCom/DingTalk"]
+        a["Portal · API · iframe · Feishu · Slack · WeCom · DingTalk · Teams · Email · Contract Systems · Custom Webhooks"]
     end
     subgraph mid["FIM One"]
         direction LR
-        m1["Connectors<br/>+ MCP Hub"] ~~~ m2["Orch Engine<br/>ReAct / DAG"] ~~~ m3["RAG /<br/>Knowledge"] ~~~ m4["Auth /<br/>Admin"]
+        m1["Connectors<br/>+ MCP Hub"] ~~~ m2["Orch Engine<br/>ReAct / DAG"] ~~~ m3["RAG /<br/>Knowledge"] ~~~ m5["Hook System<br/>+ Channels"] ~~~ m4["Auth /<br/>Admin"]
     end
     subgraph biz["Business Systems"]
-        b["ERP · CRM · OA · Finance · Databases · Custom APIs"]
+        b["ERP · CRM · OA · Finance · Databases · Contract Mgmt · Custom APIs"]
     end
     app --> mid --> biz
 ```
 
-每个连接器都是一个标准化的桥接——智能体不需要知道或关心它是在与 SAP 还是自定义数据库通信。详见 [连接器架构](https://docs.fim.ai/architecture/connector-architecture)。
+每个连接器和通道都是一个标准化的桥接——智能体不知道或不关心它是在与 SAP、自定义合同系统还是飞书群组通信。Hook 系统在 LLM 循环之外运行平台代码以进行审批、审计和速率限制；通道将出站通知和审批卡片传送到外部 IM 平台。详见 [连接器架构](https://docs.fim.ai/architecture/connector-architecture)、[Hook 系统](https://docs.fim.ai/architecture/hook-system) 和[通道](https://docs.fim.ai/configuration/channels/overview)。
 
 ## 配置
 
@@ -192,9 +199,10 @@ JINA_API_KEY=jina_...                       # unlocks web tools + RAG
 | ----------- | ------------------------------------------------------------------- |
 | 后端     | Python 3.11+, FastAPI, SQLAlchemy, Alembic, asyncio                 |
 | 前端    | Next.js 14, React 18, Tailwind CSS, shadcn/ui, React Flow v12      |
-| AI / RAG    | OpenAI-compatible LLMs, Jina AI (embed + search), LanceDB          |
-| 数据库    | SQLite (dev) / PostgreSQL (prod)                                    |
-| 基础设施       | Docker, uv, pnpm, SSE streaming                                    |
+| AI / RAG    | OpenAI 兼容的 LLM, Jina AI (嵌入 + 搜索), LanceDB          |
+| 数据库    | SQLite (开发) / PostgreSQL (生产)                                    |
+| 消息传递   | Feishu Open Platform (Lark), Fernet 加密凭证, HMAC 签名验证 |
+| 基础设施       | Docker, uv, pnpm, SSE 流式传输                                    |
 
 ## 开发
 

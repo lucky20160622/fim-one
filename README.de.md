@@ -124,8 +124,9 @@ cd frontend && pnpm install && cd ..
 #### Planung & Ausführung
 - **Dynamische DAG-Planung** — LLM zerlegt Ziele zur Laufzeit in Abhängigkeitsgraphen. Keine hartcodierten Workflows.
 - **Parallele Ausführung** — Unabhängige Schritte laufen parallel über asyncio; automatische Neuplanung bis zu 3 Runden.
-- **ReAct-Agent** — Strukturierte Reasoning-and-Acting-Schleife mit automatischer Fehlerwiederherstellung.
-- **Agent-Harness** — Produktionsreife Ausführungsumgebung mit Hook-Middleware für deterministische Schutzmaßnahmen, ContextGuard für Kontextmanagement, progressive-disclosure Meta-Tools und Self-Reflection-Schleifen.
+- **ReAct-Agent** — Strukturierte Reasoning- und Acting-Schleife mit automatischer Fehlerwiederherstellung.
+- **Agent-Harness** — Produktionsreife Ausführungsumgebung: ContextGuard für 5-schichtige Token-Budget-Verwaltung, progressive-disclosure Meta-Tools zur Beherrschung der Tool-Oberfläche und Self-Reflection-Schleifen zur Bekämpfung von Zieldrift.
+- **Hook-System** — Deterministische Durchsetzung, die außerhalb der LLM-Schleife läuft. Erste Implementierung: `FeishuGateHook` sperrt sensitive Tool-Aufrufe hinter einer menschlichen Genehmigungskarte, die in eine Feishu-Gruppe gepostet wird. Erweiterbar auf Audit-Logging, Read-Only-Mode-Guards und Rate Limits (v0.9).
 - **Auto-Routing** — Klassifiziert Anfragen und leitet zum optimalen Modus weiter (ReAct oder DAG). Konfigurierbar über `AUTO_ROUTING`.
 - **Extended Thinking** — Chain-of-Thought für OpenAI o-Serie, Gemini 2.5+, Claude.
 
@@ -136,33 +137,39 @@ cd frontend && pnpm install && cd ..
 - **Full RAG pipeline** — Jina-Embedding + LanceDB + Hybrid-Retrieval + Reranker + Inline-`[N]`-Zitate.
 - **Tool artifacts** — Rich Outputs (HTML-Vorschau, Dateien) im Chat gerendert.
 
-#### Plattform
-- **Multi-Mandant** — JWT-Authentifizierung, Organisationsisolation, Admin-Panel mit Nutzungsanalysen und Connector-Metriken.
-- **Marketplace** — Veröffentlichen und Abonnieren von Agenten, Connectoren, Wissensdatenbanken, Skills und Workflows.
-- **Globale Skills (SOPs)** — Wiederverwendbare Betriebsverfahren, die für jeden Benutzer geladen werden; progressiver Modus reduziert Token um ~80%.
-- **6 Sprachen** — EN, ZH, JA, KO, DE, FR. Übersetzungen sind [vollständig automatisiert](https://docs.fim.ai/quickstart#internationalization).
-- **Einrichtungsassistent beim ersten Start**, dunkles/helles Design, Befehlspalette, Streaming SSE, DAG-Visualisierung.
+#### Messaging Channels (v0.8)
+- **Org-scoped IM bridge** — `BaseChannel` Abstraktion für ausgehende Nachrichten an Feishu (Lark) heute; Slack / WeCom / Teams / Email auf der v0.9 Roadmap.
+- **Fernet-verschlüsselte Anmeldedaten** — App-Geheimnisse und Verschlüsselungsschlüssel im Ruhezustand verschlüsselt; jede eingehende Callback-Signatur verifiziert.
+- **Interaktive Genehmigungskarten** — `FeishuGateHook` sendet eine Approve / Reject Karte an Ihre Feishu-Gruppe, wenn ein sensitiver Tool-Aufruf ausgelöst wird; das Tool blockiert, bis ein Gruppenmitglied ein Urteil bestätigt. Human-in-the-Loop-Genehmigung ohne benutzerdefinierten Workflow-Engine.
+- **Browse-and-pick UI** — Keine rohen `chat_id` Werte aus der Feishu-Konsole kopieren; das Portal ruft die Feishu API auf und zeigt einen Gruppenwähler.
 
-> Tiefergehende Informationen: [Architektur](https://docs.fim.ai/architecture/system-overview) · [Ausführungsmodi](https://docs.fim.ai/concepts/execution-modes) · [Warum FIM One](https://docs.fim.ai/why) · [Wettbewerbslandschaft](https://docs.fim.ai/strategy/competitive-landscape)
+#### Plattform
+- **Multi-Mandanten** — JWT-Authentifizierung, Organisationsisolation, Admin-Panel mit Nutzungsanalytics und Connector-Metriken.
+- **Marketplace** — Veröffentlichen und abonnieren Sie Agenten, Connectors, KBs, Skills und Workflows.
+- **Globale Skills (SOPs)** — Wiederverwendbare Betriebsverfahren, die für jeden Benutzer geladen werden; progressiver Modus reduziert Tokens um ~80%.
+- **6 Sprachen** — EN, ZH, JA, KO, DE, FR. Übersetzungen sind [vollständig automatisiert](https://docs.fim.ai/quickstart#internationalization).
+- **Assistent für die erste Einrichtung**, dunkles/helles Design, Befehlspalette, Streaming SSE, DAG-Visualisierung.
+
+> Tiefergehende Informationen: [Architektur](https://docs.fim.ai/architecture/system-overview) · [Hook-System](https://docs.fim.ai/architecture/hook-system) · [Kanäle](https://docs.fim.ai/configuration/channels/overview) · [Ausführungsmodi](https://docs.fim.ai/concepts/execution-modes) · [Warum FIM One](https://docs.fim.ai/why) · [Wettbewerbslandschaft](https://docs.fim.ai/strategy/competitive-landscape)
 
 ## Architektur
 
 ```mermaid
 graph TB
     subgraph app["Application Layer"]
-        a["Portal · API · iframe · Lark/Slack Bot · Webhook · WeCom/DingTalk"]
+        a["Portal · API · iframe · Feishu · Slack · WeCom · DingTalk · Teams · Email · Contract Systems · Custom Webhooks"]
     end
     subgraph mid["FIM One"]
         direction LR
-        m1["Connectors<br/>+ MCP Hub"] ~~~ m2["Orch Engine<br/>ReAct / DAG"] ~~~ m3["RAG /<br/>Knowledge"] ~~~ m4["Auth /<br/>Admin"]
+        m1["Connectors<br/>+ MCP Hub"] ~~~ m2["Orch Engine<br/>ReAct / DAG"] ~~~ m3["RAG /<br/>Knowledge"] ~~~ m5["Hook System<br/>+ Channels"] ~~~ m4["Auth /<br/>Admin"]
     end
     subgraph biz["Business Systems"]
-        b["ERP · CRM · OA · Finance · Databases · Custom APIs"]
+        b["ERP · CRM · OA · Finance · Databases · Contract Mgmt · Custom APIs"]
     end
     app --> mid --> biz
 ```
 
-Jeder Konnektor ist eine standardisierte Schnittstelle — der Agent muss nicht wissen oder sich darum kümmern, ob er mit SAP oder einer benutzerdefinierten Datenbank kommuniziert. Weitere Details finden Sie unter [Konnektor-Architektur](https://docs.fim.ai/architecture/connector-architecture).
+Jeder Connector und jeder Channel ist eine standardisierte Brücke — der Agent weiß nicht und kümmert sich nicht darum, ob er mit SAP, einem benutzerdefinierten Vertragssystem oder einer Feishu-Gruppe spricht. Das Hook-System führt Plattformcode außerhalb der LLM-Schleife für Genehmigungen, Audits und Rate Limits aus; Channels übermitteln ausgehende Benachrichtigungen und Genehmigungskarten an externe IM-Plattformen. Weitere Informationen finden Sie unter [Connector-Architektur](https://docs.fim.ai/architecture/connector-architecture), [Hook-System](https://docs.fim.ai/architecture/hook-system) und [Channels](https://docs.fim.ai/configuration/channels/overview).
 
 ## Konfiguration
 
@@ -192,8 +199,9 @@ JINA_API_KEY=jina_...                       # unlocks web tools + RAG
 | ----------- | ------------------------------------------------------------------- |
 | Backend     | Python 3.11+, FastAPI, SQLAlchemy, Alembic, asyncio                 |
 | Frontend    | Next.js 14, React 18, Tailwind CSS, shadcn/ui, React Flow v12      |
-| AI / RAG    | OpenAI-kompatible LLMs, Jina AI (embed + search), LanceDB           |
+| KI / RAG    | OpenAI-kompatible LLMs, Jina AI (embed + search), LanceDB          |
 | Datenbank   | SQLite (dev) / PostgreSQL (prod)                                    |
+| Messaging   | Feishu Open Platform (Lark), Fernet-verschlüsselte Anmeldedaten, HMAC-Signaturverifizierung |
 | Infra       | Docker, uv, pnpm, SSE streaming                                    |
 
 ## Entwicklung

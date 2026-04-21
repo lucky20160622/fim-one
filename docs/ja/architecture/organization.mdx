@@ -141,6 +141,35 @@ A resource is available in your workspace if:
 リソースを組織に公開しても、自動的にアクセス権が付与されるわけではありません。メンバーはマーケットの組織スコープを通じて購読し、リソースをワークスペースに追加する必要があります。
 </Warning>
 
+## インフラストラクチャリソース（組織全体、サブスクリプションなし）
+
+2番目のクラスの組織スコープリソースは、上記の個人 → 公開 → サブスクライブのライフサイクルに**従いません**。これらは**組織オーナーまたは管理者によって一度設定され**、その後、組織内のすべての智能体に透過的に利用可能になります：
+
+| リソース | 目的 | 設定者 | 使用者 |
+|---|---|---|---|
+| **Channels** | IM プラットフォームへのアウトバウンドブリッジ（現在は Feishu、Slack / WeCom / Teams は計画中） | 組織オーナー / 管理者 | すべての智能体の [Hook System](/architecture/hook-system) とプロアクティブ通知ツール |
+| **OAuth Providers** | ソーシャルログイン認証情報（GitHub、Google、Feishu、Discord） | システム管理者（環境変数） | サインインページ |
+| **API Keys** | ヘッドレスクライアント向けのプログラマティックアクセストークン | 各ユーザー、組織スコープ | 外部統合 |
+
+```mermaid
+flowchart LR
+    Admin["Org Owner / Admin"]
+    subgraph Org["Organization"]
+        Ch["Channel<br/>(e.g. FIM One ↔ Feishu group)"]
+        A1["Agent A"]
+        A2["Agent B"]
+        A3["Agent C"]
+    end
+    Admin -->|"configure once"| Ch
+    A1 -. "uses via feishu_gate hook" .-> Ch
+    A2 -. "uses for notifications" .-> Ch
+    A3 -. "uses for approval cards" .-> Ch
+```
+
+重要な区別：**公開可能なリソース**（智能体、コネクタ、KB など）はユーザーごとのアーティファクトであり、明示的なメンバーサブスクリプションが必要です。**インフラストラクチャリソース**（Channels、OAuth、API キー）はプラットフォームレベルの配線であり、すべての智能体が暗黙的に共有します。特に Channels は組織全体の IM ホットラインです — よく保守された 1 つの Feishu チャネルがすべての智能体の承認ゲート、すべてのスケジュール済みレポート、すべてのエスカレーションイベントを支えています。
+
+チャネルのライフサイクルとサポートされているプラットフォームについては、[Channels overview](/configuration/channels/overview) を参照してください。
+
 ## 実践的なシナリオ
 
 ### チームがデータベースコネクタを共有する

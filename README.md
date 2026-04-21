@@ -125,7 +125,8 @@ cd frontend && pnpm install && cd ..
 - **Dynamic DAG planning** — LLM decomposes goals into dependency graphs at runtime. No hard-coded workflows.
 - **Concurrent execution** — Independent steps run in parallel via asyncio; auto re-plan up to 3 rounds.
 - **ReAct agent** — Structured reasoning-and-acting loop with automatic error recovery.
-- **Agent harness** — Production-grade execution environment with Hook middleware for deterministic guardrails, ContextGuard for context management, progressive-disclosure meta-tools, and self-reflection loops.
+- **Agent harness** — Production-grade execution environment: ContextGuard for 5-layer token-budget management, progressive-disclosure meta-tools to keep the tool surface tractable, and self-reflection loops to counter goal drift.
+- **Hook System** — Deterministic enforcement that runs outside the LLM loop. First shipped: `FeishuGateHook` gates sensitive tool calls behind a human approval card posted to a Feishu group. Extensible to audit logging, read-only-mode guards, and rate limits (v0.9).
 - **Auto-routing** — Classifies queries and routes to optimal mode (ReAct or DAG). Configurable via `AUTO_ROUTING`.
 - **Extended thinking** — Chain-of-thought for OpenAI o-series, Gemini 2.5+, Claude.
 
@@ -136,6 +137,12 @@ cd frontend && pnpm install && cd ..
 - **Full RAG pipeline** — Jina embedding + LanceDB + hybrid retrieval + reranker + inline `[N]` citations.
 - **Tool artifacts** — Rich outputs (HTML previews, files) rendered in-chat.
 
+#### Messaging Channels (v0.8)
+- **Org-scoped IM bridge** — `BaseChannel` abstraction for outbound messaging to Feishu (Lark) today; Slack / WeCom / Teams / Email on the v0.9 roadmap.
+- **Fernet-encrypted credentials** — App secrets and encrypt keys encrypted at rest; every inbound callback signature-verified.
+- **Interactive approval cards** — `FeishuGateHook` posts an Approve / Reject card to your Feishu group when a sensitive tool call fires; the tool blocks until a group member taps a verdict. Human-in-the-loop approval without a custom workflow engine.
+- **Browse-and-pick UI** — No copying raw `chat_id` values from the Feishu console; the portal calls the Feishu API and shows a group picker.
+
 #### Platform
 - **Multi-tenant** — JWT auth, org isolation, admin panel with usage analytics and connector metrics.
 - **Marketplace** — Publish and subscribe to agents, connectors, KBs, skills, workflows.
@@ -143,26 +150,26 @@ cd frontend && pnpm install && cd ..
 - **6 languages** — EN, ZH, JA, KO, DE, FR. Translations are [fully automated](https://docs.fim.ai/quickstart#internationalization).
 - **First-run setup wizard**, dark/light theme, command palette, streaming SSE, DAG visualization.
 
-> Deep dive: [Architecture](https://docs.fim.ai/architecture/system-overview) · [Execution Modes](https://docs.fim.ai/concepts/execution-modes) · [Why FIM One](https://docs.fim.ai/why) · [Competitive Landscape](https://docs.fim.ai/strategy/competitive-landscape)
+> Deep dive: [Architecture](https://docs.fim.ai/architecture/system-overview) · [Hook System](https://docs.fim.ai/architecture/hook-system) · [Channels](https://docs.fim.ai/configuration/channels/overview) · [Execution Modes](https://docs.fim.ai/concepts/execution-modes) · [Why FIM One](https://docs.fim.ai/why) · [Competitive Landscape](https://docs.fim.ai/strategy/competitive-landscape)
 
 ## Architecture
 
 ```mermaid
 graph TB
     subgraph app["Application Layer"]
-        a["Portal · API · iframe · Lark/Slack Bot · Webhook · WeCom/DingTalk"]
+        a["Portal · API · iframe · Feishu · Slack · WeCom · DingTalk · Teams · Email · Contract Systems · Custom Webhooks"]
     end
     subgraph mid["FIM One"]
         direction LR
-        m1["Connectors<br/>+ MCP Hub"] ~~~ m2["Orch Engine<br/>ReAct / DAG"] ~~~ m3["RAG /<br/>Knowledge"] ~~~ m4["Auth /<br/>Admin"]
+        m1["Connectors<br/>+ MCP Hub"] ~~~ m2["Orch Engine<br/>ReAct / DAG"] ~~~ m3["RAG /<br/>Knowledge"] ~~~ m5["Hook System<br/>+ Channels"] ~~~ m4["Auth /<br/>Admin"]
     end
     subgraph biz["Business Systems"]
-        b["ERP · CRM · OA · Finance · Databases · Custom APIs"]
+        b["ERP · CRM · OA · Finance · Databases · Contract Mgmt · Custom APIs"]
     end
     app --> mid --> biz
 ```
 
-Each connector is a standardized bridge — the agent doesn't know or care whether it's talking to SAP or a custom database. See [Connector Architecture](https://docs.fim.ai/architecture/connector-architecture) for details.
+Each connector and channel is a standardized bridge — the agent doesn't know or care whether it's talking to SAP, a custom contract system, or a Feishu group. The Hook System runs platform code outside the LLM loop for approvals, audit, and rate limits; Channels carry outbound notifications and approval cards to external IM platforms. See [Connector Architecture](https://docs.fim.ai/architecture/connector-architecture), [Hook System](https://docs.fim.ai/architecture/hook-system), and [Channels](https://docs.fim.ai/configuration/channels/overview) for details.
 
 ## Configuration
 
@@ -194,6 +201,7 @@ JINA_API_KEY=jina_...                       # unlocks web tools + RAG
 | Frontend    | Next.js 14, React 18, Tailwind CSS, shadcn/ui, React Flow v12      |
 | AI / RAG    | OpenAI-compatible LLMs, Jina AI (embed + search), LanceDB          |
 | Database    | SQLite (dev) / PostgreSQL (prod)                                    |
+| Messaging   | Feishu Open Platform (Lark), Fernet-encrypted credentials, HMAC signature verification |
 | Infra       | Docker, uv, pnpm, SSE streaming                                    |
 
 ## Development

@@ -107,13 +107,14 @@ flowchart TD
 
 ## 反復ループ
 
-コアループは JSON モードとネイティブモードの両方を駆動し、メッセージ処理にはわずかな違いがあります。各反復は同じ高レベルパターンに従います：コンテキスト予算をチェック、LLM を呼び出し、レスポンスを処理し、ツールを実行するか中断するかのいずれかです。
+コアループはJSONモードとネイティブモードの両方を駆動し、メッセージ処理に若干の違いがあります。各反復は同じ高レベルパターンに従います：コンテキスト予算をチェック、LLMを呼び出し、レスポンスを処理し、ツールを実行するか中断するかのいずれかです。
 
 ```mermaid
 sequenceDiagram
     participant Agent as ReActAgent
     participant CG as ContextGuard
     participant LLM as LLM API
+    participant Hooks as HookRegistry
     participant Tool as Tool Registry
 
     loop Each iteration (max 50)
@@ -122,13 +123,22 @@ sequenceDiagram
         Agent->>LLM: chat(messages) [non-streaming]
         LLM-->>Agent: response
         alt tool_call action
-            Agent->>Tool: execute(tool_name, args)
-            Tool-->>Agent: observation
-            Agent->>Agent: cycle check (hash args)
-            opt identical call ≥ threshold
-                Agent->>Agent: inject "try different approach" warning
+            Agent->>Hooks: run_pre_tool_use_hooks(ctx)
+            alt hook blocks
+                Hooks-->>Agent: allow=False, error="..."
+                Agent->>Agent: append block message, continue
+            else hook allows (possibly rewrote args)
+                Hooks-->>Agent: allow=True, modified_args?
+                Agent->>Tool: execute(tool_name, args)
+                Tool-->>Agent: observation
+                Agent->>Hooks: run_post_tool_use_hooks(ctx, result)
+                Hooks-->>Agent: modified_result?
+                Agent->>Agent: cycle check (hash args)
+                opt identical call ≥ threshold
+                    Agent->>Agent: inject "try different approach" warning
+                end
+                Agent->>Agent: append observation, continue
             end
-            Agent->>Agent: append observation, continue
         else final_answer action
             opt tools used ≥ threshold AND not yet checked
                 Agent->>Agent: inject completion checklist
@@ -141,13 +151,29 @@ sequenceDiagram
     LLM-->>Agent: token stream → SSE to client
 ```
 
-**JSON モードループ。** LLM のレスポンスは `_parse_action()` を介して解析され、`extract_json()` を使用してコンテンツ内の JSON オブジェクトを検出します。解析に失敗した場合、エージェントは生のレスポンスと再フォーマットリクエストを追加してから続行します — これは `max_iterations` に対してカウントされ、無限再試行ループを防止します。成功時、アクションは `tool_call`（ツールを実行し、観測結果をユーザーメッセージとして追加）または `final_answer`（中断して合成に進む）のいずれかです。
+**JSONモードループ。** LLMのレスポンスは`_parse_action()`を介して解析され、`extract_json()`を使用してコンテンツ内のJSONオブジェクトを見つけます。解析に失敗した場合、エージェントは生のレスポンスと再フォーマットリクエストを追加してから続行します — これは`max_iterations`に対してカウントされ、無限再試行ループを防ぎます。成功時、アクションは`tool_call`（ツールを実行し、観察結果をユーザーメッセージとして追加）または`final_answer`（中断して合成に進む）のいずれかです。
 
-**ネイティブモードループ。** LLM のレスポンスは 1 つ以上の `tool_calls` を含む場合があります。単一のレスポンス内のすべてのツール呼び出しは `asyncio.gather` を介して並列実行され、すべてのツール結果メッセージは他のメッセージの前に追加されます。この順序付け制約は重要です — OpenAI API（および互換性のあるプロバイダー）では、`tool` メッセージが `tool_calls` を生成した `assistant` メッセージの直後に続く必要があります。その間に他のメッセージ（ユーザー割り込みなど）を挿入すると、プロトコルが破損します。`tool_calls` がない場合、レスポンスは最終回答として扱われます。
+**ネイティブモードループ。** LLMのレスポンスは1つ以上の`tool_calls`を含む場合があります。単一のレスポンス内のすべてのツール呼び出しは`asyncio.gather`を介して並列実行され、すべてのツール結果メッセージは他のメッセージの前に追加されます。この順序制約は重要です — OpenAI API（および互換性のあるプロバイダー）は、`tool`メッセージが`tool_calls`を生成した`assistant`メッセージの直後に続くことを要求します。それらの間に他のメッセージ（ユーザー割り込みなど）を挿入すると、プロトコルが破損します。`tool_calls`が存在しない場合、レスポンスは最終回答として扱われます。
 
-**最大反復回数。** デフォルト制限は 50 反復です。ループがこの制限を超過しても `final_answer` を生成しない場合、エージェントは累積されたステップ結果から フォールバックレスポンスを合成します — どのツールが呼び出されたか、および成功したか失敗したかの概要です。これは安全ネットであり、通常の終了パスではありません。
+**最大反復回数。** デフォルト制限は50反復です。ループがこの制限を使い果たして`final_answer`を生成しない場合、エージェントは累積されたステップ結果から フォールバックレスポンスを合成します — どのツールが呼び出されたか、および成功したか失敗したかの要約です。これは安全ネットであり、通常の終了パスではありません。
 
-[コンテキスト管理](/architecture/context-management)では、ContextGuard が各反復でトークン予算を強制する方法、および最近の推論チェーンを保持するようにコンパクション LLM に指示するヒントシステムについて説明しています。
+[コンテキスト管理](/architecture/context-management)は、ContextGuardが毎回の反復でトークン予算を強制する方法を説明しており、最近の推理チェーンを保持するようにコンパクション LLMに指示するヒントシステムが含まれています。
+
+## ツール実行フック
+
+反復ループ内のすべてのツール呼び出しは、2つのフックポイントでラップされます：
+
+- **`PreToolUse`** — LLMがツールを選択した後、ツール実行前に発火します。フックは以下を実行できます：
+  - **ブロック** `allow=False`を返すことで呼び出しをブロック（LLMは理由を説明する観測値を受け取ります。例：「人間の承認を待機中」または「組織が読み取り専用モード」）
+  - **書き換え** 実行前にツール引数を書き換え
+  - **副作用をトリガー** （Feishuカードを投稿、監査行を作成、メトリクスを発行）
+- **`PostToolUse`** — ツール実行後、観測値がLLMに到達する前に発火します。フックは以下を実行できます：
+  - **書き換え** 観測値を書き換え（例：200 KB SQLの結果を4 KBサマリーに切り詰め）
+  - **副作用をトリガー** （`ConnectorCallLog`に書き込み、使用量カウンターを更新）
+
+フックは**LLMループの外で実行**されます — LLMが言ったり実行したりすることは、フックをスキップできません。これはプロンプト指示に信頼できないポリシーの決定論的な強制レイヤーです：人間参加型の承認（`FeishuGateHook`）、監査ログ、レート制限、読み取り専用モードガード。詳細な設計については[フックシステム](/architecture/hook-system)を参照してください。
+
+同じフックポイントが[DAGエンジン](/architecture/dag-engine)に存在します — 各DAGステップは独自のReActループを実行するため、どの実行エンジンがツール呼び出しを駆動しているかに関わらず、フックが均一に適用されます。
 
 ## ミッド・ループ自己反省
 

@@ -107,13 +107,14 @@ L'échec de la sélection est volontairement non fatal. Si le LLM retourne une s
 
 ## La boucle d'itération
 
-La boucle principale pilote à la fois le mode JSON et le mode natif, avec des différences mineures dans la gestion des messages. Chaque itération suit le même modèle de haut niveau : vérifier le budget de contexte, appeler le LLM, traiter la réponse, et soit exécuter un outil, soit s'arrêter.
+La boucle centrale pilote à la fois le mode JSON et le mode natif, avec des différences mineures dans la gestion des messages. Chaque itération suit le même modèle de haut niveau : vérifier le budget de contexte, appeler le LLM, traiter la réponse, et soit exécuter un outil, soit arrêter.
 
 ```mermaid
 sequenceDiagram
     participant Agent as ReActAgent
     participant CG as ContextGuard
     participant LLM as LLM API
+    participant Hooks as HookRegistry
     participant Tool as Tool Registry
 
     loop Each iteration (max 50)
@@ -122,13 +123,22 @@ sequenceDiagram
         Agent->>LLM: chat(messages) [non-streaming]
         LLM-->>Agent: response
         alt tool_call action
-            Agent->>Tool: execute(tool_name, args)
-            Tool-->>Agent: observation
-            Agent->>Agent: cycle check (hash args)
-            opt identical call ≥ threshold
-                Agent->>Agent: inject "try different approach" warning
+            Agent->>Hooks: run_pre_tool_use_hooks(ctx)
+            alt hook blocks
+                Hooks-->>Agent: allow=False, error="..."
+                Agent->>Agent: append block message, continue
+            else hook allows (possibly rewrote args)
+                Hooks-->>Agent: allow=True, modified_args?
+                Agent->>Tool: execute(tool_name, args)
+                Tool-->>Agent: observation
+                Agent->>Hooks: run_post_tool_use_hooks(ctx, result)
+                Hooks-->>Agent: modified_result?
+                Agent->>Agent: cycle check (hash args)
+                opt identical call ≥ threshold
+                    Agent->>Agent: inject "try different approach" warning
+                end
+                Agent->>Agent: append observation, continue
             end
-            Agent->>Agent: append observation, continue
         else final_answer action
             opt tools used ≥ threshold AND not yet checked
                 Agent->>Agent: inject completion checklist
@@ -141,13 +151,29 @@ sequenceDiagram
     LLM-->>Agent: token stream → SSE to client
 ```
 
-**Boucle en mode JSON.** La réponse du LLM est analysée via `_parse_action()`, qui utilise `extract_json()` pour trouver un objet JSON dans le contenu. Si l'analyse échoue, l'agent ajoute la réponse brute et une demande de reformatage, puis continue — cela compte par rapport à `max_iterations`, ce qui empêche les boucles de retry infinies. En cas de succès, l'action est soit un `tool_call` (exécuter l'outil, ajouter l'observation comme message utilisateur) soit une `final_answer` (s'arrêter et procéder à la synthèse).
+**Boucle en mode JSON.** La réponse du LLM est analysée via `_parse_action()`, qui utilise `extract_json()` pour trouver un objet JSON dans le contenu. Si l'analyse échoue, l'agent ajoute la réponse brute et une demande de reformatage, puis continue — cela compte dans `max_iterations`, ce qui empêche les boucles de retry infinies. En cas de succès, l'action est soit un `tool_call` (exécuter l'outil, ajouter l'observation comme message utilisateur) soit une `final_answer` (arrêter et procéder à la synthèse).
 
-**Boucle en mode natif.** La réponse du LLM peut contenir un ou plusieurs `tool_calls`. Tous les appels d'outils dans une seule réponse sont exécutés en parallèle via `asyncio.gather`, et tous les messages de résultats d'outils sont ajoutés avant tout autre message. Cette contrainte d'ordre est critique — l'API OpenAI (et les fournisseurs compatibles) exige que les messages `tool` suivent immédiatement le message `assistant` qui a produit les `tool_calls`. Insérer tout autre message (comme une interruption utilisateur) entre eux briserait le protocole. Quand aucun `tool_calls` n'est présent, la réponse est traitée comme la réponse finale.
+**Boucle en mode natif.** La réponse du LLM peut contenir un ou plusieurs `tool_calls`. Tous les appels d'outils dans une seule réponse sont exécutés en parallèle via `asyncio.gather`, et tous les messages de résultats d'outils sont ajoutés avant tout autre message. Cette contrainte d'ordre est critique — l'API OpenAI (et les fournisseurs compatibles) exige que les messages `tool` suivent immédiatement le message `assistant` qui a produit les `tool_calls`. Insérer un autre message (comme une interruption utilisateur) entre eux briserait le protocole. Quand aucun `tool_calls` n'est présent, la réponse est traitée comme la réponse finale.
 
 **Itérations maximales.** La limite par défaut est 50 itérations. Si la boucle épuise cette limite sans produire une `final_answer`, l'agent synthétise une réponse de secours à partir des résultats d'étapes accumulés — un résumé des outils qui ont été appelés et s'ils ont réussi ou échoué. C'est un filet de sécurité, pas un chemin de sortie normal.
 
 [Gestion du contexte](/architecture/context-management) explique comment ContextGuard applique le budget de tokens à chaque itération, y compris le système d'indices qui indique au LLM de compaction de préserver les chaînes de raisonnement récentes.
+
+## Crochets d'exécution d'outils
+
+Chaque appel d'outil dans la boucle d'itération est enveloppé par deux points de crochet :
+
+- **`PreToolUse`** — se déclenche après que le LLM choisisse un outil, avant que l'outil ne s'exécute. Un crochet peut :
+  - **Bloquer** l'appel en retournant `allow=False` (le LLM voit une observation expliquant pourquoi, par exemple « en attente d'approbation humaine » ou « l'organisation est en mode lecture seule »)
+  - **Réécrire** les arguments de l'outil avant l'exécution
+  - **Déclencher des effets secondaires** (publier une carte Feishu, créer une ligne d'audit, émettre une métrique)
+- **`PostToolUse`** — se déclenche après que l'outil retourne, avant que l'observation n'atteigne le LLM. Un crochet peut :
+  - **Réécrire** l'observation (par exemple, réduire un résultat SQL de 200 Ko à un résumé de 4 Ko)
+  - **Déclencher des effets secondaires** (écrire dans `ConnectorCallLog`, mettre à jour les compteurs d'utilisation)
+
+Les crochets s'exécutent **en dehors de la boucle LLM** — rien de ce que le LLM dit ou fait ne peut les ignorer. C'est la couche d'application déterministe pour les politiques qui ne peuvent pas être confiées à une instruction de prompt : approbation humaine dans la boucle (`FeishuGateHook`), journalisation d'audit, limitation de débit, et garde du mode lecture seule. Voir [Hook System](/architecture/hook-system) pour la conception complète.
+
+Les mêmes points de crochet existent dans le [moteur DAG](/architecture/dag-engine) — chaque étape DAG exécute sa propre boucle ReAct, donc les crochets s'appliquent uniformément quel que soit le moteur d'exécution qui pilote l'appel d'outil.
 
 ## Auto-réflexion en cours d'exécution
 

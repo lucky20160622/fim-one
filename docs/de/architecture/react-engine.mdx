@@ -107,13 +107,14 @@ Auswahlfehlschlag ist absichtlich nicht fatal. Wenn der LLM nicht analysierbare 
 
 ## Die Iterationsschleife
 
-Die Kernschleife treibt sowohl den JSON-Modus als auch den nativen Modus an, mit geringen Unterschieden in der Nachrichtenbehandlung. Jede Iteration folgt demselben übergeordneten Muster: Überprüfen Sie das Kontextbudget, rufen Sie das LLM auf, verarbeiten Sie die Antwort, und führen Sie entweder ein Tool aus oder brechen Sie ab.
+Die Kernschleife treibt sowohl den JSON-Modus als auch den nativen Modus an, mit geringen Unterschieden in der Nachrichtenbehandlung. Jede Iteration folgt dem gleichen übergeordneten Muster: Überprüfung des Kontext-Budgets, Aufruf des LLM, Verarbeitung der Antwort und entweder Ausführung eines Tools oder Abbruch.
 
 ```mermaid
 sequenceDiagram
     participant Agent as ReActAgent
     participant CG as ContextGuard
     participant LLM as LLM API
+    participant Hooks as HookRegistry
     participant Tool as Tool Registry
 
     loop Each iteration (max 50)
@@ -122,13 +123,22 @@ sequenceDiagram
         Agent->>LLM: chat(messages) [non-streaming]
         LLM-->>Agent: response
         alt tool_call action
-            Agent->>Tool: execute(tool_name, args)
-            Tool-->>Agent: observation
-            Agent->>Agent: cycle check (hash args)
-            opt identical call ≥ threshold
-                Agent->>Agent: inject "try different approach" warning
+            Agent->>Hooks: run_pre_tool_use_hooks(ctx)
+            alt hook blocks
+                Hooks-->>Agent: allow=False, error="..."
+                Agent->>Agent: append block message, continue
+            else hook allows (possibly rewrote args)
+                Hooks-->>Agent: allow=True, modified_args?
+                Agent->>Tool: execute(tool_name, args)
+                Tool-->>Agent: observation
+                Agent->>Hooks: run_post_tool_use_hooks(ctx, result)
+                Hooks-->>Agent: modified_result?
+                Agent->>Agent: cycle check (hash args)
+                opt identical call ≥ threshold
+                    Agent->>Agent: inject "try different approach" warning
+                end
+                Agent->>Agent: append observation, continue
             end
-            Agent->>Agent: append observation, continue
         else final_answer action
             opt tools used ≥ threshold AND not yet checked
                 Agent->>Agent: inject completion checklist
@@ -141,13 +151,29 @@ sequenceDiagram
     LLM-->>Agent: token stream → SSE to client
 ```
 
-**JSON-Modus-Schleife.** Die Antwort des LLM wird über `_parse_action()` geparst, die `extract_json()` verwendet, um ein JSON-Objekt im Inhalt zu finden. Wenn das Parsen fehlschlägt, hängt der Agent die rohe Antwort und eine Umformatierungsanforderung an und setzt fort – dies wird auf `max_iterations` angerechnet und verhindert unendliche Wiederholungsschleifen. Bei Erfolg ist die Aktion entweder ein `tool_call` (führe das Tool aus, hänge die Beobachtung als Benutzernachricht an) oder eine `final_answer` (breche ab und fahre mit der Synthese fort).
+**JSON-Modus-Schleife.** Die Antwort des LLM wird über `_parse_action()` analysiert, die `extract_json()` verwendet, um ein JSON-Objekt im Inhalt zu finden. Wenn die Analyse fehlschlägt, hängt der Agent die rohe Antwort und eine Umformatierungsanfrage an und setzt fort – dies wird auf `max_iterations` angerechnet und verhindert unendliche Wiederholungsschleifen. Bei Erfolg ist die Aktion entweder ein `tool_call` (das Tool ausführen, die Beobachtung als Benutzernachricht anhängen) oder eine `final_answer` (abbrechen und zur Synthese übergehen).
 
-**Nativer Modus-Schleife.** Die Antwort des LLM kann einen oder mehrere `tool_calls` enthalten. Alle Tool-Aufrufe in einer einzelnen Antwort werden parallel über `asyncio.gather` ausgeführt, und alle Tool-Ergebnisnachrichten werden angehängt, bevor andere Nachrichten hinzugefügt werden. Diese Reihenfolgeeinschränkung ist kritisch – die OpenAI API (und kompatible Anbieter) erfordert, dass `tool`-Nachrichten unmittelbar auf die `assistant`-Nachricht folgen, die die `tool_calls` erzeugt hat. Das Einfügen einer anderen Nachricht (z. B. einer Benutzerunterbrechung) zwischen ihnen würde das Protokoll unterbrechen. Wenn keine `tool_calls` vorhanden sind, wird die Antwort als endgültige Antwort behandelt.
+**Nativer Modus-Schleife.** Die Antwort des LLM kann einen oder mehrere `tool_calls` enthalten. Alle Tool-Aufrufe in einer einzelnen Antwort werden parallel über `asyncio.gather` ausgeführt, und alle Tool-Ergebnisnachrichten werden angehängt, bevor andere Nachrichten hinzugefügt werden. Diese Reihenfolgebeschränkung ist kritisch – die OpenAI API (und kompatible Provider) erfordert, dass `tool`-Nachrichten unmittelbar der `assistant`-Nachricht folgen, die die `tool_calls` erzeugt hat. Das Einfügen einer anderen Nachricht (wie z. B. einer Benutzerunterbrechung) zwischen ihnen würde das Protokoll unterbrechen. Wenn keine `tool_calls` vorhanden sind, wird die Antwort als endgültige Antwort behandelt.
 
-**Max Iterationen.** Das Standardlimit beträgt 50 Iterationen. Wenn die Schleife dieses Limit erschöpft, ohne eine `final_answer` zu erzeugen, synthetisiert der Agent eine Fallback-Antwort aus den angesammelten Schrittergebnissen – eine Zusammenfassung, welche Tools aufgerufen wurden und ob sie erfolgreich waren oder fehlgeschlagen sind. Dies ist ein Sicherheitsnetz, kein normaler Ausstiegspfad.
+**Max Iterationen.** Das Standardlimit beträgt 50 Iterationen. Wenn die Schleife dieses Limit erschöpft, ohne eine `final_answer` zu erzeugen, synthetisiert der Agent eine Fallback-Antwort aus den gesammelten Schritt-Ergebnissen – eine Zusammenfassung, welche Tools aufgerufen wurden und ob sie erfolgreich waren oder fehlschlugen. Dies ist ein Sicherheitsnetz, keine normale Ausstiegsmöglichkeit.
 
-[Context Management](/architecture/context-management) erklärt, wie ContextGuard das Token-Budget bei jeder Iteration durchsetzt, einschließlich des Hinweissystems, das das Kompaktions-LLM anweist, aktuelle Reasoning-Ketten zu bewahren.
+[Kontext-Management](/architecture/context-management) erklärt, wie ContextGuard das Token-Budget bei jeder Iteration durchsetzt, einschließlich des Hinweissystems, das dem Komprimierungs-LLM mitteilt, dass es kürzliche Reasoning-Ketten bewahren soll.
+
+## Tool-Ausführungs-Hooks
+
+Jeder Tool-Aufruf in der Iterationsschleife wird von zwei Hook-Punkten umschlossen:
+
+- **`PreToolUse`** — wird ausgelöst, nachdem das LLM ein Tool auswählt, bevor das Tool ausgeführt wird. Ein Hook kann:
+  - **Den Aufruf blockieren**, indem `allow=False` zurückgegeben wird (das LLM sieht eine Beobachtung, die erklärt, warum, z. B. „warte auf menschliche Genehmigung" oder „Organisation ist im Nur-Lese-Modus")
+  - **Die Tool-Argumente vor der Ausführung umschreiben**
+  - **Nebenwirkungen auslösen** (eine Feishu-Karte posten, eine Audit-Zeile erstellen, eine Metrik ausgeben)
+- **`PostToolUse`** — wird ausgelöst, nachdem das Tool zurückgegeben wird, bevor die Beobachtung das LLM erreicht. Ein Hook kann:
+  - **Die Beobachtung umschreiben** (z. B. ein 200-KB-SQL-Ergebnis auf eine 4-KB-Zusammenfassung kürzen)
+  - **Nebenwirkungen auslösen** (in `ConnectorCallLog` schreiben, Nutzungszähler aktualisieren)
+
+Hooks werden **außerhalb der LLM-Schleife** ausgeführt — nichts, was das LLM sagt oder tut, kann sie überspringen. Dies ist die deterministische Durchsetzungsebene für Richtlinien, die nicht einer Prompt-Anweisung vertraut werden können: Genehmigung durch Menschen in der Schleife (`FeishuGateHook`), Audit-Protokollierung, Ratenbegrenzung und Nur-Lese-Modus-Schutzvorrichtungen. Siehe [Hook-System](/architecture/hook-system) für das vollständige Design.
+
+Die gleichen Hook-Punkte existieren in der [DAG-Engine](/architecture/dag-engine) — jeder DAG-Schritt führt seine eigene ReAct-Schleife aus, sodass Hooks einheitlich gelten, unabhängig davon, welche Ausführungs-Engine den Tool-Aufruf steuert.
 
 ## Mid-loop Selbstreflexion
 

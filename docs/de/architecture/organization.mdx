@@ -141,6 +141,35 @@ A resource is available in your workspace if:
 Das Veröffentlichen einer Ressource in einer Organisation gewährt keinen automatischen Zugriff. Mitglieder müssen sich über den Markt im Org-Geltungsbereich anmelden, um die Ressource zu ihrem Arbeitsbereich hinzuzufügen.
 </Warning>
 
+## Infrastruktur-Ressourcen (organisationsweit, kein Abonnement)
+
+Eine zweite Klasse von organisationsweit geltenden Ressourcen folgt **nicht** dem oben beschriebenen Lebenszyklus „persönlich → veröffentlichen → abonnieren". Diese werden **einmalig von einem Org-Besitzer oder Admin konfiguriert** und sind dann transparent für jeden Agenten in der Organisation verfügbar:
+
+| Ressource | Zweck | Konfiguriert von | Verbraucht von |
+|---|---|---|---|
+| **Channels** | Ausgehende Brücke zu einer IM-Plattform (heute Feishu; Slack / WeCom / Teams geplant) | Org-Besitzer / Admin | Hook-System jedes Agenten (/architecture/hook-system) und proaktive Benachrichtigungstools |
+| **OAuth-Anbieter** | Social-Login-Anmeldedaten (GitHub, Google, Feishu, Discord) | Systemadministrator (Umgebungsvariablen) | Anmeldeseite |
+| **API-Schlüssel** | Programmatische Zugriffstokens für Headless-Clients | Jeder Benutzer, organisationsweit | Externe Integrationen |
+
+```mermaid
+flowchart LR
+    Admin["Org Owner / Admin"]
+    subgraph Org["Organization"]
+        Ch["Channel<br/>(e.g. FIM One ↔ Feishu group)"]
+        A1["Agent A"]
+        A2["Agent B"]
+        A3["Agent C"]
+    end
+    Admin -->|"configure once"| Ch
+    A1 -. "uses via feishu_gate hook" .-> Ch
+    A2 -. "uses for notifications" .-> Ch
+    A3 -. "uses for approval cards" .-> Ch
+```
+
+Die Schlüsseldifferenzierung: **veröffentlichbare Ressourcen** (Agenten, Connectors, KBs, …) sind benutzerspezifische Artefakte, die ein explizites Mitgliedsabonnement erfordern; **Infrastruktur-Ressourcen** (Channels, OAuth, API-Schlüssel) sind Plattform-Level-Verdrahtung, die alle Agenten implizit gemeinsam nutzen. Channels sind speziell die IM-Hotline für die gesamte Organisation – ein gut gepflegter Feishu-Channel unterstützt jedes Genehmigungstor eines Agenten, jeden geplanten Bericht, jedes Eskalationsereignis.
+
+Siehe [Channels-Übersicht](/configuration/channels/overview) für den Channel-Lebenszyklus und unterstützte Plattformen.
+
 ## Praktische Szenarien
 
 ### Team-Datenbankverbindung teilen

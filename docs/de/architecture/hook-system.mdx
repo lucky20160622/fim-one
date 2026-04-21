@@ -1,0 +1,177 @@
+---
+title: "Hook-System"
+icon: "shield-check"
+description: "Deterministische Durchsetzung, die unterhalb der LLM-Schleife sitzt und nicht durch Agent-Anweisungen umgangen werden kann."
+---
+
+## Warum Hooks existieren
+
+Anweisungen in einem System-Prompt sind **Vorschläge**. Ein ausreichend eigensinniges oder verwirrtes LLM kann sie ignorieren. Für die meisten Agent-Verhaltensweisen ist das genau das, was Sie möchten — Anweisungen geben dem Modell Raum zur Anpassung.
+
+Aber einige Anforderungen sind keine Vorschläge. „Jeder sensible Tool-Aufruf muss protokolliert werden." „Schreibvorgänge sind blockiert, wenn die Organisation im Nur-Lese-Modus ist." „Zahlungen über ¥50k erfordern eine menschliche Bestätigung vor der Ausführung." Das sind **Invarianten** — Fakten über das System, die unabhängig davon gelten müssen, was das Modell in einem bestimmten Durchlauf entscheidet.
+
+Ein Hook ist Code, der **außerhalb der LLM-Schleife** an einem klar definierten Punkt im Ausführungs-Lebenszyklus des Agenten läuft. Das LLM kann den Hook nicht sehen. Das LLM kann mit dem Hook nicht argumentieren. Das LLM kann den Hook nicht überreden, einen Schritt zu überspringen. Wenn ein `PreToolUse` Hook `allow=False` zurückgibt, findet der Tool-Aufruf nicht statt — egal wie hartnäckig die Reasoning-Spur war.
+
+Das ist die kritische architektonische Unterscheidung:
+
+| Mechanismus | Wo es läuft | Wer kontrolliert es | Garantie |
+|---|---|---|---|
+| **System-Prompt-Anweisung** | Innerhalb von LLM-Inferenz | Modell | „Folgt wahrscheinlich" |
+| **Tool-Beschreibung / Schema** | Innerhalb von LLM-Inferenz | Modell | „Folgt wahrscheinlich" |
+| **Hook** | Um LLM-Inferenz herum | Platform-Code | **Läuft immer** |
+
+Hooks sind, wie FIM One „der Agent soll..." in „der Agent kann nicht umgehen..." umwandelt.
+
+## Wo Hooks angebunden werden
+
+Heute sind drei Hook-Punkte definiert. Jeder markiert eine Grenze, die der Agent während einer Schleifenwiederholung überschreitet:
+
+```mermaid
+flowchart TD
+    S(["Session start"]) --> SS["SessionStart hooks<br/>inject dynamic context"]
+    SS --> LLM["LLM inference<br/>(reasoning / tool pick)"]
+    LLM --> DECIDE{"Tool call?"}
+    DECIDE -->|no| ANSWER(["Final answer"])
+    DECIDE -->|yes| PRE["<b>PreToolUse hooks</b><br/>validate / block / rewrite args"]
+    PRE --> GATE{"allow?"}
+    GATE -->|blocked| BLOCK["Observation:<br/>'tool call blocked by X'"]
+    GATE -->|allowed| EXEC["Tool executes"]
+    EXEC --> POST["<b>PostToolUse hooks</b><br/>side effects / rewrite result"]
+    POST --> OBS["Observation<br/>returned to LLM"]
+    BLOCK --> OBS
+    OBS --> LLM
+```
+
+| Hook-Punkt | Wird ausgelöst, wenn | Kann es blockieren? | Kann es Daten mutieren? |
+|---|---|---|---|
+| `SessionStart` | Vor dem ersten LLM-Aufruf einer Sitzung | Nein | Ja — injiziert Kontext in die anfängliche Eingabeaufforderung |
+| `PreToolUse` | Nachdem das LLM ein Tool ausgewählt hat, bevor das Tool ausgeführt wird | **Ja** (über `allow=False`) | Ja — kann `tool_args` vor der Ausführung umschreiben |
+| `PostToolUse` | Nachdem das Tool zurückgekehrt ist, bevor die Beobachtung zum LLM geht | Nein | Ja — kann die Beobachtung umschreiben |
+
+Mehrere Hooks am gleichen Punkt werden in Prioritätsreihenfolge ausgeführt. Die umgeschriebenen Args eines früheren `PreToolUse`-Hooks werden an spätere Hooks weitergeleitet, sodass sich Middleware zusammensetzt.
+
+## Wann ein Hook vs. eine Anweisung
+
+Die Entscheidung, ob eine Anforderung mit einer Prompt-Anweisung oder einem Hook gelöst werden soll, ist dieselbe Berechnung wie "Runtime-Assertion vs. Code-Kommentar":
+
+| Symptom | Lösung |
+|---|---|
+| "Der Agent sollte X bevorzugen, wenn Y" | Anweisung — sanfte Anleitung, Modell hat Spielraum |
+| "Der Agent muss jeden Aufruf an Connector Z protokollieren" | **PostToolUse Hook** — kann sich nicht auf das Modell verlassen, um sich zu erinnern |
+| "Zahlungen über ¥50k benötigen menschliche Genehmigung" | **PreToolUse Hook** — kann sich nicht auf das Modell verlassen zu fragen |
+| "Der Agent sollte sich auf Chinesisch vorstellen" | Anweisung — stilistisch, geringe Kosten bei Fehlschlag |
+| "Der Agent kann nicht in die Produktionsdatenbank im Nur-Lese-Modus schreiben" | **PreToolUse Hook** — Sicherheitsinvariante, Null-Toleranz |
+| "Der Agent sollte lange DB-Abfrageergebnisse zusammenfassen" | Könnte beides sein, aber ein Hook ist robuster — siehe PostToolUse truncate |
+
+Faustregel: **Wenn das falsche Verhalten ein Incident ist, verwenden Sie einen Hook. Wenn das falsche Verhalten eine kleine Unannehmlichkeit ist, ist eine Anweisung ausreichend.**
+
+## Der Hook-Vertrag
+
+Ein Hook ist eine Unterklasse von `PreToolUseHook`, `PostToolUseHook` oder `SessionStartHook` mit einer erforderlichen Methode:
+
+```python
+class ReadOnlyGuard(PreToolUseHook):
+    name = "readonly_guard"
+    priority = 5                          # lower runs earlier
+
+    def should_trigger(self, ctx: HookContext) -> bool:
+        return ctx.tool_name.startswith("sql_")
+
+    async def execute(self, ctx: HookContext) -> HookResult:
+        if org_is_readonly(ctx.metadata["org_id"]):
+            return HookResult(
+                allow=False,
+                error="Org is in read-only mode — write blocked.",
+                side_effects=["readonly_guard: blocked sql write"],
+            )
+        return HookResult()               # default: allow=True, no mutation
+```
+
+Der übergebene `HookContext` enthält `tool_name`, `tool_args`, `agent_id`, `user_id` und ein flexibles `metadata`-Wörterbuch, das die Engine mit anfragespezifischen Fakten füllt (Organisations-ID, Konversations-ID, das `requires_confirmation`-Flag der Connector-Aktion, …).
+
+Das zurückgegebene `HookResult` steuert das Ergebnis:
+
+- `allow: bool = True` — ob der Tool-Aufruf fortgesetzt wird (wird für `PostToolUse` / `SessionStart` ignoriert)
+- `error: str | None` — benutzerfreundliche Begründung, die dem LLM als Beobachtung angezeigt wird, wenn blockiert
+- `modified_args: dict | None` — falls gesetzt, ersetzt die Tool-Argumente vor der Ausführung
+- `modified_result: Any | None` — falls gesetzt (PostToolUse), ersetzt die Beobachtung, bevor sie an das LLM zurückgegeben wird
+- `side_effects: list[str]` — Audit-Trail der Hook-Aktionen, zusammengeführt in die Agent-Trace
+
+## Fallstudie: `FeishuGateHook`
+
+Der erste Hook, der auf diesem System implementiert wurde, ist `FeishuGateHook` — ein `PreToolUse` Hook, der jedes Tool mit dem Flag `requires_confirmation=True` in eine Genehmigungskarte mit menschlicher Kontrolle umwandelt, die in der Feishu-Gruppe der Organisation gepostet wird.
+
+Dieser Hook durchläuft den vollständigen Lebenszyklus:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant ReAct as ReAct loop
+    participant Hook as FeishuGateHook
+    participant DB as ConfirmationRequest
+    participant Feishu as Feishu group
+    participant Op as Operator
+    ReAct->>Hook: PreToolUse(tool=oa__purchase_pay, args={...})
+    Hook->>Hook: should_trigger?<br/>metadata.requires_confirmation==True
+    Hook->>DB: INSERT ConfirmationRequest<br/>(status=pending, id=uuid)
+    Hook->>Feishu: POST interactive card<br/>(Approve / Reject buttons)
+    Feishu-->>Op: Card rendered in group
+    loop poll every 1.5s, up to 120s
+        Hook->>DB: SELECT status WHERE id=uuid
+    end
+    Op->>Feishu: Tap Approve
+    Feishu->>DB: callback → status = approved
+    Hook->>DB: status==approved → return allow=True
+    Hook-->>ReAct: HookResult(allow=True)
+    ReAct->>ReAct: Execute oa__purchase_pay
+```
+
+Das bringt dieses Design mit sich:
+
+- **Der Tool-Aufruf wird wirklich unterbrochen.** Der SSE-Stream des Agenten pausiert zwischen „Ich werde `oa__purchase_pay` aufrufen" und der Observation. Der Benutzer sieht den wartenden Agenten, was dem entspricht, was unter der Haube passiert.
+- **Die Genehmigung übersteht einen Prozessneustart.** Die ausstehende Zeile befindet sich in der Datenbank, nicht im Speicher. Wenn das Backend neu startet, während eine Karte ausstehend ist, nimmt die nächste Abfrage dort auf, wo sie aufgehört hat.
+- **Die Entscheidung wird geprüft.** `ConfirmationRequest` speichert `payload`, `responded_at`, `responded_by_open_id` und den endgültigen Status — ein überprüfbarer Datensatz darüber, wer was und wann genehmigt hat.
+- **Kein LLM in der Entscheidungsschleife.** Das Modell erzeugt den Tool-Aufruf. Menschen erzeugen das Urteil. Der Hook ist die deterministische Brücke.
+
+`FeishuGateHook` hängt von einem konfigurierten [Feishu Channel](/configuration/channels/feishu) ab — der Hook sendet die Karte über die `send_interactive_card()`-Methode des Channels und wartet auf Callback-Events, die der Channel geparst hat. Die Trennung ist beabsichtigt: Der Hook besitzt die „Genehmigungszustandsmaschine", der Channel besitzt die „IM-Plattformmechanik". Der gleiche Hook könnte morgen auf Slack oder WeCom abzielen, ohne seine Logik zu ändern — nur die Channel-Implementierung.
+
+## Geplante Hooks (v0.9)
+
+Vier Hook-Muster sind auf der v0.9-Roadmap geplant und verwenden alle denselben Lebenszyklus:
+
+| Hook | Punkt | Zweck |
+|---|---|---|
+| `AuditLogHook` | PostToolUse | Automatisches Schreiben von `ConnectorCallLog` bei jedem Connector-Aufruf. Heute ist dies manuell; ein Hook stellt Abdeckung sicher. |
+| `ReadOnlyGuard` | PreToolUse | Blockiert Schreibvorgänge, wenn die Organisation im Read-Only-Modus ist. |
+| `ResultTruncateHook` | PostToolUse | Kürzt übergroße Tool-Beobachtungen (>8k Zeichen), bevor sie den LLM-Kontext erreichen. |
+| `ConnectorRateLimitHook` | PreToolUse | Pro-Connector pro-Benutzer Aufruffrequenz-Obergrenze, unabhängig von LLM-Ratenlimits. |
+
+Eine benutzerdefinierte Hook-Schicht ist ebenfalls geplant: Pro-Agent YAML-Konfiguration (`hooks: [...]`), die Shell-Befehle oder Python-Callables deklariert, um sie bei passenden Tool-Events auszuführen. Dies folgt dem gleichen Muster, auf das moderne Agent-Frameworks (Claude Code, OpenDevin) konvergiert haben — Hook-basierte Durchsetzung hält die „muss immer passieren"-Logik aus Prompts heraus.
+
+## Hooks vs. Channels
+
+Die beiden Abstraktionen lösen orthogonale Probleme:
+
+| Konzept | Was es modelliert | Lebensdauer | Beispiel |
+|---|---|---|---|
+| **Hook** | Ein Punkt in der Ausführung des Agenten, an dem Plattformcode ausgeführt wird | Pro Tool-Aufruf | `FeishuGateHook`, `AuditLogHook` |
+| **Channel** | Ein austauschbarer Adapter zu einer externen Messaging-Plattform | Langlebig pro Organisation | `FeishuChannel`, geplanter `SlackChannel` |
+
+Hooks nutzen Channels — ein Hook, der mit der Außenwelt kommunizieren muss (eine Karte senden, eine Benachrichtigung posten, an eine Gruppe eskalieren), ruft den Channel der Organisation auf. Ein Channel ohne einen Hook, der ihn nutzt, ist immer noch nützlich (z. B. können Agenten proaktiv Benachrichtigungen über ein Tool senden), aber das Approval-Gate-Muster erfordert speziell, dass beide Teile vorhanden sind.
+
+Anders ausgedrückt: **Channels sind die „Wie kommuniziere ich mit Menschen"-Infrastruktur, Hooks sind die „Wann muss ich mit Menschen kommunizieren"-Richtlinie**. Produktive Human-in-the-Loop-Workflows benötigen beides.
+
+## Aktueller Stand (v0.8.4)
+
+Übersicht über das bereits Ausgelieferte und die kommenden Funktionen:
+
+- ✅ `HookRegistry`, `HookContext`, `HookResult` Primitive in ReAct und DAG integriert
+- ✅ `PreToolUseHook` / `PostToolUseHook` / `SessionStartHook` abstrakte Basisklassen
+- ✅ `FeishuGateHook` — vollständig implementiert, einschließlich `ConfirmationRequest` Tabelle, Polling-Schleife, Timeout/Ablauf und Callback-gesteuerte Zustandsübergänge
+- ✅ Feishu-Kanal-Callback-Endpunkt, der `card.action.trigger` dekodiert und die ausstehende Zeile aktualisiert
+- ✅ Agent-Level Hook-Deklarationen: `agent.model_config_json.hooks.class_hooks` wird bei jeder ReAct/DAG-Sitzung zu einer instanziierten `HookRegistry`
+- 🟡 **Hook-Vererbung über Ausführungsoberflächen** (v0.8.5): Der Haupt-Chat-Pfad (Portal, API, DAG) löst Hooks aus. Eval Center umgeht absichtlich **Hooks** (automatisierte Evaluierung darf nicht auf menschliche Genehmigung warten). Delegierte Sub-Agenten (`CallAgentTool`) und Workflow `AGENT` Knoten erben derzeit keine übergeordneten Hooks — die Vererbungsrichtlinie ist ein Entscheidungspunkt für v0.8.5.
+- ❌ `AuditLogHook`, `ReadOnlyGuard`, `ResultTruncateHook`, `ConnectorRateLimitHook` (v0.9)
+- ❌ Benutzerdefinierte YAML Hook-Deklarationen (v0.9)
+
+Das Hook-System ist eine **tragende Grundlage** für die Produktionshärtung von v0.9. Sein erster Benutzer (`FeishuGateHook`) ist auch selbst ein Produktionsmerkmal, weshalb das Grundgerüst bereits für die Roadshow vom 24.04.2026 ausgeliefert wurde, anstatt auf den vollständigen Hook-Katalog zu warten.

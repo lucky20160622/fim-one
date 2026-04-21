@@ -49,7 +49,7 @@ La stratégie est simple : construire le cadre d'orchestration maintenant, et la
 
 ## Où FIM One se situe : Spectre Planification x Exécution
 
-Le paysage d'exécution IA peut être cartographié sur deux axes -- comment les plans sont créés (statique vs dynamique) et comment ils sont exécutés (rigide vs adaptatif) :
+Le paysage de l'exécution IA peut être cartographié sur deux axes -- comment les plans sont créés (statique vs dynamique) et comment ils sont exécutés (rigide vs adaptatif) :
 
 ```mermaid
 quadrantChart
@@ -73,12 +73,12 @@ quadrantChart
     classDef highlight color: #D97706, radius: 12, stroke-color: #B45309, stroke-width: 2px
 ```
 
-**Pourquoi Dify/n8n sont Planification Statique + Exécution Statique** : Le DAG est dessiné par un humain sur un canevas visuel au moment de la conception. Chaque nœud exécute une opération fixe (un appel LLM avec une invite fixe, une requête HTTP, un bloc de code). Il n'y a pas de replanification à l'exécution -- si une étape échoue, le workflow échoue ou suit une branche d'erreur pré-câblée. C'est structurellement la même chose que BPM, juste avec des nœuds IA dans le graphe.
+**Pourquoi Dify/n8n sont Planification Statique + Exécution Statique** : Le DAG est dessiné par un humain sur un canevas visuel au moment de la conception. Chaque nœud exécute une opération fixe (un appel LLM avec une invite fixe, une requête HTTP, un bloc de code). Il n'y a pas de replanification à l'exécution -- si une étape échoue, le workflow échoue ou suit une branche d'erreur pré-câblée. C'est structurellement identique à BPM, juste avec des nœuds IA dans le graphe.
 
 **Position de FIM One : Planification Dynamique + Exécution Dynamique**
 
-- **La topologie DAG est générée par LLM à l'exécution** (planification dynamique) -- aucun humain ne conçoit le graphe
-- **Chaque nœud DAG exécute une boucle ReAct complète** (exécution dynamique) -- les nœuds raisonnent, utilisent des outils et s'adaptent
+- **La topologie du DAG est générée par LLM à l'exécution** (planification dynamique) -- aucun humain ne conçoit le graphe
+- **Chaque nœud du DAG exécute une boucle ReAct complète** (exécution dynamique) -- les nœuds raisonnent, utilisent des outils et s'adaptent
 - **Mécanisme de replanification** (exécuter → analyser → replanifier si insatisfait)
 - Mais limité : max 3 rounds de replanification, budgets de tokens, portes de confirmation humaine
 
@@ -142,7 +142,7 @@ Deux acquisitions majeures ont remodelé le paysage des données d'IA d'entrepri
 
 Ces mouvements signalent que les plus grandes plates-formes d'entreprise du monde considèrent désormais le contexte d'entité unifié comme un prérequis pour des agents d'IA fiables -- pas seulement un plus.
 
-### Spectre propriété des données × profondeur du contexte
+### Spectre de propriété des données × profondeur du contexte
 
 ```mermaid
 quadrantChart
@@ -168,12 +168,12 @@ quadrantChart
 
 **Lecture du graphique :**
 
-- **Bas-gauche (Connecteur léger)** : propriété minimale des données, connectivité API brute. Dify, n8n et les serveurs MCP basiques se situent ici -- ils se connectent aux systèmes mais ne comprennent pas les entités. FIM One se trouve dans ce quadrant mais plus haut sur l'axe y en raison des méta-outils à divulgation progressive, de l'agrégation de contexte basée sur les compétences et de l'escalade consciente du domaine.
-- **Haut-gauche (Hub conscient du contexte)** : accès fédéré avec compréhension au niveau des entités. Salesforce Data Cloud en est l'exemple -- fédération sans copie avec résolution d'entité à la demande. DataHub fournit un contexte au niveau des métadonnées (schéma, lignage, propriété) sans posséder les données métier.
-- **Haut-droit (Plateforme d'ontologie profonde)** : ingestion complète des données avec intelligence d'entité profonde. SAP BDC + Reltio construit des enregistrements maîtres persistants multi-domaines avec des graphiques de relations. Palantir va le plus loin -- ontologie à trois couches avec lignage de décision.
-- **Bas-droit (Entrepôt de données / Lac)** : stockage centralisé des données sans sémantique d'entité. Les plateformes de données traditionnelles qui ingèrent tout mais manquent de résolution d'entité ou de modélisation de relations.
+- **Bas-gauche (Connecteur léger)** : propriété minimale des données, connectivité API brute. Dify, n8n et les serveurs MCP de base se situent ici -- ils se connectent aux systèmes mais ne comprennent pas les entités. FIM One se trouve dans ce quadrant mais plus haut sur l'axe des y en raison des méta-outils à divulgation progressive, de l'agrégation de contexte basée sur les compétences et de l'escalade consciente du domaine.
+- **Haut-gauche (Hub conscient du contexte)** : accès fédéré avec compréhension au niveau des entités. Salesforce Data Cloud en est un exemple -- fédération sans copie avec résolution d'entités à la demande. DataHub fournit un contexte au niveau des métadonnées (schéma, lignage, propriété) sans posséder les données métier.
+- **Haut-droit (Plateforme ontologie profonde)** : ingestion complète des données avec intelligence d'entités profonde. SAP BDC + Reltio construit des enregistrements maîtres multi-domaines persistants avec des graphiques de relations. Palantir va le plus loin -- ontologie à trois niveaux avec lignage des décisions.
+- **Bas-droit (Entrepôt de données / Lac)** : stockage centralisé des données sans sémantique d'entités. Les plateformes de données traditionnelles qui ingèrent tout mais manquent de résolution d'entités ou de modélisation des relations.
 
-La position de FIM One reflète un choix délibéré : rester fédéré et léger, mais investir dans l'accessibilité du contexte d'entité en amont (de tout MDM) aux agents.
+La position de FIM One reflète un choix délibéré : rester fédéré et léger, mais investir dans l'accessibilité du contexte d'entités en amont (de tout MDM) aux agents.
 
 ### Trois modèles pour le contexte d'entité
 
@@ -255,6 +255,6 @@ FIM One opère au **niveau du harnais** -- il ne concurrence pas les modèles ; 
 
 ### Trois ères de l'ingénierie de l'IA
 
-La discipline a évolué à travers des phases distinctes : **l'ingénierie des invites** s'est concentrée sur la formulation de meilleures instructions pour obtenir le comportement correct d'un modèle fixe. **L'ingénierie contextuelle** a déplacé l'attention vers l'assemblage des bonnes informations -- récupération de documents, injection de résultats d'outils, gestion de la mémoire -- afin que le modèle dispose des éléments nécessaires pour raisonner correctement. **L'ingénierie d'harnachement** va plus loin : concevoir l'environnement d'exécution complet autour du modèle, y compris les garde-fous déterministes, l'orchestration des outils, les boucles de rétroaction et les contrôles de coûts.
+La discipline a évolué à travers des phases distinctes : **l'ingénierie des prompts** s'est concentrée sur la formulation de meilleures instructions pour obtenir le comportement correct d'un modèle fixe. **L'ingénierie du contexte** a déplacé l'attention vers l'assemblage des bonnes informations -- récupération de documents, injection de résultats d'outils, gestion de la mémoire -- afin que le modèle dispose de ce dont il a besoin pour raisonner correctement. **L'ingénierie de l'orchestration** va plus loin : concevoir l'environnement d'exécution complet autour du modèle, y compris les garde-fous déterministes, l'orchestration des outils, les boucles de rétroaction et les contrôles de coûts.
 
-L'architecture de FIM One incarne les principes de l'ingénierie d'harnachement. Les intergiciels de hook injectent des contraintes déterministes (limites de débit, filtres de contenu, journalisation d'audit) sans toucher aux invites du modèle. ContextGuard gère ce qui entre dans la fenêtre de contexte et quand. La sélection dynamique d'outils (méta-outils à divulgation progressive) maintient la surface des outils traitable à mesure que le nombre de connecteurs augmente. Le mécanisme d'auto-réflexion de la boucle ReAct et le cycle de re-planification du planificateur DAG fournissent des retours structurés qui améliorent la qualité de l'exécution sans nécessiter un modèle plus capable.
+L'architecture de FIM One incarne les principes de l'ingénierie de l'orchestration. Le [Hook System](/architecture/hook-system) exécute le code de la plateforme en dehors de la boucle LLM à des points de cycle de vie bien définis — aujourd'hui `FeishuGateHook` intercepte les appels d'outils sensibles et achemine l'approbation via un canal IM, et la même abstraction est le foyer prévu pour la journalisation d'audit, l'application du mode lecture seule, les limites de débit et la troncature des résultats en v0.9. ContextGuard gère ce qui entre dans la fenêtre de contexte et quand. La sélection dynamique des outils (méta-outils à divulgation progressive) maintient la surface des outils traitable à mesure que le nombre de connecteurs augmente. Le mécanisme d'auto-réflexion de la boucle ReAct et le cycle de re-planification du planificateur DAG fournissent des retours structurés qui améliorent la qualité de l'exécution sans nécessiter un modèle plus capable.
