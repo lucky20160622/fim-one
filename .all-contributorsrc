@@ -14,6 +14,21 @@
   "badgeTemplate": "[![All Contributors](https://img.shields.io/badge/all_contributors-<%= contributors.length %>-orange.svg?style=flat-square)](#contributors)",
   "contributors": [
     {
+      "login": "tao-hpu",
+      "name": "Tao An",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1250043?v=4",
+      "profile": "https://github.com/tao-hpu",
+      "contributions": [
+        "code",
+        "maintenance",
+        "design",
+        "doc",
+        "projectManagement",
+        "ideas",
+        "infra"
+      ]
+    },
+    {
       "login": "tgonzalezc5",
       "name": "Teo Gonzalez Collazo",
       "avatar_url": "https://avatars.githubusercontent.com/u/102870299?v=4",
