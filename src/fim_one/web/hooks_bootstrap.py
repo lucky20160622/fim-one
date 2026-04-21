@@ -117,6 +117,21 @@ async def build_hook_registry_for_agent(
     """
     registry = HookRegistry()
 
+    # Auto-attach the confirmation gate to every agent. The hook itself
+    # short-circuits when neither the connector action's
+    # ``requires_confirmation`` flag nor the agent's
+    # ``require_confirmation_for_all`` override is set, so the cost of an
+    # unused attachment is ~one dict lookup per tool call. This removes
+    # the requirement that users hand-edit ``model_config_json.hooks``.
+    try:
+        default_gate = _build_feishu_gate(session_factory=session_factory)
+        registry.register(default_gate)
+        logger.debug("Auto-registered feishu_gate hook for agent")
+    except Exception:  # pragma: no cover - defensive
+        logger.exception(
+            "Failed to auto-register feishu_gate hook; continuing without it"
+        )
+
     raw_config: Any = getattr(agent, "model_config_json", None)
     if not raw_config:
         return registry
@@ -162,6 +177,10 @@ async def build_hook_registry_for_agent(
 
         name = raw_name.strip()
         if not name:
+            continue
+
+        if name == "feishu_gate":
+            # Already auto-registered above. Silently skip duplicate.
             continue
 
         factory = _HOOK_FACTORIES.get(name)

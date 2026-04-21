@@ -125,7 +125,9 @@ class TestBuildHookRegistryForAgent:
         registry = await build_hook_registry_for_agent(agent, session_factory)
 
         assert isinstance(registry, HookRegistry)
-        assert len(registry) == 0
+        # feishu_gate is auto-attached on every agent; the hook itself
+        # no-ops when no action flags requires_confirmation.
+        assert len(registry) == 1
 
     @pytest.mark.asyncio
     async def test_empty_when_hooks_key_missing(
@@ -135,7 +137,7 @@ class TestBuildHookRegistryForAgent:
         agent = SimpleNamespace(model_config_json={"model": "gpt-4o"})
         registry = await build_hook_registry_for_agent(agent, session_factory)
 
-        assert len(registry) == 0
+        assert len(registry) == 1
 
     @pytest.mark.asyncio
     async def test_populated_with_feishu_gate(
@@ -180,7 +182,8 @@ class TestBuildHookRegistryForAgent:
         with caplog.at_level(logging.WARNING, logger="fim_one.web.hooks_bootstrap"):
             registry = await build_hook_registry_for_agent(agent, session_factory)
 
-        assert len(registry) == 0
+        # Auto-attached feishu_gate remains; the malformed override is ignored.
+        assert len(registry) == 1
 
     @pytest.mark.asyncio
     async def test_malformed_class_hooks_list_is_skipped(
@@ -194,7 +197,7 @@ class TestBuildHookRegistryForAgent:
         with caplog.at_level(logging.WARNING, logger="fim_one.web.hooks_bootstrap"):
             registry = await build_hook_registry_for_agent(agent, session_factory)
 
-        assert len(registry) == 0
+        assert len(registry) == 1
 
     @pytest.mark.asyncio
     async def test_non_string_entry_is_skipped(
@@ -219,7 +222,7 @@ class TestBuildHookRegistryForAgent:
             model_config_json={"hooks": {"class_hooks": None}}
         )
         registry = await build_hook_registry_for_agent(agent, session_factory)
-        assert len(registry) == 0
+        assert len(registry) == 1
 
     @pytest.mark.asyncio
     async def test_model_config_json_as_non_dict_is_tolerated(
@@ -228,7 +231,7 @@ class TestBuildHookRegistryForAgent:
     ) -> None:
         agent = SimpleNamespace(model_config_json="oops")
         registry = await build_hook_registry_for_agent(agent, session_factory)
-        assert len(registry) == 0
+        assert len(registry) == 1
 
     def test_factory_registry_exposes_feishu_gate(self) -> None:
         assert "feishu_gate" in HOOK_FACTORIES
