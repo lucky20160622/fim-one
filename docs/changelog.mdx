@@ -24,9 +24,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/). Versions corresp
 ### Changed
 
 - Playground loading indicators now use a subtle text shimmer instead of the fake-looking progress bar that froze at a pseudo-full width after 8 seconds. Unified the two existing shimmer implementations (`.shiny-text` and `.text-shimmer`) into a single theme-aware primitive with an optional warm preset.
+- Connector cards now surface a "Private default" badge (with tooltip) when a connector has `allow_fallback` disabled, so owners can tell at a glance which connectors require every user to bring their own credentials. The help text under the Allow-Fallback toggle in the connector settings form also clarifies that the flag only gates sharing with other users — the owner can always use their own default credential regardless.
 
 ### Fixed
 
+- Connector calls made by the owner of a connector with `allow_fallback=false` and only a default credential (no per-user credential) no longer 401 with "Requires authentication". The owner is now exempt from the fallback gate — that flag only controls whether *other* users may borrow the owner's default credential. Previously the owner's own agents were silently sending unauthenticated requests, and the same issue also affected workflow `connector_action` nodes.
 - Conversation export now shows the correct mode label ("Planner" / "规划") for auto-routed DAG conversations instead of always displaying "Standard".
 - Export timestamps now respect the user's configured timezone instead of displaying raw UTC.
 - Uploaded file content no longer leaks into exported conversations; only the user's message text is included.

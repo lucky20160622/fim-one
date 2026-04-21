@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Building2, Clock, MoreHorizontal, PackageMinus, Pencil, Plug, Trash2, Globe, GlobeLock, RotateCw, Database, Download, Copy, ShoppingBag, XCircle } from "lucide-react"
+import { Building2, Clock, Lock, MoreHorizontal, PackageMinus, Pencil, Plug, Trash2, Globe, GlobeLock, RotateCw, Database, Download, Copy, ShoppingBag, XCircle } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -252,6 +252,21 @@ export function ConnectorCard({
         }`}>
           {isDatabase ? t("typeBadgeDatabase") : t("typeBadgeApi")}
         </span>
+        {isOwner && connector.auth_type !== "none" && connector.allow_fallback === false && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-[10px] px-1.5 py-0 h-5 inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium cursor-default">
+                  <Lock className="h-3 w-3" />
+                  {t("privateDefaultBadge")}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={5} className="max-w-xs">
+                {t("privateDefaultHelp")}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {isDatabase && dbConfig && (
           <span className="text-[10px] px-1.5 py-0 h-5 inline-flex items-center rounded-full bg-muted text-muted-foreground font-medium">
             {dbConfig.driver}

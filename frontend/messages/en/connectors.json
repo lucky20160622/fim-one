@@ -183,7 +183,9 @@
   "connectorToggleFailed": "Failed to update connector status",
 
   "allowFallback": "Allow fallback to default credentials",
-  "allowFallbackHelp": "When enabled, users without personal credentials will use the connector owner's default token. If it involves paid APIs or private services, all usage across your org will be billed to your account.",
+  "allowFallbackHelp": "When enabled, users without personal credentials will use the connector owner's default token. If it involves paid APIs or private services, all usage across your org will be billed to your account. You (the owner) can always use the default credential regardless of this setting — it only controls whether other users may borrow it.",
+  "privateDefaultBadge": "Private default",
+  "privateDefaultHelp": "Fallback is disabled — only you (the owner) can use this connector's default credential. Other users must configure their own credentials before this connector will work for them.",
   "myCredentials": "My Credentials",
   "myCredentialsSet": "You have personal credentials saved for this connector.",
   "myCredentialsHelpWithFallback": "Set your own credentials for this connector. If not set, the owner's default credentials will be used.",

@@ -172,7 +172,7 @@
   "connectorDisabled": "커넥터 비활성화됨",
   "connectorToggleFailed": "커넥터 상태 업데이트 실패",
   "allowFallback": "기본 자격증명으로 폴백 허용",
-  "allowFallbackHelp": "활성화되면 개인 자격증명이 없는 사용자는 커넥터 소유자의 기본 토큰을 사용합니다. 유료 API 또는 개인 서비스가 포함된 경우 조직 전체의 모든 사용량이 귀하의 계정으로 청구됩니다.",
+  "allowFallbackHelp": "활성화되면 개인 자격증명이 없는 사용자는 커넥터 소유자의 기본 token을 사용합니다. 유료 API 또는 비공개 서비스가 포함된 경우 조직 전체의 모든 사용량이 귀하의 계정으로 청구됩니다. 귀하(소유자)는 이 설정과 관계없이 항상 기본 자격증명을 사용할 수 있습니다. 이 설정은 다른 사용자가 이를 사용할 수 있는지 여부만 제어합니다.",
   "myCredentials": "내 자격증명",
   "myCredentialsSet": "이 커넥터에 대해 저장된 개인 자격증명이 있습니다.",
   "myCredentialsHelpWithFallback": "이 커넥터에 대한 자신의 자격증명을 설정하세요. 설정하지 않으면 소유자의 기본 자격증명이 사용됩니다.",
@@ -228,5 +228,7 @@
   "templateCreateFailed": "템플릿에서 커넥터 생성 실패",
   "templateCategory_api": "API",
   "templateCategory_database": "데이터베이스",
-  "fromTemplate": "템플릿에서"
+  "fromTemplate": "템플릿에서",
+  "privateDefaultBadge": "비공개 기본값",
+  "privateDefaultHelp": "폴백이 비활성화되었습니다. 귀하(소유자)만 이 커넥터의 기본 자격증명을 사용할 수 있습니다. 다른 사용자는 이 커넥터가 작동하기 전에 자신의 자격증명을 구성해야 합니다."
 }

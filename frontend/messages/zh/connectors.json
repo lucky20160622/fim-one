@@ -157,7 +157,7 @@
   "queryRunning": "执行中...",
   "queryResults": "结果",
   "rowCount": "{count} 行",
-  "executionTime": "{time}ms",
+  "executionTime": "{time}毫秒",
   "queryTruncated": "结果已截断至 {max} 行",
   "queryError": "查询失败",
   "readOnlyMode": "只读模式",
@@ -172,7 +172,7 @@
   "connectorDisabled": "Connector 已禁用",
   "connectorToggleFailed": "更新 connector 状态失败",
   "allowFallback": "允许回退到默认凭证",
-  "allowFallbackHelp": "启用后，没有个人凭证的用户将使用 connector 所有者的默认令牌。如果涉及付费 API 或私有服务，您组织内的所有使用费用将计入您的账户。",
+  "allowFallbackHelp": "启用后，没有个人凭证的用户将使用连接器所有者的默认token。如果涉及付费API或私有服务，整个组织的所有使用费用将计入您的账户。您（所有者）始终可以使用默认凭证，无论此设置如何——它仅控制其他用户是否可以使用它。",
   "myCredentials": "我的凭证",
   "myCredentialsSet": "您已为此 connector 保存个人凭证。",
   "myCredentialsHelpWithFallback": "为此 connector 设置您自己的凭证。如果未设置，将使用所有者的默认凭证。",
@@ -228,5 +228,7 @@
   "templateCreateFailed": "从模板创建连接器失败",
   "templateCategory_api": "API",
   "templateCategory_database": "数据库",
-  "fromTemplate": "从模板"
+  "fromTemplate": "从模板",
+  "privateDefaultBadge": "私有默认",
+  "privateDefaultHelp": "回退已禁用——只有您（所有者）可以使用此连接器的默认凭证。其他用户必须配置自己的凭证，此连接器才能为他们工作。"
 }

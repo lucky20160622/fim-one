@@ -172,7 +172,7 @@
   "connectorDisabled": "Connecteur désactivé",
   "connectorToggleFailed": "Échec de la mise à jour du statut du connecteur",
   "allowFallback": "Autoriser le recours aux identifiants par défaut",
-  "allowFallbackHelp": "Lorsque cette option est activée, les utilisateurs sans identifiants personnels utiliseront le jeton par défaut du propriétaire du connecteur. S'il s'agit d'API payantes ou de services privés, tous les frais d'utilisation seront facturés à votre compte.",
+  "allowFallbackHelp": "Lorsque cette option est activée, les utilisateurs sans identifiants personnels utiliseront le token par défaut du propriétaire du connecteur. S'il s'agit d'API payantes ou de services privés, tous les frais d'utilisation dans votre organisation seront facturés à votre compte. Vous (le propriétaire) pouvez toujours utiliser l'identifiant par défaut indépendamment de ce paramètre — il contrôle uniquement si les autres utilisateurs peuvent l'emprunter.",
   "myCredentials": "Mes identifiants",
   "myCredentialsSet": "Vous avez des identifiants personnels enregistrés pour ce connecteur.",
   "myCredentialsHelpWithFallback": "Définissez vos propres identifiants pour ce connecteur. S'ils ne sont pas définis, les identifiants par défaut du propriétaire seront utilisés.",
@@ -228,5 +228,7 @@
   "templateCreateFailed": "Échec de la création du connecteur à partir du modèle",
   "templateCategory_api": "API",
   "templateCategory_database": "Base de données",
-  "fromTemplate": "À partir d'un modèle"
+  "fromTemplate": "À partir d'un modèle",
+  "privateDefaultBadge": "Par défaut privé",
+  "privateDefaultHelp": "Le secours est désactivé — seul vous (le propriétaire) pouvez utiliser l'identifiant par défaut de ce connecteur. Les autres utilisateurs doivent configurer leurs propres identifiants avant que ce connecteur ne fonctionne pour eux."
 }

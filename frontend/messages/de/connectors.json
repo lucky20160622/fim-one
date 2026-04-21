@@ -172,7 +172,7 @@
   "connectorDisabled": "Verbindung deaktiviert",
   "connectorToggleFailed": "Fehler beim Aktualisieren des Verbindungsstatus",
   "allowFallback": "Fallback auf Standardanmeldedaten zulassen",
-  "allowFallbackHelp": "Wenn aktiviert, verwenden Benutzer ohne persönliche Anmeldedaten das Standard-Token des Verbindungsinhabers. Falls dies kostenpflichtige APIs oder private Dienste betrifft, werden alle Nutzungen in Ihrer Organisation auf Ihr Konto abgerechnet.",
+  "allowFallbackHelp": "Wenn aktiviert, verwenden Benutzer ohne persönliche Anmeldedaten das Standard-token des Connector-Besitzers. Falls dies bezahlte APIs oder private Dienste betrifft, werden alle Nutzungen in Ihrer Organisation auf Ihr Konto abgerechnet. Sie (der Besitzer) können das Standard-token unabhängig von dieser Einstellung immer verwenden – diese Einstellung steuert nur, ob andere Benutzer es ausleihen dürfen.",
   "myCredentials": "Meine Anmeldedaten",
   "myCredentialsSet": "Sie haben persönliche Anmeldedaten für diese Verbindung gespeichert.",
   "myCredentialsHelpWithFallback": "Legen Sie Ihre eigenen Anmeldedaten für diese Verbindung fest. Falls nicht gesetzt, werden die Standardanmeldedaten des Inhabers verwendet.",
@@ -228,5 +228,7 @@
   "templateCreateFailed": "Fehler beim Erstellen des Connectors aus der Vorlage",
   "templateCategory_api": "API",
   "templateCategory_database": "Datenbank",
-  "fromTemplate": "Aus Vorlage"
+  "fromTemplate": "Aus Vorlage",
+  "privateDefaultBadge": "Privates Standard-token",
+  "privateDefaultHelp": "Fallback ist deaktiviert – nur Sie (der Besitzer) können das Standard-token dieses Connectors verwenden. Andere Benutzer müssen ihre eigenen Anmeldedaten konfigurieren, bevor dieser Connector für sie funktioniert."
 }
