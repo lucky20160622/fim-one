@@ -654,6 +654,7 @@ async def _resolve_agent_config(
             return None
         return {
             "agent_id": agent.id,
+            "name": agent.name,
             "instructions": agent.instructions,
             "tool_categories": agent.tool_categories,
             "model_config_json": agent.model_config_json,
@@ -2657,6 +2658,10 @@ async def react_endpoint(
         thinking_done_iter = 0  # track which iteration's thinking-done was emitted
         current_iteration = 1  # track the current iteration for _on_answer_token
         answer_started = False
+        # Track unique tool names invoked this run — surfaced in the
+        # per-agent completion notification (see
+        # ``fim_one.web.notifications.notify_agent_completion``).
+        tools_used_in_run: list[str] = []
 
         def _emit_step(payload: dict[str, Any]) -> None:
             """Emit a step SSE event to both persistence list and queue."""
@@ -2736,6 +2741,11 @@ async def react_endpoint(
 
                     # Emit iteration start
                     iter_start = time.time()
+                    # Record the tool for the completion notification.
+                    # Deduplication happens inside the notifier — we
+                    # record every call so order-of-first-use is stable.
+                    if action.tool_name and action.tool_name not in tools_used_in_run:
+                        tools_used_in_run.append(action.tool_name)
                     _emit_step(
                         {
                             "type": "iteration",
@@ -3100,6 +3110,40 @@ async def react_endpoint(
 
             # -- Yield done IMMEDIATELY (no suggestions/title yet) ------
             yield _sse("done", done_payload)
+
+            # -- Fire per-agent completion notification (if configured) ----
+            # Fire-and-forget: the notifier ALWAYS catches its own errors
+            # and never raises, so we don't need to guard it here.  It is
+            # posted AFTER the ``done`` event reaches the client, so the
+            # user never waits on outbound IM calls.
+            try:
+                from fim_one.db import create_session as _notify_create_session
+                from fim_one.web.notifications import notify_agent_completion
+
+                _agent_notify_shim = SimpleNamespace(
+                    id=(agent_cfg or {}).get("agent_id"),
+                    name=(agent_cfg or {}).get("name") or "Agent",
+                    org_id=(agent_cfg or {}).get("org_id"),
+                    model_config_json=(agent_cfg or {}).get("model_config_json"),
+                )
+                asyncio.create_task(
+                    notify_agent_completion(
+                        agent=_agent_notify_shim,
+                        conversation_id=conversation_id,
+                        user_message=q,
+                        final_answer=answer,
+                        tools_used=list(tools_used_in_run),
+                        duration_seconds=float(elapsed),
+                        session_factory=_notify_create_session,
+                    )
+                )
+            except Exception:
+                # Scheduling itself should never fail, but do not let an
+                # import/construction error tank the chat response.
+                logger.debug(
+                    "Failed to schedule completion notification task",
+                    exc_info=True,
+                )
 
             # -- Unregister interrupt queue immediately after done ------
             # No agent loop is consuming injected messages anymore.
@@ -4163,6 +4207,47 @@ async def dag_endpoint(
 
             # -- Yield done IMMEDIATELY (no suggestions/title yet) ------
             yield _sse("done", dag_done_payload)
+
+            # -- Fire per-agent completion notification (if configured) ----
+            # See the ReAct handler above for the full rationale.  For
+            # DAG we derive ``tools_used`` from each step's ``tool_hint``
+            # (the executor doesn't expose the actual tool chosen by the
+            # sub-agent for every step — tool_hint is the planner's
+            # best-effort approximation and is accurate in the common
+            # case of one-tool-per-step).  TODO(v0.9): replace with the
+            # real tool name once the DAG executor plumbs it through.
+            try:
+                from fim_one.db import create_session as _notify_create_session
+                from fim_one.web.notifications import notify_agent_completion
+
+                _dag_tools_used: list[str] = []
+                for _s in plan.steps:
+                    _hint = getattr(_s, "tool_hint", None)
+                    if _hint and _hint not in _dag_tools_used:
+                        _dag_tools_used.append(_hint)
+
+                _dag_agent_notify_shim = SimpleNamespace(
+                    id=(agent_cfg or {}).get("agent_id"),
+                    name=(agent_cfg or {}).get("name") or "Agent",
+                    org_id=(agent_cfg or {}).get("org_id"),
+                    model_config_json=(agent_cfg or {}).get("model_config_json"),
+                )
+                asyncio.create_task(
+                    notify_agent_completion(
+                        agent=_dag_agent_notify_shim,
+                        conversation_id=conversation_id,
+                        user_message=q,
+                        final_answer=answer,
+                        tools_used=_dag_tools_used,
+                        duration_seconds=float(elapsed),
+                        session_factory=_notify_create_session,
+                    )
+                )
+            except Exception:
+                logger.debug(
+                    "Failed to schedule DAG completion notification task",
+                    exc_info=True,
+                )
 
             # -- Unregister interrupt queue immediately after done ------
             # No agent loop is consuming injected messages anymore.

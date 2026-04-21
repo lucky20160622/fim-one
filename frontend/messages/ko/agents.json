@@ -151,5 +151,16 @@
   "forkAgent": "복제",
   "forkSuccess": "\"{name}\"으로 복제되었습니다",
   "forkFailed": "에이전트 복제에 실패했습니다",
-  "specializationHint": "각 에이전트는 전문화되어 있으며 구성된 도구와 리소스에만 집중합니다. 에이전트는 실행 중에 다른 에이전트를 호출하지 않습니다. 다중 에이전트 오케스트레이션의 경우 채팅 플레이그라운드에서 \"Auto\" 모드를 사용하세요."
+  "specializationHint": "각 에이전트는 전문화되어 있으며 구성된 도구와 리소스에만 집중합니다. 에이전트는 실행 중에 다른 에이전트를 호출하지 않습니다. 다중 에이전트 오케스트레이션의 경우 채팅 플레이그라운드에서 \"Auto\" 모드를 사용하세요.",
+  "notifications": {
+    "sectionTitle": "완료 알림",
+    "enabledLabel": "이 에이전트가 작업을 완료할 때 채널에 알림",
+    "channelLabel": "대상 채널",
+    "channelPlaceholder": "채널 선택…",
+    "emptyState": "이 조직에 활성 채널이 없습니다.",
+    "emptyStateAction": "조직 설정 → 채널에서 구성",
+    "helperText": "이 에이전트가 대화 턴을 완료하면 요약 카드가 선택된 채널에 게시됩니다. 승인 카드(차단)는 에이전트의 훅으로 제어됩니다.",
+    "missingChannelError": "채널을 선택해주세요.",
+    "loading": "채널 로드 중…"
+  }
 }

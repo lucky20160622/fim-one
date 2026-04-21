@@ -1,18 +1,22 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { useTranslations } from "next-intl"
-import { Bot, Check, Info, Loader2, Zap, GitBranch, Sparkles } from "lucide-react"
+import { Bell, Bot, Check, Info, Loader2, Zap, GitBranch, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { EmojiPickerPopover } from "@/components/ui/emoji-picker-popover"
 import { SuggestedPromptsEditor } from "@/components/agents/suggested-prompts-editor"
 import { agentApi, kbApi, connectorApi, mcpServerApi, modelApi } from "@/lib/api"
+import { channelsApi } from "@/lib/api/channels"
 import type { AgentCreate, AgentResponse, SandboxConfig } from "@/types/agent"
+import type { Channel } from "@/types/channel"
 import type { ConnectorResponse } from "@/types/connector"
 import type { MCPServerResponse } from "@/types/mcp-server"
 import type { ModelConfigResponse } from "@/types/model_config"
@@ -65,12 +69,27 @@ export function AgentSettingsForm({
   const [selectedFastModelConfigId, setSelectedFastModelConfigId] = useState<string>("")
   const [compactInstructions, setCompactInstructions] = useState<string>("")
   const [systemModels, setSystemModels] = useState<ModelConfigResponse[]>([])
+  // Completion notification
+  const [notifyOnComplete, setNotifyOnComplete] = useState<boolean>(false)
+  const [notifyChannelId, setNotifyChannelId] = useState<string>("")
+  const [availableChannels, setAvailableChannels] = useState<Channel[]>([])
+  const [isLoadingChannels, setIsLoadingChannels] = useState<boolean>(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const [availableKBs, setAvailableKBs] = useState<{ id: string; name: string; document_count: number }[]>([])
   const [availableConnectors, setAvailableConnectors] = useState<ConnectorResponse[]>([])
   const [availableMCPServers, setAvailableMCPServers] = useState<MCPServerResponse[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { data: catalog } = useToolCatalog()
+
+  const clearFieldError = (key: string) => {
+    setFieldErrors((prev) => {
+      if (!(key in prev)) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
 
   // Pre-fill when agent prop changes (full sync)
   useEffect(() => {
@@ -95,6 +114,12 @@ export function AgentSettingsForm({
       setSelectedModelConfigId((agent.model_config_json?.model_config_id as string) ?? "")
       setSelectedFastModelConfigId((agent.model_config_json?.fast_model_config_id as string) ?? "")
       setCompactInstructions(agent.compact_instructions || "")
+      // Completion notification config
+      const notifications = (agent.model_config_json?.notifications as Record<string, unknown> | undefined) ?? {}
+      const onComplete = (notifications?.on_complete as Record<string, unknown> | undefined) ?? {}
+      setNotifyOnComplete(onComplete.enabled === true)
+      setNotifyChannelId(typeof onComplete.channel_id === "string" ? onComplete.channel_id : "")
+      setFieldErrors({})
     } else {
       setName("")
       setIcon(null)
@@ -114,6 +139,9 @@ export function AgentSettingsForm({
       setSelectedModelConfigId("")
       setSelectedFastModelConfigId("")
       setCompactInstructions("")
+      setNotifyOnComplete(false)
+      setNotifyChannelId("")
+      setFieldErrors({})
     }
   }, [agent])
 
@@ -134,6 +162,33 @@ export function AgentSettingsForm({
     modelApi.list("llm").then(setSystemModels).catch(() => {})
   }, [])
 
+  // Load org channels for the notification picker. Only relevant if the agent
+  // belongs to an org — personal agents have no org-scoped channels to pick.
+  useEffect(() => {
+    const orgId = agent?.org_id
+    if (!orgId) {
+      setAvailableChannels([])
+      return
+    }
+    let cancelled = false
+    setIsLoadingChannels(true)
+    channelsApi
+      .list(orgId)
+      .then((d) => {
+        if (cancelled) return
+        setAvailableChannels((d.items || []).filter((c) => c.is_active))
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableChannels([])
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingChannels(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [agent?.org_id])
+
   // Compute and notify dirty state
   useEffect(() => {
     if (!onDirtyChange) return
@@ -142,6 +197,11 @@ export function AgentSettingsForm({
       onDirtyChange(name.trim() !== "")
       return
     }
+    const origNotifications = (agent.model_config_json?.notifications as Record<string, unknown> | undefined) ?? {}
+    const origOnComplete = (origNotifications?.on_complete as Record<string, unknown> | undefined) ?? {}
+    const origNotifyEnabled = origOnComplete.enabled === true
+    const origNotifyChannelId = typeof origOnComplete.channel_id === "string" ? origOnComplete.channel_id : ""
+
     const dirty =
       name !== agent.name ||
       icon !== (agent.icon || null) ||
@@ -164,9 +224,11 @@ export function AgentSettingsForm({
       sandboxTimeout !== (agent.sandbox_config?.timeout != null ? String(agent.sandbox_config.timeout) : "") ||
       selectedModelConfigId !== ((agent.model_config_json?.model_config_id as string) ?? "") ||
       selectedFastModelConfigId !== ((agent.model_config_json?.fast_model_config_id as string) ?? "") ||
-      compactInstructions !== (agent.compact_instructions || "")
+      compactInstructions !== (agent.compact_instructions || "") ||
+      notifyOnComplete !== origNotifyEnabled ||
+      notifyChannelId !== origNotifyChannelId
     onDirtyChange(dirty)
-  }, [agent, name, icon, description, instructions, executionMode, toolCategories, suggestedPrompts, selectedKBs, selectedConnectors, selectedMCPServers, confidenceThreshold, temperature, sandboxMemory, sandboxCpu, sandboxTimeout, selectedModelConfigId, selectedFastModelConfigId, compactInstructions, onDirtyChange])
+  }, [agent, name, icon, description, instructions, executionMode, toolCategories, suggestedPrompts, selectedKBs, selectedConnectors, selectedMCPServers, confidenceThreshold, temperature, sandboxMemory, sandboxCpu, sandboxTimeout, selectedModelConfigId, selectedFastModelConfigId, compactInstructions, notifyOnComplete, notifyChannelId, onDirtyChange])
 
   const toggleCategory = (cat: string) => {
     setToolCategories((prev) =>
@@ -180,6 +242,12 @@ export function AgentSettingsForm({
     e.preventDefault()
     const trimmedName = name.trim()
     if (!trimmedName) return
+
+    // Validation: if completion notification is on, a channel must be selected
+    if (notifyOnComplete && !notifyChannelId) {
+      setFieldErrors((prev) => ({ ...prev, notifyChannel: t("notifications.missingChannelError") }))
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -203,6 +271,16 @@ export function AgentSettingsForm({
         merged.fast_model_config_id = selectedFastModelConfigId
       } else {
         delete merged.fast_model_config_id
+      }
+      // Completion notification — always persist the shape (even when disabled)
+      // so the config is stable and observable by the backend.
+      const existingNotifications = (merged.notifications as Record<string, unknown> | undefined) ?? {}
+      merged.notifications = {
+        ...existingNotifications,
+        on_complete: {
+          enabled: notifyOnComplete,
+          channel_id: notifyOnComplete ? notifyChannelId : null,
+        },
       }
       const modelConfigJson = Object.keys(merged).length > 0 ? merged : undefined
 
@@ -799,6 +877,100 @@ export function AgentSettingsForm({
               </div>
             </div>
           )}
+
+          {/* Completion Notification */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Bell className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">{t("notifications.sectionTitle")}</Label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t("notifications.helperText")}
+            </p>
+            <div className="flex items-center justify-between gap-3 rounded-md border border-input px-3 py-2">
+              <Label
+                htmlFor="notify-on-complete"
+                className="text-sm font-normal cursor-pointer"
+              >
+                {t("notifications.enabledLabel")}
+              </Label>
+              <Switch
+                id="notify-on-complete"
+                checked={notifyOnComplete}
+                onCheckedChange={(checked) => {
+                  setNotifyOnComplete(checked)
+                  if (!checked) {
+                    clearFieldError("notifyChannel")
+                  }
+                }}
+              />
+            </div>
+            {notifyOnComplete && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  {t("notifications.channelLabel")}
+                </Label>
+                {isLoadingChannels ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{t("notifications.loading")}</span>
+                  </div>
+                ) : availableChannels.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-input px-3 py-2.5 space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      {t("notifications.emptyState")}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-xs"
+                      asChild
+                    >
+                      <Link href="/settings?tab=channels">
+                        {t("notifications.emptyStateAction")}
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Select
+                      value={notifyChannelId || "__default__"}
+                      onValueChange={(v) => {
+                        setNotifyChannelId(v === "__default__" ? "" : v)
+                        clearFieldError("notifyChannel")
+                      }}
+                    >
+                      <SelectTrigger
+                        className="w-full"
+                        aria-invalid={!!fieldErrors.notifyChannel}
+                      >
+                        <SelectValue placeholder={t("notifications.channelPlaceholder")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__default__">
+                          {t("notifications.channelPlaceholder")}
+                        </SelectItem>
+                        {availableChannels.map((ch) => (
+                          <SelectItem key={ch.id} value={ch.id}>
+                            {ch.name}
+                            <span className="text-muted-foreground ml-1 text-xs">
+                              ({ch.type})
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {fieldErrors.notifyChannel && (
+                      <p className="text-sm text-destructive">
+                        {fieldErrors.notifyChannel}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Compact Instructions */}
           <div className="space-y-2">

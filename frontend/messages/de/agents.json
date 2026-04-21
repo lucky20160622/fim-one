@@ -151,5 +151,16 @@
   "forkAgent": "Duplizieren",
   "forkSuccess": "Dupliziert als \"{name}\"",
   "forkFailed": "Agent konnte nicht dupliziert werden",
-  "specializationHint": "Jeder Agent ist spezialisiert und konzentriert sich ausschließlich auf seine konfigurierten Tools und Ressourcen. Agenten rufen während der Ausführung keine anderen Agenten auf. Für die Orchestrierung mehrerer Agenten verwenden Sie den \"Auto\"-Modus im Chat-Playground."
+  "specializationHint": "Jeder Agent ist spezialisiert und konzentriert sich ausschließlich auf seine konfigurierten Tools und Ressourcen. Agenten rufen während der Ausführung keine anderen Agenten auf. Für die Orchestrierung mehrerer Agenten verwenden Sie den \"Auto\"-Modus im Chat-Playground.",
+  "notifications": {
+    "sectionTitle": "Abschlussbenachrichtigung",
+    "enabledLabel": "Benachrichtige einen Kanal, wenn dieser Agent eine Aufgabe abschließt",
+    "channelLabel": "Zielkanal",
+    "channelPlaceholder": "Wählen Sie einen Kanal…",
+    "emptyState": "Keine aktiven Kanäle in dieser Organisation.",
+    "emptyStateAction": "Konfigurieren Sie einen in Organisationseinstellungen → Kanäle",
+    "helperText": "Wenn dieser Agent einen Gesprächsturn beendet, wird eine Zusammenfassungskarte an den ausgewählten Kanal gesendet. Genehmigungskarten (blockierend) werden weiterhin durch die Hooks des Agenten gesteuert.",
+    "missingChannelError": "Bitte wählen Sie einen Kanal aus.",
+    "loading": "Kanäle werden geladen…"
+  }
 }
