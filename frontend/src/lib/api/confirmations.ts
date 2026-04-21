@@ -34,3 +34,28 @@ export async function respondToConfirmation(
     },
   )
 }
+
+export type ConfirmationStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "expired"
+
+export interface ConfirmationStatusBody {
+  confirmation_id: string
+  status: ConfirmationStatus
+  mode: "inline" | "channel"
+  tool_name: string
+  arguments: Record<string, unknown>
+  created_at: string
+  decided_at: string | null
+  approver_user_id: string | null
+}
+
+export async function getConfirmationStatus(
+  id: string,
+): Promise<ConfirmationStatusBody> {
+  return apiFetch<ConfirmationStatusBody>(`/api/confirmations/${id}`, {
+    method: "GET",
+  })
+}

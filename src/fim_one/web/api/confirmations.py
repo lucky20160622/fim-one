@@ -59,6 +59,17 @@ class ConfirmationRespondResponse(BaseModel):
     decided_at: str
 
 
+class ConfirmationStatusResponse(BaseModel):
+    confirmation_id: str
+    status: str
+    mode: str
+    tool_name: str
+    arguments: dict[str, Any]
+    created_at: str
+    decided_at: str | None
+    approver_user_id: str | None
+
+
 # ---------------------------------------------------------------------------
 # Shared update helper — also imported by the Feishu callback path so both
 # surfaces stamp ``approver_user_id`` / ``decided_at`` / ``responded_at``
@@ -312,6 +323,61 @@ async def respond_to_confirmation(
         status=final_status,
         confirmation_id=confirmation_id,
         decided_at=decided_at_dt.astimezone(timezone.utc).isoformat(),
+    )
+
+
+@router.get(
+    "/{confirmation_id}",
+    response_model=ConfirmationStatusResponse,
+)
+async def get_confirmation(
+    confirmation_id: str,
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> ConfirmationStatusResponse:
+    """Read a single confirmation row.
+
+    Primary use: the inline approval card polls this on mount to rehydrate
+    its resolved state after the chat SSE stream tears down and remounts
+    the card in a new parent tree (e.g. transitioning from live-streaming
+    layout to done-collapsed layout). Without rehydration, the card's
+    ``useState`` loses the prior approve/reject decision and the buttons
+    reappear.
+
+    Scope check mirrors the respond endpoint — only users who could have
+    legitimately responded may observe the request.
+    """
+    stmt = select(ConfirmationRequest).where(
+        ConfirmationRequest.id == confirmation_id
+    )
+    result = await db.execute(stmt)
+    request = result.scalar_one_or_none()
+    if request is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    agent_stmt = select(Agent).where(Agent.id == request.agent_id)
+    agent_res = await db.execute(agent_stmt)
+    agent_row = agent_res.scalar_one_or_none()
+    if agent_row is None:
+        # Orphaned confirmation — treat as not found.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    await _check_scope_or_403(
+        db, request=request, agent=agent_row, current_user=current_user
+    )
+
+    payload: dict[str, Any] = request.payload or {}
+    return ConfirmationStatusResponse(
+        confirmation_id=request.id,
+        status=request.status,
+        mode=request.mode or "channel",
+        tool_name=str(payload.get("tool_name") or ""),
+        arguments=payload.get("arguments") or {},
+        created_at=request.created_at.isoformat() if request.created_at else "",
+        decided_at=(
+            request.responded_at.isoformat() if request.responded_at else None
+        ),
+        approver_user_id=request.approver_user_id,
     )
 
 

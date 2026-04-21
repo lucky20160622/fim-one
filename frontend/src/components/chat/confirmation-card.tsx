@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { getErrorMessage } from "@/lib/error-utils"
 import {
+  getConfirmationStatus,
   respondToConfirmation,
   type ConfirmationDecision,
 } from "@/lib/api/confirmations"
@@ -99,6 +100,39 @@ export function ConfirmationCard({
   const [state, setState] = useState<CardState>(
     initiallyExpired ? "expired" : "pending",
   )
+
+  // Rehydrate from the backend on mount. The chat page has two mutually
+  // exclusive layouts (live-streaming vs done-collapsed); when the stream
+  // finishes and the ReactOutput branch flips, React unmounts the card in
+  // the old tree and mounts a fresh instance in the new tree with the
+  // same key. Because the key-preservation optimization only applies
+  // within a single parent subtree, the fresh instance starts at
+  // "pending" and the Approve/Reject buttons reappear even though the
+  // backend already recorded the decision. Fetch the authoritative row
+  // once on mount and transition to the resolved state if applicable.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const row = await getConfirmationStatus(confirmationId)
+        if (cancelled) return
+        if (row.status === "approved" || row.status === "rejected") {
+          setDecidedAt(row.decided_at)
+          setState(row.status)
+        } else if (row.status === "expired") {
+          setState("expired")
+        }
+      } catch {
+        // Best-effort rehydration — don't block the card if the request
+        // fails (e.g. network blip). The local state machine still works
+        // for new decisions; worst case: buttons show for an already
+        // decided row until the next reload.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [confirmationId])
   const [pendingDecision, setPendingDecision] =
     useState<ConfirmationDecision | null>(null)
   const [decidedAt, setDecidedAt] = useState<string | null>(null)
